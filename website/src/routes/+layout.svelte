@@ -1,4 +1,6 @@
 <script>
+    import Imprint from "$lib/Imprint.svelte";
+
     
 </script>
 
@@ -13,6 +15,8 @@
 <div class="center">
     <img src="sponsors.jpg" width="80%" alt="sponsors" />
 </div>
+
+<Imprint />
 
 <style>
     .center {
