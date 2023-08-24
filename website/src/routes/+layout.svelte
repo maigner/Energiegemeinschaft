@@ -1,15 +1,23 @@
 <script>
-
     
 </script>
 
+<div class="center">
+    <img src="header.png" width="80%" alt="header" />
+</div>
 
-<nav>
-    <a href="/">Home</a>
-    <a href="/wir">Über Uns</a>
-    <a href="/vorteile">Vorteile</a>
-</nav>
 
-<img src="header.png" width="100%" />
 
 <slot />
+
+<div class="center">
+    <img src="sponsors.jpg" width="80%" alt="sponsors" />
+</div>
+
+<style>
+    .center {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+</style>
