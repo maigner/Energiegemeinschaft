@@ -6,13 +6,21 @@
 
 </script>
 
-<Paper variant="unelevated">
+<Paper>
     <Content
-        ><h1>Willkommen bei der Energie</h1>
-        <p>Hier gibt es viel zu sehen. Los gehts!</p>
-        <h2>Projekte</h2>
+        ><h1>Willkommen</h1>
+        <p>Teil der Energiewende zu sein ist ganz einfach.</p>
+        
+        <p>Dazu brauchen wir ein paar Informationen...<p>
 
         <JoinForm />
 
     </Content>
 </Paper>
+
+
+<style>
+    h1 {
+        text-align: center;
+    }
+</style>

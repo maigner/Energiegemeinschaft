@@ -2,11 +2,12 @@
     import Paper, { Content } from "@smui/paper";
     import LayoutGrid, { Cell } from "@smui/layout-grid";
     import Project from "$lib/Project.svelte";
+    import Fab, { Label, Icon } from "@smui/fab";
 
 </script>
 
 
-<Paper variant="unelevated">
+<Paper>
     <Content
         ><h1>Vorteile</h1>
         <LayoutGrid>
@@ -100,3 +101,27 @@
         </LayoutGrid>
     </Content>
 </Paper>
+
+<div class="joinbutton">
+    <Fab
+        extended
+        href="/mitmachen"
+        color="primary"
+    >
+        <Label>Jetzt Mitmachen</Label>
+    </Fab>
+</div>
+
+
+<style>
+    h1 {
+        text-align: center;
+    }
+    .joinbutton {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 20px;
+    }
+</style>
+

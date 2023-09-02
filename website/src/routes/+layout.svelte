@@ -1,9 +1,7 @@
 <script>
     import { page } from "$app/stores";
-    import Imprint from "$lib/Imprint.svelte";
     import Fab, { Label, Icon } from "@smui/fab";
 
-    $page.route.id;
 </script>
 
 <div class="center">
@@ -43,10 +41,14 @@
 <slot />
 
 <div class="center">
-    <img src="sponsors.jpg" width="80%" alt="sponsors" />
+    <div class="sponsors">
+        <img src="sponsors.jpg" width="80%" alt="sponsors" />
+    </div>
 </div>
 
-<Imprint />
+<div class="center">
+    <a href="/impressum">Impressum</a>
+</div>
 
 <style>
     .center {
@@ -58,4 +60,9 @@
         margin-left: 20px;
         margin-right: 20px;
     }
+    .sponsors {
+        margin: 20px;
+    }
+
+    
 </style>
