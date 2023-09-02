@@ -1,7 +1,9 @@
 <script>
+    import { page } from "$app/stores";
     import Imprint from "$lib/Imprint.svelte";
     import Fab, { Label, Icon } from "@smui/fab";
 
+    $page.route.id;
 </script>
 
 <div class="center">
@@ -10,25 +12,31 @@
 
 <div class="center">
     <div class="margins">
-        <a href="/start">
-            <Fab extended>
-                <Label>Start</Label>
-            </Fab></a
+        <Fab
+            extended
+            href="/"
+            color={$page.route.id == "/" ? "primary" : "secondary"}
         >
+            <Label>Start</Label>
+        </Fab>
     </div>
     <div class="margins">
-        <a href="/vorteile">
-            <Fab extended>
-                <Label>Vorteile</Label>
-            </Fab></a
+        <Fab
+            extended
+            href="/vorteile"
+            color={$page.route.id == "/vorteile" ? "primary" : "secondary"}
         >
+            <Label>Vorteile</Label>
+        </Fab>
     </div>
     <div class="margins">
-        <a href="/mitmachen">
-            <Fab extended>
-                <Label>Mitmachen</Label>
-            </Fab></a
+        <Fab
+            extended
+            href="/mitmachen"
+            color={$page.route.id == "/mitmachen" ? "primary" : "secondary"}
         >
+            <Label>Mitmachen</Label>
+        </Fab>
     </div>
 </div>
 

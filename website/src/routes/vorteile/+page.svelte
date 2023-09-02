@@ -8,7 +8,7 @@
 
 <Paper variant="unelevated">
     <Content
-        ><h1>Unsere Vorteile</h1>
+        ><h1>Vorteile</h1>
         <LayoutGrid>
             <Cell span={4}>
                 <div>
