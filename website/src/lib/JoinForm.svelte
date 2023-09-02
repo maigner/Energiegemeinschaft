@@ -17,8 +17,8 @@
 </script>
 
 <Paper>
-    <Title>Es gibt vielfältige Möglichkeiten der Beteiligung!</Title>
-    <Subtitle>Was kann ich tun?</Subtitle>
+    <Title>Ich möchte:</Title>
+    <Subtitle>Wählen Sie ihre Interessensgebiete?</Subtitle>
     <Content>
         <Set chips={choices} let:chip filter bind:selected>
             <Chip {chip} touch>
