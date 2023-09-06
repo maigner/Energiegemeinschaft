@@ -1,6 +1,6 @@
 <script>
     import { page } from "$app/stores";
-    import Fab, { Label, Icon } from "@smui/fab";
+    import Fab, { Icon } from "@smui/fab";
     import TopAppBar, {
         Row,
         Section,
@@ -10,24 +10,30 @@
     import IconButton from "@smui/icon-button";
     import Menu from "@smui/menu";
     import List, { Item, Separator, Text } from "@smui/list";
+    import BottomAppBar from "@smui-extra/bottom-app-bar";
+    import Dialog, { Content, Actions } from "@smui/dialog";
+    import Button, { Label } from "@smui/button";
+    import Chatbot from "./Chatbot.svelte";
 
     let topAppBar;
+    let bottomAppBar;
+
     /**
      * @type {{ setOpen: (arg0: boolean) => void; }}
      */
     let menu;
     let clicked;
+
+    let openChat = false;
 </script>
 
 <TopAppBar bind:this={topAppBar} variant="static" dense={true}>
     <Row>
         <Section>
-                <IconButton
-                    on:click={() => menu.setOpen(true)}
-                    class="material-icons">menu</IconButton
-                >
-
-                
+            <IconButton
+                on:click={() => menu.setOpen(true)}
+                class="material-icons">menu</IconButton
+            >
 
             <Title>Menü</Title>
         </Section>
@@ -61,7 +67,6 @@
         </List>
     </Menu>
 </div>
-
 
 <AutoAdjust {topAppBar}>
     <div class="center">
@@ -111,6 +116,32 @@
     </div>
 </AutoAdjust>
 
+<Dialog
+    bind:open={openChat}
+    aria-labelledby="large-scroll-title"
+    aria-describedby="large-scroll-content"
+    surface$style="width: 850px; max-width: calc(100vw - 32px);"
+>
+    <!-- Title cannot contain leading whitespace due to mdc-typography-baseline-top() -->
+    <Content id="simple-content"><Chatbot /></Content>
+    <Actions>
+        <Button on:click={() => (openChat = false)}>
+            <Label>Schließen</Label>
+        </Button>
+    </Actions>
+</Dialog>
+
+<BottomAppBar bind:this={bottomAppBar}>
+    <Section align="end">
+        <Fab aria-label="Chat" color="primary">
+            <IconButton
+                class="material-icons"
+                on:click={() => (openChat = true)}>contact_support</IconButton
+            >
+        </Fab>
+    </Section>
+</BottomAppBar>
+
 <style>
     .center {
         display: flex;
@@ -128,6 +159,4 @@
         margin-top: 0px;
         margin-left: 0px;
     }
-
-
 </style>
