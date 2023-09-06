@@ -19,7 +19,8 @@
 <div class="card-container">
     <Card>
         <PrimaryAction on:click={() => clicked++}>
-            <Media class="card-media-16x9" aspectRatio="16x9" />
+            
+            <slot name="image"></slot>
             <Content class="mdc-typography--body2">
                 <h2 class="mdc-typography--headline6" style="margin: 0;">
                     <slot name="title"></slot>

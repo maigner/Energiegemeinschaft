@@ -16,6 +16,10 @@
                     <Project>
                         <span slot="title">Kosteneinsparungen</span>
 
+                        <div slot="image">
+                            <img src="tmp/kosten.jpeg" width="100%" alt="sponsors" />
+                        </div>
+
                         <div slot="content">
                             Energiegemeinschaften ermöglichen es
                             Mitgliedern, gemeinsam Energie zu erzeugen, zu
@@ -30,7 +34,9 @@
                 <div>
                     <Project>
                         <span slot="title">Energiewende</span>
-
+                        <div slot="image">
+                            <img src="tmp/energiewende.png" width="100%" alt="sponsors" />
+                        </div>
                         <div slot="content">
                             Sie fördern erneuerbare Energien, indem sie den
                             gemeinsamen Einsatz von Solaranlagen oder
@@ -45,7 +51,9 @@
                 <div>
                     <Project>
                         <span slot="title">Unabhängigkeit</span>
-
+                        <div slot="image">
+                            <img src="tmp/unabhängig.jpeg" width="100%" alt="sponsors" />
+                        </div>
                         <div slot="content">
                             Energiegemeinschaften bieten Unabhängigkeit von
                             großen Energieunternehmen und ermöglichen es den
@@ -60,7 +68,9 @@
                 <div>
                     <Project>
                         <span slot="title">Umweltfreundlichkeit</span>
-
+                        <div slot="image">
+                            <img src="tmp/umwelt.jpeg" width="100%" alt="sponsors" />
+                        </div>
                         <div slot="content">
                             Die Nutzung erneuerbarer Energiequellen in
                             Energiegemeinschaften reduziert den CO2-Ausstoß
@@ -74,7 +84,9 @@
                 <div>
                     <Project>
                         <span slot="title">Versorgungssicherheit</span>
-
+                        <div slot="image">
+                            <img src="tmp/versorgung.jpeg" width="100%" alt="sponsors" />
+                        </div>
                         <div slot="content">
                             Gemeinschaften können in Notfällen auf eine
                             zuverlässige Energiequelle zugreifen und so die
@@ -88,7 +100,9 @@
                 <div>
                     <Project>
                         <span slot="title">Soziale Vernetzung</span>
-
+                        <div slot="image">
+                            <img src="tmp/vernetzt.jpeg" width="100%" alt="sponsors" />
+                        </div>
                         <div slot="content">
                             Energiegemeinschaften fördern den sozialen
                             Zusammenhalt und den Austausch von Wissen und

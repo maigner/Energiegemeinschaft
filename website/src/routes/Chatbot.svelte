@@ -1,5 +1,5 @@
 <script>
-    
+    // @ts-nocheck
 
     import { Circle2 } from "svelte-loading-spinners";
     import Button, { Label } from "@smui/button";
@@ -12,17 +12,20 @@
     import Dialog, { Title, Actions } from "@smui/dialog";
     import Textfield from "@smui/textfield";
     import CharacterCounter from "@smui/textfield/character-counter";
+    import { onMount } from "svelte";
 
     let openDialogTextSyleCommand = false;
     let openDialogCurrentEvents = false;
 
     let clickedDialogSystemMessage;
 
+    let inputReference = null;
+
     let inputValue = "";
     let isThinking = false;
     let isResponding = false;
 
-    let token = "TOKEN goes here";
+    let token = "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";
 
     let textStyleCommand = `Du beantwortest Fragen zum Thema Energiegemeinschaft. Du gibts kurze Antworten.
 
@@ -31,7 +34,7 @@
     let currentEvents = `Nutze folgendes FAQ um deine Antworten zu verbessern:
 
 Frage: Wie kann ich der Energiegemeinschaft beitreten? 
-Antwort: Frag Hannes Kals ;)
+Antwort: Klicken Sie einfach auf den Button Mitmachen
 
 Frage: Wo findet das nächste Treffen statt?
 Antwort: Wieder hier in der Gemeinde.
@@ -92,12 +95,10 @@ Antwort:
         },
     ];
 
-
     /**
      * @param {string} input
      */
     function decodeGptResponse(input) {
-
         let parts = input.split('"choices":');
         if (typeof parts[1] === "undefined") {
             console.log("split at choices failed");
@@ -230,6 +231,8 @@ Antwort:
             history = [...history, latestResponse];
             isResponding = false;
             isThinking = false;
+            //inputReference.focus();
+            scrollBottom();
         });
 
         return chatbotResponse;
@@ -238,90 +241,109 @@ Antwort:
     /**
      * @param {string} query
      */
-    
 
     let currentResponse = {
         role: "Energiegemeinschaft",
         text: "...",
     };
+
+    onMount(() => {
+        inputReference.focus();
+    });
+
+    $: {
+        if (inputReference !== null) {
+            console.log("Focus");
+            inputReference.focus();
+        }
+    }
+
+    function scrollBottom() {
+        var elem = document.getElementById("scrollcontainer");
+        elem.scrollTop = elem.scrollHeight;
+        console.log("scroll");
+    }
+
+    window.setInterval(function () {
+        scrollBottom();
+    }, 5000);
 </script>
 
+<div id="scrollcontainer">
+    <div>
+        {#each history as item}
+            <p>
+                <Card>
+                    <Content>
+                        <strong>{item.role}:</strong>
+                        {#each item.text
+                            .replaceAll("\\n\\n", "\n")
+                            .split("\n") as paragraph}
+                            <p>
+                                {paragraph}
+                            </p>
+                        {/each}
+                    </Content>
+                </Card>
+            </p>
+        {/each}
+    </div>
 
-
-<div>
-    {#each history as item}
+    {#if isResponding === true}
         <p>
             <Card>
                 <Content>
-                    <strong>{item.role}:</strong>
-                    {#each item.text
+                    <strong>{currentResponse.role}</strong>:
+
+                    {#each currentResponse.text
                         .replaceAll("\\n\\n", "\n")
                         .split("\n") as paragraph}
                         <p>
                             {paragraph}
                         </p>
-                        
                     {/each}
                 </Content>
             </Card>
         </p>
-    {/each}
-</div>
+    {/if}
 
-{#if isResponding === true}
-    <p>
-        <Card>
-            <Content>
-                <strong>{currentResponse.role}</strong>:
+    {#if isThinking === true}
+        <div id="spinner">
+            <Circle2 />
+        </div>
+    {/if}
 
-                {#each currentResponse.text
-                    .replaceAll("\\n\\n", "\n")
-                    .split("\n") as paragraph}
-                    <p>
-                        {paragraph}
-                    </p>
-                    
-                {/each}
-            </Content>
-        </Card>
-    </p>
-{/if}
-
-{#if isThinking === true}
-    <div id="spinner">
-        <Circle2 />
-    </div>
-{/if}
-
-{#if isThinking === false}
-    <div class="solo-container">
-        <Paper class="solo-paper" elevation={6}>
-            <Icon class="material-icons">edit</Icon>
-            <Input
-                bind:value={inputValue}
-                on:keydown={(event) => {
-                    if (event.key === "Enter") {
-                        // Do something with the inputValue
-                        // console.log("Enter key pressed. Value:", inputValue);
-                        ask(inputValue);
-                    }
+    {#if isThinking === false}
+        <div class="solo-container">
+            <Paper class="solo-paper" elevation={6}>
+                <Icon class="material-icons">edit</Icon>
+                <Input
+                    bind:value={inputValue}
+                    bind:this={inputReference}
+                    on:keydown={(event) => {
+                        if (event.key === "Enter") {
+                            // Do something with the inputValue
+                            // console.log("Enter key pressed. Value:", inputValue);
+                            ask(inputValue);
+                        }
+                    }}
+                    placeholder=""
+                    class="solo-input"
+                />
+            </Paper>
+            <Fab
+                on:click={() => {
+                    ask(inputValue);
                 }}
-                placeholder=""
-                class="solo-input"
-            />
-        </Paper>
-        <Fab
-            on:click={() => {
-                ask(inputValue);
-            }}
-            color="primary"
-            mini
-            class="solo-fab"
-        >
-            <Icon class="material-icons">send</Icon>
-        </Fab>
-    </div>
-{/if}
+                color="primary"
+                mini
+                class="solo-fab"
+            >
+                <Icon class="material-icons">send</Icon>
+            </Fab>
+        </div>
+    {/if}
+</div>
 
 <style>
     #spinner {

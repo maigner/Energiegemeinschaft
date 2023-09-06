@@ -1,4 +1,6 @@
 <script>
+// @ts-nocheck
+
     import { page } from "$app/stores";
     import Fab, { Icon } from "@smui/fab";
     import TopAppBar, {
@@ -101,6 +103,14 @@
                 <Label>Mitmachen</Label>
             </Fab>
         </div>
+        <div class="margins">
+            <Fab aria-label="Chat" color={openChat == true ? "primary" : "secondary"}>
+                <IconButton
+                    class="material-icons"
+                    on:click={() => (openChat = true)}>contact_support</IconButton
+                >
+            </Fab>
+        </div>
     </div>
 
     <slot />
@@ -131,16 +141,7 @@
     </Actions>
 </Dialog>
 
-<BottomAppBar bind:this={bottomAppBar}>
-    <Section align="end">
-        <Fab aria-label="Chat" color="primary">
-            <IconButton
-                class="material-icons"
-                on:click={() => (openChat = true)}>contact_support</IconButton
-            >
-        </Fab>
-    </Section>
-</BottomAppBar>
+
 
 <style>
     .center {
