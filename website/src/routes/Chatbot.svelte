@@ -25,7 +25,9 @@
     let isThinking = false;
     let isResponding = false;
 
-    let token = "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";
+
+
+    let token = "";
 
     let textStyleCommand = `Du beantwortest Fragen zum Thema Energiegemeinschaft. Du gibts kurze Antworten.
 
@@ -264,9 +266,7 @@ Antwort:
         console.log("scroll");
     }
 
-    window.setInterval(function () {
-        scrollBottom();
-    }, 5000);
+
 </script>
 
 <div id="scrollcontainer">
