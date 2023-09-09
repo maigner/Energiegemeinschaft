@@ -40,4 +40,11 @@ You can preview the production build with `npm run preview`.
 
 ## Devel
 
+npx sst dev --profile=martin &
+
 npm run prepare && npm run dev
+
+
+## Deploy
+
+npx sst deploy --profile=martin

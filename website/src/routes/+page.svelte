@@ -10,7 +10,7 @@
         <h1>Was gibt es Neues?</h1>
 
         <LayoutGrid>
-            <Cell span={6}>
+            <Cell spanDevices={{ desktop: 6, tablet: 12, phone: 12 }}>
                 <div>
                     <Project>
                         <span slot="title">Vereinsgründung</span>
@@ -31,7 +31,7 @@
                     </Project>
                 </div>
             </Cell>
-            <Cell span={6}>
+            <Cell spanDevices={{ desktop: 6, tablet: 12, phone: 12 }}>
                 <div>
                     <Project>
                         <span slot="title">Technik</span>
@@ -72,7 +72,7 @@
         <h2>Projekte</h2>
 
         <LayoutGrid>
-            <Cell span={12}>
+            <Cell spanDevices={{ desktop: 6, tablet: 12, phone: 12 }}>
                 <div>
                     <Project>
                         <span slot="title">PV Anlage</span>
@@ -94,7 +94,7 @@
                     </Project>
                 </div>
             </Cell>
-            <Cell span={12}>
+            <Cell spanDevices={{ desktop: 6, tablet: 12, phone: 12 }}>
                 <div>
                     <Project>
                         <span slot="title">Ladestation</span>
@@ -127,7 +127,7 @@
         ><h1>Über Uns</h1>
 
         <LayoutGrid>
-            <Cell span={12}>
+            <Cell spanDevices={{ desktop: 6, tablet: 12, phone: 12 }}>
                 <div>
                     <Project>
                         <span slot="title">Gruppe</span>

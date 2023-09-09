@@ -11,7 +11,7 @@
     <Content
         ><h1>Vorteile</h1>
         <LayoutGrid>
-            <Cell span={4}>
+            <Cell span={6}>
                 <div>
                     <Project>
                         <span slot="title">Kosteneinsparungen</span>
@@ -30,7 +30,7 @@
                 </div>
             </Cell>
 
-            <Cell span={4}>
+            <Cell span={6}>
                 <div>
                     <Project>
                         <span slot="title">Energiewende</span>
@@ -47,7 +47,7 @@
                 </div>
             </Cell>
 
-            <Cell span={4}>
+            <Cell span={6}>
                 <div>
                     <Project>
                         <span slot="title">Unabhängigkeit</span>
@@ -64,7 +64,7 @@
                 </div>
             </Cell>
 
-            <Cell span={4}>
+            <Cell span={6}>
                 <div>
                     <Project>
                         <span slot="title">Umweltfreundlichkeit</span>
@@ -80,7 +80,7 @@
                 </div>
             </Cell>
 
-            <Cell span={4}>
+            <Cell span={6}>
                 <div>
                     <Project>
                         <span slot="title">Versorgungssicherheit</span>
@@ -96,7 +96,7 @@
                 </div>
             </Cell>
 
-            <Cell span={4}>
+            <Cell span={6}>
                 <div>
                     <Project>
                         <span slot="title">Soziale Vernetzung</span>

@@ -27,7 +27,7 @@
 
 
 
-    let token = "";
+    let token = "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";
 
     let textStyleCommand = `Du beantwortest Fragen zum Thema Energiegemeinschaft. Du gibts kurze Antworten.
 
