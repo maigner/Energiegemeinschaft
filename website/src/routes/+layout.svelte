@@ -15,7 +15,7 @@
     import BottomAppBar from "@smui-extra/bottom-app-bar";
     import Dialog, { Content, Actions } from "@smui/dialog";
     import Button, { Label } from "@smui/button";
-    import Chatbot from "./Chatbot.svelte";
+    import Chatbot from "$lib/ChatBox.svelte";
     import Paper from "@smui/paper";
     import LayoutGrid, { Cell } from "@smui/layout-grid";
 
@@ -128,13 +128,12 @@
                             <Cell span={1}>
                                 <Fab
                                     extended
-                                    color={openChat == true
+                                    href="/chatbot"
+                                    color={$page.route.id == "/chatbot"
                                         ? "primary"
                                         : "secondary"}
                                 >
-                                    <IconButton
-                                        class="material-icons"
-                                        on:click={() => (openChat = true)}
+                                    <IconButton class="material-icons"
                                         >contact_support</IconButton
                                     >
                                 </Fab>
@@ -158,21 +157,6 @@
                         <a href="/impressum">Impressum</a>
                     </div>
                 </AutoAdjust>
-
-                <Dialog
-                    bind:open={openChat}
-                    aria-labelledby="large-scroll-title"
-                    aria-describedby="large-scroll-content"
-                    surface$style="width: 850px; max-width: calc(100vw - 32px);"
-                >
-                    <!-- Title cannot contain leading whitespace due to mdc-typography-baseline-top() -->
-                    <Content id="simple-content"><Chatbot /></Content>
-                    <Actions>
-                        <Button on:click={() => (openChat = false)}>
-                            <Label>Schließen</Label>
-                        </Button>
-                    </Actions>
-                </Dialog>
             </Content>
         </Paper>
     </div>
@@ -206,5 +190,9 @@
         padding-right: 2px;
         padding-bottom: 3px;
         padding-left: 2px;
+    }
+
+    :global(h1) {
+        text-align: center;
     }
 </style>

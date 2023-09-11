@@ -3,6 +3,9 @@
     import LayoutGrid, { Cell } from "@smui/layout-grid";
     import Project from "$lib/Project.svelte";
     import Fab, { Label, Icon } from "@smui/fab";
+    import { onMount } from "svelte";
+
+    
 </script>
 
 <Paper>
@@ -160,9 +163,7 @@
 </div>
 
 <style>
-    h1 {
-        text-align: center;
-    }
+    
     .joinbutton {
         display: flex;
         justify-content: center;
