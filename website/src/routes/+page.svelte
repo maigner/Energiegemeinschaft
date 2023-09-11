@@ -153,14 +153,15 @@
                 </div>
             </Cell>
         </LayoutGrid>
+        <div class="joinbutton">
+            <Fab extended href="/vorteile" color="primary">
+                <Label>Zu den Vorteilen</Label>
+            </Fab>
+        </div>
     </Content>
 </Paper>
 
-<div class="joinbutton">
-    <Fab extended href="/vorteile" color="primary">
-        <Label>Zu den Vorteilen</Label>
-    </Fab>
-</div>
+
 
 <style>
     

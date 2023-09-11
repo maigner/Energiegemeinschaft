@@ -7,11 +7,7 @@ const openai = new OpenAI({ apiKey: OPENAI_TOKEN })
 
 export async function POST({ request, cookies }) {
 
-    const { message } = await request.json();
-
-
-    console.log("Server Ai!: " + message);
-    
+    const { message } = await request.json();    
 
     const completion = await openai.chat.completions.create({
         messages: [
@@ -27,8 +23,6 @@ export async function POST({ request, cookies }) {
         ],
         model: "gpt-3.5-turbo",
     });
-
-    console.log(completion.choices[0].message.content);
 
     let result = {
         answer: completion.choices[0]

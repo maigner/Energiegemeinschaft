@@ -1,4 +1,6 @@
 <script>
+// @ts-nocheck
+
 	import { onMount } from "svelte";
 	import { fade, fly } from "svelte/transition";
 	import { spring } from "svelte/motion";
@@ -7,10 +9,6 @@
 	export let who = "you";
 	export let text = "";
 	export let ready = false;
-	/**
-	 * @type {number}
-	 */
-	let isolateDelay = 0;
 
 	$: _ready = who === "you" ? true : ready;
 
@@ -25,14 +23,6 @@
 	$: _ready && width.set(300) && height.set(el + 30);
 
 	onMount(() => {
-		/*
-		setTimeout(() => {
-			window.scrollTo({
-				top: document.documentElement.scrollHeight,
-				behavior: "smooth",
-			});
-		}, isolateDelay * 2 - 200);
-		*/
 		window.scrollTo({
 			top: document.documentElement.scrollHeight,
 			behavior: "smooth",

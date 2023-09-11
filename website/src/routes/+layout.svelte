@@ -135,6 +135,7 @@
                             </Fab>
                         </div>
                     </div>
+                    
                     <slot />
 
                     <div class="center">
@@ -188,12 +189,6 @@
         padding-right: 2px;
         padding-bottom: 3px;
         padding-left: 2px;
-    }
-
-    .menu {
-        display: flex;
-        justify-content: center;
-        align-items: center;
     }
 
     :global(h1) {

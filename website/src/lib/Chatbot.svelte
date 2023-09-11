@@ -32,7 +32,7 @@
             })
             .then((data) => {
                 // Handle the JSON data
-                console.log("JSON data:", data);
+                //console.log("JSON data:", data);
                 answer.text = data.answer.message.content;
                 answer.ready = true;
                 history = history;
@@ -42,11 +42,6 @@
                 console.error("Fetch error:", error);
             });
     }
-
-    onMount(() => {
-        console.log("chatbot");
-        //ask("Was ist eine Energiegemeinschaft?");
-    });
 
     let inputValue = "";
 
@@ -79,6 +74,8 @@
 {/each}
 
 {#if isThinking === false}
+<!-- TODO: better text input on phone! -->
+
     <div id="inputField">
         <Paper class="solo-paper" elevation={6}>
             <Icon class="material-icons">edit</Icon>
@@ -92,13 +89,14 @@
                         inputValue = "";
                     }
                 }}
-                placeholder=""
+                placeholder="Stellen Sie Ihre Frage"
                 class="solo-input"
             />
         </Paper>
         <Fab
             on:click={() => {
                 ask(inputValue);
+                inputValue = "";
             }}
             color="primary"
             mini

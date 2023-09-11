@@ -113,24 +113,23 @@
                 </div>
             </Cell>
         </LayoutGrid>
+        <div class="joinbutton">
+            <Fab
+                extended
+                href="/mitmachen"
+                color="primary"
+            >
+                <Label>Jetzt Mitmachen</Label>
+            </Fab>
+        </div>
     </Content>
 </Paper>
 
-<div class="joinbutton">
-    <Fab
-        extended
-        href="/mitmachen"
-        color="primary"
-    >
-        <Label>Jetzt Mitmachen</Label>
-    </Fab>
-</div>
+
 
 
 <style>
-    h1 {
-        text-align: center;
-    }
+    
     .joinbutton {
         display: flex;
         justify-content: center;
