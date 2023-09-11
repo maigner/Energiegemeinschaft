@@ -1,18 +1,12 @@
-# create-svelte
+# website
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/master/packages/create-svelte).
+using svelte kit. read about it!
 
-## Creating a project
+## Setting up project
 
-If you're seeing this, you've probably already done this step. Congrats!
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
+add a .env file
 
-# create a new project in my-app
-npm create svelte@latest my-app
-```
 
 ## Developing
 
@@ -40,11 +34,11 @@ You can preview the production build with `npm run preview`.
 
 ## Devel
 
-npx sst dev --profile=martin &
+# not needed?? npx sst dev --profile=martin &
 
 npm run prepare && npm run dev
 
 
-## Deploy
+## Deploy to AWS using SST
 
 npx sst deploy --profile=martin

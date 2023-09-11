@@ -80,67 +80,61 @@
                 </div>
 
                 <AutoAdjust {topAppBar}>
-                    <div class="center">
+                    <div class="center" id="header">
                         <img src="header.png" width="100%" alt="header" />
                     </div>
 
-                    <div class="center">
-                        <LayoutGrid>
-                            <Cell span={1}>
-                                <Fab
-                                    extended
-                                    href="/"
-                                    color={$page.route.id == "/"
-                                        ? "primary"
-                                        : "secondary"}
-                                >
-                                    <IconButton class="material-icons"
-                                        >home</IconButton
-                                    >
-                                </Fab>
-                            </Cell>
-                            <Cell span={1}>
-                                <Fab
-                                    extended
-                                    href="/vorteile"
-                                    color={$page.route.id == "/vorteile"
-                                        ? "primary"
-                                        : "secondary"}
-                                >
-                                    <IconButton class="material-icons"
-                                        >verified</IconButton
-                                    >
-                                </Fab>
-                            </Cell>
-                            <Cell span={1}>
-                                <Fab
-                                    extended
-                                    href="/mitmachen"
-                                    color={$page.route.id == "/mitmachen"
-                                        ? "primary"
-                                        : "secondary"}
-                                >
-                                    <IconButton class="material-icons"
-                                        >group_add</IconButton
-                                    >
-                                </Fab>
-                            </Cell>
-                            <Cell span={1}>
-                                <Fab
-                                    extended
-                                    href="/chatbot"
-                                    color={$page.route.id == "/chatbot"
-                                        ? "primary"
-                                        : "secondary"}
-                                >
-                                    <IconButton class="material-icons"
-                                        >contact_support</IconButton
-                                    >
-                                </Fab>
-                            </Cell>
-                        </LayoutGrid>
-                    </div>
 
+                    <div class="center">
+                        <div class="margins">
+                            <Fab
+                                href="/"
+                                color={$page.route.id == "/"
+                                    ? "primary"
+                                    : "secondary"}
+                            >
+                                <IconButton class="material-icons"
+                                    >home</IconButton
+                                >
+                            </Fab>
+                        </div>
+                        <div class="margins">
+                            <Fab
+                                href="/vorteile"
+                                color={$page.route.id == "/vorteile"
+                                    ? "primary"
+                                    : "secondary"}
+                            >
+                                <IconButton class="material-icons"
+                                    >verified</IconButton
+                                >
+                            </Fab>
+                        </div>
+                        <div class="margins">
+                            <Fab
+                                href="/mitmachen"
+                                color={$page.route.id == "/mitmachen"
+                                    ? "primary"
+                                    : "secondary"}
+                            >
+                                <IconButton class="material-icons"
+                                    >group_add</IconButton
+                                >
+                            </Fab>
+                        </div>
+                        <div class="margins">
+                            <Fab
+                                href="/chatbot"
+                                color={$page.route.id == "/chatbot"
+                                    ? "primary"
+                                    : "secondary"}
+                            >
+                                <IconButton class="material-icons"
+                                    >contact_support</IconButton
+                                >
+                            </Fab>
+                        </div>
+                    </div>
                     <slot />
 
                     <div class="center">
@@ -163,6 +157,10 @@
 </div>
 
 <style>
+    #header {
+        margin-top: 5px;
+        margin-bottom: 5px;
+    }
     #appcontainer {
         width: 100%;
         max-width: 60em;
@@ -172,10 +170,10 @@
         justify-content: center;
         align-items: center;
     }
-    
+
     .margins {
-        margin-left: 20px;
-        margin-right: 20px;
+        margin-left: 10px;
+        margin-right: 10px;
     }
     .sponsors {
         margin: 20px;
@@ -190,6 +188,12 @@
         padding-right: 2px;
         padding-bottom: 3px;
         padding-left: 2px;
+    }
+
+    .menu {
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
 
     :global(h1) {

@@ -36,8 +36,12 @@ export async function POST({ request, cookies }) {
     
     /*
     let result = {
-        answer: "Das ist meine Antwort"
-    }
+        answer: {
+            message: {
+                content: "Foo"
+            }
+        }
+    };
     */
 
     return json(result);
