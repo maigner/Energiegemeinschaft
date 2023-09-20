@@ -1,6 +1,8 @@
 <script>
     // @ts-nocheck
 
+    export let data;
+
     import "../app.css";
 
     import { page } from "$app/stores";
@@ -28,7 +30,6 @@
     let openChat = false;
 </script>
 
-<LoginDialog />
 
 <div class="center">
     <div id="appcontainer">
