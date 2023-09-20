@@ -4,8 +4,6 @@
     import Project from "$lib/Project.svelte";
     import Fab, { Label, Icon } from "@smui/fab";
     import { onMount } from "svelte";
-
-    
 </script>
 
 <Paper>
@@ -60,8 +58,8 @@
 </Paper>
 
 <Paper>
-    <Content
-        ><h1>Willkommen bei der Energiegemeinschaft Bad Ischl!</h1>
+    <Content>
+        <h1>Willkommen bei der Energiegemeinschaft Bad Ischl!</h1>
         <p>
             Erneuerbare Energie ist von entscheidender Bedeutung, weil sie dazu
             beiträgt, den Klimawandel einzudämmen. Im Gegensatz zu fossilen
@@ -126,8 +124,8 @@
 </Paper>
 
 <Paper>
-    <Content
-        ><h1>Über Uns</h1>
+    <Content>
+        <h1>Über Uns</h1>
 
         <LayoutGrid>
             <Cell spanDevices={{ desktop: 6, tablet: 12, phone: 12 }}>
@@ -161,10 +159,7 @@
     </Content>
 </Paper>
 
-
-
 <style>
-    
     .joinbutton {
         display: flex;
         justify-content: center;

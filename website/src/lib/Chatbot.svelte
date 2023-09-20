@@ -78,7 +78,6 @@
 
     <div id="inputField">
         <Paper class="solo-paper" elevation={6}>
-            <Icon class="material-icons">edit</Icon>
             <Input
                 bind:value={inputValue}
                 on:keydown={(event) => {
@@ -113,6 +112,7 @@
         justify-content: center;
         align-items: center;
     }
+
 
     * :global(.solo-input) {
         width: 16em;
