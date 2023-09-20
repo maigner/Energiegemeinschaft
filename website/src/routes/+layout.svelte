@@ -30,7 +30,6 @@
     let openChat = false;
 </script>
 
-
 <div class="center">
     <div id="appcontainer">
         <div class="center">
@@ -75,12 +74,15 @@
                         <Title>Menü</Title>
                     </Section>
                     <Section align="end" toolbar>
-                        <IconButton href="/chatbot" class="material-icons" aria-label="Download"
-                            >search</IconButton
+                        <IconButton
+                            href="/chatbot"
+                            class="material-icons"
+                            aria-label="Download">search</IconButton
                         >
-                        <IconButton href="/dashboard" class="material-icons" aria-label="Download"
-                        
-                            >manage_accounts</IconButton
+                        <IconButton
+                            href="/dashboard"
+                            class="material-icons"
+                            aria-label="Download">manage_accounts</IconButton
                         >
                     </Section>
                 </Row>
@@ -195,7 +197,6 @@
         padding-bottom: 6px;
         padding-left: 6px;
     }
-
 
     :global(h1) {
         text-align: center;
