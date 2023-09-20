@@ -1,6 +1,8 @@
 <script>
     // @ts-nocheck
 
+    import "../app.css";
+
     import { page } from "$app/stores";
     import Fab, { Icon } from "@smui/fab";
     import TopAppBar, {
@@ -12,12 +14,7 @@
     import IconButton from "@smui/icon-button";
     import Menu from "@smui/menu";
     import List, { Item, Separator, Text } from "@smui/list";
-    import BottomAppBar from "@smui-extra/bottom-app-bar";
-    import Dialog, { Content, Actions } from "@smui/dialog";
-    import Button, { Label } from "@smui/button";
-    import Chatbot from "$lib/ChatBox.svelte";
-    import Paper from "@smui/paper";
-    import LayoutGrid, { Cell } from "@smui/layout-grid";
+    import LoginDialog from "$lib/dialog/LoginDialog.svelte";
 
     let topAppBar;
     let bottomAppBar;
@@ -30,6 +27,8 @@
 
     let openChat = false;
 </script>
+
+<LoginDialog />
 
 <div class="center">
     <div id="appcontainer">
@@ -75,10 +74,11 @@
                         <Title>Menü</Title>
                     </Section>
                     <Section align="end" toolbar>
-                        <IconButton class="material-icons" aria-label="Download"
+                        <IconButton href="/chatbot" class="material-icons" aria-label="Download"
                             >search</IconButton
                         >
-                        <IconButton class="material-icons" aria-label="Download"
+                        <IconButton href="/dashboard" class="material-icons" aria-label="Download"
+                        
                             >manage_accounts</IconButton
                         >
                     </Section>
@@ -87,7 +87,7 @@
         </div>
 
         <div class="center" id="header">
-            <img src="header.png" width="100%" alt="header" />
+            <img src="header.png" width="80%" alt="header" />
         </div>
 
         <div class="center">
@@ -137,7 +137,7 @@
 
         <div class="center">
             <div class="sponsors">
-                <img src="sponsors.jpg" width="80%" alt="sponsors" />
+                <img src="sponsors.jpg" width="100%" alt="sponsors" />
             </div>
         </div>
 
@@ -182,6 +182,10 @@
     }
     :global(.smui-paper__subtitle) {
         margin-left: 8px;
+    }
+    :global(.smui-paper__content) {
+        margin-left: 8px;
+        margin-right: 6px;
     }
 
     :global(.mdc-layout-grid) {
