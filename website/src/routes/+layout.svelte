@@ -177,12 +177,20 @@
         padding-left: 0px;
     }
 
+    :global(.smui-paper__title) {
+        margin-left: 8px;
+    }
+    :global(.smui-paper__subtitle) {
+        margin-left: 8px;
+    }
+
     :global(.mdc-layout-grid) {
         padding-top: 6px;
         padding-right: 6px;
         padding-bottom: 6px;
         padding-left: 6px;
     }
+
 
     :global(h1) {
         text-align: center;

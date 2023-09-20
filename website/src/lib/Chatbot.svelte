@@ -115,6 +115,7 @@
 
 
     * :global(.solo-input) {
+        margin-left: 12px;
         width: 16em;
         color: var(--mdc-theme-on-surface, #000);
     }

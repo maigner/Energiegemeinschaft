@@ -3,20 +3,21 @@
     import LayoutGrid, { Cell } from "@smui/layout-grid";
     import Project from "$lib/Project.svelte";
     import JoinForm from "$lib/JoinForm.svelte";
+    import "../../app.css";
 </script>
 
 <Paper>
     <Content>
         <h1>Willkommen</h1>
-        <p>Teil der Energiewende zu sein ist ganz einfach.</p>
 
-        <p>Dazu brauchen wir ein paar Informationen...</p>
-        <p>
+        <div class="form-container">
             <JoinForm />
-        </p>
+        </div>
     </Content>
 </Paper>
 
 <style>
-    
+    .form-container {
+        margin: 10px;
+    }
 </style>

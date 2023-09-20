@@ -7,7 +7,6 @@
     let interests = [
         "Ökostrom einspeisen",
         "Ökostrom beziehen",
-        "ökologisch Heizen",
         "Energie speichern",
         "Energie sparen",
     ];
