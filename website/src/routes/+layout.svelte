@@ -11,24 +11,14 @@
         Row,
         Section,
         Title,
-        AutoAdjust,
     } from "@smui/top-app-bar";
     import IconButton from "@smui/icon-button";
-    import Menu from "@smui/menu";
-    import List, { Item, Separator, Text } from "@smui/list";
-    import LoginDialog from "$lib/dialog/LoginDialog.svelte";
+    import Menu from "$lib/Menu.svelte";
 
     let topAppBar;
-    let bottomAppBar;
 
-    /**
-     * @type {{ setOpen: (arg0: boolean) => void; }}
-     */
-    let menu;
-    let clicked;
-
-    let openChat = false;
 </script>
+
 
 <div class="center">
     <div id="appcontainer">
@@ -36,41 +26,7 @@
             <TopAppBar bind:this={topAppBar} variant="static" dense={true}>
                 <Row>
                     <Section>
-                        <div>
-                            <IconButton
-                                on:click={() => menu.setOpen(true)}
-                                class="material-icons">menu</IconButton
-                            >
-                            <Menu bind:this={menu}>
-                                <List>
-                                    <Item
-                                        on:SMUI:action={() => (clicked = "Cut")}
-                                    >
-                                        <Text>Anmelden</Text>
-                                    </Item>
-                                    <Item
-                                        on:SMUI:action={() =>
-                                            (clicked = "Copy")}
-                                    >
-                                        <Text>Abfragen</Text>
-                                    </Item>
-                                    <Item
-                                        on:SMUI:action={() =>
-                                            (clicked = "Paste")}
-                                    >
-                                        <Text>Abrechnungen</Text>
-                                    </Item>
-                                    <Separator />
-                                    <Item
-                                        on:SMUI:action={() =>
-                                            (clicked = "Delete")}
-                                    >
-                                        <Text>Abmelden</Text>
-                                    </Item>
-                                </List>
-                            </Menu>
-                        </div>
-
+                        <Menu />
                         <Title>Menü</Title>
                     </Section>
                     <Section align="end" toolbar>
