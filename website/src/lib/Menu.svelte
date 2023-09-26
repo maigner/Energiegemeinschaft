@@ -23,6 +23,15 @@
     <Menu bind:this={menu}>
         <List>
             <Item
+                on:SMUI:action={() =>
+                    {
+                        window.location.href = "/";
+                    }
+                    }
+            >
+                <Text>Startseite</Text>
+            </Item>
+            <Item
                 on:SMUI:action={() => (showLoginDialog = true)}
             >
                 <Text>Anmelden</Text>

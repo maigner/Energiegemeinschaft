@@ -7,18 +7,12 @@
 
     import { page } from "$app/stores";
     import Fab, { Icon } from "@smui/fab";
-    import TopAppBar, {
-        Row,
-        Section,
-        Title,
-    } from "@smui/top-app-bar";
+    import TopAppBar, { Row, Section, Title } from "@smui/top-app-bar";
     import IconButton from "@smui/icon-button";
     import Menu from "$lib/Menu.svelte";
 
     let topAppBar;
-
 </script>
-
 
 <div class="center">
     <div id="appcontainer">
@@ -27,7 +21,7 @@
                 <Row>
                     <Section>
                         <Menu />
-                        <Title>Menü</Title>
+                        <!--<Title>Menü</Title>-->
                     </Section>
                     <Section align="end" toolbar>
                         <IconButton
@@ -45,52 +39,57 @@
             </TopAppBar>
         </div>
 
-        <div class="center" id="header">
-            <img src="header.png" width="80%" alt="header" />
-        </div>
+        {#if $page.route.id !== "/dashboard"}
+            <div class="center" id="header">
+                <img src="header.png" width="80%" alt="header" />
+            </div>
+        {/if}
 
-        <div class="center">
-            <div class="margins">
-                <Fab
-                    href="/"
-                    color={$page.route.id == "/" ? "primary" : "secondary"}
-                >
-                    <IconButton class="material-icons">home</IconButton>
-                </Fab>
-            </div>
-            <div class="margins">
-                <Fab
-                    href="/vorteile"
-                    color={$page.route.id == "/vorteile"
-                        ? "primary"
-                        : "secondary"}
-                >
-                    <IconButton class="material-icons">verified</IconButton>
-                </Fab>
-            </div>
-            <div class="margins">
-                <Fab
-                    href="/mitmachen"
-                    color={$page.route.id == "/mitmachen"
-                        ? "primary"
-                        : "secondary"}
-                >
-                    <IconButton class="material-icons">group_add</IconButton>
-                </Fab>
-            </div>
-            <div class="margins">
-                <Fab
-                    href="/chatbot"
-                    color={$page.route.id == "/chatbot"
-                        ? "primary"
-                        : "secondary"}
-                >
-                    <IconButton class="material-icons"
-                        >contact_support</IconButton
+        {#if $page.route.id !== "/dashboard"}
+            <div class="center">
+                <div class="margins">
+                    <Fab
+                        href="/"
+                        color={$page.route.id == "/" ? "primary" : "secondary"}
                     >
-                </Fab>
+                        <IconButton class="material-icons">home</IconButton>
+                    </Fab>
+                </div>
+                <div class="margins">
+                    <Fab
+                        href="/vorteile"
+                        color={$page.route.id == "/vorteile"
+                            ? "primary"
+                            : "secondary"}
+                    >
+                        <IconButton class="material-icons">verified</IconButton>
+                    </Fab>
+                </div>
+                <div class="margins">
+                    <Fab
+                        href="/mitmachen"
+                        color={$page.route.id == "/mitmachen"
+                            ? "primary"
+                            : "secondary"}
+                    >
+                        <IconButton class="material-icons">group_add</IconButton
+                        >
+                    </Fab>
+                </div>
+                <div class="margins">
+                    <Fab
+                        href="/chatbot"
+                        color={$page.route.id == "/chatbot"
+                            ? "primary"
+                            : "secondary"}
+                    >
+                        <IconButton class="material-icons"
+                            >contact_support</IconButton
+                        >
+                    </Fab>
+                </div>
             </div>
-        </div>
+        {/if}
 
         <slot />
 

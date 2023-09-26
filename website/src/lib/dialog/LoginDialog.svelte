@@ -41,9 +41,8 @@
         <IconButton action="close" class="material-icons">close</IconButton>
     </Header>
     <Content id="fullscreen-content">
-        <div class="margins">
+        <div class="center">
             
-
             <form on:submit={handleSubmit}>
                 
 
@@ -63,6 +62,7 @@
 
                 <button type="submit">Submit</button>
             </form>
+
         </div>
 
         <div id="next-button" class="center">
