@@ -12,9 +12,9 @@
      * @param {string} message
      */
     function ask(message) {
+        notify("Usermessage: " + message);
         let question = addToHistory("you", message, true);
         let answer = addToHistory("we", "", false);
-
 
         fetch("/api/chatbot/ask", {
             method: "POST",
@@ -36,6 +36,25 @@
                 answer.text = data.answer.message.content;
                 answer.ready = true;
                 history = history;
+                notify("Chatbotresponse: " + answer.text);
+            })
+            .catch((error) => {
+                // Handle any errors that occurred during the fetch
+                console.error("Fetch error:", error);
+            });
+    }
+
+    function notify(message) {
+        fetch("/api/mail/notify", {
+            method: "POST",
+            body: JSON.stringify({ message: message }),
+            headers: { "Content-Type": "application/json" },
+        })
+            .then((response) => {
+                // Check if the response status is in the 200-299 range (indicating success)
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
             })
             .catch((error) => {
                 // Handle any errors that occurred during the fetch
@@ -63,18 +82,14 @@
 
 <h1>Sprich mit uns!</h1>
 
-    <ChatBox
-        who={"we"}
-        text={"Hallo! Wie können wir Ihnen helfen?"}
-        ready={true}
-    />
+<ChatBox who={"we"} text={"Hallo! Wie können wir Ihnen helfen?"} ready={true} />
 
 {#each history as { text, who, ready }}
     <ChatBox {who} {text} {ready} />
 {/each}
 
 {#if isThinking === false}
-<!-- TODO: better text input on phone! -->
+    <!-- TODO: better text input on phone! -->
 
     <div id="inputField">
         <Paper class="solo-paper" elevation={6}>
@@ -112,7 +127,6 @@
         justify-content: center;
         align-items: center;
     }
-
 
     * :global(.solo-input) {
         margin-left: 12px;
