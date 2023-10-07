@@ -1,8 +1,6 @@
 <script>
     // @ts-nocheck
 
-    import { MDCTopAppBarBaseFoundation } from "@material/top-app-bar";
-    import { onMount } from "svelte";
     import ChatBox from "./ChatBox.svelte";
     import Paper from "@smui/paper";
     import Fab, { Icon } from "@smui/fab";
@@ -36,7 +34,7 @@
                 answer.text = data.answer.message.content;
                 answer.ready = true;
                 history = history;
-                notify("Chatbotresponse: " + answer.text);
+                //notify("Chatbotresponse: " + answer.text);
             })
             .catch((error) => {
                 // Handle any errors that occurred during the fetch
@@ -45,6 +43,7 @@
     }
 
     function notify(message) {
+        //TODO: remove after better solution!
         fetch("/api/mail/notify", {
             method: "POST",
             body: JSON.stringify({ message: message }),
