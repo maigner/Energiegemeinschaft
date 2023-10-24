@@ -1,12 +1,38 @@
 <script>
     import Project from "$lib/Project.svelte";
-    import Fab, { Label, Icon } from "@smui/fab";
-    import { Heading, P, A, Mark, Secondary } from "flowbite-svelte";
+    import Fab, { Label } from "@smui/fab";
+    import { Heading, } from "flowbite-svelte";
     import LayoutGrid, { Cell } from "@smui/layout-grid";
 
+    import { Blockquote } from "flowbite-svelte";
 </script>
 
-<div class="text-center">
+<div class="flex place-content-center">
+    <figure class="m-4 text-center">
+        <Blockquote alignment="center" size="xl">
+            Willkommen bei der Energiegemeinschaft Bad Ischl! 
+            <br />
+            Erneuerbare
+            Energie ist von entscheidender Bedeutung, weil sie dazu beiträgt,
+            den Klimawandel einzudämmen.
+        </Blockquote>
+        <figcaption class="flex justify-center items-center mt-6 space-x-3">
+            <div
+                class="flex items-center divide-x-2 divide-gray-500 dark:divide-gray-700"
+            >
+                <cite class="pr-3 font-medium text-gray-900 dark:text-white"
+                    >Energie aus Bad Ischl</cite
+                >
+                <cite
+                    class="pl-3 text-sm font-light text-gray-500 dark:text-gray-400"
+                    >für Bad Ischl</cite
+                >
+            </div>
+        </figcaption>
+    </figure>
+</div>
+
+<div class="text-center mt-5">
     <Heading tag="h2">Was gibt es Neues?</Heading>
 </div>
 
@@ -21,15 +47,12 @@
     </Project>
 </div>
 
-
 <div class="text-center">
     <Heading tag="h2">Vorteile einer Energiegemeinschaft</Heading>
 </div>
 
 <div class="flex place-content-center">
     <LayoutGrid>
-       
-
         <Cell span={6}>
             <div>
                 <Project img="tmp/energiewende.png">
@@ -37,11 +60,10 @@
                     <div slot="content">
                         Sie fördern erneuerbare Energien, indem sie den
                         gemeinsamen Einsatz von Solaranlagen oder
-                        Windkraftanlagen erleichtern und den
-                        Überschussstrom verteilen.
+                        Windkraftanlagen erleichtern und den Überschussstrom
+                        verteilen.
                     </div>
                 </Project>
-                
             </div>
         </Cell>
 
@@ -50,28 +72,24 @@
                 <Project img="tmp/unabhängig.jpeg">
                     <span slot="title">Unabhängigkeit</span>
                     <div slot="content">
-                        Energiegemeinschaften bieten Unabhängigkeit von
-                        großen Energieunternehmen und ermöglichen es den
-                        Mitgliedern, ihre Energieversorgung selbst zu
-                        kontrollieren.
+                        Energiegemeinschaften bieten Unabhängigkeit von großen
+                        Energieunternehmen und ermöglichen es den Mitgliedern,
+                        ihre Energieversorgung selbst zu kontrollieren.
                     </div>
                 </Project>
-
             </div>
         </Cell>
 
-   
         <Cell span={6}>
             <div>
                 <Project img="tmp/versorgung.jpeg">
                     <span slot="title">Versorgungssicherheit</span>
                     <div slot="content">
-                        Gemeinschaften können in Notfällen auf eine
-                        zuverlässige Energiequelle zugreifen und so die
-                        Energieversorgung in Krisenzeiten sicherstellen.
+                        Gemeinschaften können in Notfällen auf eine zuverlässige
+                        Energiequelle zugreifen und so die Energieversorgung in
+                        Krisenzeiten sicherstellen.
                     </div>
                 </Project>
-                
             </div>
         </Cell>
 
@@ -80,27 +98,18 @@
                 <Project img="tmp/vernetzt.jpeg">
                     <span slot="title">Soziale Vernetzung</span>
                     <div slot="content">
-                        Energiegemeinschaften fördern den sozialen
-                        Zusammenhalt und den Austausch von Wissen und
-                        Ressourcen zwischen Mitgliedern, was die lokale
-                        Gemeinschaft stärkt.
+                        Energiegemeinschaften fördern den sozialen Zusammenhalt
+                        und den Austausch von Wissen und Ressourcen zwischen
+                        Mitgliedern, was die lokale Gemeinschaft stärkt.
                     </div>
                 </Project>
-                
-
             </div>
         </Cell>
     </LayoutGrid>
-
-   
 </div>
 
 <div class="flex place-content-center">
-    <Fab
-        extended
-        href="/mitmachen"
-        color="primary"
-    >
+    <Fab extended href="/mitmachen" color="primary">
         <Label>Jetzt Mitmachen</Label>
     </Fab>
 </div>

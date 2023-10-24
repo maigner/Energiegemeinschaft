@@ -26,29 +26,36 @@
     DropdownHeader,
     DropdownDivider,
   } from "flowbite-svelte";
+    import { page } from "$app/stores";
 </script>
 
 <div>
-  <Navbar fluid={false}>
+  <Navbar fluid={false} class="">
     <NavBrand href="/">
       <img src="header.png" class="mr-3 h-16 sm:h-20" alt="Logo" />
     </NavBrand>
     <NavHamburger />
-    <NavUl>
+    <NavUl class="">
       <div class="flex place-content-center">
         <BottomNavItem btnName="Home" href="/" class="">
           <HomeOutline
-            class="w-10 h-10 mb-1 text-green-600  group-hover:text-green-900 "
+            class="w-6 h-6 mb-1 {$page.route.id === '/'
+              ? 'text-green-950'
+              : 'text-green-600'}  group-hover:text-green-900 "
           />
         </BottomNavItem>
         <BottomNavItem btnName="Mitmachen" href="/mitmachen">
           <UserAddOutline
-            class="w-10 h-10 mb-1 text-green-600  group-hover:text-green-900 "
+            class="w-6 h-6 mb-1 {$page.route.id === '/mitmachen'
+              ? 'text-green-950'
+              : 'text-green-600'} group-hover:text-green-900 "
           />
         </BottomNavItem>
         <BottomNavItem btnName="Kontakt" href="/chatbot">
           <MessagesOutline
-            class="w-10 h-10 mb-1 text-green-600  group-hover:text-green-900 "
+            class="w-6 h-6 mb-1 {$page.route.id === '/chatbot'
+              ? 'text-green-950'
+              : 'text-green-600'}  group-hover:text-green-900 "
           />
         </BottomNavItem>
       </div>
