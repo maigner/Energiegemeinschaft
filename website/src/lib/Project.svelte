@@ -4,11 +4,12 @@
     /**
      * @type {string}
      */
-     export let img;
+    export let img;
+    export let showMore = true;
 </script>
 
-<div>
-    <Card {img} class="m-2" size="xl">
+<div class="min-w-fit">
+    <Card {img} class="m-4" size="xl">
         <h5
             class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"
         >
@@ -20,9 +21,9 @@
         >
             <slot name="content" />
         </p>
-        <Button>
-            Mehr erfahren
-        </Button>
+        {#if showMore}
+            <Button>Mehr erfahren</Button>
+        {/if}
     </Card>
 </div>
 

@@ -1,18 +1,21 @@
 <script>
     import Paper, { Content } from "@smui/paper";
     import JoinForm from "$lib/JoinForm.svelte";
+    import { Heading } from "flowbite-svelte";
+    import Project from "$lib/Project.svelte";
 </script>
 
-<Paper>
-    <Content>
-        <h1>Willkommen</h1>
-
-        
+<div class="text-center">
+    <Heading tag="h2">Willkommen</Heading>
+</div>
+<div class="flex place-content-center">
+    <Project img="" showMore={false}>
+        <span slot="title">Wir brauchen noch ein paar Informationen</span>
+        <div slot="content">
             <JoinForm />
-        
-    </Content>
-</Paper>
+        </div>
+    </Project>
+</div>
 
 <style>
-    
 </style>

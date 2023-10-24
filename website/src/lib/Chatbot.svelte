@@ -79,7 +79,6 @@
     }
 </script>
 
-<h1>Sprich mit uns!</h1>
 
 <ChatBox who={"we"} text={"Hallo! Wie können wir Ihnen helfen?"} ready={true} />
 

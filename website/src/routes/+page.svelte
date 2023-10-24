@@ -1,30 +1,110 @@
 <script>
-    import Paper, { Content } from "@smui/paper";
-    import LayoutGrid, { Cell } from "@smui/layout-grid";
     import Project from "$lib/Project.svelte";
     import Fab, { Label, Icon } from "@smui/fab";
     import { Heading, P, A, Mark, Secondary } from "flowbite-svelte";
+    import LayoutGrid, { Cell } from "@smui/layout-grid";
+
 </script>
-
-
 
 <div class="text-center">
     <Heading tag="h2">Was gibt es Neues?</Heading>
 </div>
 
-<div class="center">
-    <Project img="tmp/verein.jpeg">
+<div class="flex place-content-center">
+    <Project img="tmp/neue_mitglieder.jpeg">
         <span slot="title">Vereinsgründung</span>
         <div slot="content">
-            Die Gründung einer Energiegemeinschaft ist ein bedeutender Schritt in
-            Richtung nachhaltiger Energieversorgung. Menschen bündeln ihre
+            Die Gründung einer Energiegemeinschaft ist ein bedeutender Schritt
+            in Richtung nachhaltiger Energieversorgung. Menschen bündeln ihre
             Ressourcen und Fachkenntnisse, um erneuerba...
         </div>
     </Project>
 </div>
 
 
+<div class="text-center">
+    <Heading tag="h2">Vorteile einer Energiegemeinschaft</Heading>
+</div>
 
+<div class="flex place-content-center">
+    <LayoutGrid>
+       
+
+        <Cell span={6}>
+            <div>
+                <Project img="tmp/energiewende.png">
+                    <span slot="title">Energiewende</span>
+                    <div slot="content">
+                        Sie fördern erneuerbare Energien, indem sie den
+                        gemeinsamen Einsatz von Solaranlagen oder
+                        Windkraftanlagen erleichtern und den
+                        Überschussstrom verteilen.
+                    </div>
+                </Project>
+                
+            </div>
+        </Cell>
+
+        <Cell span={6}>
+            <div>
+                <Project img="tmp/unabhängig.jpeg">
+                    <span slot="title">Unabhängigkeit</span>
+                    <div slot="content">
+                        Energiegemeinschaften bieten Unabhängigkeit von
+                        großen Energieunternehmen und ermöglichen es den
+                        Mitgliedern, ihre Energieversorgung selbst zu
+                        kontrollieren.
+                    </div>
+                </Project>
+
+            </div>
+        </Cell>
+
+   
+        <Cell span={6}>
+            <div>
+                <Project img="tmp/versorgung.jpeg">
+                    <span slot="title">Versorgungssicherheit</span>
+                    <div slot="content">
+                        Gemeinschaften können in Notfällen auf eine
+                        zuverlässige Energiequelle zugreifen und so die
+                        Energieversorgung in Krisenzeiten sicherstellen.
+                    </div>
+                </Project>
+                
+            </div>
+        </Cell>
+
+        <Cell span={6}>
+            <div>
+                <Project img="tmp/vernetzt.jpeg">
+                    <span slot="title">Soziale Vernetzung</span>
+                    <div slot="content">
+                        Energiegemeinschaften fördern den sozialen
+                        Zusammenhalt und den Austausch von Wissen und
+                        Ressourcen zwischen Mitgliedern, was die lokale
+                        Gemeinschaft stärkt.
+                    </div>
+                </Project>
+                
+
+            </div>
+        </Cell>
+    </LayoutGrid>
+
+   
+</div>
+
+<div class="flex place-content-center">
+    <Fab
+        extended
+        href="/mitmachen"
+        color="primary"
+    >
+        <Label>Jetzt Mitmachen</Label>
+    </Fab>
+</div>
+<!--
 <Paper>
     <Content>
         <LayoutGrid>
@@ -166,3 +246,4 @@
         margin: 20px;
     }
 </style>
+-->

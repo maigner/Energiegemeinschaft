@@ -1,10 +1,18 @@
 <script>
     import Chatbot from "$lib/Chatbot.svelte";
-    import Paper, { Content } from "@smui/paper";
+    import Project from "$lib/Project.svelte";
+    import { Card, Heading } from "flowbite-svelte";
 
 </script>
-<Paper>
-    <Content>
+
+
+
+<div class="text-center">
+    <Heading tag="h2">Sprich mit uns!</Heading>
+</div>
+
+<div class="p-4">
+    <Card class="m-auto" size="xl" padding="xl">
         <Chatbot />
-    </Content>
-</Paper>
+    </Card>    
+</div>
