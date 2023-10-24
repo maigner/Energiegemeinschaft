@@ -6,6 +6,7 @@
     BottomNavItem,
     Skeleton,
     ImagePlaceholder,
+    Hr,
   } from "flowbite-svelte";
   import {
     HomeOutline,
@@ -28,16 +29,12 @@
 </script>
 
 <div>
-
-
   <Navbar fluid={false}>
     <NavBrand href="/">
       <img src="header.png" class="mr-3 h-16 sm:h-20" alt="Logo" />
     </NavBrand>
     <NavHamburger />
     <NavUl>
-  
-  
       <div class="flex place-content-center">
         <BottomNavItem btnName="Home" href="/" class="">
           <HomeOutline
@@ -55,22 +52,18 @@
           />
         </BottomNavItem>
       </div>
-      
-  
     </NavUl>
   </Navbar>
-  
+
   <slot />
-  
-  <div class="center">
-    <div class="sponsors">
-        <img src="sponsors.jpg" width="100%" alt="sponsors">
-    </div>
+
+  <div class="center mt-16">
+    <img src="sponsors.jpg" width="80%" alt="sponsors" />
   </div>
-  
+
   <div class="center">
     <a href="/impressum">Impressum</a>
   </div>
 
-
+  <Hr />
 </div>
