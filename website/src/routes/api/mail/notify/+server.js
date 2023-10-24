@@ -10,7 +10,7 @@ export async function POST({ request, cookies }) {
 
     console.log("mail.notify " + message);
 
-    if (dev) return json({message: "OK"});
+    return json({message: "OK"});
 
     let transporter = nodemailer.createTransport({
         host: SMTP_ENDPOINT,

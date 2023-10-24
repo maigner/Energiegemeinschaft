@@ -10,6 +10,7 @@
   import {
     HomeOutline,
     HomeSolid,
+    MessagesOutline,
     UserAddOutline,
   } from "flowbite-svelte-icons";
   import {
@@ -45,6 +46,11 @@
           class="w-10 h-10 mb-1 text-green-600  group-hover:text-green-900 "
         />
       </BottomNavItem>
+      <BottomNavItem btnName="Kontakt" href="/chatbot">
+        <MessagesOutline
+          class="w-10 h-10 mb-1 text-green-600  group-hover:text-green-900 "
+        />
+      </BottomNavItem>
     </div>
     
 
@@ -52,3 +58,13 @@
 </Navbar>
 
 <slot />
+
+<div class="center">
+  <div class="sponsors">
+      <img src="sponsors.jpg" width="100%" alt="sponsors">
+  </div>
+</div>
+
+<div class="center">
+  <a href="/impressum">Impressum</a>
+</div>

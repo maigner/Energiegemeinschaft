@@ -92,8 +92,8 @@
 
 
 <div class="joinbutton">
-    <Fab extended href="/" color="primary">
-        <Label>Los geht's!</Label>
+    <Fab extended href="/chatbot" color="primary">
+        <Label>Noch Fragen?</Label>
     </Fab>
 </div>
 
