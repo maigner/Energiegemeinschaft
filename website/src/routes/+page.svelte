@@ -3,33 +3,33 @@
     import LayoutGrid, { Cell } from "@smui/layout-grid";
     import Project from "$lib/Project.svelte";
     import Fab, { Label, Icon } from "@smui/fab";
+    import { Heading, P, A, Mark, Secondary } from "flowbite-svelte";
 </script>
+
+
+
+<div class="text-center">
+    <Heading tag="h2">Was gibt es Neues?</Heading>
+</div>
+
+<div class="center">
+    <Project img="tmp/verein.jpeg">
+        <span slot="title">Vereinsgründung</span>
+        <div slot="content">
+            Die Gründung einer Energiegemeinschaft ist ein bedeutender Schritt in
+            Richtung nachhaltiger Energieversorgung. Menschen bündeln ihre
+            Ressourcen und Fachkenntnisse, um erneuerba...
+        </div>
+    </Project>
+</div>
+
+
 
 <Paper>
     <Content>
-        <h1>Was gibt es Neues?</h1>
-
         <LayoutGrid>
             <Cell spanDevices={{ desktop: 6, tablet: 12, phone: 12 }}>
-                <div>
-                    <Project>
-                        <span slot="title">Vereinsgründung</span>
-                        <span slot="subtitle">Los geht's</span>
-                        <div slot="image">
-                            <img
-                                src="tmp/verein.jpeg"
-                                width="100%"
-                                alt="sponsors"
-                            />
-                        </div>
-                        <div slot="content">
-                            Die Gründung einer Energiegemeinschaft ist ein
-                            bedeutender Schritt in Richtung nachhaltiger
-                            Energieversorgung. Menschen bündeln ihre Ressourcen
-                            und Fachkenntnisse, um erneuerba...
-                        </div>
-                    </Project>
-                </div>
+                <div />
             </Cell>
             <Cell spanDevices={{ desktop: 6, tablet: 12, phone: 12 }}>
                 <div>

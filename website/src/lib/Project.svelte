@@ -1,74 +1,30 @@
 <script>
-    import Card, {
-        Content,
-        PrimaryAction,
-        Media,
-        MediaContent,
-        Actions,
-        ActionButtons,
-        ActionIcons,
-    } from "@smui/card";
-    import Button, { Label } from "@smui/button";
-    import IconButton, { Icon } from "@smui/icon-button";
+    import { Card, Button, Toggle } from "flowbite-svelte";
 
-    let clicked = 0;
-
-
+    /**
+     * @type {string}
+     */
+     export let img;
 </script>
 
-<div class="card-container">
-    <Card>
-        <PrimaryAction on:click={() => clicked++}>
-            
-            <slot name="image"></slot>
-            <Content class="mdc-typography--body2">
-                <h2 class="mdc-typography--headline6" style="margin: 0;">
-                    <slot name="title"></slot>
-                </h2>
-                <h3
-                    class="mdc-typography--subtitle2"
-                    style="margin: 0 0 10px; color: #888;"
-                >
-                <slot name="subtitle"></slot>
-
-                </h3>
-                <slot name="content"></slot>
-            </Content>
-        </PrimaryAction>
-        <Actions>
-            <ActionButtons>
-                <Button on:click={() => clicked++}>
-                    <Label>Mehr Erfahren</Label>
-                </Button>
-                
-            </ActionButtons>
-            <ActionIcons>
-                <IconButton
-                    on:click={() => clicked++}
-                    toggle
-                    aria-label="Add to favorites"
-                    title="Add to favorites"
-                >
-                    <Icon class="material-icons" on>favorite</Icon>
-                    <Icon class="material-icons">favorite_border</Icon>
-                </IconButton>
-                <IconButton
-                    class="material-icons"
-                    on:click={() => clicked++}
-                    title="Share">share</IconButton
-                >
-                <IconButton
-                    class="material-icons"
-                    on:click={() => clicked++}
-                    title="More options">more_vert</IconButton
-                >
-            </ActionIcons>
-        </Actions>
+<div>
+    <Card {img} class="m-2" size="xl">
+        <h5
+            class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"
+        >
+            <slot name="title" />
+        </h5>
+        <p><slot name="subtitle" /></p>
+        <p
+            class="mb-3 font-normal text-gray-700 dark:text-gray-400 leading-tight"
+        >
+            <slot name="content" />
+        </p>
+        <Button>
+            Mehr erfahren
+        </Button>
     </Card>
 </div>
 
 <style>
-    * :global(.card-media-16x9) {
-        background-image: url(https://placehold.co/320x180?text=16x9);
-    }
 </style>

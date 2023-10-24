@@ -1,5 +1,5 @@
 <script>
-  import "../app.css"
+  import "../app.css";
 
   import {
     BottomNav,
@@ -8,38 +8,47 @@
     ImagePlaceholder,
   } from "flowbite-svelte";
   import {
+    HomeOutline,
     HomeSolid,
-    WalletSolid,
-    AdjustmentsVerticalOutline,
-    UserCircleSolid,
+    UserAddOutline,
   } from "flowbite-svelte-icons";
+  import {
+    Navbar,
+    NavBrand,
+    NavLi,
+    NavUl,
+    NavHamburger,
+    Avatar,
+    Dropdown,
+    DropdownItem,
+    DropdownHeader,
+    DropdownDivider,
+  } from "flowbite-svelte";
 </script>
 
+<Navbar fluid={false}>
+  <NavBrand href="/">
+    <img src="header.png" class="mr-3 h-16 sm:h-20" alt="Logo" />
+  </NavBrand>
+  <NavHamburger />
+  <NavUl>
 
-<slot></slot>
 
-<Skeleton class="py-4" />
-<ImagePlaceholder class="pb-20" />
+    <div class="center">
+      <BottomNavItem btnName="Home" href="/" class="">
+        <HomeOutline
+          class="w-10 h-10 mb-1 text-green-600  group-hover:text-green-900 "
+        />
+      </BottomNavItem>
+      <BottomNavItem btnName="Mitmachen" href="/mitmachen">
+        <UserAddOutline
+          class="w-10 h-10 mb-1 text-green-600  group-hover:text-green-900 "
+        />
+      </BottomNavItem>
+    </div>
+    
 
-<BottomNav position="absolute" classInner="grid-cols-4">
-  <BottomNavItem btnName="Home">
-    <HomeSolid
-      class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500"
-    />
-  </BottomNavItem>
-  <BottomNavItem btnName="Wallet">
-    <WalletSolid
-      class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500"
-    />
-  </BottomNavItem>
-  <BottomNavItem btnName="Settings">
-    <AdjustmentsVerticalOutline
-      class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500"
-    />
-  </BottomNavItem>
-  <BottomNavItem btnName="Profile">
-    <UserCircleSolid
-      class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500"
-    />
-  </BottomNavItem>
-</BottomNav>
+  </NavUl>
+</Navbar>
+
+<slot />

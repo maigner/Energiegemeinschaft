@@ -2,6 +2,8 @@
     import Project from "$lib/Project.svelte";
     import LayoutGrid from "@smui/layout-grid";
     import { Cell } from "@smui/layout-grid";
+    import { BottomNav, BottomNavItem } from "flowbite-svelte";
+    import { AdjustmentsVerticalOutline, HomeSolid, UserCircleSolid, WalletSolid } from "flowbite-svelte-icons";
 </script>
 
 <h1>Dashboard</h1>
@@ -63,3 +65,28 @@
         </Project>
     </Cell>
 </LayoutGrid>
+
+
+<BottomNav position="fixed" navType="default" classInner="grid-cols-4">
+    <BottomNavItem btnName="Home" href="/">
+      <HomeSolid
+        class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500"
+      />
+    </BottomNavItem>
+    <BottomNavItem btnName="Wallet" href="/vorteile">
+      <WalletSolid
+        class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500"
+      />
+    </BottomNavItem>
+    <BottomNavItem btnName="Settings">
+      <AdjustmentsVerticalOutline
+        class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500"
+      />
+    </BottomNavItem>
+    <BottomNavItem btnName="Profile">
+      <UserCircleSolid
+        class="w-5 h-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-500"
+      />
+    </BottomNavItem>
+  </BottomNav>
+  
