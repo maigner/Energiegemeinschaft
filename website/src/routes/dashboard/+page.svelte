@@ -8,7 +8,7 @@
 
 <h1>Dashboard</h1>
 <h2>Meine Daten</h2>
-
+<!--
 <LayoutGrid>
     <Cell span={6}>
         <Project>
@@ -89,4 +89,4 @@
       />
     </BottomNavItem>
   </BottomNav>
-  
+  -->

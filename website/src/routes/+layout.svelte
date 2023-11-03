@@ -1,16 +1,9 @@
 <script>
   import "../app.css";
 
-  import {
-    BottomNav,
-    BottomNavItem,
-    Skeleton,
-    ImagePlaceholder,
-    Hr,
-  } from "flowbite-svelte";
+  import { BottomNavItem, Heading, Hr } from "flowbite-svelte";
   import {
     HomeOutline,
-    HomeSolid,
     MessagesOutline,
     UserAddOutline,
   } from "flowbite-svelte-icons";
@@ -20,14 +13,16 @@
     NavLi,
     NavUl,
     NavHamburger,
-    Avatar,
-    Dropdown,
-    DropdownItem,
-    DropdownHeader,
-    DropdownDivider,
   } from "flowbite-svelte";
-    import { page } from "$app/stores";
+  import { Button } from "flowbite-svelte";
+
+  import { page } from "$app/stores";
+  import BetaLogin from "$lib/dialog/BetaLogin.svelte";
+
+  let betaLoginOpen = true;
 </script>
+
+<BetaLogin bind:open={betaLoginOpen} />
 
 <div>
   <Navbar fluid={false} class="">
