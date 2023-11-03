@@ -33,6 +33,9 @@ configurations {
 }
 
 dependencies {
+    compile 'org.grails.plugins:spring-security-core:4.0.4'
+
+
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     compile "org.springframework.boot:spring-boot-starter-logging"
     compile "org.springframework.boot:spring-boot-autoconfigure"
