@@ -1,4 +1,6 @@
 <script>
+// @ts-nocheck
+
     import { Button, Checkbox, Input, Label, Modal, Skeleton } from "flowbite-svelte";
     let openModal = false;
 

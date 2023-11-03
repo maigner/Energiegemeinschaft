@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { json } from "@sveltejs/kit";
-import { SMTP_USER, SMTP_PASSWORD, SMTP_ENDPOINT } from "$env/static/private";
-import { dev } from '$app/environment';
+import { SMTP_USER, SMTP_PASSWORD, SMTP_ENDPOINT, SMTP_TLS_PORT } from "$env/static/private";
 import nodemailer from 'nodemailer';
 
 export async function POST({ request, cookies }) {
@@ -10,11 +9,9 @@ export async function POST({ request, cookies }) {
 
     console.log("mail.notify " + message);
 
-    return json({message: "OK"});
-
     let transporter = nodemailer.createTransport({
         host: SMTP_ENDPOINT,
-        port: 25,
+        port: SMTP_TLS_PORT,
         secure: true, // use TLS
         auth: {
             user: SMTP_USER,
@@ -32,7 +29,7 @@ export async function POST({ request, cookies }) {
     
 
     var mailMessage = {
-        from: "noreply@ischlstrom.org",
+        from: "martin@maigner.net",
         to: "martin@maigner.net",
         subject: "EEG Wegsite Log",
         text: JSON.stringify(message)
@@ -42,8 +39,6 @@ export async function POST({ request, cookies }) {
 
 
     let result = { message: "OK" };
-
-
 
     return json(result);
 
