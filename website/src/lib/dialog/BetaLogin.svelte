@@ -1,5 +1,4 @@
 <script>
-	import { LC_NUMERIC } from './../../../.svelte-kit/ambient.d.ts';
     import { Button, Checkbox, Input, Label, Modal, Skeleton } from "flowbite-svelte";
     let openModal = false;
 

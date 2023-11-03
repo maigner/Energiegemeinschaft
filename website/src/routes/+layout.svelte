@@ -19,7 +19,7 @@
   import { page } from "$app/stores";
   import BetaLogin from "$lib/dialog/BetaLogin.svelte";
 
-  let betaLoginOpen = true;
+  let betaLoginOpen = false;
 </script>
 
 <BetaLogin bind:open={betaLoginOpen} />
@@ -32,27 +32,33 @@
     <NavHamburger />
     <NavUl class="">
       <div class="flex place-content-center">
-        <BottomNavItem btnName="Home" href="/" class="">
-          <HomeOutline
-            class="w-6 h-6 mb-1 {$page.route.id === '/'
-              ? 'text-green-950'
-              : 'text-green-600'}  group-hover:text-green-900 "
-          />
-        </BottomNavItem>
-        <BottomNavItem btnName="Mitmachen" href="/mitmachen">
-          <UserAddOutline
-            class="w-6 h-6 mb-1 {$page.route.id === '/mitmachen'
-              ? 'text-green-950'
-              : 'text-green-600'} group-hover:text-green-900 "
-          />
-        </BottomNavItem>
-        <BottomNavItem btnName="Kontakt" href="/chatbot">
-          <MessagesOutline
-            class="w-6 h-6 mb-1 {$page.route.id === '/chatbot'
-              ? 'text-green-950'
-              : 'text-green-600'}  group-hover:text-green-900 "
-          />
-        </BottomNavItem>
+        {#if $page.route.id !== "/"}
+          <BottomNavItem btnName="Home" href="/" class="">
+            <HomeOutline
+              class="w-6 h-6 mb-1 {$page.route.id === '/'
+                ? 'text-green-950'
+                : 'text-green-600'}  group-hover:text-green-900 "
+            />
+          </BottomNavItem>
+        {/if}
+        {#if $page.route.id !== "/mitmachen"}
+          <BottomNavItem btnName="Mitmachen" href="/mitmachen">
+            <UserAddOutline
+              class="w-6 h-6 mb-1 {$page.route.id === '/mitmachen'
+                ? 'text-green-950'
+                : 'text-green-600'} group-hover:text-green-900 "
+            />
+          </BottomNavItem>
+        {/if}
+        {#if $page.route.id !== "/chatbot"}
+          <BottomNavItem btnName="Kontakt" href="/chatbot">
+            <MessagesOutline
+              class="w-6 h-6 mb-1 {$page.route.id === '/chatbot'
+                ? 'text-green-950'
+                : 'text-green-600'}  group-hover:text-green-900 "
+            />
+          </BottomNavItem>
+        {/if}
       </div>
     </NavUl>
   </Navbar>

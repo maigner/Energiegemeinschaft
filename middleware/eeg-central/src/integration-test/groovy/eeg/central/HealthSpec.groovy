@@ -9,7 +9,7 @@ import io.micronaut.http.client.HttpClient
 import grails.testing.spock.OnceBefore
 
 @Integration
-class HealthSpec {
+class HealthSpec extends Specification {
 
     @Shared
     @AutoCleanup
@@ -17,7 +17,17 @@ class HealthSpec {
 
     @OnceBefore
     void init() {
-        String baseUrl = "http://localhost:$serverPort"
+        String baseUrl = "http://localhost:8073"
         client = HttpClient.create(new URL(baseUrl))
+    }
+
+    void "health responds OK"()  {
+        when:
+        Map m = client.toBlocking().retrieve(HttpRequest.GET("/health"), Map)
+
+        then:
+        m
+        m.containsKey("status")
+        m.get("status") ==  "UP"
     }
 }

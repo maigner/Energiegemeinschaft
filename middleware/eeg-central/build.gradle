@@ -15,7 +15,7 @@ group "eeg.central"
 
 apply plugin:"eclipse"
 apply plugin:"idea"
-apply plugin:"war"
+//apply plugin:"war"
 apply plugin:"org.grails.grails-web"
 apply plugin:"com.github.erdi.webdriver-binaries"
 apply plugin:"com.bertramlabs.asset-pipeline"
@@ -35,6 +35,8 @@ configurations {
 dependencies {
     compile 'org.grails.plugins:spring-security-core:4.0.4'
 
+    implementation "io.micronaut:micronaut-http-client"
+    testCompile "io.micronaut:micronaut-http-client"
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     compile "org.springframework.boot:spring-boot-starter-logging"

@@ -34,6 +34,7 @@ management:
     endpoints:
         enabled-by-default: false
 
+
 ---
 grails:
     mime:

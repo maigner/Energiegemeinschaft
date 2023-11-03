@@ -1,12 +1,13 @@
 package eeg.central
 
 import grails.gorm.transactions.Transactional
+import grails.util.Environment
 
 @Transactional
 class BootStrap {
 
     @Transactional
-    def setupUsers() {
+    def setupDevUsers() {
         final boolean flush = true
         final boolean failOnError = true
 
@@ -30,7 +31,17 @@ class BootStrap {
 
     def init = { servletContext ->
 
-        setupUsers()
+        switch (Environment.current) {
+            case Environment.DEVELOPMENT:
+                setupDevUsers()
+                break
+            case Environment.TEST:
+                //setupTestUsers()
+                break
+            case Environment.PRODUCTION:
+                break
+        }
+
 
     }
     def destroy = {
