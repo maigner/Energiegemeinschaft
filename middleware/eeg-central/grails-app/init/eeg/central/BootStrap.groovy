@@ -33,7 +33,7 @@ class BootStrap {
 
         switch (Environment.current) {
             case Environment.DEVELOPMENT:
-                setupDevUsers()
+                //setupDevUsers()
                 break
             case Environment.TEST:
                 //setupTestUsers()

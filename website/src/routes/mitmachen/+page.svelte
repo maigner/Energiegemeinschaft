@@ -1,5 +1,4 @@
 <script>
-    import Paper, { Content } from "@smui/paper";
     import JoinForm from "$lib/JoinForm.svelte";
     import { Heading } from "flowbite-svelte";
     import Project from "$lib/Project.svelte";

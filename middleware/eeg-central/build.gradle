@@ -33,6 +33,8 @@ configurations {
 }
 
 dependencies {
+    runtime group: 'org.postgresql', name: 'postgresql', version: '42.2.27'
+
     compile 'org.grails.plugins:spring-security-core:4.0.4'
 
     implementation "io.micronaut:micronaut-http-client"
