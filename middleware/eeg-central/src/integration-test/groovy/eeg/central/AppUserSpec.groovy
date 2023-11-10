@@ -6,7 +6,7 @@ import spock.lang.Specification
 
 @Integration
 @Rollback
-class UserSpec extends Specification {
+class AppUserSpec extends Specification {
 
     def setup() {
     }

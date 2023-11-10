@@ -13,7 +13,7 @@ class RoleGroupRole implements Serializable {
 	private static final long serialVersionUID = 1
 
 	RoleGroup roleGroup
-	Role role
+	AppRole role
 
 	@Override
 	boolean equals(other) {
@@ -45,23 +45,23 @@ class RoleGroupRole implements Serializable {
 	private static DetachedCriteria criteriaFor(long roleGroupId, long roleId) {
 		RoleGroupRole.where {
 			roleGroup == RoleGroup.load(roleGroupId) &&
-			role == Role.load(roleId)
+			role == AppRole.load(roleId)
 		}
 	}
 
-	static RoleGroupRole create(RoleGroup roleGroup, Role role, boolean flush = false) {
+	static RoleGroupRole create(RoleGroup roleGroup, AppRole role, boolean flush = false) {
 		def instance = new RoleGroupRole(roleGroup: roleGroup, role: role)
 		instance.save(flush: flush)
 		instance
 	}
 
-	static boolean remove(RoleGroup rg, Role r) {
+	static boolean remove(RoleGroup rg, AppRole r) {
 		if (rg != null && r != null) {
 			RoleGroupRole.where { roleGroup == rg && role == r }.deleteAll()
 		}
 	}
 
-	static int removeAll(Role r) {
+	static int removeAll(AppRole r) {
 		r == null ? 0 : RoleGroupRole.where { role == r }.deleteAll() as int
 	}
 
@@ -71,7 +71,7 @@ class RoleGroupRole implements Serializable {
 
 	static constraints = {
 	    roleGroup nullable: false
-		role nullable: false, validator: { Role r, RoleGroupRole rg ->
+		role nullable: false, validator: { AppRole r, RoleGroupRole rg ->
 			if (rg.roleGroup?.id) {
 				if (RoleGroupRole.exists(rg.roleGroup.id, r.id)) {
 				    return ['roleGroup.exists']

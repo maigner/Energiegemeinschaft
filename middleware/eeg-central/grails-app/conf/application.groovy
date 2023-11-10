@@ -1,9 +1,9 @@
 
 
 // Added by the Spring Security Core plugin:
-grails.plugin.springsecurity.userLookup.userDomainClassName = 'eeg.central.User'
+grails.plugin.springsecurity.userLookup.userDomainClassName = 'eeg.central.AppUser'
 grails.plugin.springsecurity.userLookup.authorityJoinClassName = 'eeg.central.UserRole'
-grails.plugin.springsecurity.authority.className = 'eeg.central.Role'
+grails.plugin.springsecurity.authority.className = 'eeg.central.AppRole'
 grails.plugin.springsecurity.authority.groupAuthorityNameField = 'authorities'
 grails.plugin.springsecurity.useRoleGroups = true
 grails.plugin.springsecurity.controllerAnnotations.staticRules = [

@@ -12,8 +12,8 @@ class UserRole implements Serializable {
 
 	private static final long serialVersionUID = 1
 
-	User user
-	Role role
+	AppUser user
+	AppRole role
 
 	@Override
 	boolean equals(other) {
@@ -44,34 +44,34 @@ class UserRole implements Serializable {
 
 	private static DetachedCriteria criteriaFor(long userId, long roleId) {
 		UserRole.where {
-			user == User.load(userId) &&
-			role == Role.load(roleId)
+			user == AppUser.load(userId) &&
+			role == AppRole.load(roleId)
 		}
 	}
 
-	static UserRole create(User user, Role role, boolean flush = false) {
+	static UserRole create(AppUser user, AppRole role, boolean flush = false) {
 		def instance = new UserRole(user: user, role: role)
 		instance.save(flush: flush)
 		instance
 	}
 
-	static boolean remove(User u, Role r) {
+	static boolean remove(AppUser u, AppRole r) {
 		if (u != null && r != null) {
 			UserRole.where { user == u && role == r }.deleteAll()
 		}
 	}
 
-	static int removeAll(User u) {
+	static int removeAll(AppUser u) {
 		u == null ? 0 : UserRole.where { user == u }.deleteAll() as int
 	}
 
-	static int removeAll(Role r) {
+	static int removeAll(AppRole r) {
 		r == null ? 0 : UserRole.where { role == r }.deleteAll() as int
 	}
 
 	static constraints = {
 	    user nullable: false
-		role nullable: false, validator: { Role r, UserRole ur ->
+		role nullable: false, validator: { AppRole r, UserRole ur ->
 			if (ur.user?.id) {
 				if (UserRole.exists(ur.user.id, r.id)) {
 				    return ['userRole.exists']

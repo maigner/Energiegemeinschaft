@@ -114,7 +114,7 @@ environments:
             password: ${DB_PASSWORD_DEV}
             driverClassName: org.postgresql.Driver
             dialect: PostgreSQLDialect
-            url: jdbc:postgresql://localhost:15432/eeg_central
+            url: jdbc:postgresql://192.168.178.38:15432/eeg_central
     test:
         dataSource:
             dbCreate: update

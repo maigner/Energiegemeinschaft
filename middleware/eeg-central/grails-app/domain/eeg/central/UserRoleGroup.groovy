@@ -11,7 +11,7 @@ class UserRoleGroup implements Serializable {
 
 	private static final long serialVersionUID = 1
 
-	User user
+	AppUser user
 	RoleGroup roleGroup
 
 	@Override
@@ -43,24 +43,24 @@ class UserRoleGroup implements Serializable {
 
 	private static DetachedCriteria criteriaFor(long userId, long roleGroupId) {
 		UserRoleGroup.where {
-			user == User.load(userId) &&
+			user == AppUser.load(userId) &&
 			roleGroup == RoleGroup.load(roleGroupId)
 		}
 	}
 
-	static UserRoleGroup create(User user, RoleGroup roleGroup, boolean flush = false) {
+	static UserRoleGroup create(AppUser user, RoleGroup roleGroup, boolean flush = false) {
 		def instance = new UserRoleGroup(user: user, roleGroup: roleGroup)
 		instance.save(flush: flush)
 		instance
 	}
 
-	static boolean remove(User u, RoleGroup rg) {
+	static boolean remove(AppUser u, RoleGroup rg) {
 		if (u != null && rg != null) {
 			UserRoleGroup.where { user == u && roleGroup == rg }.deleteAll()
 		}
 	}
 
-	static int removeAll(User u) {
+	static int removeAll(AppUser u) {
 		u == null ? 0 : UserRoleGroup.where { user == u }.deleteAll() as int
 	}
 
@@ -70,7 +70,7 @@ class UserRoleGroup implements Serializable {
 
 	static constraints = {
 	    roleGroup nullable: false
-		user nullable: false, validator: { User u, UserRoleGroup ug ->
+		user nullable: false, validator: { AppUser u, UserRoleGroup ug ->
 			if (ug.roleGroup?.id) {
 				if (UserRoleGroup.exists(u.id, ug.roleGroup.id)) {
 					return ['userGroup.exists']
