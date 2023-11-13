@@ -47,7 +47,6 @@
             </div>
         </Project>
     </Cell>
-    
 </LayoutGrid>
 
 <div class="text-center">
