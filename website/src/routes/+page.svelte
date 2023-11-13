@@ -7,7 +7,7 @@
     import { Blockquote } from "flowbite-svelte";
 </script>
 
-<div class="flex place-content-center">
+<div class="">
     <figure class="m-4 text-center">
         <Blockquote alignment="center" size="xl">
             Willkommen bei der Energiegemeinschaft Bad Ischl!
@@ -35,10 +35,9 @@
     <Heading tag="h2">Was gibt es Neues?</Heading>
 </div>
 
-<div class="flex place-content-center" />
 
 <LayoutGrid>
-    <Cell>
+    <Cell span={12}>
         <Project img="tmp/neue_mitglieder.jpeg">
             <span slot="title">Vereinsgründung</span>
             <div slot="content">
@@ -48,6 +47,7 @@
             </div>
         </Project>
     </Cell>
+    
 </LayoutGrid>
 
 <div class="text-center">

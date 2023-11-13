@@ -7,3 +7,12 @@
     justify-content: center;
     align-items: center;
 }
+
+.mdc-layout-grid__inner {
+    grid-gap: 0px;
+}
+
+.mdc-layout-grid__cell {
+    max-width: 50em;
+    margin: auto;
+}
