@@ -1,3 +1,5 @@
+/*
+
 import { SvelteKitAuth } from '@auth/sveltekit';
 import GoogleProvider from '@auth/core/providers/google';
 import EmailProvider from '@auth/core/providers/email';
@@ -11,19 +13,8 @@ import {
 
 export const handle = SvelteKitAuth({
     providers: [
-        /*
-        EmailProvider({
-            server: {
-                host: SMTP_ENDPOINT,
-                port: Number(SMTP_TLS_PORT),
-                auth: {
-                    user: SMTP_USER,
-                    pass: SMTP_PASSWORD
-                }
-            },
-            from: "martin@maigner.net"
-        }),
-        */
+        
         GoogleProvider({ clientId: GOOGLE_CLIENT_ID, clientSecret: GOOGLE_CLIENT_SECRET })
     ]
 });
+*/

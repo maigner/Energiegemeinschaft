@@ -1,10 +1,41 @@
 <script>
 // @ts-nocheck
 
-    import { Button, Checkbox, Input, Label, Modal, Skeleton } from "flowbite-svelte";
-    let openModal = false;
+    import { Button, Checkbox, Input, Label, Modal, Skeleton } from "flowbite-svelte";    
 
     export let open;
+
+    let user = "";
+    let pwd = "";
+
+    function login() {
+        
+
+        fetch("/api/user/login", {
+            method: "POST",
+            body: JSON.stringify({ user: user, pwd: pwd }),
+            headers: { "Content-Type": "application/json" },
+        })
+            .then((response) => {
+                // Check if the response status is in the 200-299 range (indicating success)
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                // Parse the response body as JSON
+                return response.json();
+            })
+            .then((loginResponse) => {
+                if (loginResponse.accepted) {
+                    open = false;
+                }
+            })
+            .catch((error) => {
+                // Handle any errors that occurred during the fetch
+                console.error("Fetch error:", error);
+            });
+    }
+
 </script>
 
 <Modal
@@ -26,13 +57,14 @@
     </p>
 
 
-    <form class="flex flex-col space-y-6" action="#">
+    <div class="flex flex-col space-y-6">
         <h3 class="mb-4 text-xl font-medium text-gray-900 dark:text-white">
             Bitte melden Sie sich an
         </h3>
         <Label class="space-y-2">
             <span>Email</span>
             <Input
+                bind:value={user}
                 type="email"
                 name="email"
                 placeholder="name@company.com"
@@ -42,6 +74,7 @@
         <Label class="space-y-2">
             <span>Passwort</span>
             <Input
+                bind:value={pwd}
                 type="password"
                 name="password"
                 placeholder="•••••"
@@ -59,7 +92,7 @@
             </a>
         </div>
         -->
-        <Button type="submit" class="">Anmelden</Button>
+        <Button type="submit" class="" on:click={login}>Anmelden</Button>
         <!--
         <div class="text-sm font-medium text-gray-500 dark:text-gray-300">
             Not registered? <a
@@ -70,12 +103,10 @@
             </a>
         </div>
         -->
-    </form>
-
+    </div>
 
     <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
-        Ihre Daten werden unter keinen Umständen an Dritte weitergegeben und werden
-        ausschöießlich zu technischen Zwecken erhoben.
+        Ihre Daten werden unter keinen Umständen an Dritte weitergegeben.
     </p>
 
 
