@@ -19,7 +19,7 @@
   import { page } from "$app/stores";
   import BetaLogin from "$lib/dialog/BetaLogin.svelte";
 
-  let betaLoginOpen = true;
+  let betaLoginOpen = false;
 </script>
 
 <BetaLogin bind:open={betaLoginOpen} />

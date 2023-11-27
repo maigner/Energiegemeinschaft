@@ -1,3 +1,9 @@
+buildscript {
+    dependencies {
+        classpath 'org.grails.plugins:database-migration:3.1.0'
+    }
+}
+
 plugins {
     id "groovy"
     id "org.grails.grails-web"
@@ -32,6 +38,7 @@ configurations {
 ext.springSecurityRestVersion = '3.0.1'
 
 
+
 dependencies {
 
     runtimeOnly group: 'org.postgresql', name: 'postgresql', version: '42.2.27'
@@ -40,6 +47,11 @@ dependencies {
     // and for rest clients as well
     implementation "org.grails.plugins:spring-security-rest:3.0.1"
     implementation "org.grails.plugins:spring-security-rest-gorm:3.0.1"
+
+    //db migration
+    implementation 'org.grails.plugins:database-migration:3.1.0'
+    implementation 'org.liquibase:liquibase-core:3.10.3'
+
 
 
     implementation("org.grails:grails-core")
@@ -82,6 +94,14 @@ dependencies {
     testRuntimeOnly("org.seleniumhq.selenium:selenium-safari-driver:4.14.1")
     testImplementation("io.micronaut:micronaut-http-client")
 
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir 'grails-app/migrations'
+        }
+    }
 }
 
 application {
