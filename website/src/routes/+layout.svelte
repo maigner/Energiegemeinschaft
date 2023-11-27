@@ -1,5 +1,7 @@
 <script>
   import "../app.css";
+  import { dev } from '$app/environment';
+
 
   import { BottomNavItem, Heading, Hr } from "flowbite-svelte";
   import {
@@ -19,7 +21,7 @@
   import { page } from "$app/stores";
   import BetaLogin from "$lib/dialog/BetaLogin.svelte";
 
-  let betaLoginOpen = false;
+  let betaLoginOpen = !dev;
 </script>
 
 <BetaLogin bind:open={betaLoginOpen} />
