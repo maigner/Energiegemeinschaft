@@ -12,7 +12,10 @@ class BootStrap {
         final boolean failOnError = true
 
         def exists = AppUser.findByUsername("martin@maigner.net")
-        if (exists) return
+        if (exists) {
+            println "exists."
+            return
+        }
 
         def martin = AppUser.findOrCreateWhere(username: "martin@maigner.net")
         martin.password = "1234"
@@ -22,14 +25,12 @@ class BootStrap {
         def adminRole = AppRole.findOrCreateWhere(authority: "ROLE_ADMIN")
         adminRole.save(flush: flush, failOnError: failOnError)
 
+        def userRole = AppUserAppRole.findOrCreateWhere(
+                appUser: martin,
+                appRole: adminRole
+        )
+        userRole.save(flush: flush, failOnError: failOnError)
 
-        def admins =  RoleGroup.findOrCreateWhere(name: 'Admins')
-        admins.save(flush: flush, failOnError: failOnError)
-
-
-        RoleGroupAppRole.findOrCreateWhere(roleGroup: admins, appRole: adminRole).save(flush: flush, failOnError: failOnError)
-
-        AppUserRoleGroup.findOrCreateWhere(appUser: martin, roleGroup: admins).save(flush: flush, failOnError: failOnError)
     }
 
     def init = { servletContext ->
