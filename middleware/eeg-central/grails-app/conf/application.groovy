@@ -4,9 +4,9 @@ grails.plugin.springsecurity.userLookup.userDomainClassName = 'eeg.central.AppUs
 grails.plugin.springsecurity.userLookup.authorityJoinClassName = 'eeg.central.AppUserAppRole'
 grails.plugin.springsecurity.authority.className = 'eeg.central.AppRole'
 grails.plugin.springsecurity.controllerAnnotations.staticRules = [
-        [pattern: '/',               access: ['ROLE_AUTHENTICATED']],
-        [pattern: '/error',          access: ['permitAll']],
-        [pattern: '/index',          access: ['ROLE_AUTHENTICATED']],
+        [pattern: '/',               access: ['ROLE_ADMIN']],
+        [pattern: '/error',          access: ['ROLE_ADMIN']],
+        [pattern: '/index',          access: ['ROLE_ADMIN']],
         [pattern: '/index.gsp',      access: ['ROLE_ADMIN']],
         [pattern: '/shutdown',       access: ['ROLE_ADMIN']],
         [pattern: '/assets/**',      access: ['ROLE_ADMIN']],
@@ -26,6 +26,11 @@ grails.plugin.springsecurity.filterChain.chainMap = [
         [pattern: '/**/favicon.ico', filters: 'none'],
 
         //Stateless chain. used for REST access
+        [
+                pattern: '/api/**',
+                filters: 'JOINED_FILTERS,-anonymousAuthenticationFilter,-exceptionTranslationFilter,-authenticationProcessingFilter,-securityContextPersistenceFilter,-rememberMeAuthenticationFilter'
+        ],
+
         [
                 pattern: '/api/**',
                 filters: 'JOINED_FILTERS,-anonymousAuthenticationFilter,-exceptionTranslationFilter,-authenticationProcessingFilter,-securityContextPersistenceFilter,-rememberMeAuthenticationFilter'

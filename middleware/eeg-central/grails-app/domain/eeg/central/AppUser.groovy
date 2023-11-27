@@ -1,8 +1,8 @@
 package eeg.central
 
-import grails.compiler.GrailsCompileStatic
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
+import grails.compiler.GrailsCompileStatic
 
 @GrailsCompileStatic
 @EqualsAndHashCode(includes='username')
@@ -18,7 +18,6 @@ class AppUser implements Serializable {
     boolean accountExpired
     boolean accountLocked
     boolean passwordExpired
-    Date termsAcceptedAt
 
     Set<AppRole> getAuthorities() {
         (AppUserAppRole.findAllByAppUser(this) as List<AppUserAppRole>)*.appRole as Set<AppRole>
@@ -27,8 +26,7 @@ class AppUser implements Serializable {
     static constraints = {
         password nullable: false, blank: false, password: true
         username nullable: false, blank: false, unique: true
-        email nullable: false
-        termsAcceptedAt nullable: true
+        email nullable: false, blank: false, unique: true
     }
 
     static mapping = {
