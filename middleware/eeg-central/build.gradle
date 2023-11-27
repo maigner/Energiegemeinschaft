@@ -29,11 +29,17 @@ configurations {
     }
 }
 
+ext.springSecurityRestVersion = '3.0.1'
+
+
 dependencies {
 
     runtimeOnly group: 'org.postgresql', name: 'postgresql', version: '42.2.27'
 
     implementation 'org.grails.plugins:spring-security-core:6.0.3'
+    // and for rest clients as well
+    implementation "org.grails.plugins:spring-security-rest:3.0.1"
+    implementation "org.grails.plugins:spring-security-rest-gorm:3.0.1"
 
 
     implementation("org.grails:grails-core")

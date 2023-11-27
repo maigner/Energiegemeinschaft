@@ -4,6 +4,16 @@ info:
     version: '0.1'
     grailsVersion: 6.1.0
 grails:
+  plugin:
+    springsecurity: # https://alvarosanchez.github.io/grails-spring-security-rest/latest/docs/#_configuration
+      # https://stackoverflow.com/questions/34641681/grails-rest-spring-security-plugin-does-not-store-generated-token-using-gorm-in
+      # http://grails-plugins.github.io/grails-spring-security-core/3.2.x/index.html
+      useSecurityEventListener: true
+      rest.token.storage.useGorm: true
+      rest.token.storage.gorm.tokenDomainClassName: "eeg.central.AuthenticationToken"
+      rest.token.storage.gorm.tokenValuePropertyName: "tokenValue"
+      rest.token.storage.gorm.usernamePropertyName: "username"
+      apf.storeLastUsername: true
   views:
     default:
       codec: html
@@ -65,18 +75,22 @@ environments:
       dbCreate: create-drop
       #url: jdbc:h2:mem:devDb;MVCC=TRUE;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE
       username: eeg_central
-      password: ${DB_PASSWORD_DEV}
+      password: ${DB_PASSWORD}
       driverClassName: org.postgresql.Driver
       dialect: PostgreSQLDialect
       url: jdbc:postgresql://192.168.178.38:15432/eeg_central
-  test:
-    dataSource:
-      dbCreate: update
-      url: jdbc:h2:mem:testDb;MVCC=TRUE;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE
+  #test:
+  #  dataSource:
+  #    dbCreate: update
+  #    url: jdbc:h2:mem:testDb;MVCC=TRUE;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE
   production:
     dataSource:
       dbCreate: none
-      url: jdbc:h2:./prodDb;MVCC=TRUE;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE
+      username: eeg_central
+      password: ${DB_PASSWORD}
+      driverClassName: org.postgresql.Driver
+      dialect: PostgreSQLDialect
+      url: jdbc:postgresql://192.168.178.38:15432/eeg_central
       properties:
         jmxEnabled: true
         initialSize: 5
@@ -95,3 +109,5 @@ environments:
         testOnReturn: false
         jdbcInterceptors: ConnectionState
         defaultTransactionIsolation: 2 # TRANSACTION_READ_COMMITTED
+
+
