@@ -1,31 +1,31 @@
 
-//import { redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 
 /** @type {import('./$types').LayoutServerLoad} */
 
-/*
+
 export async function load(event) {
 
 	const whitelist = [
-		'martin@maigner.net'
+		'admin@maigner.net'
 	];
 
 
-	//const session = await event.locals.getSession();
+	const session = await event.locals.getSession();
 
 	
 	if (!session) {
-		throw redirect(307, 'auth/signin');
+		//throw redirect(307, 'auth/signin');
 	}
 	
 
 	console.log("layout.server.load");
 
-	//console.log(session);
+	console.log(session);
 
 	
 	if (!whitelist.find((email) => email == session?.user?.email)) {
-		throw redirect(307, 'auth/signin');
+		//throw redirect(307, 'auth/signin');
 	}
 	
 
@@ -33,4 +33,4 @@ export async function load(event) {
 		session
 	}
 
-}*/
+}

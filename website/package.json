@@ -55,9 +55,11 @@
   "type": "module",
   "dependencies": {
     "@auth/core": "^0.18.1",
+    "@auth/pg-adapter": "^0.2.7",
     "@auth/sveltekit": "^0.3.12",
     "nodemailer": "^6.9.5",
     "openai": "^4.4.0",
+    "pg": "^8.11.3",
     "sass": "^1.69.5",
     "sst": "^2.24.26",
     "svelte-forms": "^2.3.1",

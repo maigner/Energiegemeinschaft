@@ -35,7 +35,7 @@ export async function POST({ request, cookies }) {
         text: JSON.stringify(message)
     };
 
-    transporter.sendMail(mailMessage);
+    await transporter.sendMail(mailMessage);
 
 
     let result = { message: "OK" };
