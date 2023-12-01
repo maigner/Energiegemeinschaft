@@ -2,6 +2,12 @@
     import JoinForm from "$lib/JoinForm.svelte";
     import { Heading } from "flowbite-svelte";
     import Project from "$lib/Project.svelte";
+
+
+
+    // TODO: check list
+
+    
 </script>
 
 <div class="text-center">

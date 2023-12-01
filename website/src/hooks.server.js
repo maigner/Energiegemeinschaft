@@ -7,7 +7,7 @@ import { SMTP_USER, SMTP_PASSWORD, SMTP_ENDPOINT, SMTP_TLS_PORT } from "$env/sta
 import { AUTHJS_DB_PASSWORD, AUTHJS_DB_DATABASE, AUTHJS_DB_HOST, AUTHJS_DB_PORT, AUTHJS_DB_USER } from "$env/static/private";
 
 import PostgresAdapter from "@auth/pg-adapter"
-import { Pool } from 'pg'
+import Pool from 'pg-pool'
 
 
 import {
