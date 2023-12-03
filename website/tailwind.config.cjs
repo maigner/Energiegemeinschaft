@@ -6,6 +6,9 @@ const config = {
   darkMode: 'class',
 
   theme: {
+    container: {
+      center: true,
+    },
     extend: {
       // derived from #0b7c3c, which is our main colour, same as the logo
       colors: {

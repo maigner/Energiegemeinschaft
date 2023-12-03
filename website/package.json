@@ -24,6 +24,7 @@
     "@smui/menu": "^7.0.0-beta.14",
     "@smui/menu-surface": "^7.0.0-beta.14",
     "@smui/paper": "^7.0.0-beta.14",
+    "@smui/slider": "^7.0.0-beta.15",
     "@smui/tab": "^7.0.0-beta.14",
     "@smui/tab-bar": "^7.0.0-beta.14",
     "@smui/textfield": "^7.0.0-beta.15",
