@@ -25,8 +25,8 @@
     }
 </script>
 
-<div class="text-center">
-    <Heading tag="h2">Kundin werden</Heading>
+<div class="text-center"> 
+    <Heading tag="h3">Kosten sparen</Heading>
 </div>
 
 

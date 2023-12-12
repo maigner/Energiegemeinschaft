@@ -3,7 +3,7 @@
 import { SvelteKitAuth } from '@auth/sveltekit';
 import GoogleProvider from '@auth/core/providers/google';
 import EmailProvider from '@auth/core/providers/email';
-import { SMTP_USER, SMTP_PASSWORD, SMTP_ENDPOINT, SMTP_TLS_PORT } from "$env/static/private";
+import { SMTP_USER, SMTP_PASSWORD, SMTP_ENDPOINT, SMTP_TLS_PORT, AUTH_SECRET } from "$env/static/private";
 import { AUTHJS_DB_PASSWORD, AUTHJS_DB_DATABASE, AUTHJS_DB_HOST, AUTHJS_DB_PORT, AUTHJS_DB_USER } from "$env/static/private";
 
 import PostgresAdapter from "@auth/pg-adapter"
@@ -14,6 +14,9 @@ import {
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
 } from '$env/static/private';
+
+
+console.log(AUTH_SECRET);
 
 const pool = new Pool({
     host: AUTHJS_DB_HOST,
@@ -27,6 +30,8 @@ const pool = new Pool({
 })
 
 export const handle = SvelteKitAuth({
+    trustHost: true,
+    secret: AUTH_SECRET,
     adapter: PostgresAdapter(pool),
     providers: [
         
