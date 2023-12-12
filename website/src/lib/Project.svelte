@@ -9,7 +9,7 @@
 </script>
 
 <div class="min-w-fit">
-    <Card {img} class="m-2" size="xl">
+    <Card {img} class="m-2 max-w-3xl" size="xl">
         <h5
             class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"
         >
@@ -22,7 +22,9 @@
             <slot name="content" />
         </p>
         {#if showMore}
-            <Button>Mehr erfahren</Button>
+            <Button on:click={() => {
+                alert("Kommt bald...");
+            }}>Mehr erfahren</Button>
         {/if}
     </Card>
 </div>
