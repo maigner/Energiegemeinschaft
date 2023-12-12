@@ -5,7 +5,7 @@
     import { Blockquote } from "flowbite-svelte";
 </script>
 
-<div class="">
+<div class="max-w-xl m-auto justify-center">
     <figure class="m-4 text-center">
         <Blockquote alignment="center" size="xl">
             Willkommen bei der Energiegemeinschaft Bad Ischl!
