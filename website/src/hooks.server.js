@@ -43,6 +43,10 @@ export const handle = sequence(SvelteKitAuth({
     trustHost: true,
     secret: AUTH_SECRET,
     adapter: PostgresAdapter(pool),
+    pages: {
+        signIn: '/login',
+        signOut: '/login'
+    },
     providers: [
 
         EmailProvider({
@@ -57,7 +61,7 @@ export const handle = sequence(SvelteKitAuth({
             from: "info@ischlstrom.org"
         }),
 
-        GoogleProvider({ clientId: GOOGLE_CLIENT_ID, clientSecret: GOOGLE_CLIENT_SECRET })
+        //GoogleProvider({ clientId: GOOGLE_CLIENT_ID, clientSecret: GOOGLE_CLIENT_SECRET })
     ]
 }), authorization);
 
