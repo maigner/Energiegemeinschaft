@@ -21,8 +21,6 @@ export async function load(event) {
 
 	console.log("layout.server.load");
 
-	console.log(session);
-
 	
 	if (!whitelist.find((email) => email == session?.user?.email)) {
 		//throw redirect(307, 'auth/signin');
