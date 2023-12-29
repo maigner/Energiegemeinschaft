@@ -6,12 +6,13 @@
     import { EnvelopeSolid } from "flowbite-svelte-icons";
     import { signIn, signOut } from '@auth/sveltekit/client';
 
+    export let data;
 
     let email = "";
 
     const handleEmailSignIn = () => {
         // TODO: dynamic callback
-        signIn('email', { email, callbackUrl: '/mitmachen' });
+        signIn('email', { email, callbackUrl: `/${data.callback}` });
     };
 
     const handleSignOut = () => {
