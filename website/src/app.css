@@ -1,3 +1,4 @@
+/* https://tailwindcss.com/docs/installation */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,13 +7,4 @@
     display: flex;
     justify-content: center;
     align-items: center;
-}
-
-.mdc-layout-grid__inner {
-    grid-gap: 0px;
-}
-
-.mdc-layout-grid__cell {
-    max-width: 50em;
-    margin: auto;
 }

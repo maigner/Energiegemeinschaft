@@ -11,15 +11,18 @@
 
 <BetaLogin bind:open={betaLoginOpen} />
 
+
 <Navigation />
+
+
 
 <slot />
 
-<div class="center mt-16">
-	<img src="sponsors.jpg" width="80%" alt="sponsors" />
+<div class="mt-16 flex place-content-center">
+	<img src="sponsors.jpg" class="max-w-sm" alt="sponsors" />
 </div>
 
-<div class="center">
+<div class="flex place-content-center">
 	<a href="/impressum">Impressum</a>
 </div>
 

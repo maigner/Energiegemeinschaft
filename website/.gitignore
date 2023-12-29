@@ -11,3 +11,7 @@ vite.config.ts.timestamp-*
 .sst
 cdk.context.json
 .storybook
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

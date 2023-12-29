@@ -37,4 +37,3 @@
 
 
 
-{JSON.stringify(data)}
