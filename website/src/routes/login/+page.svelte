@@ -15,7 +15,7 @@
     };
 
     const handleSignOut = () => {
-        // handle sign out
+        // TODO: handle sign out
     };
 </script>
 

@@ -10,13 +10,15 @@ import PostgresAdapter from "@auth/pg-adapter";
 import Pool from 'pg-pool';
 
 
+// https://medium.com/@uriser/authentication-in-sveltekit-with-auth-js-7ff505d584c4
+// Auth.js
+
+
 import {
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
 } from '$env/static/private';
 
-
-console.log(AUTH_SECRET);
 
 const pool = new Pool({
     host: AUTHJS_DB_HOST,
@@ -45,7 +47,8 @@ export const handle = sequence(SvelteKitAuth({
     adapter: PostgresAdapter(pool),
     pages: {
         signIn: '/login',
-        signOut: '/login'
+        signOut: '/login',
+        verifyRequest: '/verify'
     },
     providers: [
 
