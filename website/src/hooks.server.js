@@ -7,6 +7,8 @@ import { SMTP_USER, SMTP_PWD, SMTP_ENDPOINT, SMTP_TLS_PORT, AUTH_SECRET } from "
 import { AUTHJS_DB_PASSWORD, AUTHJS_DB_DATABASE, AUTHJS_DB_HOST, AUTHJS_DB_PORT, AUTHJS_DB_USER } from "$env/static/private";
 import PostgresAdapter from "@auth/pg-adapter";
 import Pool from 'pg-pool';
+import { readFileSync } from 'node:fs';
+
 
 
 // https://medium.com/@uriser/authentication-in-sveltekit-with-auth-js-7ff505d584c4
@@ -22,6 +24,12 @@ const pool = new Pool({
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
+    ssl: {
+        rejectUnauthorized: false,
+        ca: readFileSync('global-bundle.pem').toString(),
+        //key: readFileSync('global-bundle.pem').toString(),
+        cert: readFileSync('global-bundle.pem').toString(),
+    },
 })
 
 async function authorization({ event, resolve }) {
