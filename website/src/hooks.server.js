@@ -2,9 +2,8 @@
 import { redirect } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { SvelteKitAuth } from '@auth/sveltekit';
-import GoogleProvider from '@auth/core/providers/google';
 import EmailProvider from '@auth/core/providers/email';
-import { SMTP_USER, SMTP_PASSWORD, SMTP_ENDPOINT, SMTP_TLS_PORT, AUTH_SECRET } from "$env/static/private";
+import { SMTP_USER, SMTP_PWD, SMTP_ENDPOINT, SMTP_TLS_PORT, AUTH_SECRET } from "$env/static/private";
 import { AUTHJS_DB_PASSWORD, AUTHJS_DB_DATABASE, AUTHJS_DB_HOST, AUTHJS_DB_PORT, AUTHJS_DB_USER } from "$env/static/private";
 import PostgresAdapter from "@auth/pg-adapter";
 import Pool from 'pg-pool';
@@ -12,12 +11,6 @@ import Pool from 'pg-pool';
 
 // https://medium.com/@uriser/authentication-in-sveltekit-with-auth-js-7ff505d584c4
 // Auth.js
-
-
-import {
-    GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET,
-} from '$env/static/private';
 
 
 const pool = new Pool({
@@ -32,7 +25,7 @@ const pool = new Pool({
 })
 
 async function authorization({ event, resolve }) {
-    
+
     if (event.url.pathname.startsWith('/mitmachen')) {
         const session = await event.locals.getSession();
         if (!session) {
@@ -57,15 +50,14 @@ export const handle = sequence(SvelteKitAuth({
             server: {
                 host: SMTP_ENDPOINT,
                 port: Number(SMTP_TLS_PORT),
+                secure: true,
                 auth: {
                     user: SMTP_USER,
-                    pass: SMTP_PASSWORD
+                    pass: SMTP_PWD
                 }
             },
             from: "info@ischlstrom.org"
         }),
-
-        //GoogleProvider({ clientId: GOOGLE_CLIENT_ID, clientSecret: GOOGLE_CLIENT_SECRET })
     ]
 }), authorization);
 
