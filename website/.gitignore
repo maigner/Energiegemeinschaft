@@ -15,4 +15,5 @@ cdk.context.json
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
-ischlstrom-website-package.zip
+# App Bundle
+ischlstrom-website-package*
