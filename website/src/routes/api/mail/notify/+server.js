@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { json } from "@sveltejs/kit";
-import { SMTP_USER, SMTP_PASSWORD, SMTP_ENDPOINT, SMTP_TLS_PORT } from "$env/static/private";
+import { SMTP_USER, SMTP_PWD, SMTP_ENDPOINT, SMTP_TLS_PORT } from "$env/static/private";
 import nodemailer from 'nodemailer';
 
 export async function POST({ request, cookies }) {
@@ -15,7 +15,7 @@ export async function POST({ request, cookies }) {
         secure: true, // use TLS
         auth: {
             user: SMTP_USER,
-            pass: SMTP_PASSWORD,
+            pass: SMTP_PWD,
         },
     });
     
