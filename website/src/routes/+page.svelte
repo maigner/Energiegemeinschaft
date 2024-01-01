@@ -3,7 +3,12 @@
     import Fab, { Label } from "@smui/fab";
     import { Heading } from "flowbite-svelte";
     import { Blockquote } from "flowbite-svelte";
+
+    export let data;
 </script>
+
+
+{JSON.stringify(data)}
 
 <div class="max-w-xl m-auto justify-center">
     <figure class="m-4 text-center">

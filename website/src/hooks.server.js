@@ -47,11 +47,11 @@ async function authorization({ event, resolve }) {
 
 async function database({ event, resolve }) {
 
-    const dbconn = await connectToDB();
-    event.locals = { dbconn };
+    const sql = await connectToDB();
+    event.locals = { sql };
 
     const response = await resolve(event);
-    dbconn.release();
+    sql.release();
 
     return response;
 }

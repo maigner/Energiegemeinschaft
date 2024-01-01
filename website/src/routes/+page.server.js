@@ -1,21 +1,22 @@
-import { EEG_CENTRAL_TOKEN, EEG_CENTRAL_ENDPOINT } from "$env/static/private";
 
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ fetch, params, parent }) {
+export async function load({ fetch, params, parent, locals }) {
 
-    /*
 
-    //let d = await parent();
+    const { sql } = locals;
 
-    const response = await fetch(`${EEG_CENTRAL_ENDPOINT}/test`, {
-        headers: {
-            Authorization: "Bearer " + EEG_CENTRAL_TOKEN,
-        },
-    });
-    response.json().then((data) => {
-        console.log(data);
-    });
-    */
-	
+
+    //console.log(`page.server.js ${JSON.stringify(sql)}`);
+
+    const query = await sql.query(`SELECT * FROM users`);
+
+    await sql.end();
+
+    console.log(query);
+
+
+    return {
+        dbTest: query.Result
+    }
 }
