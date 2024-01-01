@@ -14,6 +14,8 @@ import { readFileSync } from 'node:fs';
 // https://medium.com/@uriser/authentication-in-sveltekit-with-auth-js-7ff505d584c4
 // Auth.js
 
+import { connectToDB } from "$lib/db";
+
 
 const pool = new Pool({
     host: AUTHJS_DB_HOST,
@@ -43,7 +45,18 @@ async function authorization({ event, resolve }) {
     return resolve(event);
 }
 
-export const handle = sequence(SvelteKitAuth({
+async function database({ event, resolve }) {
+
+    const dbconn = await connectToDB();
+    event.locals = { dbconn };
+
+    const response = await resolve(event);
+    dbconn.release();
+
+    return response;
+}
+
+export const handle = sequence(database, SvelteKitAuth({
     trustHost: true,
     secret: AUTH_SECRET,
     adapter: PostgresAdapter(pool),

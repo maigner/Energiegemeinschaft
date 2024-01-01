@@ -9,9 +9,8 @@
 	let betaLoginOpen = !dev;
 </script>
 
-<!--
+
 <BetaLogin bind:open={betaLoginOpen} />
--->
 Test
 <Navigation />
 
