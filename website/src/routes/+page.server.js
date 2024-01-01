@@ -3,7 +3,7 @@
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ fetch, params, parent, locals }) {
 
-
+/*
     const { sql } = locals;
 
 
@@ -19,4 +19,5 @@ export async function load({ fetch, params, parent, locals }) {
     return {
         dbTest: query.Result
     }
+    */
 }
