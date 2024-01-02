@@ -75,7 +75,7 @@ export const handle = sequence(database, SvelteKitAuth({
         EmailProvider({
             server: {
                 host: SMTP_ENDPOINT,
-                port: Number(SMTP_TLS_PORT),
+                port: SMTP_TLS_PORT,
                 secure: true,
                 auth: {
                     user: SMTP_USER,
