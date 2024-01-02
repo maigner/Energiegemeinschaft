@@ -29,8 +29,8 @@ export async function POST({ request, cookies }) {
     
 
     var mailMessage = {
-        from: "martin@maigner.net",
-        to: "martin@maigner.net",
+        from: "info@ischlstrom.org",
+        to: "info@ischlstrom.org",
         subject: "EEG Wegsite Log",
         text: JSON.stringify(message)
     };

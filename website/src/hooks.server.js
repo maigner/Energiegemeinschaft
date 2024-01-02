@@ -4,37 +4,14 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { SvelteKitAuth } from '@auth/sveltekit';
 import EmailProvider from '@auth/core/providers/email';
 import { SMTP_USER, SMTP_PWD, SMTP_ENDPOINT, SMTP_TLS_PORT, AUTH_SECRET } from "$env/static/private";
-import { AUTHJS_DB_PASSWORD, AUTHJS_DB_DATABASE, AUTHJS_DB_HOST, AUTHJS_DB_PORT, AUTHJS_DB_USER, AUTH_TRUST_HOST } from "$env/static/private";
 import PostgresAdapter from "@auth/pg-adapter";
-import Pool from 'pg-pool';
-import { readFileSync } from 'node:fs';
-
 
 
 // https://medium.com/@uriser/authentication-in-sveltekit-with-auth-js-7ff505d584c4
 // Auth.js
 
-import { connectToDB } from "$lib/db";
+import { connectToDB, pool } from "$lib/db";
 
-console.log(`AUTH_TRUST_HOST: ${AUTH_TRUST_HOST}`);
-
-
-const pool = new Pool({
-    host: AUTHJS_DB_HOST,
-    port: AUTHJS_DB_PORT,
-    database: AUTHJS_DB_DATABASE,
-    user: AUTHJS_DB_USER,
-    password: AUTHJS_DB_PASSWORD,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
-    ssl: {
-        rejectUnauthorized: false,
-        ca: readFileSync('global-bundle.pem').toString(),
-        //key: readFileSync('global-bundle.pem').toString(),
-        cert: readFileSync('global-bundle.pem').toString(),
-    },
-})
 
 async function authorization({ event, resolve }) {
 
@@ -42,8 +19,6 @@ async function authorization({ event, resolve }) {
 
     if (event.url.pathname.startsWith('/mitmachen')) {
         const session = await event.locals.getSession();
-
-        console.log(`authorization: ${session}`);
 
         if (!session) {
             throw redirect(307, '/login/mitmachen');

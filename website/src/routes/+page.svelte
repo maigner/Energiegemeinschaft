@@ -36,7 +36,7 @@
 </div>
 
 <div class="flex place-content-center">
-    <Project img="tmp/neue_mitglieder.jpeg">
+    <Project img="/gruppenfoto.webp">
         <span slot="title">Vereinsgründung</span>
         <div slot="content">
             Die Gründung einer Energiegemeinschaft ist ein bedeutender Schritt

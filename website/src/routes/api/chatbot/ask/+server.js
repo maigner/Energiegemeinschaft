@@ -33,6 +33,10 @@ export async function POST({ request, cookies }) {
         {
             question: "wer bist du?",
             answer: "Ich bin eine KI, die Sie bei der Energiewende begleitet"
+        },
+        {
+            question: "Kontakt",
+            answer: "Kontaktieren Sie uns unter info@ischlstrom.org oder hinterlassen Sie Ihre E-Mail Adresse. Wir melden uns"
         }
 
     ]

@@ -3,10 +3,7 @@ import { AUTHJS_DB_PASSWORD, AUTHJS_DB_DATABASE, AUTHJS_DB_HOST, AUTHJS_DB_PORT,
 import { readFileSync } from 'node:fs';
 
 
-console.log(`DB: ${AUTHJS_DB_DATABASE}`);
-
-
-const pool = new Pool({
+export const pool = new Pool({
     host: AUTHJS_DB_HOST,
     port: AUTHJS_DB_PORT,
     database: AUTHJS_DB_DATABASE,
