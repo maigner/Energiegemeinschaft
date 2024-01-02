@@ -1,9 +1,12 @@
-export const load = async (event) => {
-    /*
-    const session = await event.locals.getSession();
+import { error } from '@sveltejs/kit';
+
+/** @type {import('./$types').PageServerLoadLoad} */
+export function load({ params }) {
+
+    console.log(`login pageload: ${JSON.stringify(params)}`);
 
     return {
-        session
-    };
-    */
-};
+        callback: params.callback
+    }
+
+}

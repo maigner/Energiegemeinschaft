@@ -12,7 +12,11 @@
 
     const handleEmailSignIn = () => {
         // TODO: dynamic callback
-        signIn('email', { email, callbackUrl: `/${data.callback}` });
+        alert(`email signin... ${email} ${data.callback}`);
+
+        signIn('email', { email, callbackUrl: `/${data.callback}` }).then( (r) => {
+            alert(JSON.stringify(r));
+        });
     };
 
     const handleSignOut = () => {
