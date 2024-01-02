@@ -4,7 +4,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { SvelteKitAuth } from '@auth/sveltekit';
 import EmailProvider from '@auth/core/providers/email';
 import { SMTP_USER, SMTP_PWD, SMTP_ENDPOINT, SMTP_TLS_PORT, AUTH_SECRET } from "$env/static/private";
-import { AUTHJS_DB_PASSWORD, AUTHJS_DB_DATABASE, AUTHJS_DB_HOST, AUTHJS_DB_PORT, AUTHJS_DB_USER } from "$env/static/private";
+import { AUTHJS_DB_PASSWORD, AUTHJS_DB_DATABASE, AUTHJS_DB_HOST, AUTHJS_DB_PORT, AUTHJS_DB_USER, AUTH_TRUST_HOST } from "$env/static/private";
 import PostgresAdapter from "@auth/pg-adapter";
 import Pool from 'pg-pool';
 import { readFileSync } from 'node:fs';
@@ -15,6 +15,8 @@ import { readFileSync } from 'node:fs';
 // Auth.js
 
 import { connectToDB } from "$lib/db";
+
+console.log(`AUTH_TRUST_HOST: ${AUTH_TRUST_HOST}`);
 
 
 const pool = new Pool({
