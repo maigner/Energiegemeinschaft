@@ -1,8 +1,5 @@
 <script>
-    import JoinForm from "$lib/JoinForm.svelte";
     import { Button, Card, Heading } from "flowbite-svelte";
-    import Project from "$lib/Project.svelte";
-
 
 
     // TODO: check list

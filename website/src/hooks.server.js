@@ -15,8 +15,6 @@ import { connectToDB, pool } from "$lib/db";
 
 async function authorization({ event, resolve }) {
 
-    console.log(`authorization pathname: ${event.url.pathname}`);
-
     if (event.url.pathname.startsWith('/mitmachen')) {
         const session = await event.locals.getSession();
 
