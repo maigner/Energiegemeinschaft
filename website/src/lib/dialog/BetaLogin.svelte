@@ -46,7 +46,7 @@
     dismissable={false}
     backdropClass='fixed inset-0 z-40 bg-gray-900 bg-opacity-95 dark:bg-opacity-95'
 >
-    <img src="header.png" class="mr-3 h-16 sm:h-20" alt="Logo" />
+    <img src="/header.png" class="mr-3 h-16 sm:h-20" alt="Logo" />
 
     <p class="text-base leading-relaxed text-gray-500 dark:text-gray-400">
         Unser Verein und unsere Webseite befinden sich gerade im Aufbau.

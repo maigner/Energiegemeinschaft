@@ -6,14 +6,20 @@
 	import BetaLogin from "$lib/dialog/BetaLogin.svelte";
 	import Navigation from "./Navigation.svelte";
 
-	let betaLoginOpen = !dev;
+	let betaLoginOpen = true;
+
+
+	export let data;
+	if (data.session) {
+		betaLoginOpen = false;
+	}
+
 </script>
 
 
 <BetaLogin bind:open={betaLoginOpen} />
-Test
-<Navigation />
 
+<Navigation />
 
 
 <slot />

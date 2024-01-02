@@ -11,4 +11,8 @@ zip -q ischlstrom-website-package.zip package.json
 zip -q ischlstrom-website-package.zip package-lock.json
 
 # get the latest git hash and deploy
-eb deploy --profile ischlstrom-admin --staged -l `git rev-parse --short HEAD 2> /dev/null | sed "s/\(.*\)/\1/"`
+# eb deploy --profile ischlstrom-admin --staged -l `git rev-parse --short HEAD 2> /dev/null | sed "s/\(.*\)/\1/"`
+
+
+# scp ischlstrom-website-package.zip ischlstrom-web-test:~/website
+# unzip -q website/ischlstrom-website-package.zip -d website
