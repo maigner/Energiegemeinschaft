@@ -26,7 +26,7 @@
 <Navbar let:NavContainer color="primary">
     <NavContainer class="border px-4 py-1 rounded-lg">
         <NavBrand href="/">
-            <img src="header.png" class="h-14 sm:h-18" alt="Logo" />
+            <img src="/header.png" class="h-14 sm:h-18" alt="Logo" />
         </NavBrand>
         <NavHamburger
             onClick={() => {
