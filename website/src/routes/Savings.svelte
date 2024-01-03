@@ -33,9 +33,7 @@
     <Card class="m-2 text-center max-w-3xl" size="xl">
         <Heading tag="h1" class="text-primary-700">11 cent FIX</Heading>
 
-        <div class="mt-9">
-            Ihr Aktueller Anbieter:
-        </div>
+        <div class="mt-9">Ihr Aktueller Anbieter:</div>
         <div class="flex justify-center">
             {#each data.competitors as competitor}
                 <Button
@@ -65,8 +63,12 @@
             max={10000}
             step={500}
         />
-        können Sie als Kundin von ISCHLstrom im Jahr bis zu {Math.round(
-            savings_euro_per_year,
-        )} EUR sparen.
+        können Sie mit ISCHLstrom im Jahr bis zu
+
+        <Heading tag="h4" class="text-primary-700">
+            {Math.round(savings_euro_per_year)}
+        </Heading>
+
+        EUR sparen.
     </Card>
 </div>
