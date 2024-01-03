@@ -4,7 +4,7 @@
     import { Heading } from "flowbite-svelte";
     import { Blockquote } from "flowbite-svelte";
     import Savings from "./Savings.svelte";
-    import { JSONEditor } from "svelte-jsoneditor";
+    //import { JSONEditor } from "svelte-jsoneditor";
     import { dev } from "$app/environment";
 
     export let data;

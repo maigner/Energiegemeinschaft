@@ -40,7 +40,7 @@
             {#each data.competitors as competitor}
                 <Button
                     color="yellow"
-                    class="m-3"
+                    class="m-1 text-xs"
                     on:click={() => {
                         current_price_cent_per_kilowatt =
                             competitor.cent_per_kilowatt;
