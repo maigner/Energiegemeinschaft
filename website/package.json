@@ -66,6 +66,7 @@
     "sst": "^2.24.26",
     "svelte-forms": "^2.3.1",
     "svelte-forms-lib": "^2.0.1",
+    "svelte-jsoneditor": "^0.21.1",
     "svelte-kit-sst": "^2.24.26",
     "svelte-loading-spinners": "^0.3.4",
     "yup": "^1.2.0"

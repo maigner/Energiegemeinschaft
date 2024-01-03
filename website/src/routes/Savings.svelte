@@ -1,6 +1,6 @@
 <script>
     import Slider from "@smui/slider";
-    import { Card, Heading } from "flowbite-svelte";
+    import { Button, Card, Heading } from "flowbite-svelte";
 
     export let data;
 
@@ -25,18 +25,35 @@
     }
 </script>
 
-<div class="text-center"> 
+<div class="text-center">
     <Heading tag="h3">Kosten sparen</Heading>
 </div>
 
+<div class="flex justify-center">
+    <Card class="m-2 text-center max-w-3xl" size="xl">
+        <Heading tag="h1" class="text-primary-700">11 cent FIX</Heading>
 
-<div class="">
-    <Card class="m-2" size="xl">
-        Bei einem Marktpreis von {current_price_cent_per_kilowatt} cent/kWh
+        <div class="mt-9">
+            Ihr Aktueller Anbieter:
+        </div>
+        <div class="flex justify-center">
+            {#each data.competitors as competitor}
+                <Button
+                    color="yellow"
+                    class="m-3"
+                    on:click={() => {
+                        current_price_cent_per_kilowatt =
+                            competitor.cent_per_kilowatt;
+                    }}>{competitor.provider}: {competitor.name}</Button
+                >
+            {/each}
+        </div>
+
+        Bei einem Arbeitspreis von {current_price_cent_per_kilowatt.toFixed(2)} cent/kWh
 
         <Slider
             bind:value={current_price_cent_per_kilowatt}
-            min={10}
+            min={11}
             max={30}
             step={0.1}
         />

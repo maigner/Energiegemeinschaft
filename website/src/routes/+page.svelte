@@ -3,9 +3,18 @@
     import Fab, { Label } from "@smui/fab";
     import { Heading } from "flowbite-svelte";
     import { Blockquote } from "flowbite-svelte";
+    import Savings from "./Savings.svelte";
+    import { JSONEditor } from "svelte-jsoneditor";
+    import { dev } from "$app/environment";
 
+    export let data;
+
+    let content = { json: data };
 </script>
 
+<!--
+    <JSONEditor bind:content />
+-->
 
 <div class="max-w-xl m-auto justify-center">
     <figure class="m-4 text-center">
@@ -30,6 +39,8 @@
         </figcaption>
     </figure>
 </div>
+
+<Savings bind:data />
 
 <div class="text-center mt-5">
     <Heading tag="h2">Was gibt es Neues?</Heading>
@@ -76,25 +87,22 @@
         <span slot="title">Versorgungssicherheit</span>
         <div slot="content">
             Gemeinschaften können in Notfällen auf eine zuverlässige
-            Energiequelle zugreifen und so die Energieversorgung in
-            Krisenzeiten sicherstellen.
+            Energiequelle zugreifen und so die Energieversorgung in Krisenzeiten
+            sicherstellen.
         </div>
     </Project>
 </div>
-
 
 <div class="flex place-content-center">
     <Project img="tmp/vernetzt.jpeg">
         <span slot="title">Soziale Vernetzung</span>
         <div slot="content">
             Energiegemeinschaften fördern den sozialen Zusammenhalt und den
-            Austausch von Wissen und Ressourcen zwischen Mitgliedern, was
-            die lokale Gemeinschaft stärkt.
+            Austausch von Wissen und Ressourcen zwischen Mitgliedern, was die
+            lokale Gemeinschaft stärkt.
         </div>
     </Project>
 </div>
-
-
 
 <div class="flex place-content-center">
     <Fab extended href="/mitmachen" color="primary">

@@ -36,7 +36,7 @@ async function database({ event, resolve }) {
     return response;
 }
 
-export const handle = sequence(database, SvelteKitAuth({
+export const handle = sequence(/*database,*/ SvelteKitAuth({
     trustHost: true,
     secret: AUTH_SECRET,
     adapter: PostgresAdapter(pool),

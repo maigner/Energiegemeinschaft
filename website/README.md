@@ -39,6 +39,6 @@ You can preview the production build with `npm run preview`.
 npm run prepare && npm run dev
 
 
-## Deploy to AWS using SST
+## Deploy to AWS 
 
-npx sst deploy --profile=martin
+./deploy-prod.sh
