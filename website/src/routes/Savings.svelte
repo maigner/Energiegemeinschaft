@@ -1,9 +1,13 @@
 <script>
+    import Fab, { Label } from "@smui/fab";
     import Slider from "@smui/slider";
     import { Button, Card, Heading } from "flowbite-svelte";
 
     
-    export let data;
+    /**
+     * @type {{ selfUseRatio: number; buy_cent_per_kilowatt: number; competitors: any; }}
+     */
+     export let data;
 
     let totalConsumptionKWhPerYear = 4000;
 
@@ -52,18 +56,18 @@
 
 </script>
 
-<div class="max-w-3xl">
-    {JSON.stringify(data)}
-</div>
-
 
 <div class="text-center">
-    <Heading tag="h3">Kosten sparen</Heading>
+    <Heading tag="h1" class="text-primary-700">11 cent FIX</Heading>
 </div>
 
 <div class="flex justify-center">
     <Card class="m-2 text-center max-w-3xl" size="xl">
-        <Heading tag="h1" class="text-primary-700">11 cent FIX</Heading>
+        Sparen Sie mit ISCHL STROM bis zu
+
+        <Heading tag="h2" class="text-primary-700 mt-8">
+            {Math.round(savingsEuroPerYear)} EURO
+        </Heading>
 
         <div class="mt-9">Ihr Aktueller Anbieter:</div>
         <div class="flex justify-center">
@@ -107,12 +111,15 @@
             max={10000}
             step={500}
         />
-        können Sie mit ISCHLstrom im Jahr bis zu
+        
 
-        <Heading tag="h4" class="text-primary-700">
-            {Math.round(savingsEuroPerYear)}
-        </Heading>
 
-        EUR sparen.
+        <div class="flex place-content-center mt-6">
+            <Fab extended href="/mitmachen" color="primary">
+                <Label>Jetzt Mitmachen</Label>
+            </Fab>
+        </div>
+        
+
     </Card>
 </div>
