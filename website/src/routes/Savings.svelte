@@ -72,7 +72,7 @@
 
 <div class="flex justify-center">
     <Card class="m-2 text-center max-w-3xl" size="xl">
-        Sparen Sie mit ISCHL STROM bis zu
+        Sparen Sie mit ISCHL STROM jedes Jahr bis zu
 
         <Heading tag="h2" class="text-primary-700 mt-8">
             {Math.round(savingsEuroPerYear)} EURO
