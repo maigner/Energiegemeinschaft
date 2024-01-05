@@ -2,28 +2,60 @@
     import Slider from "@smui/slider";
     import { Button, Card, Heading } from "flowbite-svelte";
 
+    
     export let data;
 
-    let total_consumption_kwh_per_year = 4000;
+    let totalConsumptionKWhPerYear = 4000;
 
     //  einsparung_pro_haushalt = haushaltsbedarf * eigenverbrauchquote * centersparnis
     //  einsparung_pro_haushalt / 100
 
-    let savings_euro_per_year = 0;
+    let savingsEuroPerYear = 0;
 
-    let current_price_cent_per_kilowatt = 20;
+    let providerWorkPriceCentPerKWh = 20;
+
+    let basePriceEuroPerYear = 40;
 
     $: {
-        savings_euro_per_year =
-            (total_consumption_kwh_per_year *
-                data.self_use_ratio *
+
+        // -28 % auf Netzgebühr
+        let basePrice = basePriceEuroPerYear;
+
+        let energyPrice = totalConsumptionKWhPerYear * providerWorkPriceCentPerKWh;
+        
+        // 5,12 cent / kWh
+        let networkCharges = totalConsumptionKWhPerYear * 0.0512;
+
+
+        let providerWithoutEEG = basePrice + totalConsumptionKWhPerYear * providerWorkPriceCentPerKWh;
+
+
+        let eegConsumption = totalConsumptionKWhPerYear * data.selfUseRatio;
+
+        let providerWithEEG = basePrice + (totalConsumptionKWhPerYear - eegConsumption) * providerWorkPriceCentPerKWh;
+
+
+
+
+        savingsEuroPerYear =
+            (totalConsumptionKWhPerYear *
+                data.selfUseRatio *
                 Math.abs(
                     data.buy_cent_per_kilowatt -
-                        current_price_cent_per_kilowatt,
+                        providerWorkPriceCentPerKWh,
                 )) /
             100.0;
     }
+
+
+
+
 </script>
+
+<div class="max-w-3xl">
+    {JSON.stringify(data)}
+</div>
+
 
 <div class="text-center">
     <Heading tag="h3">Kosten sparen</Heading>
@@ -40,25 +72,37 @@
                     color="yellow"
                     class="m-1 text-xs"
                     on:click={() => {
-                        current_price_cent_per_kilowatt =
-                            competitor.cent_per_kilowatt;
+                        providerWorkPriceCentPerKWh =
+                            competitor.workPriceCentPerKWh;
+
+                        basePriceEuroPerYear = competitor.base_price_per_year;
+
                     }}>{competitor.provider}: {competitor.name}</Button
                 >
             {/each}
         </div>
 
-        Bei einem Arbeitspreis von {current_price_cent_per_kilowatt.toFixed(2)} cent/kWh
+        Bei einem Arbeitspreis von {providerWorkPriceCentPerKWh.toFixed(2)} cent/kWh
 
         <Slider
-            bind:value={current_price_cent_per_kilowatt}
+            bind:value={providerWorkPriceCentPerKWh}
             min={11}
             max={30}
             step={0.1}
         />
 
-        und einem Jahresverbrauch von {total_consumption_kwh_per_year} kWh
+        einer Grundgebühr von {basePriceEuroPerYear.toFixed(2)} EURO pro Jahr
+
         <Slider
-            bind:value={total_consumption_kwh_per_year}
+            bind:value={basePriceEuroPerYear}
+            min={0}
+            max={100}
+            step={1}
+        />
+
+        und einem Jahresverbrauch von {totalConsumptionKWhPerYear} kWh
+        <Slider
+            bind:value={totalConsumptionKWhPerYear}
             min={2000}
             max={10000}
             step={500}
@@ -66,7 +110,7 @@
         können Sie mit ISCHLstrom im Jahr bis zu
 
         <Heading tag="h4" class="text-primary-700">
-            {Math.round(savings_euro_per_year)}
+            {Math.round(savingsEuroPerYear)}
         </Heading>
 
         EUR sparen.

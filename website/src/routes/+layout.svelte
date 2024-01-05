@@ -1,12 +1,12 @@
 <script>
 	import "../app.css";
-	import { dev } from "$app/environment";
-
 	import { Hr } from "flowbite-svelte";
 	import BetaLogin from "$lib/dialog/BetaLogin.svelte";
 	import Navigation from "./Navigation.svelte";
 
 	let betaLoginOpen = true;
+
+	import { page } from "$app/stores"
 
 
 	export let data;
@@ -14,8 +14,12 @@
 		betaLoginOpen = false;
 	}
 
-</script>
+	if ($page.route.id === "/verify" ) {
+		betaLoginOpen = false;
+	}
 
+
+</script>
 
 <BetaLogin bind:open={betaLoginOpen} />
 

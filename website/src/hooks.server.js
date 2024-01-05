@@ -22,6 +22,15 @@ async function authorization({ event, resolve }) {
             throw redirect(307, '/login/mitmachen');
         }
     }
+
+    if (event.url.pathname.startsWith('/chatbot')) {
+        const session = await event.locals.getSession();
+
+        if (!session) {
+            throw redirect(307, '/login/chatbot');
+        }
+    }
+
     return resolve(event);
 }
 

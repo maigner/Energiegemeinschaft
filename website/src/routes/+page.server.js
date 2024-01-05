@@ -38,7 +38,7 @@ export async function load({ fetch, params, parent, locals }) {
         {
             provider: "Energie AG",
             name: "Ökostrom Klassik",
-            cent_per_kilowatt: 26.14,
+            workPriceCentPerKWh: 26.14,
             base_price_per_year: 3.90 * 12,
             source: "https://www.energieag.at/privat/strom",
             date: "1. Jänner 2024"
@@ -46,7 +46,7 @@ export async function load({ fetch, params, parent, locals }) {
         {
             provider: "Verbund",
             name: "Strom aus 100% Wasserkraft",
-            cent_per_kilowatt: 26.40,
+            workPriceCentPerKWh: 26.40,
             base_price_per_year: 4.79 * 12,
             source: "https://www.verbund.com/de-at/privatkunden/strom",
             date: "1. Jänner 2024"
@@ -54,7 +54,7 @@ export async function load({ fetch, params, parent, locals }) {
         {
             provider: "GoGreenEnergy",
             name: "Stromtarif",
-            cent_per_kilowatt: 23.40,
+            workPriceCentPerKWh: 23.40,
             base_price_per_year: 5.0 * 12,
             source: "https://www.gogreenenergy.at",
             date: "1. Jänner 2024"
@@ -64,10 +64,11 @@ export async function load({ fetch, params, parent, locals }) {
 
 
     return {
-        self_use_ratio: 1 / 3,
+        selfUseRatio: 1 / 3,
         sell_cent_per_kilowatt: 11.0,
         buy_cent_per_kilowatt: 11.0,
-        competitors: competitors
+        competitors: competitors,
+        networkUseFeeCentPerKWh: 5.12
     }
 
 }

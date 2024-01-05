@@ -42,3 +42,4 @@ npm run prepare && npm run dev
 ## Deploy to AWS 
 
 ./deploy-prod.sh
+

@@ -33,10 +33,7 @@
                 hidden = !hidden;
             }}
         />
-        <NavUl
-            bind:hidden
-            slideParams={{ delay: 0, duration: 500 }}
-        >
+        <NavUl bind:hidden slideParams={{ delay: 0, duration: 500 }}>
             <div class="flex place-content-center">
                 <NavLi href="/">
                     <BottomNavItem
