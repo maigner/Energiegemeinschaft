@@ -65,10 +65,11 @@ export async function load({ fetch, params, parent, locals }) {
 
     return {
         selfUseRatio: 1 / 3,
-        sell_cent_per_kilowatt: 11.0,
-        buy_cent_per_kilowatt: 11.0,
+        eegSellsCentPerKilowatt: 11.0,
+        eegBuysCentPerKilowatt: 11.0,
         competitors: competitors,
-        networkUseFeeCentPerKWh: 5.12
+        networkUseFeeCentPerKWh: 5.12,
+        regionalEEGNetworkDeductionFactor: 0.28
     }
 
 }

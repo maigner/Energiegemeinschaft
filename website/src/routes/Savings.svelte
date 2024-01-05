@@ -4,10 +4,11 @@
     import { Button, Card, Heading } from "flowbite-svelte";
 
     
-    /**
-     * @type {{ selfUseRatio: number; buy_cent_per_kilowatt: number; competitors: any; }}
+
+     /**
+     * @type {{ networkUseFeeCentPerKWh: number; regionalEEGNetworkDeductionFactor: number; selfUseRatio: number; eegSellsCentPerKilowatt: number; competitors: any; }}
      */
-     export let data;
+      export let data;
 
     let totalConsumptionKWhPerYear = 4000;
 
@@ -22,33 +23,41 @@
 
     $: {
 
-        // -28 % auf Netzgebühr
-        let basePrice = basePriceEuroPerYear;
+        let providerWorkPriceCentPerKWhWithoutNetwork = (providerWorkPriceCentPerKWh - data.networkUseFeeCentPerKWh);
 
-        let energyPrice = totalConsumptionKWhPerYear * providerWorkPriceCentPerKWh;
+
+        let energyPriceCentPerYear = totalConsumptionKWhPerYear * providerWorkPriceCentPerKWhWithoutNetwork;
+        //console.log(`energyPriceCentPerYear: ${energyPriceCentPerYear}`);
         
         // 5,12 cent / kWh
-        let networkCharges = totalConsumptionKWhPerYear * 0.0512;
+        let networkChargesCentPerYear = totalConsumptionKWhPerYear * data.networkUseFeeCentPerKWh;
+        //console.log(`networkCharges: ${networkChargesCentPerYear}`);
 
 
-        let providerWithoutEEG = basePrice + totalConsumptionKWhPerYear * providerWorkPriceCentPerKWh;
+        // -28 % auf Netzgebühr
+        let networkChargesSavingsCentPerYear = networkChargesCentPerYear * data.regionalEEGNetworkDeductionFactor;
+        //console.log(`networkChargesSavingsCentPerYear: ${networkChargesSavingsCentPerYear}`);
 
 
-        let eegConsumption = totalConsumptionKWhPerYear * data.selfUseRatio;
+        let providerWithoutEEGEuroPerYear = basePriceEuroPerYear + (energyPriceCentPerYear + networkChargesCentPerYear) / 100.0;
+        //console.log(`providerWithoutEEGEuroPerYear: ${providerWithoutEEGEuroPerYear}`);
 
-        let providerWithEEG = basePrice + (totalConsumptionKWhPerYear - eegConsumption) * providerWorkPriceCentPerKWh;
+        let eegConsumptionKwhPerYear = totalConsumptionKWhPerYear * data.selfUseRatio;
+        //console.log(`eegConsumptionKwhPerYear: ${eegConsumptionKwhPerYear}`);
 
 
+        let providerWithEEGEuroPerYear = basePriceEuroPerYear + 
+            ((totalConsumptionKWhPerYear - eegConsumptionKwhPerYear) * providerWorkPriceCentPerKWh) / 100.0
+             - networkChargesSavingsCentPerYear / 100.0;
+        //console.log(`providerWithEEGEuroPerYear: ${providerWithEEGEuroPerYear}`);
 
 
-        savingsEuroPerYear =
-            (totalConsumptionKWhPerYear *
-                data.selfUseRatio *
-                Math.abs(
-                    data.buy_cent_per_kilowatt -
-                        providerWorkPriceCentPerKWh,
-                )) /
-            100.0;
+        let eegCostsEuroPerYear = 20.0 + (eegConsumptionKwhPerYear * data.eegSellsCentPerKilowatt) / 100.0;
+        //console.log(`eegCostsEuroPerYear: ${eegCostsEuroPerYear}`);
+
+
+        savingsEuroPerYear = providerWithoutEEGEuroPerYear - (providerWithEEGEuroPerYear + eegCostsEuroPerYear);
+        //console.log(`savingsEuroPerYear: ${savingsEuroPerYear}`);
     }
 
 
@@ -70,7 +79,7 @@
         </Heading>
 
         <div class="mt-9">Ihr Aktueller Anbieter:</div>
-        <div class="flex justify-center">
+        <div class="flex justify-center mb-6">
             {#each data.competitors as competitor}
                 <Button
                     color="yellow"
@@ -95,15 +104,15 @@
             step={0.1}
         />
 
-        einer Grundgebühr von {basePriceEuroPerYear.toFixed(2)} EURO pro Jahr
-
+        einer Grundgebühr von {basePriceEuroPerYear.toFixed(2)} EURO pro Jahr <br />
+<!--
         <Slider
             bind:value={basePriceEuroPerYear}
             min={0}
             max={100}
             step={1}
         />
-
+-->
         und einem Jahresverbrauch von {totalConsumptionKWhPerYear} kWh
         <Slider
             bind:value={totalConsumptionKWhPerYear}
