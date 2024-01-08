@@ -42,8 +42,15 @@
 
 <Savings bind:data />
 
+
 <div class="text-center mt-5">
-    <Heading tag="h2">Was gibt es Neues?</Heading>
+    <Heading tag="h2">Wer bestimmt den Strompreis?</Heading>
+</div>
+TODO... Wir!
+
+
+<div class="text-center mt-5">
+    <Heading tag="h2">Wer ist ISCHL strom?</Heading>
 </div>
 
 <div class="flex place-content-center">
