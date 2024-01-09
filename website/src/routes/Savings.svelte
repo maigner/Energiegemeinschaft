@@ -243,18 +243,17 @@
 
 
 <div class="text-center">
-    <Heading tag="h1" class="text-primary-700">11 cent FIX</Heading>
+    <Heading tag="h1" class="text-primary-800 mt-8">11 cent FIX</Heading>
 </div>
 
 <div class="flex justify-center">
     <Card class="m-2 text-center max-w-3xl text-gray-900 " size="xl">
         Sparen Sie mit ISCHL STROM jedes Jahr bis zu
 
-        <Heading tag="h2" class="text-primary-700 mt-8">
+        <Heading tag="h2" class="text-primary-800 mt-8">
             {Math.round(savingsEuroPerYear)} EURO
         </Heading>
 
-        {savingsEuroPerYear}
 
         <p class="mb-4 font-semibold mt-8">Ihr aktueller Stromanbieter</p>
         <ul

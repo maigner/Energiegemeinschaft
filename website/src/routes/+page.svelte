@@ -1,7 +1,7 @@
 <script>
     import Project from "$lib/Project.svelte";
     import Fab, { Label } from "@smui/fab";
-    import { Heading } from "flowbite-svelte";
+    import { Card, Heading } from "flowbite-svelte";
     import { Blockquote } from "flowbite-svelte";
     import Savings from "./Savings.svelte";
     //import { JSONEditor } from "svelte-jsoneditor";
@@ -18,7 +18,7 @@
 
 <div class="max-w-xl m-auto justify-center">
     <figure class="m-4 text-center">
-        <Blockquote alignment="center" size="xl">
+        <Blockquote alignment="center" size="xl" class="text-gray-900">
             Willkommen bei der Energiegemeinschaft Bad Ischl!
             <br />
             Erneuerbare Energie ist von entscheidender Bedeutung, weil sie dazu beiträgt,
@@ -32,7 +32,7 @@
                     >Energie aus Bad Ischl</cite
                 >
                 <cite
-                    class="pl-3 text-sm font-light text-gray-500 dark:text-gray-400"
+                    class="pl-3 text-lg font-bold text-gray-500 dark:text-gray-400"
                     >für Bad Ischl</cite
                 >
             </div>
@@ -40,18 +40,29 @@
     </figure>
 </div>
 
+
 <Savings bind:data />
 
 
-<div class="text-center mt-5">
-    <Heading tag="h2">Wer bestimmt den Strompreis?</Heading>
-</div>
-TODO... Wir!
 
 
-<div class="text-center mt-5">
-    <Heading tag="h2">Wer ist ISCHL strom?</Heading>
+<div class="text-center">
+    <Heading tag="h3" class="text-primary-800 mt-6">Wer bestimmt den Strompreis?</Heading>
 </div>
+
+<div class="flex place-content-center">
+    <Project img="">
+        <span slot="title">Ihr und Wir</span>
+        <div slot="content">
+            ...mehr zu den Statuten
+        </div>
+    </Project>
+</div>
+
+<div class="text-center">
+    <Heading tag="h3" class="text-primary-800 mt-6">Wer ist ISCHL strom?</Heading>
+</div>
+
 
 <div class="flex place-content-center">
     <Project img="/gruppenfoto.webp">
