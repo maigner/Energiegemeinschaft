@@ -31,6 +31,14 @@ async function authorization({ event, resolve }) {
         }
     }
 
+    if (event.url.pathname.startsWith('/car')) {
+        const session = await event.locals.getSession();
+
+        if (!session) {
+            throw redirect(307, '/login/chatbot');
+        }
+    }
+
     return resolve(event);
 }
 

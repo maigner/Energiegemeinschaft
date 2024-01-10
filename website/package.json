@@ -44,6 +44,7 @@
     "flowbite": "^2.1.1",
     "flowbite-svelte": "^0.44.19",
     "flowbite-svelte-icons": "^0.4.5",
+    "html5-qrcode": "^2.3.8",
     "postcss": "^8.4.31",
     "postcss-load-config": "^4.0.1",
     "smui-theme": "^7.0.0-beta.14",
