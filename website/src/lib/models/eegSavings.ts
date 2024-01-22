@@ -75,7 +75,7 @@ export class EegSavings {
         const fixedCosts = this.providerPriceDetails.power.basePriceEuroPerYear;
         let variableCosts = 0.0;
 
-        if (this.priceLimit) {
+        if (this.priceLimit && this.providerPriceDetails.power.workPriceCentPerKwh > 10.0) {
             // Strompreisbremse
             // subtract 30cent from workprice
             // down to at most 10Cent
@@ -139,14 +139,14 @@ export class EegSavings {
 
 
     costOfPowerCommunityNetEuroPerYear(): number {
-        const stromkosten =
+        const energyCosts =
             (this.selfUsageKwhPerYear() * 11.0) / 100.0; // EURO
-        const mitgliedsbeitrag = 20.0;
-        return stromkosten + mitgliedsbeitrag;
+        const membershipFee = 20.0;
+        return energyCosts + membershipFee;
     }
 
 
-    costWithOutCommunityGrossEuroPerYear(): number {
+    costWithoutCommunityGrossEuroPerYear(): number {
         //NO EEG
         // simulate self use of 0.0
         // backup
@@ -187,12 +187,12 @@ export class EegSavings {
 
 
     savingsGrossEuroPerYear(): number {
-        return this.costWithOutCommunityGrossEuroPerYear()
+        return this.costWithoutCommunityGrossEuroPerYear()
             - this.costWithCommunityGrossEuroPerYear();
     }
 
 
-} // Class
+} // EegSavings
 
 
 

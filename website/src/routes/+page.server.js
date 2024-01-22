@@ -22,6 +22,13 @@ interface PowerPriceDetails {
 }
      */
 
+    const networkNetzOOE = {
+        consumptionPriceCentPerKwh: 5.12,
+        networkLossPriceCentPerKwh: 0.59,
+        basePriceEuroPerYear: 36.00,
+        measurementServiceFeeEuroPerYear: 26.16,
+    };
+
     const competitorsV2 = [
         {
             id: 0,
@@ -30,29 +37,10 @@ interface PowerPriceDetails {
             source: "https://www.energieag.at/privat/strom",
             date: "1. Jänner 2024",
             price: {
-                network: {
-                    consumptionPriceCentPerKwh: 5.12,
-                    networkLossPriceCentPerKwh: 0.59,
-                    basePriceEuroPerYear: 36.00,
-                    measurementServiceFeeEuroPerYear: 26.16,
-                    cent_pro_kwh: {
-                        verbrauchspreis: 5.12,
-                        netzverlustentgeld: 0.59
-                    },
-                    euro_pro_jahr: {
-                        grundpreis: 36.0,
-                        entgelt_messleistungen: 26.16
-                    }
-                },
+                network: networkNetzOOE,
                 power: {
                     workPriceCentPerKwh: 21.78,
                     basePriceEuroPerYear: 39.0,
-                    cent_pro_kwh: {
-                        arbeitspreis: 21.78
-                    },
-                    euro_pro_jahr: {
-                        grundpreis: 39.0
-                    }
                 }
             }
         },
@@ -63,29 +51,10 @@ interface PowerPriceDetails {
             source: "https://www.verbund.com/de-at/privatkunden/strom",
             date: "1. Jänner 2024",
             price: {
-                network: {
-                    consumptionPriceCentPerKwh: 5.12,
-                    networkLossPriceCentPerKwh: 0.59,
-                    basePriceEuroPerYear: 36.00,
-                    measurementServiceFeeEuroPerYear: 26.16,
-                    cent_pro_kwh: {
-                        verbrauchspreis: 5.12,
-                        netzverlustentgeld: 0.59
-                    },
-                    euro_pro_jahr: {
-                        grundpreis: 36.0,
-                        entgelt_messleistungen: 26.16
-                    }
-                },
+                network: networkNetzOOE,
                 power: {
                     workPriceCentPerKwh: 23.90,
                     basePriceEuroPerYear: 28.93,
-                    cent_pro_kwh: {
-                        arbeitspreis: 23.90
-                    },
-                    euro_pro_jahr: {
-                        grundpreis: 28.93
-                    }
                 }
             }
         },
@@ -97,29 +66,10 @@ interface PowerPriceDetails {
             source: "https://www.gogreenenergy.at",
             date: "1. Jänner 2024",
             price: {
-                network: {
-                    consumptionPriceCentPerKwh: 5.12,
-                    networkLossPriceCentPerKwh: 0.59,
-                    basePriceEuroPerYear: 36.00,
-                    measurementServiceFeeEuroPerYear: 26.16,
-                    cent_pro_kwh: {
-                        verbrauchspreis: 5.12,
-                        netzverlustentgeld: 0.59
-                    },
-                    euro_pro_jahr: {
-                        grundpreis: 36.0,
-                        entgelt_messleistungen: 26.16
-                    }
-                },
+                network: networkNetzOOE,
                 power: {
                     workPriceCentPerKwh: 20.0,
                     basePriceEuroPerYear: 50.0,
-                    cent_pro_kwh: {
-                        arbeitspreis: 20.00
-                    },
-                    euro_pro_jahr: {
-                        grundpreis: 50.0
-                    }
                 }
             }
         },
@@ -131,29 +81,10 @@ interface PowerPriceDetails {
             source: "https://www.example.com",
             date: "1. Jänner 2024",
             price: {
-                network: {
-                    consumptionPriceCentPerKwh: 5.12,
-                    networkLossPriceCentPerKwh: 0.59,
-                    basePriceEuroPerYear: 36.00,
-                    measurementServiceFeeEuroPerYear: 26.16,
-                    cent_pro_kwh: {
-                        verbrauchspreis: 5.12,
-                        netzverlustentgeld: 0.59
-                    },
-                    euro_pro_jahr: {
-                        grundpreis: 36.0,
-                        entgelt_messleistungen: 26.16
-                    }
-                },
+                network: networkNetzOOE,
                 power: {
                     workPriceCentPerKwh: 50.0,
                     basePriceEuroPerYear: 100.0,
-                    cent_pro_kwh: {
-                        arbeitspreis: 50.00
-                    },
-                    euro_pro_jahr: {
-                        grundpreis: 100.0
-                    }
                 }
             }
         },

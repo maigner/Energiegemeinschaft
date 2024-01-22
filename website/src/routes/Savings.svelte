@@ -97,8 +97,8 @@
         Bei einem Jahresverbrauch von {totalConsumptionKWhPerYear} kWh
         <Slider
             bind:value={totalConsumptionKWhPerYear}
-            min={3000}
-            max={5000}
+            min={1000}
+            max={6000}
             step={100}
         />
 
