@@ -52,7 +52,7 @@
 
 <div class="flex justify-center">
     <Card class="m-2 text-center max-w-3xl text-gray-900 " size="xl">
-        Sparen Sie mit ISCHL STROM jedes Jahr bis zu
+        Sparen Sie mit ISCHL STROM jedes Jahr bis zu*
 
         <Heading tag="h2" class="text-primary-800 mt-8">
             {Math.round(savingsEuroPerYear)} EURO
@@ -110,5 +110,12 @@
                 <Label>Jetzt Mitmachen</Label>
             </Fab>
         </div>
+
+
+        <div class="text-xs mt-6">
+            * Dieser Wert ist eine Schätzung unter der Annahme eines ausgegleichenen 
+            Verhältnisses zwischen Erzeugung und Verbrauch innerhalb von ISCHL STROM.
+        </div>
     </Card>
+
 </div>
