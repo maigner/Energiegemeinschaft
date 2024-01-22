@@ -1,2 +1,4 @@
 .venvDjango
 *.pyc
+.pgpass
+.pg_service.conf
