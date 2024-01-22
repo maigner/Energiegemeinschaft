@@ -1,14 +1,13 @@
 <script>
-    import Paper, { Content } from "@smui/paper";
-    
+    import { Card, Heading } from "flowbite-svelte";
 </script>
 
-<Paper>
-    <Content>
-        <header>
-            <h1>Impressum</h1>
-        </header>
+<div class="text-center">
+    <Heading tag="h2">Impressum</Heading>
+</div>
 
+<div class="flex place-content-center">
+    <Card class="m-2 max-w-3xl" size="xl">
         <section>
             <h2>Angaben gemäß § 5 TMG:</h2>
             <p>Name der Energiegemeinschaft</p>
@@ -55,8 +54,14 @@
                 >
             </p>
         </footer>
-    </Content>
-</Paper>
+        
+    </Card>
+</div>
+
+
+
+
+
 
 <style>
     

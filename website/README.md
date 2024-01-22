@@ -8,6 +8,11 @@ using svelte kit. read about it!
 add a .env file
 
 
+## Set up Database for authjs and svelteKit
+
+https://authjs.dev/reference/sveltekit
+
+
 ## Developing
 
 Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
