@@ -1,4 +1,5 @@
 <script>
+    import Project from "$lib/Project.svelte";
     import { Button, Card, Heading } from "flowbite-svelte";
 
 
@@ -8,7 +9,7 @@
     
 </script>
 
-
+{JSON.stringify(data.members)}
 
 <div class="text-center">
     <Heading tag="h2">Willkommen</Heading>
@@ -33,4 +34,21 @@
 </div>
 
 
+<div class="flex place-content-center">
+    <Project img="/smart_meter.webp" showMore={false}>
+        <span slot="title">1. Stromzähler aktivieren</span>
+        <div slot="content">
+            <p class="mb-2">
+                Ihr Netzbetreiber (z.B. NetzOÖ) hat möglicherweise Ihr Smartmeter noch nicht freigeschaltet.
+            </p>
+            <p class="mb-2">
+                Registrieren Sie sich dazu im eService-Portal der Netz Oberösterreich 
+                unter <a href="https://eservice.netzooe.at/app/login" target="_blank">https://eservice.netzooe.at/app/login</a>
+            </p>
+            <p class="mb-2">
+                Hilfe bekommen Sie bei NetzOÖ unter der Service-Hotline 05 9070
+            </p>
+        </div>
+    </Project>
+</div>
 

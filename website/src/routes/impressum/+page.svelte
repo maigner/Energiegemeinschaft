@@ -58,4 +58,14 @@
     </Card>
 </div>
 
-
+<div>
+    Bildquellen:
+    <div>
+        <ul>
+            <li>
+                https://commons.wikimedia.org/wiki/Category:Smart_meters#/media/File:Slimme_meters_van_Enexis,_Oude_Pekela_(2018)_01.jpg
+            </li>
+        </ul>
+        
+    </div>
+</div>

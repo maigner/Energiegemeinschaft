@@ -1,3 +1,5 @@
+import { getMembers } from '$lib/db/members/member';
+
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ fetch, params, parent }) {
 
@@ -14,7 +16,8 @@ export async function load({ fetch, params, parent }) {
     return {
         knownUser: {
             name: "martin"
-        }
+        },
+        members: await getMembers()
     }
 
 
