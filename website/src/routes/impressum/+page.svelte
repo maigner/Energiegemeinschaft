@@ -65,6 +65,19 @@
             <li>
                 https://commons.wikimedia.org/wiki/Category:Smart_meters#/media/File:Slimme_meters_van_Enexis,_Oude_Pekela_(2018)_01.jpg
             </li>
+            <li>
+                https://commons.wikimedia.org/wiki/File:004_2017_05_20_Erneuerbare_Energie.jpg
+                © Friedrich Haag&nbsp;/&nbsp;<a href="/wiki/Main_Page" title="Main Page">Wikimedia Commons</a>
+            </li>
+            <li>
+                <a href="https://commons.wikimedia.org/wiki/File:Herten_Westerholt_-_Freiheit_03_ies.jpg">Frank Vincentz</a>, <a href="https://creativecommons.org/licenses/by-sa/3.0">CC BY-SA 3.0</a>, via Wikimedia Commons
+            </li>
+            <li>
+                <a href="https://commons.wikimedia.org/wiki/File:%22Miteinander-Weg%22_in_Gilching.png">XoMEoX</a>, <a href="https://creativecommons.org/licenses/by/4.0">CC BY 4.0</a>, via Wikimedia Commons
+            </li>
+            <li>
+                <a href="https://commons.wikimedia.org/wiki/File:Elbe_Parey-Polte_03.jpg">Georgfotoart</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>, via Wikimedia Commons
+            </li>
         </ul>
         
     </div>

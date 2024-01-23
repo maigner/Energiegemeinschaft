@@ -45,25 +45,59 @@
 
 
 
-
 <div class="text-center">
-    <Heading tag="h3" class="text-primary-800 mt-6">Wer bestimmt den Strompreis?</Heading>
+    <Heading tag="h3" class="text-primary-800 mt-6">Vorteile einer Energiegemeinschaft</Heading>
 </div>
-
 <div class="flex place-content-center">
-    <Project img="">
-        <span slot="title">Ihr und Wir</span>
+    <Project img="/wasserrad.webp">
+        <span slot="title">100% Erneuerbare Energie</span>
         <div slot="content">
-            ...mehr zu den Statuten
+            ISCHL STROM fördert erneuerbare Energien, indem sie den gemeinsamen Einsatz
+            von Solaranlagen erleichtern und den
+            Überschussstrom in Bad Ischl verteilen.
+        </div>
+    </Project>
+</div>
+<div class="flex place-content-center">
+    <Project img="/freiheit.webp">
+        <span slot="title">Unabhängigkeit</span>
+        <div slot="content">
+            Energiegemeinschaften fördern die Unabhängigkeit von Konzernen, Öl und Gas 
+            und ermöglichen es den Mitgliedern, ihre
+            Energieversorgung selbst mitzubestimmen.
         </div>
     </Project>
 </div>
 
-<div class="text-center">
-    <Heading tag="h3" class="text-primary-800 mt-6">Wer ist ISCHL strom?</Heading>
+<div class="flex place-content-center">
+    <Project img="/miteinander.webp">
+        <span slot="title">Miteinander</span>
+        <div slot="content">
+            Wir vernetzten nicht nur unseren Strom sondern auch unsere Fähigkeiten.
+            Energiegemeinschaften fördern den sozialen Zusammenhalt und den
+            Austausch von Wissen und Ressourcen zwischen Mitgliedern, was die
+            lokale Gemeinschaft stärkt.
+        </div>
+    </Project>
+</div>
+
+<div class="flex place-content-center">
+    <Project img="/sichere_netzte.webp">
+        <span slot="title">Versorgungssicherheit</span>
+        <div slot="content">
+            Gemeinschaften können in Notfällen auf eine zuverlässige
+            Energiequelle zugreifen und so die Energieversorgung in Krisenzeiten
+            sicherstellen.
+        </div>
+    </Project>
 </div>
 
 
+
+
+<div class="text-center">
+    <Heading tag="h3" class="text-primary-800 mt-6">Wer ist ISCHL strom?</Heading>
+</div>
 <div class="flex place-content-center">
     <Project img="/gruppenfoto.webp">
         <span slot="title">Vereinsgründung</span>
@@ -75,52 +109,8 @@
     </Project>
 </div>
 
-<div class="text-center pt-8">
-    <Heading tag="h2">Vorteile einer Energiegemeinschaft</Heading>
-</div>
 
-<div class="flex place-content-center">
-    <Project img="tmp/energiewende.png">
-        <span slot="title">Energiewende</span>
-        <div slot="content">
-            Sie fördern erneuerbare Energien, indem sie den gemeinsamen Einsatz
-            von Solaranlagen oder Windkraftanlagen erleichtern und den
-            Überschussstrom verteilen.
-        </div>
-    </Project>
-</div>
-<div class="flex place-content-center">
-    <Project img="tmp/unabhängig.jpeg">
-        <span slot="title">Unabhängigkeit</span>
-        <div slot="content">
-            Energiegemeinschaften bieten Unabhängigkeit von großen
-            Energieunternehmen und ermöglichen es den Mitgliedern, ihre
-            Energieversorgung selbst zu kontrollieren.
-        </div>
-    </Project>
-</div>
 
-<div class="flex place-content-center">
-    <Project img="tmp/versorgung.jpeg">
-        <span slot="title">Versorgungssicherheit</span>
-        <div slot="content">
-            Gemeinschaften können in Notfällen auf eine zuverlässige
-            Energiequelle zugreifen und so die Energieversorgung in Krisenzeiten
-            sicherstellen.
-        </div>
-    </Project>
-</div>
-
-<div class="flex place-content-center">
-    <Project img="tmp/vernetzt.jpeg">
-        <span slot="title">Soziale Vernetzung</span>
-        <div slot="content">
-            Energiegemeinschaften fördern den sozialen Zusammenhalt und den
-            Austausch von Wissen und Ressourcen zwischen Mitgliedern, was die
-            lokale Gemeinschaft stärkt.
-        </div>
-    </Project>
-</div>
 
 <div class="flex place-content-center">
     <Fab extended href="/mitmachen" color="primary">

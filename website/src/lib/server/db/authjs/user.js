@@ -1,8 +1,7 @@
-import { connectToDB } from "$lib/db";
+import { connectToDB } from "$lib/server/db/db";
 
 
-
-export const getUser = async () => {
+export const getUsers = async () => {
 
 
     const sql = await connectToDB();
@@ -10,5 +9,5 @@ export const getUser = async () => {
     await sql.end();
     sql.release();
 
-    return result;
+    return result?.row;
 };

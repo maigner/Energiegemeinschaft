@@ -1,4 +1,5 @@
-import { getMembers } from '$lib/db/members/member';
+import { getMembers } from '$lib/server/db/members/member';
+import { getUsers } from '$lib/server/db/authjs/user';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ fetch, params, parent }) {
@@ -14,10 +15,8 @@ export async function load({ fetch, params, parent }) {
     // kennen wir den schon?
 
     return {
-        knownUser: {
-            name: "martin"
-        },
-        members: await getMembers()
+        members: await getMembers(),
+        users: await getUsers()
     }
 
 

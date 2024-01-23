@@ -10,7 +10,7 @@ import PostgresAdapter from "@auth/pg-adapter";
 // https://medium.com/@uriser/authentication-in-sveltekit-with-auth-js-7ff505d584c4
 // Auth.js
 
-import { connectToDB, pool } from "$lib/db";
+import { connectToDB, pool } from "$lib/server/db/db";
 
 
 async function authorization({ event, resolve }) {
