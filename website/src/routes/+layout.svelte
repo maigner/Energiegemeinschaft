@@ -28,11 +28,13 @@
 
 <slot />
 
+<!--
 <div class="mt-16 flex place-content-center">
 	<img src="/sponsors.jpg" class="max-w-sm" alt="sponsors" />
 </div>
+-->
 
-<div class="flex place-content-center">
+<div class="ml-5 mt-20">
 	<a href="/impressum">Impressum</a>
 </div>
 

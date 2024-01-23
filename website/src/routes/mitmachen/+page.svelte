@@ -1,6 +1,8 @@
 <script>
     import Project from "$lib/Project.svelte";
     import { Blockquote, Button, Card, Heading } from "flowbite-svelte";
+    import { signIn, signOut } from '@auth/sveltekit/client';
+
 
     // TODO: check list
     export let data;
@@ -24,6 +26,11 @@
                 class="mb-3 font-normal text-gray-700 dark:text-gray-400 leading-tight"
             >
                 Add data here...
+            </p>
+            <p>
+                <Button on:click={ () => {
+                    signOut();
+                }}>Logout</Button>
             </p>
         </Card>
     </div>
