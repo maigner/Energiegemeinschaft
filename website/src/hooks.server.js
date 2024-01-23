@@ -15,6 +15,7 @@ import { connectToDB, pool } from "$lib/server/db/db";
 
 async function authorization({ event, resolve }) {
 
+    /*
     if (event.url.pathname.startsWith('/mitmachen')) {
         const session = await event.locals.getSession();
 
@@ -22,6 +23,7 @@ async function authorization({ event, resolve }) {
             throw redirect(307, '/login/mitmachen');
         }
     }
+    */
 
     if (event.url.pathname.startsWith('/chatbot')) {
         const session = await event.locals.getSession();
