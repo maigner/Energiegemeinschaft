@@ -18,6 +18,7 @@
 </script>
 
 <Modal
+    title={title}
     bind:open
     size="lg"
     autoclose={true}

@@ -14,12 +14,19 @@ interface PowerPriceDetails {
     basePriceEuroPerYear: number;
 }
 
+interface GovFees  {
+    electricityFeeCentPerKwh: number,
+}
+
 interface ProviderPriceDetails {
     // Netzkosten
     network: NetworkPriceDetails,
 
     // Energiekosten
-    power: PowerPriceDetails
+    power: PowerPriceDetails,
+
+    // Fees and Taxes (no VAT)
+    govFees: GovFees,
 }
 
 export class EegSavings {
@@ -60,7 +67,7 @@ export class EegSavings {
         this.providerPriceDetails = providerPriceDetails;
         this.priceLimit = priceLimit;
 
-        console.log("Update");
+        this.log("Update");
     }
 
 
@@ -73,13 +80,15 @@ export class EegSavings {
     }
 
 
-    /**
-     * 
-     * @returns 
-     */
+
     costOfPowerProviderNetEuroPerYear(): number {
         const fixedCosts = this.providerPriceDetails.power.basePriceEuroPerYear;
-        let variableCosts = this.providerPriceDetails.power.workPriceCentPerKwh * this.networkUsageKwhPerYear();
+        
+        let variableCosts = 
+            this.providerPriceDetails.power.workPriceCentPerKwh * this.networkUsageKwhPerYear()
+            +
+            this.providerPriceDetails.govFees.electricityFeeCentPerKwh * this.networkUsageKwhPerYear()
+        ;
 
         const result = fixedCosts + (variableCosts / 100.0); //return EURO
 

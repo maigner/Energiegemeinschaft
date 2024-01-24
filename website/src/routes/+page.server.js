@@ -14,6 +14,10 @@ export async function load({ fetch, params, parent, locals }) {
         measurementServiceFeeEuroPerYear: 26.16,
     };
 
+    const govFees = {
+        electricityFeeCentPerKwh: 0.1,
+    };
+
     const competitorsV2 = [
         {
             id: 0,
@@ -24,9 +28,10 @@ export async function load({ fetch, params, parent, locals }) {
             price: {
                 network: networkNetzOOE,
                 power: {
-                    workPriceCentPerKwh: 21.78 + 0.1,
+                    workPriceCentPerKwh: 21.78,
                     basePriceEuroPerYear: 39.0,
-                }
+                },
+                govFees: govFees
             }
         },
         {
@@ -40,7 +45,8 @@ export async function load({ fetch, params, parent, locals }) {
                 power: {
                     workPriceCentPerKwh: 23.90,
                     basePriceEuroPerYear: 28.93,
-                }
+                },
+                govFees: govFees
             }
         },
 
@@ -55,7 +61,8 @@ export async function load({ fetch, params, parent, locals }) {
                 power: {
                     workPriceCentPerKwh: 20.0,
                     basePriceEuroPerYear: 50.0,
-                }
+                },
+                govFees: govFees
             }
         },
 
@@ -70,7 +77,8 @@ export async function load({ fetch, params, parent, locals }) {
                 power: {
                     workPriceCentPerKwh: 50.0,
                     basePriceEuroPerYear: 100.0,
-                }
+                },
+                govFees: govFees
             }
         },
     ]

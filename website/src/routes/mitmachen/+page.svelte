@@ -75,7 +75,7 @@
 
             <VideoButton
                 videoId={"YZ0QkXqswe4"}
-                title={"Smartmeter"}
+                title={""}
                 label={"mehr über Smartmeter erfahren"}
             />
 
