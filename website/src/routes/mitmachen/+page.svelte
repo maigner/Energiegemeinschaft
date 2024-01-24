@@ -2,10 +2,14 @@
     import Project from "$lib/Project.svelte";
     import { Blockquote, Button, Card, Heading } from "flowbite-svelte";
     import { signIn, signOut } from '@auth/sveltekit/client';
+    import Video from "$lib/dialog/Video.svelte";
+    import VideoButton from "$lib/dialog/VideoButton.svelte";
 
 
     // TODO: check list
     export let data;
+
+    let smartMeterVideoOpen = true;
 </script>
 
 <div class="text-center">
@@ -59,14 +63,19 @@
     </div>
 
     <div class="flex place-content-center">
+
         <Project img="/smart_meter.webp" showMore={false}>
             <span slot="title">1. Stromzähler aktivieren</span>
             <div slot="content">
+
+
                 <p class="mb-2">
                     Ihr Netzbetreiber (z.B. NetzOÖ) hat möglicherweise Ihr
                     Smartmeter noch nicht freigeschaltet.
                 </p>
 
+                <VideoButton videoId={"YZ0QkXqswe4"} title={"Smartmeter"} label={"mehr über Smartmeter erfahren"} />
+                
                 <p class="mb-2">
                     Registrieren Sie sich dazu im eService-Portal der Netz
                     Oberösterreich unter <a

@@ -52,7 +52,12 @@
 
 <div class="flex justify-center">
     <Card class="m-2 text-center max-w-3xl text-gray-900 " size="xl">
-        Sparen Sie mit ISCHL STROM jedes Jahr bis zu*
+        <p>
+            Sparen Sie mit ISCHL STROM
+        </p>
+        <p class="text-xs">
+            jährlich bis zu*
+        </p>
 
         <Heading tag="h2" class="text-primary-800 mt-8">
             {Math.round(savingsEuroPerYear)} EURO
@@ -105,7 +110,7 @@
         und einem EEG-Anteil von {(selfUseRatio * 100).toFixed(0)}%
         <Slider bind:value={selfUseRatio} min={0.1} max={0.5} step={0.01} />
 
-        <div class="flex place-content-center mt-6">
+        <div class="flex place-content-center mt-14">
             <Fab extended href="/mitmachen" color="primary">
                 <Label>Jetzt Mitmachen</Label>
             </Fab>
