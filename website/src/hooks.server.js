@@ -15,6 +15,9 @@ import { connectToDB, pool } from "$lib/server/db/db";
 
 async function authorization({ event, resolve }) {
 
+    console.log("authorization");
+    console.log(event.route);
+
     /*
     if (event.url.pathname.startsWith('/mitmachen')) {
         const session = await event.locals.getSession();
@@ -26,6 +29,7 @@ async function authorization({ event, resolve }) {
     */
 
     if (event.url.pathname.startsWith('/chatbot')) {
+        console.log("Requires authentication");
         const session = await event.locals.getSession();
 
         if (!session) {
@@ -34,6 +38,8 @@ async function authorization({ event, resolve }) {
     }
 
     if (event.url.pathname.startsWith('/car')) {
+        console.log("Requires authentication");
+
         const session = await event.locals.getSession();
 
         if (!session) {
@@ -44,18 +50,9 @@ async function authorization({ event, resolve }) {
     return resolve(event);
 }
 
-async function database({ event, resolve }) {
 
-    const sql = await connectToDB();
-    event.locals = { sql };
-
-    const response = await resolve(event);
-    sql.release();
-
-    return response;
-}
-
-export const handle = sequence(/*database,*/ SvelteKitAuth({
+// request -> authjs -> authorize -> page
+export const handle = sequence(SvelteKitAuth({
     trustHost: true,
     secret: AUTH_SECRET,
     adapter: PostgresAdapter(pool),

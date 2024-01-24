@@ -23,7 +23,7 @@ interface ProviderPriceDetails {
 }
 
 export class EegSavings {
-    taxFactor = 1.2;
+    taxFactor: number = 1.2;
 
     powerConsumptionPerYear: number;
     selfUseRatio: number;
@@ -44,6 +44,10 @@ export class EegSavings {
     }
 
 
+    log(str: string): void {
+        //console.log(str);
+    }
+
     update(
         powerConsumptionPerYear: number,
         selfUseRatio: number,
@@ -55,6 +59,8 @@ export class EegSavings {
         this.selfUseRatio = selfUseRatio;
         this.providerPriceDetails = providerPriceDetails;
         this.priceLimit = priceLimit;
+
+        console.log("Update");
     }
 
 
@@ -73,41 +79,12 @@ export class EegSavings {
      */
     costOfPowerProviderNetEuroPerYear(): number {
         const fixedCosts = this.providerPriceDetails.power.basePriceEuroPerYear;
-        let variableCosts = 0.0;
+        let variableCosts = this.providerPriceDetails.power.workPriceCentPerKwh * this.networkUsageKwhPerYear();
 
-        if (this.priceLimit && this.providerPriceDetails.power.workPriceCentPerKwh > 10.0) {
-            // Strompreisbremse
-            // subtract 30cent from workprice
-            // down to at most 10Cent
-            let reducedPowerPrice = Math.max(
-                10.0,
-                this.providerPriceDetails.power.workPriceCentPerKwh - 30.0
-            );
+        const result = fixedCosts + (variableCosts / 100.0); //return EURO
 
-            // everything above 2900kWh pa is not covered
-            if (this.networkUsageKwhPerYear() > 2900) {
-                let deductableKwhPerYear = 2900;
-                let nonDeductableKwhPerYear = this.networkUsageKwhPerYear() - 2900; // rest
-
-                // reduced amount below 2900
-                variableCosts =
-                    reducedPowerPrice * deductableKwhPerYear;
-
-                // and full price for the rest above 2900
-                variableCosts +=
-                    this.providerPriceDetails.power.workPriceCentPerKwh * nonDeductableKwhPerYear;
-
-            } else {
-                // < 2900 zieht die Bremse voll auf gesamten Verbrauch (<2900)
-                variableCosts = reducedPowerPrice * this.networkUsageKwhPerYear()
-            }
-
-        } else {
-            // keine Strompreisbremse
-            variableCosts = this.providerPriceDetails.power.workPriceCentPerKwh * this.networkUsageKwhPerYear()
-        }
-
-        return fixedCosts + (variableCosts / 100.0); //return EURO
+        this.log(`costOfPowerProviderNetEuroPerYear ${result}`);
+        return result;
     }
 
 
@@ -134,7 +111,11 @@ export class EegSavings {
             *
             this.selfUsageKwhPerYear();
 
-        return fixedCosts + (nonDeductableVariableCosts + deductableVariableCosts) / 100.0; //EURO
+        
+        const result = fixedCosts + (nonDeductableVariableCosts + deductableVariableCosts) / 100.0; //EURO
+        this.log(`costOfNetworkProviderNetEuroPerYear ${result}`);
+        return result;
+
     }
 
 
@@ -142,9 +123,35 @@ export class EegSavings {
         const energyCosts =
             (this.selfUsageKwhPerYear() * 11.0) / 100.0; // EURO
         const membershipFee = 20.0;
-        return energyCosts + membershipFee;
+        const result = energyCosts + membershipFee;
+        this.log(`costOfPowerCommunityNetEuroPerYear ${result}`);
+        return result;
     }
 
+    powerPriceBreakEuroPerYear(): number {
+
+        if (this.priceLimit === false) {
+            this.log(`powerPriceBreakEuroPerYear 0 ${0.0}`);
+            return 0.0;
+        }
+        
+        if (this.providerPriceDetails.power.workPriceCentPerKwh <= 10.0) {
+            console.log(`powerPriceBreakEuroPerYear 2 ${0.0}`);
+            return 0.0;
+        }
+
+        let difference = this.providerPriceDetails.power.workPriceCentPerKwh - 10.0;
+
+
+        if (difference > 30.0) {
+            difference = 30.0;
+        }
+
+        this.log(`difference ${difference}`);
+        const result = difference * Math.min(2900, this.networkUsageKwhPerYear()) / 100;
+        this.log(`powerPriceBreakEuroPerYear 3 ${result}`);
+        return result;
+    }
 
     costWithoutCommunityGrossEuroPerYear(): number {
         //NO EEG
@@ -154,18 +161,21 @@ export class EegSavings {
         // reset
         this.selfUseRatio = 0.0
 
-        const total =
+        const total : number =
             (
                 this.costOfPowerProviderNetEuroPerYear()
             +
                 this.costOfNetworkProviderNetEuroPerYear()
             )
             * this.taxFactor
+            - this.powerPriceBreakEuroPerYear()
         ;
+
 
         // restore
         this.selfUseRatio = actualSelfUseRatio;
 
+        this.log(`costWithoutCommunityGrossEuroPerYear ${total}`);
         return total;
     }
 
@@ -180,15 +190,19 @@ export class EegSavings {
             )
             * this.taxFactor // taxes only for network and provider
             + this.costOfPowerCommunityNetEuroPerYear() // net costs for EEG
+            - this.powerPriceBreakEuroPerYear()
         ;
 
+        this.log(`costWithCommunityGrossEuroPerYear ${total}`);
         return total;
     }
 
 
     savingsGrossEuroPerYear(): number {
-        return this.costWithoutCommunityGrossEuroPerYear()
+        const result = this.costWithoutCommunityGrossEuroPerYear()
             - this.costWithCommunityGrossEuroPerYear();
+        this.log(`savingsGrossEuroPerYear ${result}`);
+        return result;
     }
 
 

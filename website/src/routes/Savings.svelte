@@ -103,7 +103,7 @@
         <Slider
             bind:value={totalConsumptionKWhPerYear}
             min={1000}
-            max={6000}
+            max={15000}
             step={100}
         />
 

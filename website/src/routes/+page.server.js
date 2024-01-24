@@ -4,9 +4,12 @@
 export async function load({ fetch, params, parent, locals }) {
 
 
+    // meine rechnung 
+    // 7,41 cent / kWh
+
     const networkNetzOOE = {
         consumptionPriceCentPerKwh: 5.12,
-        networkLossPriceCentPerKwh: 0.59,
+        networkLossPriceCentPerKwh: 0.5940,
         basePriceEuroPerYear: 36.00,
         measurementServiceFeeEuroPerYear: 26.16,
     };
@@ -21,7 +24,7 @@ export async function load({ fetch, params, parent, locals }) {
             price: {
                 network: networkNetzOOE,
                 power: {
-                    workPriceCentPerKwh: 21.78,
+                    workPriceCentPerKwh: 21.78 + 0.1,
                     basePriceEuroPerYear: 39.0,
                 }
             }
