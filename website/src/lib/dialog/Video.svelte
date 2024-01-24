@@ -23,7 +23,7 @@
 
 
 
-    <Youtube id="YZ0QkXqswe4" />
+    <Youtube id={id} />
 
 
     <svelte:fragment slot="footer">
