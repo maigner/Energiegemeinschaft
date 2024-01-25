@@ -4,7 +4,7 @@
 	import BetaLogin from "$lib/dialog/BetaLogin.svelte";
 	import Navigation from "./Navigation.svelte";
 
-	let betaLoginOpen = false;
+	let betaLoginOpen = true;
 
 	import { page } from "$app/stores"
 
