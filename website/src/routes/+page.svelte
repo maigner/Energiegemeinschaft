@@ -6,6 +6,7 @@
     import Savings from "./Savings.svelte";
     //import { JSONEditor } from "svelte-jsoneditor";
     import { dev } from "$app/environment";
+    import VideoButton from "$lib/dialog/VideoButton.svelte";
 
     export let data;
 
@@ -49,7 +50,7 @@
     <Heading tag="h3" class="text-primary-800 mt-6">Vorteile einer Energiegemeinschaft</Heading>
 </div>
 <div class="flex place-content-center">
-    <Project img="/wasserrad.webp">
+    <Project img="/wasserrad.webp" showMore={false}>
         <span slot="title">100% Erneuerbare Energie</span>
         <div slot="content">
             ISCHL STROM fördert erneuerbare Energien, indem sie den gemeinsamen Einsatz
@@ -59,7 +60,7 @@
     </Project>
 </div>
 <div class="flex place-content-center">
-    <Project img="/freiheit.webp">
+    <Project img="/freiheit.webp" showMore={false}>
         <span slot="title">Unabhängigkeit</span>
         <div slot="content">
             Energiegemeinschaften fördern die Unabhängigkeit von Konzernen, Öl und Gas 
@@ -70,7 +71,7 @@
 </div>
 
 <div class="flex place-content-center">
-    <Project img="/miteinander.webp">
+    <Project img="/miteinander.webp" showMore={false}>
         <span slot="title">Miteinander</span>
         <div slot="content">
             Wir vernetzten nicht nur unseren Strom sondern auch unsere Fähigkeiten.
@@ -81,13 +82,20 @@
     </Project>
 </div>
 
+
 <div class="flex place-content-center">
-    <Project img="/sichere_netzte.webp">
-        <span slot="title">Versorgungssicherheit</span>
+    <Project img="/sichere_netzte.webp" showMore={false}>
+        <span slot="title">Energiegemeinschaften im Detail</span>
         <div slot="content">
-            Gemeinschaften können in Notfällen auf eine zuverlässige
-            Energiequelle zugreifen und so die Energieversorgung in Krisenzeiten
-            sicherstellen.
+            Haben Sie noch Fragen zum Thema Energiegemeinschaften?
+
+            <div class="mt-8">
+                <VideoButton
+                videoId={"DmedjR7SgbM"}
+                title={""}
+                label={"mehr über Energiegemeinschaften erfahren"}
+            />
+            </div>
         </div>
     </Project>
 </div>
@@ -99,7 +107,7 @@
     <Heading tag="h3" class="text-primary-800 mt-6">Wer ist ISCHL strom?</Heading>
 </div>
 <div class="flex place-content-center">
-    <Project img="/gruppenfoto.webp">
+    <Project img="/gruppenfoto.webp" showMore={false}>
         <span slot="title">Vereinsgründung</span>
         <div slot="content">
             Die Gründung einer Energiegemeinschaft ist ein bedeutender Schritt
