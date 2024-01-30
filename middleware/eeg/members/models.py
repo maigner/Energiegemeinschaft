@@ -5,6 +5,7 @@ from django.db import models
 class Member(models.Model):
     identifier = models.IntegerField(unique=True)
     email = models.EmailField(unique=True)
+    name = models.CharField(max_length=200)
     def __str__(self):
         return f"{self.identifier}: {self.email}"
 
