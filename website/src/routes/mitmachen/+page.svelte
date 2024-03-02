@@ -128,7 +128,7 @@
         <span slot="title">Haben Sie noch Fragen?</span>
         <div slot="content">
             <p class="mb-2">
-                Sie erreichen uns unter: <a href="mailto: info@ischlstrom.org">
+                Sie erreichen uns unter: <a href="mailto:info@ischlstrom.org">
                     <span class="text-3xl">info@ischlstrom.org</span></a>
             </p>
             <p class="mb-2 text-lg">
