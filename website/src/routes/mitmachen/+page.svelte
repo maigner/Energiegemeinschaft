@@ -114,9 +114,27 @@
                 Leiten Sie diese Daten einfach an uns weiter. Sie erreichen uns
                 unter info@ischlstrom.org
             </p>
+            <!--
             <p class="mb-2">
                 Wir schalten dann Ihre E-Mail Adresse für ischlstrom.org frei.
+            </p>-->
+        </div>
+    </Project>
+</div>
+
+
+<div class="flex place-content-center">
+    <Project img="/pen_writing.webp" showMore={false}>
+        <span slot="title">Haben Sie noch Fragen?</span>
+        <div slot="content">
+            <p class="mb-2">
+                Sie erreichen uns unter: <a href="mailto: info@ischlstrom.org">
+                    <span class="text-3xl">info@ischlstrom.org</span></a>
             </p>
+            <p class="mb-2 text-lg">
+                Wir freuen uns über Ihr Interesse!
+            </p>
+            
         </div>
     </Project>
 </div>

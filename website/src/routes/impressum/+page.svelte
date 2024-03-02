@@ -114,6 +114,13 @@
                                 >CC BY-SA 4.0</a
                             >, via Wikimedia Commons
                         </li>
+
+                        <li>
+                            <a href="https://commons.wikimedia.org/wiki/File:Fountain_pen_writing_(literacy).jpg">Petar Milošević</a>, 
+                            <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>, via Wikimedia Commons
+                        </li>
+
+
                     </ul>
                 </div>
             </AccordionItem>

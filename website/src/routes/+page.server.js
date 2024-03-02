@@ -65,7 +65,7 @@ export async function load({ fetch, params, parent, locals }) {
                 govFees: govFees
             }
         },
-
+/*
         {
             id: 3,
             provider: "Phantasie AG",
@@ -81,6 +81,7 @@ export async function load({ fetch, params, parent, locals }) {
                 govFees: govFees
             }
         },
+*/
     ]
 
 

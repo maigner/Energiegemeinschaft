@@ -1,27 +1,10 @@
 <script>
 	import "../app.css";
 	import { Hr } from "flowbite-svelte";
-	import BetaLogin from "$lib/dialog/BetaLogin.svelte";
 	import Navigation from "./Navigation.svelte";
-
-	let betaLoginOpen = true;
-
-	import { page } from "$app/stores"
-
-
-	export let data;
-	if (data.session) {
-		betaLoginOpen = false;
-	}
-
-	if ($page.route.id === "/verify" ) {
-		betaLoginOpen = false;
-	}
-
 
 </script>
 
-<BetaLogin bind:open={betaLoginOpen} />
 
 <Navigation />
 

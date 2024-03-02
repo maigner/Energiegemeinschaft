@@ -62,6 +62,7 @@
                         />
                     </BottomNavItem>
                 </NavLi>
+                <!--
                 <NavLi href="/chatbot">
                     <BottomNavItem
                         btnName="Kontakt"
@@ -75,6 +76,7 @@
                         />
                     </BottomNavItem>
                 </NavLi>
+                -->
             </div>
         </NavUl>
     </NavContainer>

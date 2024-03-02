@@ -36,5 +36,10 @@ class Measurement(models.Model):
     def __str__(self):
         return f"{self.meter_code}: {self.value}"
     
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['measurement_point', 'meter_code', 'timestamp', 'value'], name='unique_measurement'),
+        ]
+    
     
     
