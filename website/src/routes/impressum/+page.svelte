@@ -120,6 +120,10 @@
                             <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>, via Wikimedia Commons
                         </li>
 
+                        <li>
+                            <a href="https://commons.wikimedia.org/wiki/File:Statuta_venerabilis_collegii_Turonensis_(statuts_du_coll%C3%A8ge_de_Tours),_Parisiis_fundati._Edita_M._Alexandro_Dupoirier,_primario,_Et._M._Petro_Pepin,_procuratore.jpg">Collège de Tours (1333-1763 ; Paris) et Thiboust, Claude-Louis (1667-1737), imprimeur.</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>, via Wikimedia Commons
+                        </li>
+
 
                     </ul>
                 </div>

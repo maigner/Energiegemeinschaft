@@ -14,8 +14,8 @@ import { connectToDB, pool } from "$lib/server/db/db";
 
 async function authorization({ event, resolve }) {
 
-    console.log("authorization");
-    console.log(event.route);
+    // console.log("authorization");
+    // console.log(event.route);
 
     /*
     if (event.url.pathname.startsWith('/mitmachen')) {
@@ -25,7 +25,7 @@ async function authorization({ event, resolve }) {
             throw redirect(307, '/login/mitmachen');
         }
     }
-    */
+    
 
     if (event.url.pathname.startsWith('/chatbot')) {
         console.log("Requires authentication");
@@ -45,7 +45,8 @@ async function authorization({ event, resolve }) {
             throw redirect(307, '/login/chatbot');
         }
     }
-
+    */
+   
     return resolve(event);
 }
 
