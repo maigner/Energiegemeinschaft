@@ -1,45 +1,19 @@
 <script>
     import Project from "$lib/Project.svelte";
     import { Blockquote, Button, Card, Heading } from "flowbite-svelte";
-    import { signIn, signOut } from "@auth/sveltekit/client";
-    import Video from "$lib/dialog/Video.svelte";
     import VideoButton from "$lib/dialog/VideoButton.svelte";
 
-    // TODO: check list
-    export let data;
-
-    let smartMeterVideoOpen = true;
+    /**
+     * @type {any}
+     */
+    let innerWidth;
 </script>
+
+<svelte:window bind:innerWidth />
 
 <div class="text-center">
     <Heading tag="h2" class="text-primary-800 mt-8">Willkommen</Heading>
 </div>
-
-{#if data?.session !== null}
-    <div class="flex place-content-center">
-        <Card class="m-2 max-w-3xl" size="xl">
-            <Heading
-                tag="h5"
-                class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"
-            >
-                {data?.session?.user?.email}
-            </Heading>
-
-            <p
-                class="mb-3 font-normal text-gray-700 dark:text-gray-400 leading-tight"
-            >
-                Add data here...
-            </p>
-            <p>
-                <Button
-                    on:click={() => {
-                        signOut();
-                    }}>Logout</Button
-                >
-            </p>
-        </Card>
-    </div>
-{/if}
 
 <div class="max-w-xl m-auto justify-center">
     <figure class="m-4 text-center">
@@ -102,39 +76,31 @@
     </Project>
 </div>
 
-<div class="flex place-content-center">
-    <Project img="/mailme_networkinfo.webp" showMore={false}>
-        <span slot="title">2. NetzOÖ eService-Portal</span>
-        <div slot="content">
-            <p class="mb-2">
-                Finden Sie das Briefsymbol und nutzen Sie diese Funktion um sich
-                Ihre Zählpunktnummer an Ihre E-Mail Adresse schicken zu lassen.
-            </p>
-            <p class="mb-2">
-                Leiten Sie diese Daten einfach an uns weiter. Sie erreichen uns
-                unter info@ischlstrom.org
-            </p>
-            <!--
-            <p class="mb-2">
-                Wir schalten dann Ihre E-Mail Adresse für ischlstrom.org frei.
-            </p>-->
-        </div>
-    </Project>
-</div>
-
 
 <div class="flex place-content-center">
     <Project img="/pen_writing.webp" showMore={false}>
-        <span slot="title">Haben Sie noch Fragen?</span>
+        <span slot="title">Mitglied werden</span>
         <div slot="content">
             <p class="mb-2">
-                Sie erreichen uns unter: <a href="mailto:info@ischlstrom.org">
-                    <span class="text-3xl">info@ischlstrom.org</span></a>
+                Füllen Sie einfach folgende Beitrittserklärung aus. 
             </p>
-            <p class="mb-2 text-lg">
-                Wir freuen uns über Ihr Interesse!
+            <p class="mb-2">
+                Wir melden uns bei
+                Ihnen!
             </p>
             
         </div>
     </Project>
+</div>
+
+<div class="flex place-content-center">
+    <iframe
+        title="Anmeldeformular"
+        src="https://docs.google.com/forms/d/e/1FAIpQLSdpj7TyoQot6hlculr-ZLre08-KWQvtXqiXCqKjgdtcslOyNA/viewform?embedded=true"
+        width={Math.max(innerWidth, 350)}
+        height="3000"
+        frameborder="0"
+        marginheight="0"
+        marginwidth="0">Wird geladen…</iframe
+    >
 </div>
