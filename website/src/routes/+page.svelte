@@ -122,7 +122,7 @@
     <Project img="/statut.webp" showMore={false}>
         <span slot="title">Vereinsstatuten</span>
         <div slot="content">
-            <a target="_blank" href=" https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf ">
+            <a target="_blank" href="https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf">
                 Statuten
                 des Vereins
                 Erneuerbare-Energie-Gemeinschaft
