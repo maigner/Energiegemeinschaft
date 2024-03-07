@@ -112,7 +112,8 @@
         <div slot="content">
             Die Gründung einer Energiegemeinschaft ist ein bedeutender Schritt
             in Richtung nachhaltiger Energieversorgung. Menschen bündeln ihre
-            Ressourcen und Fachkenntnisse, um erneuerba...
+            Ressourcen und Fachkenntnisse, um erneuerbare Energie zum endgültigen
+            Durchbruch zu verhelfen.
         </div>
     </Project>
 </div>
