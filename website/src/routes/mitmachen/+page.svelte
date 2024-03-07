@@ -97,7 +97,8 @@
         title="Anmeldeformular"
         src="https://docs.google.com/forms/d/e/1FAIpQLSdpj7TyoQot6hlculr-ZLre08-KWQvtXqiXCqKjgdtcslOyNA/viewform?embedded=true"
         width={Math.max(innerWidth, 350)}
-        height="3000"
+        height="3500"
+        scrolling="no"
         frameborder="0"
         marginheight="0"
         marginwidth="0">Wird geladen…</iframe
