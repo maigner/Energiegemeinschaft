@@ -79,7 +79,7 @@
 
 <div class="flex place-content-center">
     <Project img="/pen_writing.webp" showMore={false}>
-        <span slot="title">Mitglied werden</span>
+        <span slot="title">2. Mitglied werden</span>
         <div slot="content">
             <p class="mb-2">
                 Füllen Sie einfach folgende Beitrittserklärung aus. 
@@ -88,7 +88,6 @@
                 Wir melden uns bei
                 Ihnen!
             </p>
-            
         </div>
     </Project>
 </div>
