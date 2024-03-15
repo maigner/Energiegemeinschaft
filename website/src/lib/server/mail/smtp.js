@@ -3,11 +3,8 @@ import { json } from "@sveltejs/kit";
 import { SMTP_USER, SMTP_PWD, SMTP_ENDPOINT, SMTP_TLS_PORT } from "$env/static/private";
 import nodemailer from 'nodemailer';
 
-export async function POST({ request, cookies }) {
+export async function relayContactForm(email, message) {
 
-    const { message } = await request.json();
-
-    console.log("mail.notify " + message);
 
     let transporter = nodemailer.createTransport({
         host: SMTP_ENDPOINT,
@@ -31,7 +28,7 @@ export async function POST({ request, cookies }) {
     var mailMessage = {
         from: "info@ischlstrom.org",
         to: "info@ischlstrom.org",
-        subject: "EEG Wegsite Log",
+        subject: "EEG Kontaktaufnahme von " + email,
         text: JSON.stringify(message)
     };
 
