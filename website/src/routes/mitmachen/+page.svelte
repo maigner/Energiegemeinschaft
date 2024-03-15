@@ -2,6 +2,7 @@
     import Project from "$lib/Project.svelte";
     import { Blockquote, Button, Card, Heading } from "flowbite-svelte";
     import VideoButton from "$lib/dialog/VideoButton.svelte";
+    import Fab, { Label } from "@smui/fab";
 
     /**
      * @type {any}
@@ -88,19 +89,25 @@
                 Wir melden uns bei
                 Ihnen!
             </p>
+            <p class="mb-2">
+                Bitte beachten Sie, dass Ihre Dateneingabe noch keine automatische Mitgliedschaft
+                bedeutet. Es fallen auch keine Kosten für Sie an.
+            </p>
+            <p class="mb-2"> 
+                Details zur Mitgliedschaft
+                entnehmen Sie bitte unseren <a 
+                target="_blank" 
+                href="https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf"
+                >Statuten</a>.
+            </p>
         </div>
     </Project>
 </div>
 
-<div class="flex place-content-center">
-    <iframe
-        title="Anmeldeformular"
-        src="https://docs.google.com/forms/d/e/1FAIpQLSdpj7TyoQot6hlculr-ZLre08-KWQvtXqiXCqKjgdtcslOyNA/viewform?embedded=true"
-        width={Math.max(innerWidth, 350)}
-        height="3500"
-        scrolling="no"
-        frameborder="0"
-        marginheight="0"
-        marginwidth="0">Wird geladen…</iframe
-    >
+<div class="flex place-content-center mt-4">
+    <Fab extended href="https://forms.gle/dQMJmEeZp3bML4jP6" color="primary">
+        <Label>Zur Beitrittserklärung</Label>
+    </Fab>
 </div>
+
+

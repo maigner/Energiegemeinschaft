@@ -132,7 +132,7 @@
 </div>
 
 
-<div class="flex place-content-center">
+<div class="flex place-content-center mt-4">
     <Fab extended href="/mitmachen" color="primary">
         <Label>Jetzt Mitmachen</Label>
     </Fab>
