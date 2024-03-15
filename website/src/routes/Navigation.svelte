@@ -4,6 +4,7 @@
     import { BottomNavItem } from "flowbite-svelte";
     import {
         HomeOutline,
+        MailBoxOutline,
         MessagesOutline,
         UserAddOutline,
     } from "flowbite-svelte-icons";
@@ -57,6 +58,19 @@
                     >
                         <UserAddOutline
                             class="w-4 h-4 mb-1 {$page.route.id === '/mitmachen'
+                                ? 'text-green-950'
+                                : 'text-green-600'} group-hover:text-green-900 "
+                        />
+                    </BottomNavItem>
+                </NavLi>
+                <NavLi href="/kontakt">
+                    <BottomNavItem
+                        btnName="Kontakt"
+                        href="/kontakt"
+                        on:click={closeNav}
+                    >
+                        <MailBoxOutline
+                            class="w-4 h-4 mb-1 {$page.route.id === '/kontakt'
                                 ? 'text-green-950'
                                 : 'text-green-600'} group-hover:text-green-900 "
                         />
