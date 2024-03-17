@@ -124,7 +124,7 @@
 
 
 <div class="flex place-content-center mt-4">
-    <Fab extended href="/faq" color="primary">
+    <Fab extended href="/kontakt" color="primary">
         <Label>Ich habe immer noch Fragen!</Label>
     </Fab>
 </div>

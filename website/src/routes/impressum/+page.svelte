@@ -159,7 +159,7 @@
                     </p>
                     <p>
                         <b>Kontaktdaten:</b> <br />
-                        Email: info@ischlstrom.org <br /> Fax:
+                        Email: info@ischlstrom.org <br /> Fax: was'n ein Fax?
                     </p>
 
                     <p>

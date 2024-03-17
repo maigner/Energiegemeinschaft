@@ -1,13 +1,11 @@
 <script>
 	import "../app.css";
+	import { page } from "$app/stores";
 	import { Hr } from "flowbite-svelte";
 	import Navigation from "./Navigation.svelte";
-
 </script>
 
-
 <Navigation />
-
 
 <slot />
 
@@ -17,8 +15,10 @@
 </div>
 -->
 
-<div class="ml-5 mt-20">
-	<a href="/impressum">Impressum</a>
-</div>
+{#if $page.route.id !== "/impressum"}
+	<div class="text-center mt-20">
+		<a href="/impressum">Impressum</a>
+	</div>
+{/if}
 
 <Hr />
