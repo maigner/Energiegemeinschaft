@@ -5,7 +5,7 @@
     import {
         HomeOutline,
         MailBoxOutline,
-        MessagesOutline,
+        QuestionCircleOutline,
         UserAddOutline,
     } from "flowbite-svelte-icons";
 
@@ -71,6 +71,19 @@
                     >
                         <MailBoxOutline
                             class="w-4 h-4 mb-1 {$page.route.id === '/kontakt'
+                                ? 'text-green-950'
+                                : 'text-green-600'} group-hover:text-green-900 "
+                        />
+                    </BottomNavItem>
+                </NavLi>
+                <NavLi href="/faq">
+                    <BottomNavItem
+                        btnName="Fragen"
+                        href="/faq"
+                        on:click={closeNav}
+                    >
+                        <QuestionCircleOutline
+                            class="w-4 h-4 mb-1 {$page.route.id === '/faq'
                                 ? 'text-green-950'
                                 : 'text-green-600'} group-hover:text-green-900 "
                         />
