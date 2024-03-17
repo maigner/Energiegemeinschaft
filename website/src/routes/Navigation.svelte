@@ -35,7 +35,7 @@
             }}
         />
         <NavUl bind:hidden slideParams={{ delay: 0, duration: 500 }}>
-            <div class="flex place-content-center">
+            <div class="flex place-content-center flex-wrap">
                 <NavLi href="/">
                     <BottomNavItem
                         btnName="Start"
