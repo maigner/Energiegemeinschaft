@@ -30,19 +30,34 @@
     </div>
     
 {:else}
-    <div class="text-center">
-        <Heading tag="h2" class="text-primary-800 mt-8">Kontakt</Heading>
-    </div>
 
-    <div class="max-w-xl m-auto justify-center">
-        <figure class="m-4 text-center">
-            <Blockquote alignment="center" size="xl" class="text-gray-900">
-                Sie erreichen uns per E-Mail unter
-                <br />
-                folgender Adresse
-            </Blockquote>
-        </figure>
-    </div>
+
+
+<div class="max-w-xl m-auto justify-center">
+    <figure class="m-4 text-center">
+        <Blockquote alignment="center" size="xl" class="text-gray-900">
+            Kontakt
+        </Blockquote>
+        <figcaption class="flex justify-center items-center mt-6 space-x-3">
+            <div
+                class="flex items-center divide-x-2 divide-gray-500 dark:divide-gray-700"
+            >
+                <cite class="pr-3 font-medium text-gray-900 dark:text-white"
+                    >Sie erreichen uns per E-Mail</cite
+                >
+                <cite
+                    class="pl-3 text-lg font-bold text-gray-500 dark:text-gray-400"
+                    >unter folgender Adresse</cite
+                >
+            </div>
+        </figcaption>
+    </figure>
+</div>
+
+
+
+
+
 
     <div class="text-center">
         <Heading tag="h3" class="text-primary-800 mt-8">
@@ -52,9 +67,9 @@
 
     <div class="flex place-content-center">
         <Project img="/pen_writing.webp" showMore={false}>
-            <span slot="title">Wir freuen uns auf Ihre Nachricht</span>
+            <span slot="title">Wir freuen uns auf Ihre Nachricht...</span>
             <div slot="content">
-                <p class="mb-2">Nutzen Sie einfach dieses Kontaktformular.</p>
+                <p class="mb-2">...oder nutzen Sie einfach dieses Kontaktformular.</p>
 
                 <form method="POST" action="?/contact">
                     <div class="mb-6">

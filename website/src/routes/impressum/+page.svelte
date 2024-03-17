@@ -1,4 +1,5 @@
 <script>
+    import Fab, { Label } from "@smui/fab";
     import { Card, Heading } from "flowbite-svelte";
     import { AccordionItem, Accordion } from "flowbite-svelte";
 </script>
@@ -10,8 +11,8 @@
 <div class="flex place-content-center">
     <Card class="m-2 max-w-3xl" size="xl">
         <Accordion>
-            <AccordionItem open>
-                <span slot="header">Verantwortlich für den Inhalt</span>
+            <AccordionItem>
+                <span slot="header">Verantwortlich für  die EEG ischlstrom</span>
 
                 <p class="mb-2 text-gray-500 dark:text-gray-400">
                     Erneuerbare-Energie-Gemeinschaft ISCHLSTROM
@@ -335,4 +336,12 @@
             </AccordionItem>
         </Accordion>
     </Card>
+</div>
+
+
+
+<div class="flex place-content-center mt-4">
+    <Fab extended href="/" color="primary">
+        <Label>Zurück zum Start</Label>
+    </Fab>
 </div>
