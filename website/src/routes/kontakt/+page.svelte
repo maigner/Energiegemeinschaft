@@ -10,6 +10,7 @@
     } from "flowbite-svelte";
     import VideoButton from "$lib/dialog/VideoButton.svelte";
     import { Textarea } from "flowbite-svelte";
+
     import Fab, { Label } from "@smui/fab";
 
     /** @type {import('./$types').ActionData} */
@@ -69,11 +70,11 @@
         <Project img="/pen_writing.webp" showMore={false}>
             <span slot="title">Wir freuen uns auf Ihre Nachricht...</span>
             <div slot="content">
-                <p class="mb-2">...oder nutzen Sie einfach dieses Kontaktformular.</p>
+                <p class="mb-8">...oder nutzen Sie einfach dieses Kontaktformular.</p>
 
                 <form method="POST" action="?/contact">
                     <div class="mb-6">
-                        <Label for="email" class="mb-2"
+                        <Label class="mb-2"
                             >Ihre E-Mail Adresse</Label
                         >
                         <Input
@@ -84,9 +85,8 @@
                             required
                         />
                     </div>
-
                     <div class="mb-6">
-                        <Label for="message" class="mb-2">Ihre Nachricht</Label>
+                        <Label class="mb-2">Ihre Nachricht</Label>
                         <Textarea
                             id="message"
                             placeholder="Ihre Nachricht"
