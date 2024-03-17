@@ -83,11 +83,10 @@
         <span slot="title">2. Mitglied werden</span>
         <div slot="content">
             <p class="mb-2">
-                Füllen Sie einfach folgende Beitrittserklärung aus. 
+                Füllen Sie einfach folgendes Bewerbungsformular aus. 
             </p>
             <p class="mb-2">
-                Wir melden uns bei
-                Ihnen!
+                Wir melden uns bei Ihnen!
             </p>
             <p class="mb-2">
                 Bitte beachten Sie, dass Ihre Dateneingabe noch keine automatische Mitgliedschaft
@@ -106,8 +105,24 @@
 
 <div class="flex place-content-center mt-4">
     <Fab extended href="https://forms.gle/dQMJmEeZp3bML4jP6" color="primary">
-        <Label>Zur Beitrittserklärung</Label>
+        <Label>Zur Bewerbung</Label>
     </Fab>
 </div>
+
+<div class="flex place-content-center mt-4">
+    oder
+</div>
+
+
+<div class="flex place-content-center mt-4">
+    <Fab extended href="/faq" color="primary">
+        <Label>Ich habe noch Fragen</Label>
+    </Fab>
+</div>
+
+
+
+
+
 
 

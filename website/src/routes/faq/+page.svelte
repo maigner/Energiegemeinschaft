@@ -116,3 +116,16 @@
         <Label>Jetzt Mitmachen</Label>
     </Fab>
 </div>
+
+<div class="flex place-content-center mt-4">
+    oder
+</div>
+
+
+
+<div class="flex place-content-center mt-4">
+    <Fab extended href="/faq" color="primary">
+        <Label>Ich habe immer noch Fragen!</Label>
+    </Fab>
+</div>
+
