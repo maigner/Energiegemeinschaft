@@ -40,7 +40,6 @@
     "@smui/slider": "^7.0.0-beta.16",
     "@smui/textfield": "^7.0.0-beta.16",
     "nodemailer": "^6.9.5",
-    "openai": "^4.4.0",
     "pg": "^8.11.3",
     "sass": "^1.69.5",
     "smui-theme": "^7.0.0-beta.16",
