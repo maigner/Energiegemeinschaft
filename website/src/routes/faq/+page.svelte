@@ -38,6 +38,10 @@
             question: "Wie ist der Verein strukturiert?",
             answer: "Alle Details finden sich in den Statuten.",
             source: "https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf"
+        },
+        {
+            question: "Wie wird der Strompreis festgelegt?",
+            answer: "Die Mitglieder stimmen über einen Vorschlag des Vereinsvorstandes ab."
         }
     ]
 
