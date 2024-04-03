@@ -1,7 +1,7 @@
 <script>
     import Project from "$lib/Project.svelte";
     import Fab, { Label } from "@smui/fab";
-    import { Blockquote } from "flowbite-svelte";
+    import { Blockquote, Heading, TabItem, Tabs } from "flowbite-svelte";
     //import { JSONEditor } from "svelte-jsoneditor";
     import { AccordionItem, Accordion } from 'flowbite-svelte';
 
@@ -10,7 +10,7 @@
     let content = { json: data };
 
 
-    const faq = [
+    const faqCosts = [
         {
             question: "Sind die Stromkosten in Brutto- oder Nettopreisen angegeben?",
             answer: "Es handelt sich um Nettopreise. Unser Umsatz ist unter den Grenzen zur Umsatzsteuerpflicht."
@@ -27,6 +27,17 @@
         {
             question: "Wie hoch ist der aktuelle Bezugstarif?",
             answer: "11 cent/kWh"
+        },
+        {
+            question: "Wie hoch ist der Mitgliedsbeitrag?",
+            answer: "20 EURO pro Jahr, bzw. 5 EURO pro Quartal"
+        }
+    ]
+    const faqCommon = [
+        {
+            question: "Wie ist der Verein strukturiert?",
+            answer: "Alle Details finden sich in den Statuten.",
+            source: "https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf"
         }
     ]
 
@@ -66,26 +77,42 @@
         <span slot="title">Fragen und Antworten</span>
         <div slot="content">
 
+            <Tabs>
+                <TabItem open title="Kosten">
+                    <Accordion>
+                        {#each faqCosts as qa}
+                            <AccordionItem>
+                                <span slot="header">{qa.question}</span>
+                                <p class="mb-2 text-gray-500 dark:text-gray-400">
+                                    {qa.answer}
+                                </p>
+                                {#if qa.source}
+                                    <a href={qa.source} target="_blank">Quelle</a>
+                                {/if}
+                            </AccordionItem>
+                        {/each}
+                    </Accordion>
+                </TabItem>
+                <TabItem title="Allgemeines">
+                    <Accordion>
+                        {#each faqCommon as qa}
+                            <AccordionItem>
+                                <span slot="header">{qa.question}</span>
+                                <p class="mb-2 text-gray-500 dark:text-gray-400">
+                                    {qa.answer}
+                                </p>
+                                {#if qa.source}
+                                    <a href={qa.source} target="_blank">Quelle</a>
+                                {/if}
+                            </AccordionItem>
+                        {/each}
+                    </Accordion>
+                </TabItem>
+            </Tabs>
 
-            <Accordion>
-
-                {#each faq as qa}
-                
-                    <AccordionItem>
-                        <span slot="header">{qa.question}</span>
-                        <p class="mb-2 text-gray-500 dark:text-gray-400">
-                            {qa.answer}
-                        </p>
-                        {#if qa.source}
-                            <a href={qa.source} target="_blank">Quelle</a>
-                        {/if}
-
-                    </AccordionItem>
-
-                {/each}
 
 
-            </Accordion>
+            
             
 
             
