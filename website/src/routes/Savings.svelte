@@ -47,7 +47,7 @@
 
 
 <div class="text-center">
-    <Heading tag="h1" class="text-primary-800 mt-8">11 cent FIX</Heading>
+    <Heading tag="h2" class="text-primary-800 mt-8">11 cent FIX</Heading>
 </div>
 
 <div class="flex justify-center">

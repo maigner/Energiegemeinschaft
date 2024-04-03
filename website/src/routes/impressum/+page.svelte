@@ -130,6 +130,13 @@
                             <a href="https://commons.wikimedia.org/wiki/File:Question_book-4.svg">Tkgd2007</a>, <a href="http://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>, via Wikimedia Commons
                         </li>
 
+                        <li>
+                            <a href="https://commons.wikimedia.org/wiki/File:K%C3%BCken_(10564766284).jpg">Dirk Vorderstraße</a>, <a href="https://creativecommons.org/licenses/by/2.0">CC BY 2.0</a>, via Wikimedia Commons
+                        </li>
+
+                        <li>
+                            <a href="https://commons.wikimedia.org/wiki/File:2013_Stammtisch_sign_Munich_pub.jpg">Takeaway</a>, <a href="https://creativecommons.org/licenses/by-sa/3.0">CC BY-SA 3.0</a>, via Wikimedia Commons
+                        </li>
 
                     </ul>
                 </div>
