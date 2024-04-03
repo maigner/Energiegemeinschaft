@@ -43,7 +43,7 @@
 </div>
 
 <div class="text-center">
-    <Heading tag="h3" class="text-primary-800 mt-6">Neuigkeiten</Heading>
+    <Heading tag="h3" class="text-primary-800 mt-16">15. Mai 2024</Heading>
 </div>
 
 <div class="flex place-content-center">
