@@ -35,17 +35,18 @@ async function authorization({ event, resolve }) {
             throw redirect(307, '/login/chatbot');
         }
     }
+    */
 
-    if (event.url.pathname.startsWith('/car')) {
+    if (event.url.pathname.startsWith('/board/approve')) {
         console.log("Requires authentication");
 
         const session = await event.locals.getSession();
 
         if (!session) {
-            throw redirect(307, '/login/chatbot');
+            throw redirect(307, '/board/approve');
         }
     }
-    */
+    
    
     return resolve(event);
 }

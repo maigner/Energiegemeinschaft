@@ -19,6 +19,7 @@
 
     const handleSignOut = () => {
         // TODO: handle sign out
+        signOut();
     };
 </script>
 
