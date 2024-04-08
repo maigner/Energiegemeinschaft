@@ -38,5 +38,5 @@ export const middlewareDbPool = new Pool({
     },
 });
 
-//export const authDbConnection = async () => await _authDbPool.connect();
+export const authDbConnection = async () => await authDbPool.connect();
 export const middlewareDbConnection = async () => await middlewareDbPool.connect();
