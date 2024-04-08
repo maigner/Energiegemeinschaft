@@ -1,31 +1,11 @@
+import { getTasks } from '$lib/server/data/tasks';
 import { openMembershipApprovalTasks, answerToMembershipApproval, getMemberByEmail } from '$lib/server/db/members/member';
 
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ fetch, params, parent, locals }) {
 
-    const tasks = [
-        {
-            name: "membershipApproval",
-            data: {
-                newMember: {
-                    name: "Cornelia Ellmer-Soldan, Schwarzlstr. 8"
-                }
-            }
-
-        },
-        /*
-		{
-            name: "membershipApproval",
-            data: {
-                newMember: {
-                    name: "Herr Sowieso"
-                }
-            }
-
-        },
-        */
-    ];
+    const tasks = getTasks();
 
     let session = await locals.getSession();
     const member = await getMemberByEmail(session?.user?.email);
