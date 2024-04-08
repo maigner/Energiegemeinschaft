@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.contrib import admin
 
 from .models import Member
-from .models import MeasurementPoint
+from .models import BoardApproval
 
 admin.site.register(Member)
-admin.site.register(MeasurementPoint)
+admin.site.register(BoardApproval)

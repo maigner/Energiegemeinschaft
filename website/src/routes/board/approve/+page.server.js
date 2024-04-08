@@ -49,7 +49,6 @@ export const actions = {
         let session = await locals.getSession();
         const member = await getMemberByEmail(session?.user?.email);
 
-
         const data = await request.formData();
         const approval = data.get('approval');
         const newMember = data.get('new_member');
