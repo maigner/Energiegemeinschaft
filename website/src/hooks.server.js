@@ -9,7 +9,7 @@ import PostgresAdapter from "@auth/pg-adapter";
 // https://medium.com/@uriser/authentication-in-sveltekit-with-auth-js-7ff505d584c4
 // Auth.js
 
-import { connectToDB, pool } from "$lib/server/db/db";
+import { authDbPool } from "$lib/server/db/db";
 
 
 async function authorization({ event, resolve }) {
@@ -56,7 +56,7 @@ async function authorization({ event, resolve }) {
 export const handle = sequence(SvelteKitAuth({
     trustHost: true,
     secret: AUTH_SECRET,
-    adapter: PostgresAdapter(pool),
+    adapter: PostgresAdapter(authDbPool),
     pages: {
         signIn: '/login',
         signOut: '/login',

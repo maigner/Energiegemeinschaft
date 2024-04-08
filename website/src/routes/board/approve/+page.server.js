@@ -1,26 +1,44 @@
+import { openMembershipApprovalTasks, answerToMembershipApproval, getMemberByEmail } from '$lib/server/db/members/member';
 
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ fetch, params, parent, locals }) {
-
-
 
     const tasks = [
         {
             name: "membershipApproval",
             data: {
                 newMember: {
-                    name: "Familie X"
+                    name: "Familie Y"
                 }
             }
 
         },
-    ]
+		{
+            name: "membershipApproval",
+            data: {
+                newMember: {
+                    name: "Herr Sowieso"
+                }
+            }
 
+        },
+    ];
 
+    let session = await locals.getSession();
+    const member = await getMemberByEmail(session?.user?.email);
+
+    const new_member_names = tasks.map( (task) => {
+        return task.data.newMember.name;
+    } );
+    let memberNames = await openMembershipApprovalTasks(member[0].id, new_member_names);
+    let openTasks = tasks.filter((task) => {
+        return !memberNames.includes(task.data.newMember.name);
+    });
 
     return {
-        tasks: tasks
+        member: member,
+        tasks: openTasks
     }
 
 }
@@ -40,12 +58,19 @@ export const actions = {
 	register: async (event) => {
 		// TODO register the user
 	},
-    approveMember: async ({ cookies, request }) => {
-		const data = await request.formData();
-		const email = data.get('email');
-		const password = data.get('password');
+    approveMember: async ({ cookies, request, locals }) => {
 
-		//console.log({data, email, password});
+        let session = await locals.getSession();
+        const member = await getMemberByEmail(session?.user?.email);
+
+
+		const data = await request.formData();
+		const approval = data.get('approval');
+        const newMember = data.get('new_member');
+
+		console.log({ approval, newMember});
+
+        await answerToMembershipApproval(member[0].id, newMember, approval);
 
 		return { success: true };
 	},

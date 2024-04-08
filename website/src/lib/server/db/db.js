@@ -1,11 +1,10 @@
 import Pool from 'pg-pool';
 import { AUTHJS_DB_PASSWORD, AUTHJS_DB_DATABASE, AUTHJS_DB_HOST, AUTHJS_DB_PORT, AUTHJS_DB_USER } from "$env/static/private";
 import { MIDDLEWARE_DB_PASSWORD, MIDDLEWARE_DB_DATABASE, MIDDLEWARE_DB_HOST, MIDDLEWARE_DB_PORT, MIDDLEWARE_DB_USER } from "$env/static/private";
-
 import { readFileSync } from 'node:fs';
 
 
-export const pool = new Pool({
+export const authDbPool = new Pool({
     host: AUTHJS_DB_HOST,
     port: AUTHJS_DB_PORT,
     database: AUTHJS_DB_DATABASE,
@@ -22,7 +21,7 @@ export const pool = new Pool({
     },
 });
 
-export const middlewarePool = new Pool({
+export const middlewareDbPool = new Pool({
     host: MIDDLEWARE_DB_HOST,
     port: MIDDLEWARE_DB_PORT,
     database: MIDDLEWARE_DB_DATABASE,
@@ -39,5 +38,5 @@ export const middlewarePool = new Pool({
     },
 });
 
-export const connectToDB = async () => await pool.connect();
-export const connectToMiddlewareDB = async () => await middlewarePool.connect();
+//export const authDbConnection = async () => await _authDbPool.connect();
+export const middlewareDbConnection = async () => await middlewareDbPool.connect();

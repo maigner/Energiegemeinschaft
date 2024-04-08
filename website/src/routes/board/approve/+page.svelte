@@ -19,7 +19,7 @@
 <div class="max-w-xl m-auto justify-center">
     <figure class="m-4 text-center">
         <Blockquote alignment="center" size="xl" class="text-gray-900">
-            Hallo {data.session?.user?.email}
+            Hallo {data.member[0]?.name}
         </Blockquote>
         <figcaption class="flex justify-center items-center mt-6 space-x-3">
             <div
@@ -30,7 +30,7 @@
                 >
                 <cite
                     class="pl-3 text-lg font-bold text-gray-500 dark:text-gray-400"
-                    >es gibt etwas zu tun</cite
+                    >es gibt {data.tasks.length > 0 ? "etwas" : "nichts"} zu tun</cite
                 >
             </div>
         </figcaption>

@@ -1,5 +1,5 @@
 <script>
-    import { Card, Button, Toggle } from "flowbite-svelte";
+    import { Card, Button } from "flowbite-svelte";
 
     /**
      * @type {string}
