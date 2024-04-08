@@ -28,6 +28,13 @@ export async function load({ fetch, params, parent, locals }) {
     let session = await locals.getSession();
     const member = await getMemberByEmail(session?.user?.email);
 
+    if (typeof member[0] === "undefined") {
+        return {
+            member: null,
+            tasks: []
+        }
+    }
+
     const new_member_names = tasks.map( (task) => {
         return task.data.newMember.name;
     } );

@@ -43,7 +43,7 @@ async function authorization({ event, resolve }) {
         const session = await event.locals.getSession();
 
         if (!session) {
-            throw redirect(307, '/board/approve');
+            throw redirect(307, '/login/board-approve');
         }
     }
     
