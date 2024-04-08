@@ -9,11 +9,12 @@ export async function load({ fetch, params, parent, locals }) {
             name: "membershipApproval",
             data: {
                 newMember: {
-                    name: "Familie Y"
+                    name: "Cornelia Ellmer-Soldan, Schwarzlstr. 8"
                 }
             }
 
         },
+        /*
 		{
             name: "membershipApproval",
             data: {
@@ -23,6 +24,7 @@ export async function load({ fetch, params, parent, locals }) {
             }
 
         },
+        */
     ];
 
     let session = await locals.getSession();
