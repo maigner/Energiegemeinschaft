@@ -11,14 +11,10 @@
     let email = "";
 
     const handleEmailSignIn = () => {
-        // TODO: dynamic callback
-        //alert(`email signin... ${email} ${data.callback}`);
-
         signIn('email', { email, callbackUrl: `/${data.callback}` });
     };
 
     const handleSignOut = () => {
-        // TODO: handle sign out
         signOut();
     };
 </script>
