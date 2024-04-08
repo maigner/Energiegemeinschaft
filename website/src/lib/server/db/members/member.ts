@@ -49,9 +49,7 @@ export const openMembershipApprovalTasks = async (boardMemberId: string, new_mem
 };
 
 
-
 export const answerToMembershipApproval = async (boardMemberId, newMemberName, answer) => {
-
     middlewareDbPool.connect((err, client, done) => {
         client.query(`
         insert into 
@@ -68,10 +66,36 @@ export const answerToMembershipApproval = async (boardMemberId, newMemberName, a
 
                 console.log('New event added:', result.rows[0]);
             });
-
     });
+};
 
 
+export const getTaskStatus = async (newMemberNames: string[]) => {
 
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        select count(*), mba.answer, mba.new_member_approved 
+        from members_boardapproval mba
+        where new_member_approved = any ($1)
+        group by mba.answer, mba.new_member_approved 
+        `, [newMemberNames]);
+    await sql.end();
+    sql.release();
+    const rows = result?.rows;
 
+    let taskStatus = {};
+
+    const status = rows.map((it) => 
+        {
+            if (!(it.new_member_approved in taskStatus)) {
+                taskStatus[it.new_member_approved] = {
+                    Ja: 0,
+                    Nein: 0
+                };
+            }
+            taskStatus[it.new_member_approved][it.answer] = parseInt(it.count)
+        }
+    );
+    console.log(taskStatus);
+    return taskStatus
 };

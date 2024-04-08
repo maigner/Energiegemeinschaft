@@ -6,6 +6,7 @@
     import { AccordionItem, Accordion } from "flowbite-svelte";
     import MembershipApprovalForm from "./MembershipApprovalForm.svelte";
     import { signIn, signOut } from "@auth/sveltekit/client";
+    import OpenTaskStatus from "./OpenTaskStatus.svelte";
 
     export let data;
 
@@ -15,11 +16,9 @@
     let content = { json: { data: data, form: form } };
 </script>
 
-
 <!--
 <JSONEditor bind:content />
 -->
-
 
 {#if data.member}
     <div class="max-w-xl m-auto justify-center">
@@ -36,15 +35,16 @@
                     >
                     <cite
                         class="pl-3 text-lg font-bold text-gray-500 dark:text-gray-400"
-                        >es gibt {data.tasks.length > 0 ? "etwas" : "nichts"} zu
-                        tun</cite
+                        >es gibt {data.openTasks.length > 0
+                            ? "etwas"
+                            : "nichts"} zu tun</cite
                     >
                 </div>
             </figcaption>
         </figure>
     </div>
 
-    {#each data.tasks as task}
+    {#each data.openTasks as task}
         {#if task.name == "membershipApproval"}
             <div class="flex place-content-center mt-10">
                 <Project img="" showMore={false}>
@@ -56,14 +56,21 @@
             </div>
         {/if}
     {/each}
+
+    {#if Object.keys(data.taskStatus).length > 0}
+        <div class="max-w-xl m-auto justify-center flex place-content-center">
+            <OpenTaskStatus bind:taskStatus={data.taskStatus} />
+        </div>
+    {/if}
 {:else}
     Ihre Email Adresse ist ungültig.
     {#if data.session}
-    <div>
-        <button on:click={ () => {
-            signOut();
-        }}>Sign out</button>
-    </div>
+        <div>
+            <button
+                on:click={() => {
+                    signOut();
+                }}>Sign out</button
+            >
+        </div>
+    {/if}
 {/if}
-{/if}
-
