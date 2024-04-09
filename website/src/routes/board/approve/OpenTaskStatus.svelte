@@ -14,7 +14,7 @@
 
 
 {#each Object.keys(taskStatus) as name}
-    <Badge color={getBadgeColour(taskStatus[name].Ja, taskStatus[name].Nein)}>
+    <Badge class="m-1" color={getBadgeColour(taskStatus[name].Ja, taskStatus[name].Nein)}>
         Aktuelle Bewerbung<br />
         {name}<br />
         Dafür: {taskStatus[name].Ja} Dagegen: {taskStatus[name].Nein}

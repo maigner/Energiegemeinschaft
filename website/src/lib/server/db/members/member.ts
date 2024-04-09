@@ -9,7 +9,7 @@ export const getMembers = async () => {
     return result?.rows;
 };
 
-export const getMemberByEmail = async (email) => {
+export const getMemberByEmail = async (email: string) => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member
     where email like $1`, [email]);
@@ -18,7 +18,7 @@ export const getMemberByEmail = async (email) => {
     return result?.rows;
 };
 
-export const isMember = async (email: String) => {
+export const isMember = async (email: string) => {
 
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member`);
@@ -43,13 +43,13 @@ export const openMembershipApprovalTasks = async (boardMemberId: string, new_mem
     sql.release();
     const rows = result?.rows;
 
-    const opentasks = rows.map((it) => it.new_member_approved);
+    const opentasks = rows.map((it : any) => it.new_member_approved);
     console.log(opentasks)
     return opentasks
 };
 
 
-export const answerToMembershipApproval = async (boardMemberId, newMemberName, answer) => {
+export const answerToMembershipApproval = async (boardMemberId: number, newMemberName: string, answer: string) => {
     middlewareDbPool.connect((err, client, done) => {
         client.query(`
         insert into 
@@ -85,15 +85,15 @@ export const getTaskStatus = async (newMemberNames: string[]) => {
 
     let taskStatus = {};
 
-    const status = rows.map((it) => 
+    const status = rows.map((row) => 
         {
-            if (!(it.new_member_approved in taskStatus)) {
-                taskStatus[it.new_member_approved] = {
+            if (!(row.new_member_approved in taskStatus)) {
+                taskStatus[row.new_member_approved] = {
                     Ja: 0,
                     Nein: 0
                 };
             }
-            taskStatus[it.new_member_approved][it.answer] = parseInt(it.count)
+            taskStatus[row.new_member_approved][row.answer] = parseInt(row.count)
         }
     );
     console.log(taskStatus);
