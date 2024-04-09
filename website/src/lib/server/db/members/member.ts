@@ -50,7 +50,7 @@ export const openMembershipApprovalTasks = async (boardMemberId: string, new_mem
 
 
 export const answerToMembershipApproval = async (boardMemberId: number, newMemberName: string, answer: string) => {
-    middlewareDbPool.connect((err, client, done) => {
+    middlewareDbPool.connect((_err: any, client: { query: (arg0: string, arg1: (string | number)[], arg2: (err: any, result: any) => void) => void; }, done: () => void) => {
         client.query(`
         insert into 
         members_boardapproval (date_time, member_id, new_member_approved, answer)
@@ -83,9 +83,9 @@ export const getTaskStatus = async (newMemberNames: string[]) => {
     sql.release();
     const rows = result?.rows;
 
-    let taskStatus = {};
+    let taskStatus:Record<string, any> = {};
 
-    const status = rows.map((row) => 
+    const status = rows.map((row: { new_member_approved: string; answer: string; count: string; }) => 
         {
             if (!(row.new_member_approved in taskStatus)) {
                 taskStatus[row.new_member_approved] = {

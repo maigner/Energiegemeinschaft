@@ -1,5 +1,6 @@
 import { getTasks } from '$lib/server/data/tasks';
 import { openMembershipApprovalTasks, answerToMembershipApproval, getMemberByEmail, getTaskStatus } from '$lib/server/db/members/member';
+import { signIn } from '@auth/sveltekit/client';
 
 
 /** @type {import('./$types').PageServerLoad} */
@@ -9,6 +10,7 @@ export async function load({ fetch, params, parent, locals }) {
 
     // member info
     let session = await locals.getSession();
+    // @ts-ignore
     const member = await getMemberByEmail(session?.user?.email);
 
     if (typeof member[0] === "undefined") {
@@ -33,6 +35,7 @@ export async function load({ fetch, params, parent, locals }) {
     let taskStatus = await getTaskStatus(new_member_names);
 
 
+
     return {
         tasks: tasks,
         member: member,
@@ -47,6 +50,7 @@ export const actions = {
     approveMember: async ({ cookies, request, locals }) => {
 
         let session = await locals.getSession();
+        // @ts-ignore
         const member = await getMemberByEmail(session?.user?.email);
 
         const data = await request.formData();
@@ -55,6 +59,7 @@ export const actions = {
 
         console.log({ approval, newMember });
 
+        // @ts-ignore
         await answerToMembershipApproval(member[0].id, newMember, approval);
 
         return { success: true };

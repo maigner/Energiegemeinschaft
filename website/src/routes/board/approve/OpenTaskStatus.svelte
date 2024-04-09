@@ -1,11 +1,14 @@
 <script>
     import { Badge } from "flowbite-svelte";
 
-    export let taskStatus;
+    /**
+     * @type {{ [x: string]: { Nein: number; Ja: number }; }}
+     */
+     export let taskStatus;
 
 
-    const getBadgeColour = (numYes, numNo) => {
-        if (numYes == 7) return "green";
+    const getBadgeColour = (/** @type {number} */ numYes, /** @type {number} */ numNo) => {
+        if (numYes >= 4 && numNo == 0) return "green";
         if (numNo > 0) return "red";
         return "dark";
     };

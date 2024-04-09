@@ -3,7 +3,6 @@
     import Fab, { Label } from "@smui/fab";
     import { Blockquote, Button } from "flowbite-svelte";
     import { JSONEditor } from "svelte-jsoneditor";
-    import { AccordionItem, Accordion } from "flowbite-svelte";
     import MembershipApprovalForm from "./MembershipApprovalForm.svelte";
     import { signIn, signOut } from "@auth/sveltekit/client";
     import OpenTaskStatus from "./OpenTaskStatus.svelte";
@@ -14,7 +13,10 @@
     export let form;
 
     let content = { json: { data: data, form: form } };
+
+    
 </script>
+
 
 <!--
 <JSONEditor bind:content />
