@@ -48,7 +48,7 @@ export const openMembershipApprovalTasks = async (boardMemberId: string, new_mem
     return opentasks
 };
 
-
+// TODO: transaction to avoid double insert.
 export const answerToMembershipApproval = async (boardMemberId: number, newMemberName: string, answer: string) => {
     middlewareDbPool.connect((_err: any, client: { query: (arg0: string, arg1: (string | number)[], arg2: (err: any, result: any) => void) => void; }, done: () => void) => {
         client.query(`
