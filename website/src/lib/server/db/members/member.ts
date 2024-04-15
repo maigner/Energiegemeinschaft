@@ -43,13 +43,52 @@ export const openMembershipApprovalTasks = async (boardMemberId: string, new_mem
     sql.release();
     const rows = result?.rows;
 
-    const opentasks = rows.map((it : any) => it.new_member_approved);
-    console.log(opentasks)
+    const opentasks = rows.map((it: any) => it.new_member_approved);
+    //console.log(opentasks)
     return opentasks
 };
 
 // TODO: transaction to avoid double insert.
-export const answerToMembershipApproval = async (boardMemberId: number, newMemberName: string, answer: string) => {
+export const answerToMembershipApproval = async (
+    boardMemberId: number, newMemberName: string, answer: string) => {
+
+    const client = await middlewareDbConnection();
+
+    try {
+        await client.query('BEGIN');
+        const selectQuery = `
+        SELECT member_id, new_member_approved 
+        FROM members_boardapproval 
+        WHERE member_id = $1
+        and new_member_approved like $2
+        `;
+
+        const selectValues = [boardMemberId, newMemberName];
+        const { rows } = await client.query(selectQuery, selectValues);
+
+        console.log(rows);
+        if (!rows[0]) {
+
+            await client.query(`
+            insert into 
+            members_boardapproval (date_time, member_id, new_member_approved, answer)
+            values (NOW(), $1, $2, $3)
+            `, [boardMemberId, newMemberName, answer]);
+        }
+
+
+
+        await client.query('COMMIT');
+        console.log('Transaction committed successfully');
+
+
+    } catch(e) {
+        await client.query('ROLLBACK');
+        console.error('Error executing transaction:', e);
+    }
+};
+
+/*
     middlewareDbPool.connect((_err: any, client: { query: (arg0: string, arg1: (string | number)[], arg2: (err: any, result: any) => void) => void; }, done: () => void) => {
         client.query(`
         insert into 
@@ -66,8 +105,9 @@ export const answerToMembershipApproval = async (boardMemberId: number, newMembe
 
                 console.log('New event added:', result.rows[0]);
             });
-    });
-};
+    }*/
+
+
 
 
 export const getTaskStatus = async (newMemberNames: string[]) => {
@@ -83,19 +123,18 @@ export const getTaskStatus = async (newMemberNames: string[]) => {
     sql.release();
     const rows = result?.rows;
 
-    let taskStatus:Record<string, any> = {};
+    let taskStatus: Record<string, any> = {};
 
-    const status = rows.map((row: { new_member_approved: string; answer: string; count: string; }) => 
-        {
-            if (!(row.new_member_approved in taskStatus)) {
-                taskStatus[row.new_member_approved] = {
-                    Ja: 0,
-                    Nein: 0
-                };
-            }
-            taskStatus[row.new_member_approved][row.answer] = parseInt(row.count)
+    const status = rows.map((row: { new_member_approved: string; answer: string; count: string; }) => {
+        if (!(row.new_member_approved in taskStatus)) {
+            taskStatus[row.new_member_approved] = {
+                Ja: 0,
+                Nein: 0
+            };
         }
+        taskStatus[row.new_member_approved][row.answer] = parseInt(row.count)
+    }
     );
-    console.log(taskStatus);
+    //console.log(taskStatus);
     return taskStatus
 };

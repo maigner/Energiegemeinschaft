@@ -57,7 +57,7 @@ export const actions = {
         const approval = data.get('approval');
         const newMember = data.get('new_member');
 
-        console.log({ approval, newMember });
+        //console.log({ approval, newMember });
 
         // @ts-ignore
         await answerToMembershipApproval(member[0].id, newMember, approval);
