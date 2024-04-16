@@ -19,7 +19,6 @@ export const getMemberByEmail = async (email: string) => {
 };
 
 export const isMember = async (email: string) => {
-
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member`);
     await sql.end();
@@ -48,7 +47,7 @@ export const openMembershipApprovalTasks = async (boardMemberId: string, new_mem
     return opentasks
 };
 
-// TODO: transaction to avoid double insert.
+
 export const answerToMembershipApproval = async (
     boardMemberId: number, newMemberName: string, answer: string) => {
 
@@ -76,37 +75,13 @@ export const answerToMembershipApproval = async (
             `, [boardMemberId, newMemberName, answer]);
         }
 
-
-
         await client.query('COMMIT');
-        console.log('Transaction committed successfully');
-
-
+        //console.log('Transaction committed successfully');
     } catch(e) {
         await client.query('ROLLBACK');
         console.error('Error executing transaction:', e);
     }
 };
-
-/*
-    middlewareDbPool.connect((_err: any, client: { query: (arg0: string, arg1: (string | number)[], arg2: (err: any, result: any) => void) => void; }, done: () => void) => {
-        client.query(`
-        insert into 
-        members_boardapproval (date_time, member_id, new_member_approved, answer)
-        values (NOW(), $1, $2, $3)
-        `,
-            [boardMemberId, newMemberName, answer], (err, result) => {
-                done();
-
-                if (err) {
-                    console.error('Error executing query', err.stack);
-                    return;
-                }
-
-                console.log('New event added:', result.rows[0]);
-            });
-    }*/
-
 
 
 
