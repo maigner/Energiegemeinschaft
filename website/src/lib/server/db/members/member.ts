@@ -1,15 +1,9 @@
 import { middlewareDbConnection, middlewareDbPool } from "$lib/server/db/db";
 
 
-export const getMembers = async () => {
-    const sql = await middlewareDbConnection();
-    const result = await sql.query(`SELECT * FROM members_member`);
-    await sql.end();
-    sql.release();
-    return result?.rows;
-};
 
-export const getMemberByEmail = async (email: string) => {
+
+export const getBoardMemberByEmail = async (email: string) => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member
     where email like $1`, [email]);
@@ -18,13 +12,7 @@ export const getMemberByEmail = async (email: string) => {
     return (result?.rows.length > 0 ? result?.rows[0] : null);
 };
 
-export const isMember = async (email: string) => {
-    const sql = await middlewareDbConnection();
-    const result = await sql.query(`SELECT * FROM members_member`);
-    await sql.end();
-    sql.release();
-    return result?.rows;
-};
+
 
 
 export const openMembershipApprovalTasks = async (boardMemberId: string, new_member_names: string[]) => {

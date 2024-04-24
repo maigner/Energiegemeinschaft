@@ -1,6 +1,5 @@
 <script>
     import Project from "$lib/Project.svelte";
-    import Fab, { Label } from "@smui/fab";
     import { Blockquote, Button } from "flowbite-svelte";
     import { JSONEditor } from "svelte-jsoneditor";
     import MembershipApprovalForm from "./MembershipApprovalForm.svelte";
@@ -14,7 +13,6 @@
 
     let content = { json: { data: data, form: form } };
 
-    
 </script>
 
 

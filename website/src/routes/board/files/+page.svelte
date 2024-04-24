@@ -1,21 +1,9 @@
 <script>
-    import Project from "$lib/Project.svelte";
-    import Fab, { Label } from "@smui/fab";
-    import { Blockquote, Button } from "flowbite-svelte";
-    import { JSONEditor } from "svelte-jsoneditor";
-    import { signIn, signOut } from "@auth/sveltekit/client";
 
-    export let data;
+    import { Blockquote } from "flowbite-svelte";
 
-    /** @type {import('./$types').ActionData} */
-    export let form;
-
-    let content = { json: { data: data, form: form } };
 </script>
 
-<!--
-<JSONEditor bind:content />
--->
 
 <div class="max-w-xl m-auto justify-center">
     <figure class="m-4 text-center">

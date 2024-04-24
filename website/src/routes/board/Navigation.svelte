@@ -11,10 +11,12 @@
         DropdownHeader,
         DropdownDivider,
     } from "flowbite-svelte";
-    import { signIn, signOut } from "@auth/sveltekit/client";
+    import {signOut } from "@auth/sveltekit/client";
 
-
-    export let data;
+    /**
+     * @type {{ member: { name: string; email: string; }; }}
+     */
+     export let data;
 </script>
 
 <Navbar>

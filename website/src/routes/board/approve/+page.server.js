@@ -1,6 +1,5 @@
 import { getTasks } from '$lib/server/data/tasks';
-import { openMembershipApprovalTasks, answerToMembershipApproval, getMemberByEmail, getTaskStatus } from '$lib/server/db/members/member';
-import { signIn } from '@auth/sveltekit/client';
+import { openMembershipApprovalTasks, answerToMembershipApproval, getBoardMemberByEmail, getTaskStatus } from '$lib/server/db/members/member';
 
 
 /** @type {import('./$types').PageServerLoad} */
@@ -8,10 +7,7 @@ export async function load({ fetch, params, parent, locals }) {
 
     const tasks = getTasks();
 
-    // member info
-    let session = await locals.getSession();
-    // @ts-ignore
-    const member = await getMemberByEmail(session?.user?.email);
+    const { member } = await parent()
 
     if (!member) {
         return {
@@ -38,7 +34,6 @@ export async function load({ fetch, params, parent, locals }) {
 
     return {
         tasks: tasks,
-        member: member,
         taskStatus: taskStatus,
         openTasks: openTasks
     }
@@ -51,7 +46,7 @@ export const actions = {
 
         let session = await locals.getSession();
         // @ts-ignore
-        const member = await getMemberByEmail(session?.user?.email);
+        const member = await getBoardMemberByEmail(session?.user?.email);
         if (!member) return { success: false, msg: "No Member data" };
 
         const data = await request.formData();
