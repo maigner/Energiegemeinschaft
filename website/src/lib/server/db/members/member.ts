@@ -6,7 +6,7 @@ import { middlewareDbConnection, middlewareDbPool } from "$lib/server/db/db";
 export const getBoardMemberByEmail = async (email: string) => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member
-    where email like $1`, [email]);
+    where email like $1 and board_member = true`, [email]);
     await sql.end();
     sql.release();
     return (result?.rows.length > 0 ? result?.rows[0] : null);

@@ -1,10 +1,23 @@
 <script>
-
     import Navigation from "./Navigation.svelte";
+    import {signOut } from "@auth/sveltekit/client";
 
     export let data;
 </script>
 
-<Navigation bind:data />
+{#if data.member}
+    <Navigation bind:data />
 
-<slot />
+    <slot />
+{:else}
+    Sie sind kein Vorstand.
+    {#if data.session}
+        <div>
+            <button
+                on:click={() => {
+                    signOut();
+                }}>Sign out</button
+            >
+        </div>
+    {/if}
+{/if}
