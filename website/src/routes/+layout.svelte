@@ -3,9 +3,13 @@
 	import { page } from "$app/stores";
 	import { Hr } from "flowbite-svelte";
 	import Navigation from "./Navigation.svelte";
-</script>
+    import BottomNavigation from "./BottomNavigation.svelte";
 
+	export let data;
+</script>
 <Navigation />
+
+
 
 <slot />
 
@@ -22,3 +26,9 @@
 {/if}
 
 <Hr />
+
+<!--
+{#if data.session}
+<BottomNavigation />
+{/if}
+-->
