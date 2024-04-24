@@ -15,7 +15,7 @@ export const getMemberByEmail = async (email: string) => {
     where email like $1`, [email]);
     await sql.end();
     sql.release();
-    return result?.rows;
+    return (result?.rows.length > 0 ? result?.rows[0] : null);
 };
 
 export const isMember = async (email: string) => {

@@ -6,8 +6,7 @@ import { signIn } from '@auth/sveltekit/client';
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ fetch, params, parent, locals }) {
 
-    const tasks = getTasks();
-
+    
     // member info
     let session = await locals.getSession();
     // @ts-ignore
@@ -22,25 +21,8 @@ export async function load({ fetch, params, parent, locals }) {
         }
     }
 
-    // what tasks are open to user?
-    const new_member_names = tasks.map((task) => {
-        return task.data.newMember.name;
-    });
-    let memberNames = await openMembershipApprovalTasks(member.id, new_member_names);
-    let openTasks = tasks.filter((task) => {
-        return !memberNames.includes(task.data.newMember.name);
-    });
-
-    // overall task status
-    let taskStatus = await getTaskStatus(new_member_names);
-
-
-
     return {
-        tasks: tasks,
         member: member,
-        taskStatus: taskStatus,
-        openTasks: openTasks
     }
 
 }
@@ -52,7 +34,7 @@ export const actions = {
         let session = await locals.getSession();
         // @ts-ignore
         const member = await getMemberByEmail(session?.user?.email);
-        if (!member) return { success: false, msg: "No Member data" };
+        if (!member) return { success: false, msg: "no member data" };
 
         const data = await request.formData();
         const approval = data.get('approval');

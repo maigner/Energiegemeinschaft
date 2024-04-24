@@ -3,7 +3,6 @@
 	import { page } from "$app/stores";
 	import { Hr } from "flowbite-svelte";
 	import Navigation from "./Navigation.svelte";
-    import BottomNavigation from "./BottomNavigation.svelte";
 
 	export let data;
 </script>
@@ -19,16 +18,11 @@
 </div>
 -->
 
-{#if $page.route.id !== "/impressum"}
+{#if $page.route.id !== "/impressum" &&  $page.route.id?.toString().startsWith("/board") == false }
 	<div class="text-center mt-20">
 		<a href="/impressum">Impressum</a>
 	</div>
+	<Hr />
 {/if}
 
-<Hr />
 
-<!--
-{#if data.session}
-<BottomNavigation />
-{/if}
--->

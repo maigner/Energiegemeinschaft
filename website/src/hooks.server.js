@@ -37,9 +37,8 @@ async function authorization({ event, resolve }) {
     }
     */
 
-    if (event.url.pathname.startsWith('/board/approve')) {
-        console.log("Requires authentication");
-
+    if (event.url.pathname.startsWith('/board')) {
+        //console.log("Requires authentication");
         const session = await event.locals.getSession();
 
         if (!session) {
