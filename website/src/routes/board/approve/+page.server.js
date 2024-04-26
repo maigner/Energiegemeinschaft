@@ -1,11 +1,13 @@
-import { getTasks } from '$lib/server/data/tasks';
-import { openMembershipApprovalTasks, answerToMembershipApproval, getBoardMemberByEmail, getTaskStatus } from '$lib/server/db/members/member';
+import { completedMembershipApprovalTasks, answerToMembershipApproval, getBoardMemberByEmail, getTaskStatus, getAllMembershipApprovalTasks } from '$lib/server/db/members/member';
 
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ fetch, params, parent, locals }) {
 
-    const tasks = getTasks();
+    //const tasks = getTasks();
+    const tasks = await getAllMembershipApprovalTasks();
+
+
 
     const { member } = await parent()
 
@@ -19,16 +21,17 @@ export async function load({ fetch, params, parent, locals }) {
     }
 
     // what tasks are open to user?
-    const new_member_names = tasks.map((task) => {
-        return task.data.newMember.name;
+    const new_member_emails = tasks.map((task) => {
+        return task.data.newMember.email;
     });
-    let memberNames = await openMembershipApprovalTasks(member.id, new_member_names);
+    
+    let memberEmails = await completedMembershipApprovalTasks(member.id, new_member_emails);
     let openTasks = tasks.filter((task) => {
-        return !memberNames.includes(task.data.newMember.name);
+        return !memberEmails.includes(task.data.newMember.email);
     });
 
     // overall task status
-    let taskStatus = await getTaskStatus(new_member_names);
+    let taskStatus = await getTaskStatus(new_member_emails);
 
 
 
@@ -52,11 +55,12 @@ export const actions = {
         const data = await request.formData();
         const approval = data.get('approval');
         const newMember = data.get('new_member');
+        const newMemberEmail = data.get('new_member_email');
 
         //console.log({ approval, newMember });
 
         // @ts-ignore
-        await answerToMembershipApproval(member.id, newMember, approval);
+        await answerToMembershipApproval(member.id, newMember, approval, newMemberEmail);
 
         return { success: true };
     },

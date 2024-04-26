@@ -15,9 +15,19 @@
 
 <form id="membershipApprovalForm" method="POST" action="?/approveMember">
     <p class="mb-4 font-semibold text-gray-900 dark:text-white">
-        Möchten Sie <strong>{data.newMember.name}</strong> als Mitglied aufnehmen?
+        Möchten Sie 
+        <br />
+        >> <strong>{data.newMember.name}, {data.newMember.address}, {data.newMember.email} </strong>
+        <br />
+        als Mitglied aufnehmen?
     </p>
     <input type="hidden" name="new_member" value="{data.newMember.name}" />
+    <input type="hidden" name="new_member_email" value="{data.newMember.email}" />
+
+
+    
+
+
     <ul
         class="items-center w-full rounded-lg border border-gray-200 sm:flex dark:bg-gray-800 dark:border-gray-600 divide-x rtl:divide-x-reverse divide-gray-200 dark:divide-gray-600"
     >
