@@ -21,12 +21,12 @@ export async function load({ fetch, params, parent, locals }) {
     }
 
     // what tasks are open to user?
-    const new_member_emails = tasks.map((task) => {
+    const new_member_emails = tasks.map((/** @type {{ data: { newMember: { email: any; }; }; }} */ task) => {
         return task.data.newMember.email;
     });
     
     let memberEmails = await completedMembershipApprovalTasks(member.id, new_member_emails);
-    let openTasks = tasks.filter((task) => {
+    let openTasks = tasks.filter((/** @type {{ data: { newMember: { email: any; }; }; }} */ task) => {
         return !memberEmails.includes(task.data.newMember.email);
     });
 
