@@ -1,7 +1,7 @@
 <script>
     import { Radio, Button } from "flowbite-svelte";
     /**
-     * @type {{ newMember: { name: any; }; }}
+     * @type {{ newMember: { name: string; address:string; email:string }; }}
      */
     export let data;
 
@@ -21,7 +21,7 @@
         <br />
         als Mitglied aufnehmen?
     </p>
-    <input type="hidden" name="new_member" value="{data.newMember.name}" />
+    <input type="hidden" name="new_member" value="{data.newMember.name}, {data.newMember.address}" />
     <input type="hidden" name="new_member_email" value="{data.newMember.email}" />
 
 
