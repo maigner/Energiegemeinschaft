@@ -18,6 +18,8 @@ export async function load({ fetch, params, parent, locals }) {
         electricityFeeCentPerKwh: 0.1,
     };
 
+    // https://durchblicker.at/strom/vergleich/ergebnis/gegenueberstellung#calcid=849611d883edb1d456da97fe1e1d4222cf3bea0d
+    // update 2024-04-29
     const competitorsV2 = [
         {
             id: 0,
@@ -43,8 +45,8 @@ export async function load({ fetch, params, parent, locals }) {
             price: {
                 network: networkNetzOOE,
                 power: {
-                    workPriceCentPerKwh: 23.90,
-                    basePriceEuroPerYear: 28.93,
+                    workPriceCentPerKwh: 19.90,
+                    basePriceEuroPerYear: 47.88,
                 },
                 govFees: govFees
             }
@@ -59,8 +61,8 @@ export async function load({ fetch, params, parent, locals }) {
             price: {
                 network: networkNetzOOE,
                 power: {
-                    workPriceCentPerKwh: 20.0,
-                    basePriceEuroPerYear: 50.0,
+                    workPriceCentPerKwh: 12.0,
+                    basePriceEuroPerYear: 40.0,
                 },
                 govFees: govFees
             }
