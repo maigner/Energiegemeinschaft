@@ -2,7 +2,7 @@
     import { Mark } from "flowbite-svelte";
 
     // https://docs.mapbox.com/help/tutorials/use-mapbox-gl-js-with-svelte/
-    import { Map, Marker } from "mapbox-gl";
+    import { Map, Marker, Popup } from "mapbox-gl";
     import "mapbox-gl/dist/mapbox-gl.css";
     import { onMount, onDestroy } from "svelte";
 
@@ -48,7 +48,14 @@
         
         data.memberLocations.forEach(location => {
             //console.log(location);
-            new Marker().setLngLat([location.Lat, location.Lng]).addTo(map);
+            const el = document.createElement('div');
+            el.className = 'marker';
+            new Marker()
+                .setLngLat([location.Lat, location.Lng])
+                .setPopup(new Popup().setHTML(
+                    `<p>${location['Name 1']} ${location['Name 2']}</p>`
+                ))
+                .addTo(map);
         });
         
         
