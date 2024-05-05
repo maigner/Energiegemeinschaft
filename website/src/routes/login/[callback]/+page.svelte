@@ -11,7 +11,7 @@
     let email = "";
 
     const handleEmailSignIn = () => {
-        signIn('email', { email, callbackUrl: `/${data.callback}` });
+        signIn('email', { email, callbackUrl: `${data.callback}` });
     };
 
     const handleSignOut = () => {

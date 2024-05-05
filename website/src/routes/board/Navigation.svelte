@@ -49,5 +49,6 @@
     <NavUl>
         <NavLi href="/board/approve">Neue Mitglieder</NavLi>
         <NavLi href="/board/files">Dokumente</NavLi>
+        <NavLi href="/board/map">Karte</NavLi>
     </NavUl>
 </Navbar>

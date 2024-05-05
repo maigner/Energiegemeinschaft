@@ -37,15 +37,16 @@ async function authorization({ event, resolve }) {
     }
     */
 
+
     if (event.url.pathname.startsWith('/board')) {
         //console.log("Requires authentication");
         const session = await event.locals.getSession();
 
         if (!session) {
-            throw redirect(307, '/login/board-approve');
+            throw redirect(307, `/login/${event.url.pathname.replaceAll("/", "_")}`);
         }
     }
-    
+
    
     return resolve(event);
 }

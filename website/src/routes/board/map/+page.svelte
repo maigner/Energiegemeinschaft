@@ -6,7 +6,11 @@
 
     export let data;
 
+    
     let map;
+    /**
+     * @type {HTMLDivElement}
+     */
     let mapContainer;
     let lng, lat, zoom;
 
@@ -27,7 +31,7 @@
     });
 
     onDestroy(() => {
-        //map.remove();
+        map?.remove();
     });
 </script>
 
