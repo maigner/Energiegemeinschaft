@@ -1,12 +1,13 @@
 <script>
+    import { Mark } from "flowbite-svelte";
+
     // https://docs.mapbox.com/help/tutorials/use-mapbox-gl-js-with-svelte/
-    import { Map } from "mapbox-gl";
+    import { Map, Marker } from "mapbox-gl";
     import "mapbox-gl/dist/mapbox-gl.css";
     import { onMount, onDestroy } from "svelte";
 
     export let data;
 
-    
     let map;
     /**
      * @type {HTMLDivElement}
@@ -28,6 +29,33 @@
             center: [initialState.lng, initialState.lat],
             zoom: initialState.zoom,
         });
+
+        /*
+        map.on("load", () => {
+            map.addLayer({
+                id: "terrain-data",
+                type: "line",
+                source: {
+                    type: "vector",
+                    url: "mapbox://mapbox.mapbox-terrain-v2",
+                },
+                "source-layer": "contour",
+            });
+        });
+        */
+
+        console.log(data.memberLocations);
+        
+        data.memberLocations.forEach(location => {
+            //console.log(location);
+            new Marker().setLngLat([location.Lat, location.Lng]).addTo(map);
+        });
+        
+        
+            //
+        
+
+
     });
 
     onDestroy(() => {
@@ -35,11 +63,12 @@
     });
 </script>
 
+
 <div>
     <div class="map-wrap">
         <div class="map" bind:this={mapContainer} />
     </div>
-<!--
+    <!--
     <div class="sidebar">
         Longitude: {lng.toFixed(4)} | Latitude: {lat.toFixed(4)} | Zoom:
         {zoom.toFixed(2)}
@@ -60,7 +89,7 @@
         font-family: monospace;
         z-index: 1;
         position: absolute;
-        top: 0;
+        top: 16em;
         left: 0;
         margin: 12px;
         border-radius: 4px;

@@ -17,3 +17,5 @@ cdk.context.json
 !.elasticbeanstalk/*.global.yml
 # App Bundle
 ischlstrom-website-package*
+# Data Files
+member_locations.json
