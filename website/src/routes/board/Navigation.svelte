@@ -11,12 +11,18 @@
         DropdownHeader,
         DropdownDivider,
     } from "flowbite-svelte";
-    import {signOut } from "@auth/sveltekit/client";
+    import { signOut } from "@auth/sveltekit/client";
 
     /**
      * @type {{ member: { name: string; email: string; }; }}
      */
-     export let data;
+    export let data;
+
+    let hidden = true;
+
+    let closeNav = () => {
+        hidden = true;
+    };
 </script>
 
 <Navbar>
@@ -27,7 +33,12 @@
         >
     </NavBrand>
     <div class="flex items-center md:order-2">
-        <NavHamburger class1="w-full md:flex md:w-auto md:order-1" />
+        <NavHamburger
+            onClick={() => {
+                hidden = !hidden;
+            }}
+            class1="w-full md:flex md:w-auto md:order-1"
+        />
         <Avatar id="avatar-menu" />
     </div>
     <Dropdown placement="bottom" triggeredBy="#avatar-menu">
@@ -42,13 +53,15 @@
         <DropdownItem>to do: Settings</DropdownItem>
         <DropdownDivider />
         -->
-        <DropdownItem on:click={() => {
-            signOut();
-        }}>Abmelden</DropdownItem>
+        <DropdownItem
+            on:click={() => {
+                signOut();
+            }}>Abmelden</DropdownItem
+        >
     </Dropdown>
-    <NavUl>
-        <NavLi href="/board/approve">Neue Mitglieder</NavLi>
-        <NavLi href="/board/files">Dokumente</NavLi>
-        <NavLi href="/board/map">Karte</NavLi>
+    <NavUl bind:hidden slideParams={{ delay: 0, duration: 500 }}>
+        <NavLi on:click={closeNav} href="/board/approve">Neue Mitglieder</NavLi>
+        <NavLi on:click={closeNav} href="/board/files">Dokumente</NavLi>
+        <NavLi on:click={closeNav} href="/board/map">Karte</NavLi>
     </NavUl>
 </Navbar>
