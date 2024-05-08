@@ -7,6 +7,12 @@ class Member(models.Model):
     email = models.EmailField(unique=True)
     name = models.CharField(max_length=200)
     board_member = models.BooleanField(default=False)
+    street = models.CharField(max_length=200, null=True)
+    hnr = models.CharField(max_length=20, null=True)
+    zip = models.CharField(max_length=5, null=True)
+    city = models.CharField(max_length=20, null=True)
+    latitude = models.FloatField(null=True)
+    longitude = models.FloatField(null=True)
     def __str__(self):
         return f"{self.identifier}: {self.email}"
     
