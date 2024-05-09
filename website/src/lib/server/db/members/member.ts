@@ -143,3 +143,18 @@ export const getTaskStatus = async (newMemberEmails: string[]) => {
 
     return taskStatus
 };
+
+
+export const getMemberLocations = async() => {
+
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        select id, email, name, latitude, longitude
+        from members_member
+        `);
+    await sql.end();
+    sql.release();
+    const rows = result?.rows;
+    return rows;
+
+};

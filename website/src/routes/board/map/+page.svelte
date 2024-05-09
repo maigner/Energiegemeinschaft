@@ -51,18 +51,13 @@
             const el = document.createElement('div');
             el.className = 'marker';
             new Marker()
-                .setLngLat([location.Lat, location.Lng])
+                .setLngLat([location.longitude, location.latitude])
                 .setPopup(new Popup().setHTML(
-                    `<p>${location['Name 1']} ${location['Name 2']}</p>`
+                    `<p>${location.name}</p>`
                 ))
                 .addTo(map);
         });
         
-        
-            //
-        
-
-
     });
 
     onDestroy(() => {
