@@ -15,8 +15,8 @@
     let mapContainer;
     let lng, lat, zoom;
 
-    lng = 13.6242;
-    lat = 47.7116;
+    lng = 13.605;
+    lat = 47.70;
     zoom = 12;
 
     onMount(() => {

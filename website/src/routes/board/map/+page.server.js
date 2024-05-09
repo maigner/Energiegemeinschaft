@@ -6,7 +6,11 @@ import { readFileSync } from 'node:fs';
 export async function load({ fetch, params, parent, locals }) {
 
     const jsonFile = readFileSync('member_locations.json').toString();
+
     const memberLocations = JSON.parse(jsonFile);
+
+
+    
 
     return {
         mapboxToken: MAPBOX_TOKEN,
