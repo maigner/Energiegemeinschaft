@@ -16,8 +16,8 @@
     let lng, lat, zoom;
 
     lng = 13.605;
-    lat = 47.70;
-    zoom = 12;
+    lat = 47.69;
+    zoom = 11.5;
 
     onMount(() => {
         const initialState = { lng: lng, lat: lat, zoom: zoom };
