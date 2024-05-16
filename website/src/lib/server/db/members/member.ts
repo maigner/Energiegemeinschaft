@@ -99,6 +99,8 @@ export const answerToMembershipApproval = async (
     } catch(e) {
         await client.query('ROLLBACK');
         console.error('Error executing transaction:', e);
+    } finally {
+        client.release();
     }
 };
 
