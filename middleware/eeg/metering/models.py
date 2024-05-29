@@ -38,7 +38,7 @@ class Measurement(models.Model):
     
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['measurement_point', 'meter_code', 'timestamp', 'value'], name='unique_measurement'),
+            models.UniqueConstraint(fields=['measurement_point', 'meter_code', 'timestamp'], name='unique_measurement'),
         ]
     
     
