@@ -248,39 +248,10 @@
                     <br class="mb-1"/>
 
                     Unsere Website verwendet so genannte Cookies. Dabei handelt es sich um kleine Textdateien, die mit Hilfe des Browsers auf Ihrem Endgerät abgelegt werden. Sie richten keinen Schaden an. Wir nutzen Cookies dazu, unser Angebot nutzerfreundlich zu gestalten. Einige Cookies bleiben auf Ihrem Endgerät gespeichert, bis Sie diese löschen. Sie ermöglichen es uns, Ihren Browser beim nächsten Besuch wiederzuerkennen. Wenn Sie dies nicht wünschen, so können Sie Ihren Browser so einrichten, dass er Sie über das Setzen von Cookies informiert und Sie dies nur im Einzelfall erlauben. Bei der Deaktivierung von Cookies kann die Funktionalität unserer Website eingeschränkt sein.
-                    Google Fonts
+                    
                     <br class="mb-1"/>
 
-                    Unsere Website verwendet Schriftarten von „Google Fonts“. Der Dienstanbieter dieser Funktion ist:
-                    <br class="mb-1"/>
-
-                        Google Ireland Limited Gordon House, Barrow Street Dublin 4. Ireland Tel: +353 1 543 1000
-                        <br class="mb-1"/>
-
-                    Beim Aufrufen dieser Webseite lädt Ihr Browser Schriftarten und speichert diese in den Cache. Da Sie, als Besucher der Webseite, Daten des Dienstanbieters empfangen kann Google unter Umständen Cookies auf Ihrem Rechner setzen oder analysieren.
-                    <br class="mb-1"/>
-
-                    Die Nutzung von „Google-Fonts“ dient der Optimierung unserer Dienstleistung und der einheitlichen Darstellung von Inhalten. Dies stellt ein berechtigtes Interesse im Sinne von Art. 6 Abs. 1 lit. f DSGVO dar.
-                    <br class="mb-1"/>
-
-                    Weitere Informationen zu Google Fonts erhalten Sie unter folgendem Link:
-                    <br class="mb-1"/>
-
-                        https://developers.google.com/fonts/faq
-                        <br class="mb-1"/>
-
-                    Weitere Informationen über den Umgang mit Nutzerdaten von Google können Sie der Datenschutzerklärung entnehmen:
-                    <br class="mb-1"/>
-
-                        https://policies.google.com/privacy?hl=de .
-                        <br class="mb-1"/>
-
-                    Google verarbeitet die Daten auch in den USA, hat sich jedoch dem
-                    EU-US Privacy-Shield unterworfen.
-                    <br class="mb-1"/>
-
-                    https://www.privacyshield.gov/EU-US-Framework
-                    <br class="mb-1"/>
+                    
 
                     Server-Log Files
                     <br class="mb-1"/>
