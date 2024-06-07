@@ -211,6 +211,12 @@
                         entfernen.
                     </p>
                     <p>
+                        Unsere Cloudpartner sind wie folgt: Webserver und Datenbank laufen auf AWS. E-Mail und Onboarding wird über Google Cloud Services abgewickelt. Die Rechnungslegung erfolgt via EEG-Faktura von vfeeg.org
+                    </p>
+                    <p>
+                        Sämtliche Verträge mit unseren Partnern wurden auf DSGVO-Konformität geprüft.
+                    </p>
+                    <p>
                         Quelle: <b
                             ><a
                                 href="https://www.rechtstexte-generator.at/dsgvo-generator-oesterreich/"
