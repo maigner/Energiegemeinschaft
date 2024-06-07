@@ -35,7 +35,7 @@
                     Wir sammeln keine unnötigen Daten.
                 </p>
                 <p class="mb-2 text-gray-500 dark:text-gray-400">
-                    Wir geben keine Daten weiter.
+                    Wir geben keine Daten unerlaubt weiter.
                 </p>
                 <p class="mb-2 text-gray-500 dark:text-gray-400">
                     Wir achten Ihre Privatspäre.
