@@ -41,7 +41,7 @@
 
 <div class="flex place-content-center">
     <Project img="/smart_meter.webp" showMore={false}>
-        <span slot="title">eService-Portal der Netz Oberösterreich aktivieren</span>
+        <span slot="title">1. eService-Portal der Netz Oberösterreich aktivieren</span>
         <div slot="content">
 
             <p class="mb-4">
