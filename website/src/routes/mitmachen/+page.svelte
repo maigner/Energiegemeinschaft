@@ -41,36 +41,32 @@
 
 <div class="flex place-content-center">
     <Project img="/smart_meter.webp" showMore={false}>
-        <span slot="title">1. Stromzähler aktivieren</span>
+        <span slot="title">eService-Portal der Netz Oberösterreich aktivieren</span>
         <div slot="content">
-            <p class="mb-2">
-                Ihr Netzbetreiber (z.B. NetzOÖ) hat möglicherweise Ihr
-                Smartmeter noch nicht freigeschaltet.
-            </p>
 
-            <VideoButton
-                videoId={"YZ0QkXqswe4"}
-                title={""}
-                label={"mehr über Smartmeter erfahren"}
-            />
-
-            <p class="mb-2">
+            <p class="mb-4">
                 Registrieren Sie sich dazu im eService-Portal der Netz
                 Oberösterreich unter <a
                     href="https://eservice.netzooe.at/app/login"
                     target="_blank">https://eservice.netzooe.at/app/login</a
                 >
             </p>
-            <p class="mb-2">
-                Finden Sie in der Übersicht des eService-Portals Ihren aktiven
-                Zählpunkt. Sie können auch mehrere aktive Zählpunkte haben.
-            </p>
-            <p class="mb-2">
-                Wenn Ihnen bei Ihrem Zählpunkt die Funktion "Smartmeter aktiven"
-                angeboten wird, dann führen Sie diese aus.
+
+            <p class="mb-4">
+                Im eService-Portals können Sie Ihre Zählpunkte einsehen, Ihren Verbrauch bzw. Ihre Produktion überblicken und 
+                die Datenfreigabe für ISCHL STROM aktivieren.
             </p>
 
-            <p class="mb-2">
+            <div class="flex place-content-center mb-4">
+                <Fab extended href="https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/NetzO%C3%96+Anleitung-1.pdf" target="_blank" color="primary">
+                    <Label>
+                        Anleitung herunterladen
+                    </Label>
+                </Fab>
+            </div>
+
+
+            <p class="mb-4">
                 Hilfe bekommen Sie bei NetzOÖ unter der Service-Hotline 05 9070
             </p>
         </div>
@@ -82,17 +78,14 @@
     <Project img="/pen_writing.webp" showMore={false}>
         <span slot="title">2. Mitglied werden</span>
         <div slot="content">
-            <p class="mb-2">
+            <p class="mb-4">
                 Füllen Sie einfach folgendes Bewerbungsformular aus. 
             </p>
-            <p class="mb-2">
-                Wir melden uns bei Ihnen!
-            </p>
-            <p class="mb-2">
+            <p class="mb-4">
                 Bitte beachten Sie, dass Ihre Dateneingabe noch keine automatische Mitgliedschaft
                 bedeutet. Es fallen auch keine Kosten für Sie an.
             </p>
-            <p class="mb-2"> 
+            <p class="mb-4"> 
                 Details zur Mitgliedschaft
                 entnehmen Sie bitte unseren <a 
                 target="_blank" 
