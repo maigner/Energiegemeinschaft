@@ -89,14 +89,12 @@
     <Project img="/sichere_netzte.webp" showMore={false}>
         <span slot="title">Energiegemeinschaften im Detail</span>
         <div slot="content">
-            Haben Sie noch Fragen zum Thema Energiegemeinschaften?
+            Möchten Sie noch mehr zum Thema Energiegemeinschaften erfahren?
 
-            <div class="mt-8">
-                <VideoButton
-                    videoId={"DmedjR7SgbM"}
-                    title={""}
-                    label={"mehr über Energiegemeinschaften erfahren"}
-                />
+            <div class="flex place-content-center mt-4">
+                <Fab extended href="https://www.youtube.com/watch?v=DmedjR7SgbM" target="_blank" color="primary">
+                    <Label>Energiegemeinschaften auf Youtube</Label>
+                </Fab>
             </div>
         </div>
     </Project>
