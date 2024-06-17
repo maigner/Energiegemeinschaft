@@ -8,6 +8,7 @@
     import { dev } from "$app/environment";
     import VideoButton from "$lib/dialog/VideoButton.svelte";
     import { QuoteSolid } from "flowbite-svelte-icons";
+    import MarktDerZukunft from "./MarktDerZukunft.svelte";
 
     export let data;
 
@@ -42,7 +43,7 @@
     </figure>
 </div>
 
-
+<MarktDerZukunft />
 
 <Savings bind:data />
 
