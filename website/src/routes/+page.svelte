@@ -93,7 +93,7 @@
 
             <div class="flex place-content-center mt-4">
                 <Fab extended href="https://www.youtube.com/watch?v=DmedjR7SgbM" target="_blank" color="primary">
-                    <Label>Energiegemeinschaften auf Youtube</Label>
+                    <Label>EEGs auf Youtube</Label>
                 </Fab>
             </div>
         </div>
