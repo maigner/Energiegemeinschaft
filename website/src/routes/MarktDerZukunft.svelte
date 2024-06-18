@@ -21,7 +21,7 @@
                     <p>
                         "Wir freuen uns, ein Teil des
                         <br />
-                        <strong>Markes der Zukunft</strong>
+                        <strong>Marktes der Zukunft</strong>
                         <br />
                         zu sein."
                     </p>
