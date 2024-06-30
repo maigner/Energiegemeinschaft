@@ -27,7 +27,7 @@
 <Navbar let:NavContainer>
     <NavContainer class="border px-4 py-1 rounded-lg">
         <NavBrand href="/">
-            <img src="/header.png" class="h-14 sm:h-18" alt="Logo" />
+            <img src="/logo2024.webp" class="h-16 sm:h-24 md:h-32 lg:h-40 xl:h-48" alt="Logo" />
         </NavBrand>
         <NavHamburger
             onClick={() => {

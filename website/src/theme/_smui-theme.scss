@@ -3,8 +3,9 @@
 @use '@material/theme/color-palette';
 
 // Svelte Colors!
+
 @use '@material/theme/index' as theme with (
-  $primary: #0b7c3c,
+  $primary: #3a5d27,
   $secondary: #676778,
   $surface: #fff,
   $background: #fff,
@@ -18,6 +19,8 @@ body {
   font-family: var(--mdc-text-button-label-text-font,var(--mdc-typography-button-font-family,var(--mdc-typography-font-family, Roboto,)));
 
 }
+
+
 
 a {
   color: #40b3ff;
