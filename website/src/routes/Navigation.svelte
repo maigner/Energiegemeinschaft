@@ -27,7 +27,7 @@
 <Navbar let:NavContainer>
     <NavContainer class="border px-4 py-1 rounded-lg">
         <NavBrand href="/">
-            <img src="/logo2024.webp" class="h-16 sm:h-24 md:h-32 lg:h-40 xl:h-48" alt="Logo" />
+            <img src="/logo2024.webp" class="sm:h-24 md:h-32 lg:h-36 xl:h-40 h-16" alt="Logo" />
         </NavBrand>
         <NavHamburger
             onClick={() => {
@@ -44,7 +44,7 @@
                         on:click={closeNav}
                     >
                         <HomeOutline
-                            class="w-4 h-4 mb-1 {$page.route.id === '/'
+                            class="sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 mb-1 {$page.route.id === '/'
                                 ? 'text-green-600'
                                 : 'text-green-800'}  group-hover:text-green-600 "
                         />
@@ -57,7 +57,7 @@
                         on:click={closeNav}
                     >
                         <UserAddOutline
-                            class="w-4 h-4 mb-1 {$page.route.id === '/mitmachen'
+                            class="sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 mb-1 {$page.route.id === '/mitmachen'
                                 ? 'text-green-600'
                                 : 'text-green-800'}  group-hover:text-green-600 "
                         />
@@ -71,7 +71,7 @@
                         on:click={closeNav}
                     >
                         <QuestionCircleOutline
-                            class="w-4 h-4 mb-1 {$page.route.id === '/faq'
+                            class="sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 mb-1 {$page.route.id === '/faq'
                                 ? 'text-green-600'
                                 : 'text-green-800'}  group-hover:text-green-600 "
                         />
@@ -85,7 +85,7 @@
                         on:click={closeNav}
                     >
                         <MailBoxOutline
-                            class="w-4 h-4 mb-1 {$page.route.id === '/kontakt'
+                            class="sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 mb-1 {$page.route.id === '/kontakt'
                                 ? 'text-green-600'
                                 : 'text-green-800'}  group-hover:text-green-600 "
                         />
