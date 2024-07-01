@@ -13,7 +13,7 @@
 <svelte:window bind:innerWidth />
 
 <div class="text-center">
-    <Heading tag="h2" class="text-primary-800 mt-8">Willkommen</Heading>
+    <Heading tag="h2" class="text-primary-600 mt-8">Willkommen</Heading>
 </div>
 
 <div class="max-w-xl m-auto justify-center">

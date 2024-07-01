@@ -47,7 +47,7 @@
 
 
 <div class="text-center">
-    <Heading tag="h2" class="text-primary-800 mt-8">11 cent FIX</Heading>
+    <Heading tag="h2" class="text-primary-600 mt-8">11 cent FIX</Heading>
 </div>
 
 <div class="flex justify-center">
@@ -59,7 +59,7 @@
             jährlich bis zu*
         </p>
 
-        <Heading tag="h2" class="text-primary-800 mt-8">
+        <Heading tag="h2" class="text-primary-600 mt-8">
             {Math.round(savingsEuroPerYear)} EURO
         </Heading>
 

@@ -45,8 +45,8 @@
                     >
                         <HomeOutline
                             class="w-4 h-4 mb-1 {$page.route.id === '/'
-                                ? 'text-green-950'
-                                : 'text-green-600'}  group-hover:text-green-900 "
+                                ? 'text-green-600'
+                                : 'text-green-800'}  group-hover:text-green-600 "
                         />
                     </BottomNavItem>
                 </NavLi>
@@ -58,8 +58,8 @@
                     >
                         <UserAddOutline
                             class="w-4 h-4 mb-1 {$page.route.id === '/mitmachen'
-                                ? 'text-green-950'
-                                : 'text-green-600'} group-hover:text-green-900 "
+                                ? 'text-green-600'
+                                : 'text-green-800'}  group-hover:text-green-600 "
                         />
                     </BottomNavItem>
                 </NavLi>
@@ -72,8 +72,8 @@
                     >
                         <QuestionCircleOutline
                             class="w-4 h-4 mb-1 {$page.route.id === '/faq'
-                                ? 'text-green-950'
-                                : 'text-green-600'} group-hover:text-green-900 "
+                                ? 'text-green-600'
+                                : 'text-green-800'}  group-hover:text-green-600 "
                         />
                     </BottomNavItem>
                 </NavLi>
@@ -86,8 +86,8 @@
                     >
                         <MailBoxOutline
                             class="w-4 h-4 mb-1 {$page.route.id === '/kontakt'
-                                ? 'text-green-950'
-                                : 'text-green-600'} group-hover:text-green-900 "
+                                ? 'text-green-600'
+                                : 'text-green-800'}  group-hover:text-green-600 "
                         />
                     </BottomNavItem>
                 </NavLi>

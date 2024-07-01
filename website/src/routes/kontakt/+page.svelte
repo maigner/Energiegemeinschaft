@@ -20,8 +20,8 @@
 
 {#if form?.message == "OK"}
     <div class="text-center">
-        <Heading tag="h2" class="text-primary-800 mt-8">Vielen Dank!</Heading>
-        <Heading tag="h3" class="text-primary-800 mt-8">Wir melden uns</Heading>
+        <Heading tag="h2" class="text-primary-600 mt-8">Vielen Dank!</Heading>
+        <Heading tag="h3" class="text-primary-600 mt-8">Wir melden uns</Heading>
 
     </div>
     <div class="flex place-content-center mt-10">
@@ -61,7 +61,7 @@
 
 
     <div class="text-center">
-        <Heading tag="h3" class="text-primary-800 mt-8">
+        <Heading tag="h3" class="text-primary-600 mt-8">
             <a href="mailto:info@ischlstrom.org">info@ischlstrom.org</a>
         </Heading>
     </div>

@@ -5,7 +5,7 @@
 </script>
 
 <div class="text-center">
-    <Heading tag="h3" class="text-primary-800 mt-6">Impressum</Heading>
+    <Heading tag="h3" class="text-primary-600 mt-6">Impressum</Heading>
 </div>
 
 <div class="flex place-content-center">

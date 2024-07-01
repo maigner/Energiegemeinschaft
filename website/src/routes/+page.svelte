@@ -48,7 +48,7 @@
 <Savings bind:data />
 
 <div class="text-center">
-    <Heading tag="h3" class="text-primary-800 mt-6"
+    <Heading tag="h3" class="text-primary-600 mt-6"
         >Vorteile einer Energiegemeinschaft</Heading
     >
 </div>
@@ -101,7 +101,7 @@
 </div>
 
 <div class="text-center">
-    <Heading tag="h3" class="text-primary-800 mt-6"
+    <Heading tag="h3" class="text-primary-600 mt-6"
         >Wer ist ISCHL strom?</Heading
     >
 </div>
