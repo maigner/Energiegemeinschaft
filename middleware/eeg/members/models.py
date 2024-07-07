@@ -4,7 +4,7 @@ from django.db import models
 
 class Member(models.Model):
     identifier = models.IntegerField(unique=True)
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=False)
     name = models.CharField(max_length=200)
     board_member = models.BooleanField(default=False)
     street = models.CharField(max_length=200, null=True)
@@ -13,6 +13,7 @@ class Member(models.Model):
     city = models.CharField(max_length=20, null=True)
     latitude = models.FloatField(null=True)
     longitude = models.FloatField(null=True)
+    member_since = models.DateField(null=True)
     def __str__(self):
         return f"{self.identifier}: {self.email}"
     
@@ -41,6 +42,7 @@ class MeasurementPoint(models.Model):
     identifier = models.CharField(max_length=200, unique=True)
     type=models.CharField(max_length=20)
     status=models.CharField(max_length=20)
+    welcome_message_sent_at = models.DateTimeField(null=True, default=None)
     def __str__(self):
         return f"{self.identifier}"
     
