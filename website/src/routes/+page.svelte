@@ -43,7 +43,6 @@
     </figure>
 </div>
 
-<MarktDerZukunft />
 
 <Savings bind:data />
 
