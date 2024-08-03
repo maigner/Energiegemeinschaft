@@ -1,6 +1,5 @@
 
 import { relayContactForm } from '$lib/server/mail/smtp';
-import { redirect } from '@sveltejs/kit';
 
 
 

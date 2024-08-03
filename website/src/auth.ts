@@ -8,38 +8,16 @@ import { createTransport } from "nodemailer";
 
 export async function authorizationHandle({ event, resolve }) {
 
-    // console.log("authorization");
-    // console.log(event.route);
-
-    /*
-    if (event.url.pathname.startsWith('/mitmachen')) {
-        const session = await event.locals.getSession();
-
-        if (!session) {
-            throw redirect(307, '/login/mitmachen');
-        }
-    }
-    
-
-    if (event.url.pathname.startsWith('/chatbot')) {
-        console.log("Requires authentication");
-        const session = await event.locals.getSession();
-
-        if (!session) {
-            throw redirect(307, '/login/chatbot');
-        }
-    }
-    */
-
-
-    if (event.url.pathname.startsWith('/board')) {
+    if (event.route.id.startsWith('/board')) {
         //console.log("Requires authentication");
-        const session = await event.locals.getSession();
+        const session = await event.locals.auth();
 
         if (!session) {
-            throw redirect(307, `/login?source=${event.url.pathname}`);
+            throw redirect(307, `/login?source=${event.route.id}`);
         }
     }
+
+    //TODO: more routes
 
 
     return resolve(event);

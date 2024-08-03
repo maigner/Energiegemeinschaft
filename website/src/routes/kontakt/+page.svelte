@@ -3,8 +3,6 @@
     import {
         Blockquote,
         Button,
-        Card,
-        Checkbox,
         Heading,
         Input,
     } from "flowbite-svelte";

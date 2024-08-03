@@ -1,7 +1,7 @@
 <script>
     import Project from "$lib/Project.svelte";
     import Fab, { Label } from "@smui/fab";
-    import { Blockquote, Heading, TabItem, Tabs } from "flowbite-svelte";
+    import { Blockquote, TabItem, Tabs } from "flowbite-svelte";
     //import { JSONEditor } from "svelte-jsoneditor";
     import { AccordionItem, Accordion } from 'flowbite-svelte';
 
