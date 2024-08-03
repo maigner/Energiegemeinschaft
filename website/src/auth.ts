@@ -127,7 +127,7 @@ const providers = [
             const result = await transport.sendMail({
                 to: identifier,
                 from: provider.from,
-                subject: `Sign in to ${host}`,
+                subject: `Ihre Anmeldung bei ${host}`,
                 text: text({ url, host }),
                 html: html({ url, host, theme }),
             })
