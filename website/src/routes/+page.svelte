@@ -6,7 +6,6 @@
     import Savings from "./Savings.svelte";
     //import { JSONEditor } from "svelte-jsoneditor";
     import { dev } from "$app/environment";
-    import VideoButton from "$lib/dialog/VideoButton.svelte";
     import { QuoteSolid } from "flowbite-svelte-icons";
     import MarktDerZukunft from "./MarktDerZukunft.svelte";
 

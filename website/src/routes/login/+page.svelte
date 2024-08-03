@@ -4,20 +4,26 @@
     import { Button } from "flowbite-svelte";
     import { Label, Input, ButtonGroup } from "flowbite-svelte";
     import { EnvelopeSolid } from "flowbite-svelte-icons";
-    import { signIn, signOut } from '@auth/sveltekit/client';
+    
+    import { signIn, signOut } from '@auth/sveltekit/client'
 
     export let data;
 
     let email = "";
 
     const handleEmailSignIn = () => {
-        signIn('email', { email, callbackUrl: `${data.callback}` });
+        signIn('nodemailer', { email, callbackUrl: `${data.source}` });
+        // signIn('nodemailer', { email });
     };
 
     const handleSignOut = () => {
         signOut();
     };
 </script>
+
+{JSON.stringify(data)}
+
+
 
 {#if !$page.data.session}
     <div class="flex place-content-center">
@@ -35,7 +41,12 @@
                 <Label for="input-group-1" class="block mb-2"
                     >Geben Sie Ihre E-Mail Adresse ein</Label
                 >
-                <Input bind:value={email} id="email" type="email" placeholder="name@provider.com">
+                <Input
+                    bind:value={email}
+                    id="email"
+                    type="email"
+                    placeholder="name@provider.com"
+                >
                     <EnvelopeSolid
                         slot="left"
                         class="w-5 h-5 text-gray-500 dark:text-gray-400"

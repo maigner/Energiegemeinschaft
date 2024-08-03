@@ -33,9 +33,9 @@
   },
   "type": "module",
   "dependencies": {
-    "@auth/core": "^0.18.1",
-    "@auth/pg-adapter": "^0.2.7",
-    "@auth/sveltekit": "^0.3.12",
+    "@auth/core": "^0.34.2",
+    "@auth/pg-adapter": "^1.4.2",
+    "@auth/sveltekit": "^1.4.2",
     "@smui/paper": "^7.0.0-beta.16",
     "@smui/slider": "^7.0.0-beta.16",
     "@smui/textfield": "^7.0.0-beta.16",

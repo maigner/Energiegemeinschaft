@@ -8,7 +8,6 @@
         Heading,
         Input,
     } from "flowbite-svelte";
-    import VideoButton from "$lib/dialog/VideoButton.svelte";
     import { Textarea } from "flowbite-svelte";
 
     import Fab, { Label } from "@smui/fab";

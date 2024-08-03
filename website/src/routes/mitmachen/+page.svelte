@@ -1,7 +1,6 @@
 <script>
     import Project from "$lib/Project.svelte";
     import { Blockquote, Button, Card, Heading } from "flowbite-svelte";
-    import VideoButton from "$lib/dialog/VideoButton.svelte";
     import Fab, { Label } from "@smui/fab";
 
     /**

@@ -4,7 +4,7 @@
 	import { Hr } from "flowbite-svelte";
 	import Navigation from "./Navigation.svelte";
 
-	export let data;
+	//export let data;
 </script>
 <Navigation />
 
