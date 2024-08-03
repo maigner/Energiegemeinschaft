@@ -13,17 +13,12 @@
 
     const handleEmailSignIn = () => {
         signIn('nodemailer', { email, callbackUrl: `${data.source}` });
-        // signIn('nodemailer', { email });
     };
 
     const handleSignOut = () => {
         signOut();
     };
 </script>
-
-{JSON.stringify(data)}
-
-
 
 {#if !$page.data.session}
     <div class="flex place-content-center">
