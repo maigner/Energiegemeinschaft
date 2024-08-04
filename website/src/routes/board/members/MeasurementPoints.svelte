@@ -15,7 +15,7 @@
 </script>
 
 <div class="w-full">
-    <Heading class="text-primary-700 text-center" tag="h6">Zählpunkte:</Heading>
+    <Heading class="text-primary-700 text-center" tag="h6">Zählpunkte</Heading>
 
     <!--
     <div class="text-xs">
