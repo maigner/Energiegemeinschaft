@@ -1,15 +1,25 @@
 <script>
-    import { Blockquote } from 'flowbite-svelte';
-
+    import { Blockquote } from "flowbite-svelte";
+    import { Listgroup } from "flowbite-svelte";
+    let links = [
+        {
+            name: "Mitglieder",
+            href: "/board/members",
+        },
+        { name: "Bewerbungen", href: "/board/approve" },
+        { name: "Dokumente", href: "/board/files" },
+        {
+            name: "Karte",
+            href: "/board/map",
+        },
+    ];
     export let data;
 </script>
 
 {#if data.member}
     <div class="max-w-xl m-auto justify-center">
         <figure class="m-4 text-center">
-            <Blockquote alignment="center" size="xl" class="text-gray-900">
-                Vorstandsbereich
-            </Blockquote>
+            
             <figcaption class="flex justify-center items-center mt-6 space-x-3">
                 <div
                     class="flex items-center divide-x-2 divide-gray-500 dark:divide-gray-700"
@@ -24,5 +34,11 @@
                 </div>
             </figcaption>
         </figure>
+    </div>
+
+    <div class="max-w-xl m-auto justify-center flex">
+        <Listgroup active items={links} let:item class="w-48">
+            {item.name}
+        </Listgroup>
     </div>
 {/if}
