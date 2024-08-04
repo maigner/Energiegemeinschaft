@@ -36,7 +36,7 @@ export const completedMembershipApprovalTasks = async (boardMemberId: string, ne
 };
 
 
-export const getAllMembershipApprovalTasks = async() => {
+export const getAllMembershipApprovalTasks = async () => {
 
     const sql = await middlewareDbConnection();
     const result = await sql.query(`
@@ -96,7 +96,7 @@ export const answerToMembershipApproval = async (
 
         await client.query('COMMIT');
         //console.log('Transaction committed successfully');
-    } catch(e) {
+    } catch (e) {
         await client.query('ROLLBACK');
         console.error('Error executing transaction:', e);
     } finally {
@@ -138,7 +138,7 @@ export const getTaskStatus = async (newMemberEmails: string[]) => {
 
     // filter for tasks where JA < 7 (num board members)
     taskStatus = Object.fromEntries(
-        Object.entries(taskStatus).filter( ([key, value]) => value.Ja < 7)
+        Object.entries(taskStatus).filter(([key, value]) => value.Ja < 7)
     );
 
     //console.log(taskStatus);
@@ -147,12 +147,40 @@ export const getTaskStatus = async (newMemberEmails: string[]) => {
 };
 
 
-export const getMemberLocations = async() => {
+export const getMemberLocations = async () => {
 
     const sql = await middlewareDbConnection();
     const result = await sql.query(`
         select id, email, name, latitude, longitude
         from members_member
+        `);
+    await sql.end();
+    sql.release();
+    const rows = result?.rows;
+    return rows;
+
+};
+
+
+export const getNumberOfMembersStats = async () => {
+
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        WITH date_series AS (
+        SELECT generate_series(
+                    date_trunc('day', '2024-01-01'::date),
+                    date_trunc('day', CURRENT_DATE),
+                    '1 day'::interval
+            ) AS month
+        )
+        SELECT
+            month, count(m.identifier) as num_members
+        FROM
+            date_series, members_member m
+        WHERE m.member_since <= month
+        group by month
+        order by month
+        ;
         `);
     await sql.end();
     sql.release();
