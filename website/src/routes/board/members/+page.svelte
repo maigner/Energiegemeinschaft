@@ -33,13 +33,10 @@
 
 
 <div class="flex place-content-center mt-8">
-    <MeasurementPoints bind:data />
-</div>
-
-
-<div class="flex place-content-center mt-8">
     <MemberCountChart bind:data />
 </div>
 
-
+<div class="flex place-content-center mt-8">
+    <MeasurementPoints bind:data />
+</div>
 
