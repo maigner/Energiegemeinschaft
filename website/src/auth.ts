@@ -2,43 +2,51 @@ import { SvelteKitAuth } from "@auth/sveltekit"
 import Nodemailer from "@auth/sveltekit/providers/nodemailer"
 import { SMTP_USER, SMTP_PWD, SMTP_ENDPOINT, SMTP_TLS_PORT, AUTH_SECRET, AUTH_EMAIL_FROM } from "$env/static/private";
 import PostgresAdapter from "@auth/pg-adapter";
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { authDbPool } from "$lib/server/db/db";
 import { createTransport } from "nodemailer";
 
 export async function authorizationHandle({ event, resolve }) {
 
-    if (event.route.id.startsWith('/board')) {
-        //console.log("Requires authentication");
-        const session = await event.locals.auth();
+  if (!event.route.id) {
+    console.log("invalid route");
+    error(404, {
+      message: 'Not found'
+    });
+    return;
+  }
 
-        if (!session) {
-            throw redirect(307, `/login?source=${event.route.id}`);
-        }
+  if (event.route.id.startsWith('/board')) {
+    //console.log("Requires authentication");
+    const session = await event.locals.auth();
+
+    if (!session) {
+      throw redirect(307, `/login?source=${event.route.id}`);
     }
+  }
 
-    //TODO: more routes
+  //TODO: more routes
 
 
-    return resolve(event);
+  return resolve(event);
 }
 
 function html(params: { url: string; host: string; theme: Theme }) {
-    const { url, host, theme } = params
+  const { url, host, theme } = params
 
-    const escapedHost = host.replace(/\./g, "&#8203;.")
+  const escapedHost = host.replace(/\./g, "&#8203;.")
 
-    const brandColor = theme.brandColor || "#346df1"
-    const color = {
-        background: "#f9f9f9",
-        text: "#444",
-        mainBackground: "#fff",
-        buttonBackground: brandColor,
-        buttonBorder: brandColor,
-        buttonText: theme.buttonText || "#fff",
-    }
+  const brandColor = theme.brandColor || "#346df1"
+  const color = {
+    background: "#f9f9f9",
+    text: "#444",
+    mainBackground: "#fff",
+    buttonBackground: brandColor,
+    buttonBorder: brandColor,
+    buttonText: theme.buttonText || "#fff",
+  }
 
-    return `
+  return `
   <body style="background: ${color.background};">
     <table width="100%" border="0" cellspacing="20" cellpadding="0"
       style="background: ${color.mainBackground}; max-width: 600px; margin: auto; border-radius: 10px;">
@@ -78,55 +86,55 @@ function html(params: { url: string; host: string; theme: Theme }) {
 
 // Email Text body (fallback for email clients that don't render HTML, e.g. feature phones)
 function text({ url, host }: { url: string; host: string }) {
-    return `Anmelden bei ${host}\n${url}\n\n`
+  return `Anmelden bei ${host}\n${url}\n\n`
 }
 
 const providers = [
-    Nodemailer({
-        server: {
-            host: SMTP_ENDPOINT,
-            port: SMTP_TLS_PORT,
-            secure: true,
-            auth: {
-                user: SMTP_USER,
-                pass: SMTP_PWD
-            }
-        },
-        from: AUTH_EMAIL_FROM,
-        async sendVerificationRequest({
-            identifier,
-            url,
-            provider,
-            theme
-        }) {
-            const { host } = new URL(url)
-            // NOTE: You are not required to use `nodemailer`, use whatever you want.
-            const transport = createTransport(provider.server)
-            const result = await transport.sendMail({
-                to: identifier,
-                from: provider.from,
-                subject: `Ihre Anmeldung bei ${host}`,
-                text: text({ url, host }),
-                html: html({ url, host, theme }),
-            })
-            const failed = result.rejected.concat(result.pending).filter(Boolean)
-            if (failed.length) {
-                throw new Error(`Email(s) (${failed.join(", ")}) could not be sent`)
-            }
-        },
-    }),
+  Nodemailer({
+    server: {
+      host: SMTP_ENDPOINT,
+      port: SMTP_TLS_PORT,
+      secure: true,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PWD
+      }
+    },
+    from: AUTH_EMAIL_FROM,
+    async sendVerificationRequest({
+      identifier,
+      url,
+      provider,
+      theme
+    }) {
+      const { host } = new URL(url)
+      // NOTE: You are not required to use `nodemailer`, use whatever you want.
+      const transport = createTransport(provider.server)
+      const result = await transport.sendMail({
+        to: identifier,
+        from: provider.from,
+        subject: `Ihre Anmeldung bei ${host}`,
+        text: text({ url, host }),
+        html: html({ url, host, theme }),
+      })
+      const failed = result.rejected.concat(result.pending).filter(Boolean)
+      if (failed.length) {
+        throw new Error(`Email(s) (${failed.join(", ")}) could not be sent`)
+      }
+    },
+  }),
 ];
 
 
 // request -> authjs -> authorize -> page
 export const { handle, signIn, signOut } = SvelteKitAuth({
-    trustHost: true,
-    secret: AUTH_SECRET,
-    adapter: PostgresAdapter(authDbPool),
-    pages: {
-        signIn: '/login',
-        //signOut: '/login',
-        verifyRequest: '/verify'
-    },
-    providers
+  trustHost: true,
+  secret: AUTH_SECRET,
+  adapter: PostgresAdapter(authDbPool),
+  pages: {
+    signIn: '/login',
+    //signOut: '/login',
+    verifyRequest: '/verify'
+  },
+  providers
 });

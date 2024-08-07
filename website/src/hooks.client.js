@@ -1,12 +1,5 @@
-import { handle as authenticationHandle } from "./auth";
-import { authorizationHandle } from "./auth";
-import { sequence } from '@sveltejs/kit/hooks';
 
-
-export const handle = sequence(authenticationHandle, authorizationHandle);
-
-
-/** @type {import('@sveltejs/kit').HandleServerError} */
+/** @type {import('@sveltejs/kit').HandleClientError} */
 export async function handleError({ error, event, status, message }) {
 	
     const errorId = crypto.randomUUID();
@@ -19,7 +12,7 @@ export async function handleError({ error, event, status, message }) {
 	});
     */
 
-    console.log("Server ERROR: ");
+    console.log("Client ERROR: ");
     console.log({error, event});
 
 	return {
