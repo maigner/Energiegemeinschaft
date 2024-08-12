@@ -9,8 +9,9 @@
 <Navigation />
 
 
-
-<slot />
+<div class="xl:max-w-6xl lg:max-w-4xl md:max-w-3xl mx-auto">
+	<slot />
+</div>
 
 <!--
 <div class="mt-16 flex place-content-center">

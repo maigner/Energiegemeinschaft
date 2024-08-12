@@ -216,3 +216,38 @@ export const getMeasurementPoints = async () => {
     return rows;
 
 };
+
+
+export const getAverageMetrics = async (memberId: number) => {
+
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+            select
+                member.name,
+                member.identifier as member_identifier,
+                p.type as point_type,
+                metercode.description as metric_name,
+                m.timestamp::time as time,
+                avg(m.value) * 4 as avg_value,
+                'kW' as unit
+            from metering_measurement m
+            inner join members_measurementpoint p on p.id = m.measurement_point_id
+            inner join public.members_member member on member.id = p.member_id
+            inner join public.metering_metercode metercode on metercode.id = m.meter_code_id
+
+            where member.identifier = $1
+            and p.status like 'ACTIVE'
+            and metercode.description not like 'Anteil gemeinschaftliche Erzeugung'
+
+            --and m.timestamp BETWEEN '2024-03-01' AND '2024-03-31'
+            group by member.name, member.identifier, p.type, metercode.description, m.timestamp::time
+            order by m.timestamp::time
+            ;
+        `, [memberId]);
+
+    await sql.end();
+    sql.release();
+    const rows = result?.rows;
+    return rows;
+
+};

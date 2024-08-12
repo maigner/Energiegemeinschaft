@@ -1,3 +1,4 @@
+import { getAverageMetrics } from '$lib/server/db/members/member';
 import { error } from '@sveltejs/kit';
 
 
@@ -6,28 +7,27 @@ export async function load({ fetch, params, parent, locals }) {
 
     const {session, users} = await parent();
 
-    console.log(session.user.email);
-
-
+    //console.log(session.user.email);
 
     let validUser = users.filter( user => 
         {
             return user.identifier === parseInt(params.memberId)
-            //&& user.email === session.user.email;
-            && user.email === "th.sams@schiffersams.at";
+            && user.email === session.user.email;
         });
     
-    console.log(validUser);
+    //console.log(validUser);
 
     if (validUser.length === 0) {
+        console.log("Unauthorized: " + session.user.email);
         return error(403, 'not a valid user');
     }
 
+    const user = validUser[0];
 
     return {
-        user: validUser[0]
+        user: user,
+        averageMetrics: await getAverageMetrics(user.identifier)
     }
-
 
 
 }

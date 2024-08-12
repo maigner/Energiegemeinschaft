@@ -24,6 +24,7 @@ export async function handleError({ error, event }) {
 	console.log(event.url.href);
 
 
+
 	return {
 		message: 'Whoops!'
 	};

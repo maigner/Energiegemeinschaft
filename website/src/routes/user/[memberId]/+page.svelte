@@ -1,5 +1,11 @@
 <script>
+    import AverageMetricsChart from "./AverageMetricsChart.svelte";
+
     export let data;
+
+    
+
 </script>
 
-{JSON.stringify(data.user)}
+<AverageMetricsChart data={{averageMetrics: data.averageMetrics}} />
+

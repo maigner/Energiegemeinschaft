@@ -8,8 +8,7 @@ export async function load({ locals }) {
     let session = await locals.auth();
 
     // @ts-ignore
-    //const users = await getUsersByEmail(session?.user?.email);
-    const users = await getUsersByEmail("th.sams@schiffersams.at");
+    const users = await getUsersByEmail(session?.user?.email);
     
 
     return {
