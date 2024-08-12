@@ -92,7 +92,7 @@
                         />
                     </BottomNavItem>
                 </NavLi>
-<!--
+
                 <NavLi href="/user">
                     <BottomNavItem
                         btnName="User"
@@ -106,7 +106,7 @@
                         />
                     </BottomNavItem>
                 </NavLi>
-    -->            
+                
             </div>
         </NavUl>
     </NavContainer>

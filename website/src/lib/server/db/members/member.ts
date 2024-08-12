@@ -12,6 +12,15 @@ export const getBoardMemberByEmail = async (email: string) => {
     return (result?.rows.length > 0 ? result?.rows[0] : null);
 };
 
+//getUserByEmail
+export const getUsersByEmail = async (email: string) => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`SELECT * FROM members_member
+    where email like $1`, [email]);
+    await sql.end();
+    sql.release();
+    return (result?.rows.length > 0 ? result?.rows : null);
+};
 
 
 

@@ -25,6 +25,15 @@ export async function authorizationHandle({ event, resolve }) {
     }
   }
 
+  if (event.route.id.startsWith('/user')) {
+    //console.log("Requires authentication");
+    const session = await event.locals.auth();
+
+    if (!session) {
+      throw redirect(307, `/login?source=${event.route.id}`);
+    }
+  }
+
   //TODO: more routes
 
 
