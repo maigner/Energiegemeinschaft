@@ -20,7 +20,7 @@
 -->
 
 {#if $page.route.id !== "/impressum" &&  $page.route.id?.toString().startsWith("/board") == false }
-	<div class="text-center mt-20">
+	<div class="text-center mt-20 text-xs text-primary-800">
 		<a href="/impressum">Impressum</a>
 	</div>
 	<Hr />

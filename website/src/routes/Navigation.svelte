@@ -95,7 +95,7 @@
 
                 <NavLi href="/user">
                     <BottomNavItem
-                        btnName="User"
+                        btnName="Mein Bereich"
                         href="/user"
                         on:click={closeNav}
                     >
