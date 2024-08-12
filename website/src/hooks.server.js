@@ -7,7 +7,7 @@ export const handle = sequence(authenticationHandle, authorizationHandle);
 
 
 /** @type {import('@sveltejs/kit').HandleServerError} */
-export async function handleError({ error, event, status, message }) {
+export async function handleError({ error, event }) {
 	
     const errorId = crypto.randomUUID();
 
@@ -20,10 +20,11 @@ export async function handleError({ error, event, status, message }) {
     */
 
     console.log("Server ERROR: ");
-    console.log({error, event});
+    
+	console.log(event.url.href);
+
 
 	return {
-		message: 'Whoops!',
-		errorId
+		message: 'Whoops!'
 	};
 }

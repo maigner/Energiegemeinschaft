@@ -1,6 +1,6 @@
 
 /** @type {import('@sveltejs/kit').HandleClientError} */
-export async function handleError({ error, event, status, message }) {
+export async function handleError({ error, event }) {
 	
     const errorId = crypto.randomUUID();
 
@@ -13,10 +13,9 @@ export async function handleError({ error, event, status, message }) {
     */
 
     console.log("Client ERROR: ");
-    console.log({error, event});
+    // console.log({error, event});
 
 	return {
-		message: 'Whoops!',
-		errorId
+		message: 'Whoops!'
 	};
 }

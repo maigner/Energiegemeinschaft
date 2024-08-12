@@ -7,6 +7,7 @@
         MailBoxOutline,
         QuestionCircleOutline,
         UserAddOutline,
+        UserOutline,
     } from "flowbite-svelte-icons";
 
     import {
@@ -91,7 +92,21 @@
                         />
                     </BottomNavItem>
                 </NavLi>
-                
+<!--
+                <NavLi href="/user">
+                    <BottomNavItem
+                        btnName="User"
+                        href="/user"
+                        on:click={closeNav}
+                    >
+                        <UserOutline
+                            class="sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 mb-1 {$page.route.id === '/kontakt'
+                                ? 'text-green-600'
+                                : 'text-green-800'}  group-hover:text-green-600 "
+                        />
+                    </BottomNavItem>
+                </NavLi>
+    -->            
             </div>
         </NavUl>
     </NavContainer>
