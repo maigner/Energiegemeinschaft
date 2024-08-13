@@ -2,10 +2,11 @@
     import AverageMetricsChart from "./AverageMetricsChart.svelte";
 
     export let data;
-
-    
-
 </script>
 
-<AverageMetricsChart data={{averageMetrics: data.averageMetrics}} />
-
+<AverageMetricsChart
+    data={{
+        averageMetrics: data.averageMetrics,
+        metricsTimestampRange: data.metricsTimestampRange,
+    }}
+/>

@@ -1,4 +1,4 @@
-import { getAverageMetrics } from '$lib/server/db/members/member';
+import { getAverageMetrics, getMetricTimestampRange } from '$lib/server/db/members/member';
 import { error } from '@sveltejs/kit';
 
 
@@ -26,7 +26,8 @@ export async function load({ fetch, params, parent, locals }) {
 
     return {
         user: user,
-        averageMetrics: await getAverageMetrics(user.identifier)
+        averageMetrics: await getAverageMetrics(user.identifier),
+        metricsTimestampRange: await getMetricTimestampRange(user.identifier)
     }
 
 

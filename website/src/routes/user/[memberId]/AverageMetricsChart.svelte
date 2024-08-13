@@ -24,6 +24,7 @@
     );
 
     import { Heading } from "flowbite-svelte";
+    import { formatDate } from "$lib/format";
 
     export let data;
 
@@ -114,7 +115,16 @@
         },
         */
     ];
+
+
+    //console.log(formatDate(data.metricsTimestampRange.first_timestamp));
+    //console.log(formatDate(data.metricsTimestampRange.last_timestamp));
+
+
 </script>
+
+
+
 
 <div class="mt-4">
     <Heading class="text-primary-700 text-center" tag="h6"
@@ -122,6 +132,11 @@
     >
 
     <div class="text-center text-primary-500 text-xs">
+        {formatDate(data.metricsTimestampRange.first_timestamp)}
+        bis
+        {formatDate(data.metricsTimestampRange.last_timestamp)}
+    </div>
+    <div class="text-center text-primary-700 text-xs">
         Angaben in kiloWatt (kW)
     </div>
 
