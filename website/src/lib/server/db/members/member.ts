@@ -253,10 +253,14 @@ export const getAverageMetrics = async (memberId: number) => {
 export const getMetricTimestampRange = async (memberId: number) => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`
-        select member.identifier, min(m.timestamp) as first_timestamp, max(m.timestamp) as last_timestamp
+        select member.identifier, min(m.timestamp) as first_timestamp, max(m.timestamp) as last_timestamp,
+            extract(YEAR FROM min(m.timestamp)) as first_year,
+            extract(YEAR FROM max(m.timestamp)) as last_year,
+            extract(MONTH FROM min(m.timestamp)) as first_month,
+            extract(MONTH FROM max(m.timestamp)) as last_month
         from metering_measurement m
-        inner join public.members_measurementpoint mm on mm.id = m.measurement_point_id
-        inner join public.members_member member on member.id = mm.member_id
+        inner join public.members_measurementpoint mp on mp.id = m.measurement_point_id
+        inner join public.members_member member on member.id = mp.member_id
         where member.identifier = $1
         group by member.identifier;
         `, [memberId]);

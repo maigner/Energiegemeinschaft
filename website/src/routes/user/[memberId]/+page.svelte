@@ -1,6 +1,6 @@
 <script>
     import { Card, Heading } from "flowbite-svelte";
-    import AverageMetricsChart from "./AverageMetricsChart.svelte";
+    import PerformanceChart from "./PerformanceChart.svelte";
 
     export let data;
 </script>
@@ -13,12 +13,18 @@
     >
 </div>
 
+
+
 <Card class="max-w-full">
-    <AverageMetricsChart
-        data={{
-            averageMetrics: data.averageMetrics,
-            metricsTimestampRange: data.metricsTimestampRange,
-        }}
+    <PerformanceChart
+        bind:data
     />
 </Card>
 
+<!--
+<Card class="max-w-full">
+    <AverageMetricsChart
+        bind:data
+    />
+</Card>
+-->

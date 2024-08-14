@@ -25,10 +25,17 @@
 
     import { Heading } from "flowbite-svelte";
     import { formatDate } from "$lib/format";
+    import MonthSelector from "./MonthSelector.svelte";
 
-    export let data;
+    /**
+     * @type {{ averageMetrics: any[]; metricsTimestampRange: { first_timestamp: Date; last_timestamp: Date; }; }}
+     */
+     export let data;
 
 
+    /**
+     * @type {any[]}
+     */
     let labels = [];
     let labelMap = {};
 
@@ -131,6 +138,16 @@
         >Durchschnittliches Tagesprofil</Heading
     >
 
+
+
+    <div class="flex items-center justify-center">
+        <div class="text-center">
+            <MonthSelector bind:data />
+        </div>
+    </div>
+
+
+
     <div class="text-center text-primary-500 text-xs">
         {formatDate(data.metricsTimestampRange.first_timestamp)}
         bis
@@ -140,7 +157,8 @@
         Angaben in kiloWatt (kW)
     </div>
 
-    {#if datasets.length > 0}
+    <div class="mt-8">
+        {#if datasets.length > 0}
         <Line
             data={{ labels: labels, datasets: datasets }}
             options={{
@@ -151,4 +169,6 @@
             height={100}
         />
     {/if}
+    </div>
+    
 </div>
