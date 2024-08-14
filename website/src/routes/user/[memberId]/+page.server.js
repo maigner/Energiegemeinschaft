@@ -3,8 +3,7 @@ import { error } from '@sveltejs/kit';
 import { signOut } from '../../../auth';
 
 
-/** @type {import('../$types').PageServerLoad} */
-export async function load({ fetch, params, parent, locals, event }) {
+export async function load({ params, parent, event }) {
 
     const {session, users} = await parent();
 
@@ -30,7 +29,7 @@ export async function load({ fetch, params, parent, locals, event }) {
 
 
     // data start and and date
-    
+
 
 
 

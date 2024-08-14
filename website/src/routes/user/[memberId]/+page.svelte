@@ -20,11 +20,3 @@
         bind:data
     />
 </Card>
-
-<!--
-<Card class="max-w-full">
-    <AverageMetricsChart
-        bind:data
-    />
-</Card>
--->
