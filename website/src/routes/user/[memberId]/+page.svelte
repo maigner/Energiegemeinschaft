@@ -7,6 +7,8 @@
 
 <div class="text-center">
     <Heading tag="h3" class="text-primary-600 mt-8">Meine Daten</Heading>
+
+    <span class="text-primary-500 text-xs">{`${data.user.name}, ${data.user.street} ${data.user.hnr}`}</span>
 </div>
 
 <AverageMetricsChart
