@@ -29,7 +29,7 @@
     <NavBrand href="/user">
         <span
             class="self-center whitespace-nowrap text-xl font-semibold dark:text-white text-primary-600"
-            >{data.users[0].email}</span
+            >Mein Bereich</span
         >
     </NavBrand>
     <div class="flex items-center md:order-2">

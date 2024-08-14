@@ -20,6 +20,9 @@
 
     let hidden = true;
 
+    //let buttonStyle = "sm:w-10 sm:h-10 md:w-10 md:h-10 lg:w-12 lg:h-12 mb-1";
+    let buttonStyle = "mb-1";    
+
     let closeNav = () => {
         hidden = true;
     };
@@ -45,7 +48,7 @@
                         on:click={closeNav}
                     >
                         <HomeOutline
-                            class="sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 mb-1 {$page.route.id === '/'
+                            class="{buttonStyle} {$page.route.id === '/'
                                 ? 'text-green-600'
                                 : 'text-green-800'}  group-hover:text-green-600 "
                         />
@@ -58,7 +61,7 @@
                         on:click={closeNav}
                     >
                         <UserAddOutline
-                            class="sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 mb-1 {$page.route.id === '/mitmachen'
+                            class="{buttonStyle} {$page.route.id === '/mitmachen'
                                 ? 'text-green-600'
                                 : 'text-green-800'}  group-hover:text-green-600 "
                         />
@@ -72,7 +75,7 @@
                         on:click={closeNav}
                     >
                         <QuestionCircleOutline
-                            class="sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 mb-1 {$page.route.id === '/faq'
+                            class="{buttonStyle} {$page.route.id === '/faq'
                                 ? 'text-green-600'
                                 : 'text-green-800'}  group-hover:text-green-600 "
                         />
@@ -86,7 +89,7 @@
                         on:click={closeNav}
                     >
                         <MailBoxOutline
-                            class="sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 mb-1 {$page.route.id === '/kontakt'
+                            class="{buttonStyle} {$page.route.id === '/kontakt'
                                 ? 'text-green-600'
                                 : 'text-green-800'}  group-hover:text-green-600 "
                         />
@@ -100,7 +103,7 @@
                         on:click={closeNav}
                     >
                         <UserOutline
-                            class="sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 mb-1 {$page.route.id === '/kontakt'
+                            class="{buttonStyle} {$page.route.id === '/kontakt'
                                 ? 'text-green-600'
                                 : 'text-green-800'}  group-hover:text-green-600 "
                         />

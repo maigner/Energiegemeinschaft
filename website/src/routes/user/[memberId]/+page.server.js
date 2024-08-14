@@ -1,9 +1,10 @@
 import { getAverageMetrics, getMetricTimestampRange } from '$lib/server/db/members/member';
 import { error } from '@sveltejs/kit';
+import { signOut } from '../../../auth';
 
 
 /** @type {import('../$types').PageServerLoad} */
-export async function load({ fetch, params, parent, locals }) {
+export async function load({ fetch, params, parent, locals, event }) {
 
     const {session, users} = await parent();
 
@@ -19,10 +20,17 @@ export async function load({ fetch, params, parent, locals }) {
 
     if (validUser.length === 0) {
         console.log("Unauthorized: " + session.user.email);
+        signOut(event);
+        console.log("Logging out");
         return error(403, 'not a valid user');
     }
 
     const user = validUser[0];
+
+
+
+
+
 
     return {
         user: user,
