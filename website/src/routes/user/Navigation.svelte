@@ -11,10 +11,11 @@
         DropdownHeader,
         DropdownDivider,
     } from "flowbite-svelte";
+    // @ts-ignore
     import { signOut } from "@auth/sveltekit/client";
 
     /**
-     * @type {{ member: { name: string; email: string; }; }}
+     * @type {{ users: [any], member: { name: string; email: string; board_member: boolean }; }}
      */
     export let data;
 

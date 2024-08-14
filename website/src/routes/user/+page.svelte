@@ -1,10 +1,11 @@
 <script>
-    import { Blockquote, Heading } from "flowbite-svelte";
+    import { Heading } from "flowbite-svelte";
     import { Listgroup } from "flowbite-svelte";
 
     export let data;
 
-    let links = data.users.map((user) => {
+    /** @type {[ { name: string; href: string;  } ]} */
+    let links = data.users.map((/** @type {{ name: any; street: any; hnr: any; identifier: any; }} */ user) => {
         return {
             name: `${user.name}, ${user.street} ${user.hnr}`,
             href: `/user/${user.identifier}`,

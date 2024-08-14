@@ -12,7 +12,6 @@
         ChevronDownOutline,
     } from "flowbite-svelte-icons";
     import MonthSelector from "./MonthSelector.svelte";
-    import { style } from "svelte-forms";
 
     export let data;
 
@@ -35,10 +34,10 @@
     // metrics
     let prodTotal = data.averageMetrics
         .filter(
-            (element) =>
+            (/** @type {{ metric_name: string; }} */ element) =>
                 element.metric_name === "Gesamte gemeinschaftliche Erzeugung",
         )
-        .map((element) => element.avg_value);
+        .map((/** @type {{ avg_value: number; }} */ element) => element.avg_value);
 
     let overshoot = data.averageMetrics
         .filter(
@@ -131,12 +130,12 @@
             {
                 name: "Netzeinspeisung",
                 data: overshoot,
-                color: "#3bd2bd",
+                color: "#5dd602",
             },
             {
-                name: "EEG-Einspeisung",
+                name: "EEG Einspeisung",
                 data: eegInject,
-                color: "#5dd602",
+                color: "#3bd2bd",
             },
         ],
         xaxis: {
@@ -144,12 +143,6 @@
             categories: labels,
             labels: {
                 show: false,
-                
-                formatter: (time) => {
-                    let parts = time?.split(":");
-                    return parts ? `${parts[0]}:${parts[1]}` : time;
-                },
-                
                 style: {
                     fontSize: '14px'
                 },
@@ -168,6 +161,12 @@
                 formatter: (value) => { return value.toFixed(1)}
             }
         },
+        legend: {
+            fontSize: "18px",
+            itemMargin: {
+                vertical: 10
+            }
+        }
     };
 </script>
 
