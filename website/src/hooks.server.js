@@ -23,6 +23,8 @@ export async function handleError({ error, event }) {
     
 	console.log(event.url.href);
 
+	console.log({error});
+
 
 
 	return {

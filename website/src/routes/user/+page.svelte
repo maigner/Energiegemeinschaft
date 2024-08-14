@@ -12,6 +12,7 @@
     });
 </script>
 
+
 <div class="text-center">
     <Heading tag="h3" class="text-primary-600 mt-8">Meine Daten</Heading>
 </div>

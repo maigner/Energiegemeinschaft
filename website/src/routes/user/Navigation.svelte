@@ -32,8 +32,17 @@
             >Mein Bereich</span
         >
     </NavBrand>
+    {#if data.member?.board_member}
+        <NavBrand href="/board">
+            <span
+                class="self-center whitespace-nowrap text-l font-semibold dark:text-white text-primary-600"
+                >Vorstandsbereich</span
+            >
+        </NavBrand>
+    {/if}
+
     <div class="flex items-center md:order-2">
-<!--
+        <!--
         <NavHamburger
             onClick={() => {
                 hidden = !hidden;
@@ -64,7 +73,7 @@
         >
     </Dropdown>
     <NavUl bind:hidden slideParams={{ delay: 0, duration: 500 }}>
-<!--
+        <!--
         <NavLi on:click={closeNav} href="/board/data">Meine Daten</NavLi>
         
         <NavLi on:click={closeNav} href="/board/approve">Bewerbungen</NavLi>

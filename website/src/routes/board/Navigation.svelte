@@ -29,7 +29,13 @@
     <NavBrand href="/board">
         <span
             class="self-center whitespace-nowrap text-xl font-semibold dark:text-white text-primary-600"
-            >Vorstand</span
+            >Vorstandsbereich</span
+        >
+    </NavBrand>
+    <NavBrand href="/user">
+        <span
+            class="self-center whitespace-nowrap text-l font-semibold dark:text-white text-primary-600"
+            >Mein Bereich</span
         >
     </NavBrand>
     <div class="flex items-center md:order-2">

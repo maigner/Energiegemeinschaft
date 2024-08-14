@@ -5,7 +5,7 @@ import { fail, redirect } from "@sveltejs/kit"
 export async function load({ parent, locals }) {
 
     // member info
-    let { session } = await parent();
+    let { session, member } = await parent();
 
     // @ts-ignore
     const users = await getUsersByEmail(session?.user?.email);
@@ -13,6 +13,7 @@ export async function load({ parent, locals }) {
 
     return {
         users: users,
+        member: member
     }
 
 }
