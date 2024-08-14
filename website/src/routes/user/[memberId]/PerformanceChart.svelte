@@ -12,6 +12,7 @@
         ChevronDownOutline,
     } from "flowbite-svelte-icons";
     import MonthSelector from "./MonthSelector.svelte";
+    import { style } from "svelte-forms";
 
     export let data;
 
@@ -139,9 +140,20 @@
             },
         ],
         xaxis: {
+            type: "category",
             categories: labels,
             labels: {
                 show: false,
+                
+                formatter: (time) => {
+                    let parts = time?.split(":");
+                    return parts ? `${parts[0]}:${parts[1]}` : time;
+                },
+                
+                style: {
+                    fontSize: '14px'
+                },
+                tickAmount: 24,
             },
             axisBorder: {
                 show: false,
