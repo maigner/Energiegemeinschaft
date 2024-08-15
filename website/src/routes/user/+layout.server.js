@@ -9,6 +9,8 @@ export async function load({ parent, locals }) {
 
     // @ts-ignore
     const users = await getUsersByEmail(session?.user?.email);
+
+    //console.log({users});
     
 
     return {

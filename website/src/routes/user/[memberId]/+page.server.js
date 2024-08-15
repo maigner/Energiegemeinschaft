@@ -7,7 +7,9 @@ export async function load({ params, parent, event }) {
 
     const {session, users} = await parent();
 
-    //console.log(session.user.email);
+    //console.log({session});
+    //console.log({params});
+
 
     let validUser = users.filter( user => 
         {
@@ -15,7 +17,7 @@ export async function load({ params, parent, event }) {
             && user.email === session.user.email;
         });
     
-    //console.log(validUser);
+    //console.log({validUser});
 
     if (validUser.length === 0) {
         console.log("Unauthorized: " + session.user.email);
@@ -26,18 +28,10 @@ export async function load({ params, parent, event }) {
 
     const user = validUser[0];
 
-
-
-    // data start and and date
-
-
-
-
-
     return {
         user: user,
         averageMetrics: [],
-        metricsTimestampRange: await getMetricTimestampRange(user.identifier)
+        metricsTimestampRange: await getMetricTimestampRange(user.identifier),
     }
 
 

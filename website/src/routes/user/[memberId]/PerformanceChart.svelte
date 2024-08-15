@@ -169,7 +169,7 @@
         });
 
         const result = await response.json();
-        //console.log(result);
+        console.log(result);
 
         data.currentStartDate = startDate;
         data.currentEndDate = endDate;
@@ -404,10 +404,11 @@
 <Card class="max-w-full">
     <DataRangePagination bind:data />
     
-
+ 
     <Tabs>
+       
         {#if consumptionTotal.length > 0}
-            <TabItem open title="Bezug">
+            <TabItem open={ prodTotal.length == 0 } title="Bezug">
                 <ChartHeader bind:data>
                     <span slot="title">&#x2300; Bezug nach Tageszeit</span>
                     <span slot="subTitle">in kiloWatt</span>
@@ -418,7 +419,7 @@
         {/if}
 
         {#if prodTotal.length > 0}
-            <TabItem open title="Einspeisung">
+            <TabItem open={ prodTotal.length > 0 } title="Einspeisung">
                 <ChartHeader bind:data>
                     <span slot="title">&#x2300; Einspeisung nach Tageszeit</span
                     >
