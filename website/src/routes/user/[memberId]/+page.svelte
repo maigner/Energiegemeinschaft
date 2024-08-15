@@ -3,6 +3,7 @@
     import PerformanceChart from "./PerformanceChart.svelte";
 
     export let data;
+    
 </script>
 
 <div class="text-center">

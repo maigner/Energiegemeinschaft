@@ -12,10 +12,7 @@
     import NoDataModal from "./NoDataModal.svelte";
 
 
-    /**
-     * @type {{ noDataModalOpen: boolean; currentStartDate: any; metricsTimestampRange: { first_timestamp: any; last_timestamp: any; }; currentEndDate: any; user: { identifier: any; }; averageMetrics: any[]; dataRangeSelection: string; }}
-     */
-     export let data;
+    export let data;
 
     data.noDataModalOpen = false;
 
@@ -408,7 +405,7 @@
     <Tabs>
        
         {#if consumptionTotal.length > 0}
-            <TabItem open={ prodTotal.length == 0 } title="Bezug">
+            <TabItem open={ consumptionTotal.length > 0 } title="Bezug">
                 <ChartHeader bind:data>
                     <span slot="title">&#x2300; Bezug nach Tageszeit</span>
                     <span slot="subTitle">in kiloWatt</span>
@@ -419,7 +416,7 @@
         {/if}
 
         {#if prodTotal.length > 0}
-            <TabItem open={ prodTotal.length > 0 } title="Einspeisung">
+            <TabItem open={ consumptionTotal.length === 0 } title="Einspeisung">
                 <ChartHeader bind:data>
                     <span slot="title">&#x2300; Einspeisung nach Tageszeit</span
                     >
