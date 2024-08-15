@@ -1,10 +1,12 @@
 <script>
+    import { formatDate } from "$lib/format";
+
 
     export let data;
 
 
 </script>
 
-{data.currentStartDate}
-
-{data.currentEndDate}
+{ formatDate(data.currentStartDate)}
+bis
+{ formatDate(data.currentEndDate)}

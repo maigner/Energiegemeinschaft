@@ -4,19 +4,30 @@ import { json } from '@sveltejs/kit';
 
 
 // authenticate by token
-/** @type {import('./$types').RequestHandler} */
-export async function POST({ request }) {
+/** @type {import('../../$types').RequestHandler} */
+export async function POST(event) {
 
-    const { userId, startDate, endDate } = await request.json();
+    //console.log({event});
 
-    
+    const session = await event.locals.auth();
 
-    console.log({userId, startDate, endDate});
+    //session?.user?.email
+    //console.log(session.user.email);
+
+    if (!session?.user?.email) {
+        return new Response(null, { status: 401, statusText: "Unauthorized" })
+    }
+
+    const { userId, startDate, endDate } = await event?.request?.json();
+
+
+
+    console.log({ userId, startDate, endDate });
 
     const result = await getAverageMetrics(userId, startDate, endDate);
 
 
-    
+
     return json(
         result
     );

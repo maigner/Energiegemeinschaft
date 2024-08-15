@@ -2,22 +2,18 @@
     import {
         Chart,
         Card,
-        A,
-        Button,
-        Dropdown,
-        DropdownItem,
         Tabs,
         TabItem,
     } from "flowbite-svelte";
-    import {
-        ChevronRightOutline,
-        ChevronDownOutline,
-    } from "flowbite-svelte-icons";
-
+    
     import ChartHeader from "./ChartHeader.svelte";
     import { onMount } from "svelte";
     import DataRangePagination from "./DataRangePagination.svelte";
+    import NoDataModal from "./NoDataModal.svelte";
 
+    /**
+     * @type {{ currentStartDate: any; metricsTimestampRange: { first_timestamp: any; last_timestamp: any; }; currentEndDate: any; user: { identifier: any; }; averageMetrics: any[]; dataRangeSelection: string; }}
+     */
     export let data;
 
     let unit = "kW";
@@ -259,7 +255,6 @@
         };
     };
 
-
     function addQuarters(date, n) {
         let newDate = new Date(date);
 
@@ -294,7 +289,7 @@
 
     $: {
         console.log(data.dataRangeSelection);
-        
+
         if (data.dataRangeSelection !== currentDataRangeSelection) {
             currentDataRangeSelection = data.dataRangeSelection;
             console.log("update");
@@ -303,19 +298,18 @@
         }
     }
 
-
     async function updateChart(dataRangeSelection) {
         //let d = await loadData(startDate, endDate);
 
         switch (dataRangeSelection) {
             case "Gesamt":
                 console.log("reset do defaults");
-                
+
                 loadData(
                     data.metricsTimestampRange.first_timestamp,
                     data.metricsTimestampRange.last_timestamp,
                 );
-                
+
                 break;
             case "Quartal":
                 console.log("welches Quartal?");
@@ -340,19 +334,23 @@
         }
     }
 
-
-    onMount( () => {
+    onMount(() => {
         data.dataRangeSelection = "Gesamt";
     });
 </script>
 
 <Card class="max-w-full">
-
     <DataRangePagination bind:data />
+    
+    {#if consumerGraphOptions.series[0].data.length === 0 && producerGraphOptions.series[0].data.length === 0}
 
+
+        <NoDataModal bind:data />
+
+    {/if}
 
     <Tabs>
-        {#if prodTotal.length > 0}
+        {#if consumptionTotal.length > 0}
             <TabItem open title="Bezug">
                 <ChartHeader bind:data>
                     <span slot="title">&#x2300; Bezug nach Tageszeit</span>
@@ -363,8 +361,8 @@
             </TabItem>
         {/if}
 
-        {#if consumptionTotal.length > 0}
-            <TabItem title="Einspeisung">
+        {#if prodTotal.length > 0}
+            <TabItem open title="Einspeisung">
                 <ChartHeader bind:data>
                     <span slot="title">&#x2300; Einspeisung nach Tageszeit</span
                     >

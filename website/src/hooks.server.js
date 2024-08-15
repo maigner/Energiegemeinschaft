@@ -1,3 +1,4 @@
+import { redirect } from "@sveltejs/kit";
 import { handle as authenticationHandle } from "./auth";
 import { authorizationHandle } from "./auth";
 import { sequence } from '@sveltejs/kit/hooks';
@@ -25,6 +26,8 @@ export async function handleError({ error, event }) {
 
 	console.log({error});
 
+
+	//throw redirect(307, '/');
 
 
 	return {
