@@ -22,7 +22,7 @@ export async function POST(event) {
 
 
 
-    console.log({ userId, startDate, endDate });
+    //console.log({ userId, startDate, endDate });
 
     const result = await getAverageMetrics(userId, startDate, endDate);
 
