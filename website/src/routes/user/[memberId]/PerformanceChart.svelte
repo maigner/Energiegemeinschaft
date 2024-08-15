@@ -35,6 +35,7 @@
             enabled: true,
             x: {
                 show: true,
+                
             },
             y: {
                 formatter: (value) => {
@@ -187,6 +188,8 @@
                 labelMap[element.time] = true;
             }
         });
+
+        options.labels = labels;
 
         // metrics
         prodTotal = data.averageMetrics
