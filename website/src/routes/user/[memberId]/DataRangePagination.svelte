@@ -7,6 +7,8 @@
 
 </script>
 
-{ formatDate(data.currentStartDate)}
-bis
-{ formatDate(data.currentEndDate)}
+<div class="text-center text-xl">
+    { formatDate(data.currentStartDate)}
+    bis
+    { formatDate(data.currentEndDate)}
+</div>

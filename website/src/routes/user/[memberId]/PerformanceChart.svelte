@@ -11,10 +11,13 @@
     import DataRangePagination from "./DataRangePagination.svelte";
     import NoDataModal from "./NoDataModal.svelte";
 
+
     /**
-     * @type {{ currentStartDate: any; metricsTimestampRange: { first_timestamp: any; last_timestamp: any; }; currentEndDate: any; user: { identifier: any; }; averageMetrics: any[]; dataRangeSelection: string; }}
+     * @type {{ noDataModalOpen: boolean; currentStartDate: any; metricsTimestampRange: { first_timestamp: any; last_timestamp: any; }; currentEndDate: any; user: { identifier: any; }; averageMetrics: any[]; dataRangeSelection: string; }}
      */
-    export let data;
+     export let data;
+
+    data.noDataModalOpen = false;
 
     let unit = "kW";
 
@@ -166,13 +169,19 @@
         });
 
         const result = await response.json();
-        console.log(result);
+        //console.log(result);
 
         data.currentStartDate = startDate;
         data.currentEndDate = endDate;
 
         // data
         data.averageMetrics = result;
+
+        if (data.averageMetrics.length < 1) {
+            // no data
+            console.log("No Data?");
+            data.noDataModalOpen = true;
+        }
 
         // labels
         data.averageMetrics.forEach((element) => {
@@ -267,6 +276,24 @@
         return newDate;
     }
 
+    function addHalfYears(date, n) {
+        let newDate = new Date(date);
+        // Calculate the new month by adding n quarters (n * 3 months)
+        let newMonth = newDate.getMonth() + n * 6;
+        // Set the new month, JavaScript will handle year rollover automatically
+        newDate.setMonth(newMonth);
+        return newDate;
+    }
+
+    function addYears(date, n) {
+        let newDate = new Date(date);
+        // Calculate the new month by adding n quarters (n * 3 months)
+        let newMonth = newDate.getMonth() + n * 12;
+        // Set the new month, JavaScript will handle year rollover automatically
+        newDate.setMonth(newMonth);
+        return newDate;
+    }
+
     function getQuarterDates(quarterOffset) {
         let now = new Date();
 
@@ -285,26 +312,60 @@
         return { startDate, endDate };
     }
 
-    let currentDataRangeSelection = "";
+    function getHalfYearDates(halfYearOffset) {
+        let now = new Date();
 
+        now = addHalfYears(now, halfYearOffset);
+
+        let currentMonth = now.getMonth(); // 0-based index (0 = January)
+
+        // Determine the start and end month of the current quarter
+        let startMonth = Math.floor(currentMonth / 6) * 6;
+        let endMonth = startMonth + 5;
+
+        // Create the start and end dates
+        let startDate = new Date(now.getFullYear(), startMonth, 1);
+        let endDate = new Date(now.getFullYear(), endMonth + 1, 0); // 0 gets the last day of the previous month
+
+        return { startDate, endDate };
+    }
+
+    function getYearDates(yearOffset) {
+        let now = new Date();
+
+        now = addYears(now, yearOffset);
+
+        // Determine the start and end month of the current quarter
+        let startMonth = 0;
+        let endMonth = 11;
+
+        // Create the start and end dates
+        let startDate = new Date(now.getFullYear(), startMonth, 1);
+        let endDate = new Date(now.getFullYear(), endMonth + 1, 0); // 0 gets the last day of the previous month
+
+        return { startDate, endDate };
+    }
+
+
+    let currentDataRangeSelection = "";
     $: {
-        console.log(data.dataRangeSelection);
+        //console.log(data.dataRangeSelection);
 
         if (data.dataRangeSelection !== currentDataRangeSelection) {
             currentDataRangeSelection = data.dataRangeSelection;
-            console.log("update");
+            //console.log("update");
             updateChart(data.dataRangeSelection);
             currentDataRangeSelection = data.dataRangeSelection;
         }
     }
+
 
     async function updateChart(dataRangeSelection) {
         //let d = await loadData(startDate, endDate);
 
         switch (dataRangeSelection) {
             case "Gesamt":
-                console.log("reset do defaults");
-
+                //console.log("reset do defaults");
                 loadData(
                     data.metricsTimestampRange.first_timestamp,
                     data.metricsTimestampRange.last_timestamp,
@@ -312,24 +373,22 @@
 
                 break;
             case "Quartal":
-                console.log("welches Quartal?");
+                //console.log("welches Quartal?");
                 let quarterDates = getQuarterDates(-1);
-                console.log(
-                    "Start Date of the Quarter:",
-                    quarterDates.startDate.toDateString(),
-                ); // e.g., "Start Date of the Quarter: Sun Jan 01 2023"
-                console.log(
-                    "End Date of the Quarter:",
-                    quarterDates.endDate.toDateString(),
-                ); // e.g., "End Date of the Quarter: Fri Mar 31 2023"
+                
                 loadData(quarterDates.startDate, quarterDates.endDate);
 
                 break;
             case "Halbjahr":
-                console.log("welches Quartal?");
+                //console.log("welches Halbjahr?");
+                let halfYearDates = getHalfYearDates(-1);
+                loadData(halfYearDates.startDate, halfYearDates.endDate);
                 break;
+            
             case "Jahr":
-                console.log("welches Quartal?");
+                //console.log("welches Jahr?");
+                let yearDates = getYearDates(0);
+                loadData(yearDates.startDate, yearDates.endDate);
                 break;
         }
     }
@@ -339,15 +398,12 @@
     });
 </script>
 
+<NoDataModal bind:data />
+
+
 <Card class="max-w-full">
     <DataRangePagination bind:data />
     
-    {#if consumerGraphOptions.series[0].data.length === 0 && producerGraphOptions.series[0].data.length === 0}
-
-
-        <NoDataModal bind:data />
-
-    {/if}
 
     <Tabs>
         {#if consumptionTotal.length > 0}
