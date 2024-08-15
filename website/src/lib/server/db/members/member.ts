@@ -218,7 +218,7 @@ export const getMeasurementPoints = async () => {
 };
 
 
-export const getAverageMetrics = async (memberId: number) => {
+export const getAverageMetrics = async (memberId: number, startDate, endDate) => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`
             select
@@ -237,11 +237,11 @@ export const getAverageMetrics = async (memberId: number) => {
             where member.identifier = $1
             and p.status like 'ACTIVE'
             and metercode.description not like 'Anteil gemeinschaftliche Erzeugung'
-            --and m.timestamp BETWEEN '2024-01-01' AND '2024-08-31'
+            and m.timestamp BETWEEN $2 AND $3
             group by member.name, member.identifier, p.type, metercode.description, m.timestamp::time
             order by m.timestamp::time
             ;
-        `, [memberId]);
+        `, [memberId, startDate, endDate]);
 
     await sql.end();
     sql.release();

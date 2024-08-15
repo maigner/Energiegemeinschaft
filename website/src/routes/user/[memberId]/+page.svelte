@@ -6,17 +6,11 @@
 </script>
 
 <div class="text-center">
-    <Heading tag="h3" class="text-primary-600 mt-8">Meine Daten</Heading>
+    <Heading tag="h4" class="text-primary-600 mt-2">Meine Daten</Heading>
 
     <span class="text-primary-500 text-xs"
         >{`${data.user.name}, ${data.user.street} ${data.user.hnr}`}</span
     >
 </div>
 
-
-
-<Card class="max-w-full">
-    <PerformanceChart
-        bind:data
-    />
-</Card>
+<PerformanceChart bind:data />

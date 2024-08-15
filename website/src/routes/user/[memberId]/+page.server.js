@@ -36,7 +36,7 @@ export async function load({ params, parent, event }) {
 
     return {
         user: user,
-        averageMetrics: await getAverageMetrics(user.identifier),
+        averageMetrics: [],
         metricsTimestampRange: await getMetricTimestampRange(user.identifier)
     }
 

@@ -6,70 +6,25 @@
         Button,
         Dropdown,
         DropdownItem,
+        Tabs,
+        TabItem,
     } from "flowbite-svelte";
     import {
         ChevronRightOutline,
         ChevronDownOutline,
     } from "flowbite-svelte-icons";
-    import MonthSelector from "./MonthSelector.svelte";
+
+    import ChartHeader from "./ChartHeader.svelte";
+    import { onMount } from "svelte";
+    import DataRangePagination from "./DataRangePagination.svelte";
 
     export let data;
 
     let unit = "kW";
 
-    /**
-     * @type {any[]}
-     */
-    let labels = [];
-    let labelMap = {};
-
-    // labels
-    data.averageMetrics.forEach((element) => {
-        if (!(element.time in labelMap)) {
-            labels.push(element.time);
-            labelMap[element.time] = true;
-        }
-    });
-
-    // metrics
-    let prodTotal = data.averageMetrics
-        .filter(
-            (/** @type {{ metric_name: string; }} */ element) =>
-                element.metric_name === "Gesamte gemeinschaftliche Erzeugung",
-        )
-        .map((/** @type {{ avg_value: number; }} */ element) => element.avg_value);
-
-    let overshoot = data.averageMetrics
-        .filter(
-            (element) =>
-                element.metric_name ===
-                "Gesamt/Überschusserzeugung, Gemeinschaftsüberschuss",
-        )
-        .map((element) => element.avg_value);
-
-    let consumptionTotal = data.averageMetrics
-        .filter(
-            (element) =>
-                element.metric_name ===
-                "Gesamtverbrauch lt. Messung (bei Teilnahme gem. Erzeugung)",
-        )
-        .map((element) => element.avg_value);
-
-    let eegReceive = data.averageMetrics
-        .filter(
-            (element) =>
-                element.metric_name ===
-                "Eigendeckung gemeinschaftliche Erzeugung",
-        )
-        .map((element) => element.avg_value);
-    // difference goes into EEG
-    let eegInject = prodTotal.map((value, index) => {
-        return value - overshoot[index];
-    });
-
     let options = {
         chart: {
-            height: "600px",
+            height: "400px",
             maxWidth: "100%",
             type: "area",
             fontFamily: "Inter, sans-serif",
@@ -84,12 +39,12 @@
             enabled: true,
             x: {
                 show: true,
-                
             },
             y: {
-                formatter: (value) => {return `${value.toFixed(1)} ${unit}`},
-                
-            }
+                formatter: (value) => {
+                    return `${value.toFixed(1)} ${unit}`;
+                },
+            },
         },
         fill: {
             type: "gradient",
@@ -115,36 +70,14 @@
                 top: 0,
             },
         },
-        series: [
-            {
-                name: "Netzbezug",
-                data: consumptionTotal,
-                color: "#de5213",
-            },
-            {
-                name: "EEG Bezug",
-                data: eegReceive,
-                color: "#f5eb1e",
-            },
 
-            {
-                name: "Netzeinspeisung",
-                data: overshoot,
-                color: "#5dd602",
-            },
-            {
-                name: "EEG Einspeisung",
-                data: eegInject,
-                color: "#3bd2bd",
-            },
-        ],
         xaxis: {
             type: "category",
-            categories: labels,
+            categories: [],
             labels: {
                 show: false,
                 style: {
-                    fontSize: '14px'
+                    fontSize: "14px",
                 },
                 tickAmount: 24,
             },
@@ -158,41 +91,290 @@
         yaxis: {
             show: true,
             labels: {
-                formatter: (value) => { return value.toFixed(1)}
-            }
+                formatter: (value) => {
+                    return value.toFixed(1);
+                },
+            },
         },
         legend: {
             fontSize: "18px",
             itemMargin: {
-                vertical: 10
-            }
-        }
+                vertical: 10,
+            },
+        },
     };
+
+    /**
+     * @type {any[]}
+     */
+    let labels = [];
+    let labelMap = {};
+
+    // metrics
+    let prodTotal = [];
+
+    let overshoot = [];
+
+    let consumptionTotal = [];
+
+    let eegReceive = [];
+    // difference goes into EEG
+    let eegInject = [];
+
+    let producerGraphOptions = {
+        series: [
+            {
+                name: "Netzeinspeisung",
+                data: [],
+                color: "#5dd602",
+            },
+            {
+                name: "EEG Einspeisung",
+                data: [],
+                color: "#3bd2bd",
+            },
+        ],
+        ...options,
+    };
+
+    let consumerGraphOptions = {
+        series: [
+            {
+                name: "Netzbezug",
+                data: [],
+                color: "#de5213",
+            },
+            {
+                name: "EEG Bezug",
+                data: [],
+                color: "#f5eb1e",
+            },
+        ],
+        ...options,
+    };
+
+    data.currentStartDate = data.metricsTimestampRange.first_timestamp;
+    data.currentEndDate = data.metricsTimestampRange.last_timestamp;
+
+    const loadData = async (startDate, endDate) => {
+        const response = await fetch("/api/user/data/averageMetrics", {
+            method: "POST",
+            body: JSON.stringify({
+                userId: data.user.identifier,
+                startDate,
+                endDate,
+            }),
+            headers: {
+                "content-type": "application/json",
+            },
+        });
+
+        const result = await response.json();
+        console.log(result);
+
+        data.currentStartDate = startDate;
+        data.currentEndDate = endDate;
+
+        // data
+        data.averageMetrics = result;
+
+        // labels
+        data.averageMetrics.forEach((element) => {
+            if (!(element.time in labelMap)) {
+                labels.push(element.time);
+                labelMap[element.time] = true;
+            }
+        });
+
+        // metrics
+        prodTotal = data.averageMetrics
+            .filter(
+                (/** @type {{ metric_name: string; }} */ element) =>
+                    element.metric_name ===
+                    "Gesamte gemeinschaftliche Erzeugung",
+            )
+            .map(
+                (/** @type {{ avg_value: number; }} */ element) =>
+                    element.avg_value,
+            );
+
+        overshoot = data.averageMetrics
+            .filter(
+                (element) =>
+                    element.metric_name ===
+                    "Gesamt/Überschusserzeugung, Gemeinschaftsüberschuss",
+            )
+            .map((element) => element.avg_value);
+
+        consumptionTotal = data.averageMetrics
+            .filter(
+                (element) =>
+                    element.metric_name ===
+                    "Gesamtverbrauch lt. Messung (bei Teilnahme gem. Erzeugung)",
+            )
+            .map((element) => element.avg_value);
+
+        eegReceive = data.averageMetrics
+            .filter(
+                (element) =>
+                    element.metric_name ===
+                    "Eigendeckung gemeinschaftliche Erzeugung",
+            )
+            .map((element) => element.avg_value);
+        // difference goes into EEG
+        eegInject = prodTotal.map((value, index) => {
+            return value - overshoot[index];
+        });
+
+        producerGraphOptions = {
+            series: [
+                {
+                    name: "Netzeinspeisung",
+                    data: overshoot,
+                    color: "#5dd602",
+                },
+                {
+                    name: "EEG Einspeisung",
+                    data: eegInject,
+                    color: "#3bd2bd",
+                },
+            ],
+            ...options,
+        };
+
+        consumerGraphOptions = {
+            series: [
+                {
+                    name: "Netzbezug",
+                    data: consumptionTotal,
+                    color: "#de5213",
+                },
+                {
+                    name: "EEG Bezug",
+                    data: eegReceive,
+                    color: "#f5eb1e",
+                },
+            ],
+            ...options,
+        };
+    };
+
+
+    function addQuarters(date, n) {
+        let newDate = new Date(date);
+
+        // Calculate the new month by adding n quarters (n * 3 months)
+        let newMonth = newDate.getMonth() + n * 3;
+
+        // Set the new month, JavaScript will handle year rollover automatically
+        newDate.setMonth(newMonth);
+
+        return newDate;
+    }
+
+    function getQuarterDates(quarterOffset) {
+        let now = new Date();
+
+        now = addQuarters(now, quarterOffset);
+
+        let currentMonth = now.getMonth(); // 0-based index (0 = January)
+
+        // Determine the start and end month of the current quarter
+        let startMonth = Math.floor(currentMonth / 3) * 3;
+        let endMonth = startMonth + 2;
+
+        // Create the start and end dates
+        let startDate = new Date(now.getFullYear(), startMonth, 1);
+        let endDate = new Date(now.getFullYear(), endMonth + 1, 0); // 0 gets the last day of the previous month
+
+        return { startDate, endDate };
+    }
+
+    let currentDataRangeSelection = "";
+
+    $: {
+        console.log(data.dataRangeSelection);
+        
+        if (data.dataRangeSelection !== currentDataRangeSelection) {
+            currentDataRangeSelection = data.dataRangeSelection;
+            console.log("update");
+            updateChart(data.dataRangeSelection);
+            currentDataRangeSelection = data.dataRangeSelection;
+        }
+    }
+
+
+    async function updateChart(dataRangeSelection) {
+        //let d = await loadData(startDate, endDate);
+
+        switch (dataRangeSelection) {
+            case "Gesamt":
+                console.log("reset do defaults");
+                
+                loadData(
+                    data.metricsTimestampRange.first_timestamp,
+                    data.metricsTimestampRange.last_timestamp,
+                );
+                
+                break;
+            case "Quartal":
+                console.log("welches Quartal?");
+                let quarterDates = getQuarterDates(-1);
+                console.log(
+                    "Start Date of the Quarter:",
+                    quarterDates.startDate.toDateString(),
+                ); // e.g., "Start Date of the Quarter: Sun Jan 01 2023"
+                console.log(
+                    "End Date of the Quarter:",
+                    quarterDates.endDate.toDateString(),
+                ); // e.g., "End Date of the Quarter: Fri Mar 31 2023"
+                loadData(quarterDates.startDate, quarterDates.endDate);
+
+                break;
+            case "Halbjahr":
+                console.log("welches Quartal?");
+                break;
+            case "Jahr":
+                console.log("welches Quartal?");
+                break;
+        }
+    }
+
+
+    onMount( () => {
+        data.dataRangeSelection = "Gesamt";
+    });
 </script>
 
 <Card class="max-w-full">
-    <div class="flex justify-between">
-        <div>
-            <h5
-                class="leading-none text-3xl font-bold text-gray-900 dark:text-white pb-2"
-            >
-                &#x2300; Leistung nach Tageszeit
-            </h5>
-            <p class="text-base font-normal text-gray-500 dark:text-gray-400">
-                in KiloWatt
-            </p>
-        </div>
-        <div
-            class="flex items-center px-2.5 py-0.5 text-base font-semibold text-green-500 dark:text-green-500 text-center"
-        >
-            
-        <!--
-            <MonthSelector bind:data />
-            -->
-        </div>
-    </div>
-    <Chart {options} />
 
+    <DataRangePagination bind:data />
+
+
+    <Tabs>
+        {#if prodTotal.length > 0}
+            <TabItem open title="Bezug">
+                <ChartHeader bind:data>
+                    <span slot="title">&#x2300; Bezug nach Tageszeit</span>
+                    <span slot="subTitle">in kiloWatt</span>
+                </ChartHeader>
+
+                <Chart options={consumerGraphOptions} />
+            </TabItem>
+        {/if}
+
+        {#if consumptionTotal.length > 0}
+            <TabItem title="Einspeisung">
+                <ChartHeader bind:data>
+                    <span slot="title">&#x2300; Einspeisung nach Tageszeit</span
+                    >
+                    <span slot="subTitle">in kiloWatt</span>
+                </ChartHeader>
+
+                <Chart options={producerGraphOptions} />
+            </TabItem>
+        {/if}
+    </Tabs>
 
     <!--
     
