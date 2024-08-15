@@ -52,10 +52,10 @@
 </script>
 
 
-<div>
-    <div class="map-wrap">
+<div class="max-w-fit">
+        
         <div class="map" bind:this={mapContainer} />
-    </div>
+
     <!--
     <div class="sidebar">
         Longitude: {lng.toFixed(4)} | Latitude: {lat.toFixed(4)} | Zoom:
@@ -67,8 +67,10 @@
 <style>
     .map {
         position: absolute;
-        width: 100%;
-        height: 100%;
+        width: 95%;
+        height: 95%;
+        border-radius: 10px;
+        border-color:  rgb(35 55 75 / 90%);
     }
     .sidebar {
         background-color: rgb(35 55 75 / 90%);
