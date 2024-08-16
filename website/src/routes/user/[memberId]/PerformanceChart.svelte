@@ -298,7 +298,6 @@
                     element.avg_value,
             );
 
-        checkDataSeries({ prodTotal });
 
         overshoot = data.averageMetrics
             .filter(
@@ -308,7 +307,6 @@
             )
             .map((element) => element.avg_value);
 
-        checkDataSeries({ overshoot });
 
         consumptionTotal = data.averageMetrics
             .filter(
@@ -317,7 +315,6 @@
                     "Gesamtverbrauch lt. Messung (bei Teilnahme gem. Erzeugung)",
             )
             .map((element) => element.avg_value);
-        checkDataSeries({ consumptionTotal });
 
         eegReceive = data.averageMetrics
             .filter(
@@ -327,14 +324,12 @@
             )
             .map((element) => element.avg_value);
 
-        checkDataSeries({ eegReceive });
 
         // difference goes into EEG
         eegInject = prodTotal.map((value, index) => {
             return value - overshoot[index];
         });
 
-        checkDataSeries({ eegInject });
 
         producerGraphOptions = {
             series: [
@@ -368,7 +363,6 @@
             ...options,
         };
 
-        console.log({ consumerGraphOptions });
     };
 
 
@@ -402,20 +396,6 @@
         };
     });
 
-    function checkDataSeries(series) {
-        for (const seriesName in series) {
-            //console.log({ seriesName });
-            const list = series[seriesName];
-            if (list.length < 1) {
-                console.log(`${seriesName} empty`);
-            }
-            list.forEach((val) => {
-                if (isNaN(val)) {
-                    console.log({ val });
-                }
-            });
-        }
-    }
 
     let tabOpen = {
         production: false,
@@ -467,4 +447,3 @@
 
 
 </Card>
-{JSON.stringify(consumerGraphOptions.labels)}
