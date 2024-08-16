@@ -46,6 +46,7 @@
     "pg": "^8.11.3",
     "sass": "^1.69.5",
     "smui-theme": "^7.0.0",
+    "svelte-chartjs": "^3.1.5",
     "svelte-forms": "^2.3.1",
     "svelte-forms-lib": "^2.0.1",
     "svelte-jsoneditor": "^0.21.1",
