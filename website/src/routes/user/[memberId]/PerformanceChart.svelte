@@ -469,4 +469,3 @@
 -->
 </Card>
 
-{JSON.stringify(producerGraphOptions)}
