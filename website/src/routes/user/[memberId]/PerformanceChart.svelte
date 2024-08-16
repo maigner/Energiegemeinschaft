@@ -418,6 +418,23 @@
             });
         }
     }
+
+
+    let tabOpen = {
+        production: false,
+        consumption: true
+    };
+    $: {
+        if (prodTotal.length < 1 && consumptionTotal.length > 0) {
+            tabOpen.production = false;
+            tabOpen.consumption = true;
+        }
+        if (prodTotal.length > 1 && consumptionTotal.length < 0) {
+            tabOpen.production = true;
+            tabOpen.consumption = false;
+        }
+    }
+
 </script>
 
 <NoDataModal bind:data />
@@ -427,7 +444,7 @@
 
     <Tabs>
         {#if consumptionTotal.length > 0}
-            <TabItem open={consumptionTotal.length > 0} title="Bezug">
+            <TabItem open={tabOpen.consumption} title="Bezug">
                 <ChartHeader bind:data>
                     <span slot="title">&#x2300; Bezug nach Tageszeit</span>
                     <span slot="subTitle">in kiloWatt</span>
@@ -438,7 +455,7 @@
         {/if}
 
         {#if prodTotal.length > 0}
-            <TabItem open={consumptionTotal.length === 0} title="Einspeisung">
+            <TabItem open={tabOpen.production} title="Einspeisung">
                 <ChartHeader bind:data>
                     <span slot="title">&#x2300; Einspeisung nach Tageszeit</span
                     >
