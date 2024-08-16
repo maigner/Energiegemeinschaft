@@ -6,7 +6,11 @@
     import DataRangePagination from "./DataRangePagination.svelte";
     import NoDataModal from "./NoDataModal.svelte";
 
-    export let data;
+
+    /**
+     * @type {{ noDataModalOpen: boolean; currentStartDate: any; metricsTimestampRange: { first_timestamp: any; last_timestamp: any; }; currentEndDate: any; dateSelectionOptions: { name: string; startDate: any; endDate: any; }[]; user: { identifier: any; }; averageMetrics: any[]; dataRangeSelection: { name: any; startDate?: any; endDate?: any; }; }}
+     */
+     export let data;
 
     data.noDataModalOpen = false;
 
@@ -52,7 +56,7 @@
                 show: true,
             },
             y: {
-                formatter: (value) => {
+                formatter: (/** @type {number} */ value) => {
                     return `${value.toFixed(1)} ${unit}`;
                 },
             },
@@ -199,7 +203,7 @@
         yaxis: {
             show: true,
             labels: {
-                formatter: (value) => {
+                formatter: (/** @type {number} */ value) => {
                     return value.toFixed(1);
                 },
             },
@@ -215,6 +219,9 @@
     // metrics
     let prodTotal = [];
 
+    /**
+     * @type {any[]}
+     */
     let overshoot = [];
 
     let consumptionTotal = [];
@@ -223,6 +230,9 @@
     // difference goes into EEG
     let eegInject = [];
 
+
+    /** @type {import('apexcharts').ApexOptions} */
+    // @ts-ignore
     let producerGraphOptions = {
         series: [
             {
@@ -239,6 +249,8 @@
         ...options,
     };
 
+    /** @type {import('apexcharts').ApexOptions} */
+    // @ts-ignore
     let consumerGraphOptions = {
         series: [
             {
@@ -256,7 +268,7 @@
     };
 
 
-    const loadData = async (startDate, endDate) => {
+    const loadData = async (/** @type {Date} */ startDate, /** @type {Date} */ endDate) => {
         const response = await fetch("/api/user/data/averageMetrics", {
             method: "POST",
             body: JSON.stringify({
@@ -270,7 +282,7 @@
         });
 
         const result = await response.json();
-        console.log(result);
+        //console.log(result);
 
         data.currentStartDate = startDate;
         data.currentEndDate = endDate;
@@ -384,7 +396,7 @@
     }
 
     async function updateChart(dataRangeSelection) {
-        console.log({ dataRangeSelection });
+        //console.log({ dataRangeSelection });
         loadData(dataRangeSelection.startDate, dataRangeSelection.endDate);
     }
 
