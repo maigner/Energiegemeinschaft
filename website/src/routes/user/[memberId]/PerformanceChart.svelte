@@ -371,93 +371,13 @@
         console.log({ consumerGraphOptions });
     };
 
-    function addQuarters(date, n) {
-        let newDate = new Date(date);
 
-        // Calculate the new month by adding n quarters (n * 3 months)
-        let newMonth = newDate.getMonth() + n * 3;
 
-        // Set the new month, JavaScript will handle year rollover automatically
-        newDate.setMonth(newMonth);
-
-        return newDate;
-    }
-
-    function addHalfYears(date, n) {
-        let newDate = new Date(date);
-        // Calculate the new month by adding n quarters (n * 3 months)
-        let newMonth = newDate.getMonth() + n * 6;
-        // Set the new month, JavaScript will handle year rollover automatically
-        newDate.setMonth(newMonth);
-        return newDate;
-    }
-
-    function addYears(date, n) {
-        let newDate = new Date(date);
-        // Calculate the new month by adding n quarters (n * 3 months)
-        let newMonth = newDate.getMonth() + n * 12;
-        // Set the new month, JavaScript will handle year rollover automatically
-        newDate.setMonth(newMonth);
-        return newDate;
-    }
-
-    function getQuarterDates(quarterOffset) {
-        let now = new Date();
-
-        now = addQuarters(now, quarterOffset);
-
-        let currentMonth = now.getMonth(); // 0-based index (0 = January)
-
-        // Determine the start and end month of the current quarter
-        let startMonth = Math.floor(currentMonth / 3) * 3;
-        let endMonth = startMonth + 2;
-
-        // Create the start and end dates
-        let startDate = new Date(now.getFullYear(), startMonth, 1);
-        let endDate = new Date(now.getFullYear(), endMonth + 1, 0); // 0 gets the last day of the previous month
-
-        return { startDate, endDate };
-    }
-
-    function getHalfYearDates(halfYearOffset) {
-        let now = new Date();
-
-        now = addHalfYears(now, halfYearOffset);
-
-        let currentMonth = now.getMonth(); // 0-based index (0 = January)
-
-        // Determine the start and end month of the current quarter
-        let startMonth = Math.floor(currentMonth / 6) * 6;
-        let endMonth = startMonth + 5;
-
-        // Create the start and end dates
-        let startDate = new Date(now.getFullYear(), startMonth, 1);
-        let endDate = new Date(now.getFullYear(), endMonth + 1, 0); // 0 gets the last day of the previous month
-
-        return { startDate, endDate };
-    }
-
-    function getYearDates(yearOffset) {
-        let now = new Date();
-
-        now = addYears(now, yearOffset);
-
-        // Determine the start and end month of the current quarter
-        let startMonth = 0;
-        let endMonth = 11;
-
-        // Create the start and end dates
-        let startDate = new Date(now.getFullYear(), startMonth, 1);
-        let endDate = new Date(now.getFullYear(), endMonth + 1, 0); // 0 gets the last day of the previous month
-
-        return { startDate, endDate };
-    }
 
     let currentDataRangeSelection = {
         name: "",
     };
     $: {
-        //console.log(data.dataRangeSelection);
         if (data.dataRangeSelection) {
             if (
                 data.dataRangeSelection.name !== currentDataRangeSelection.name
@@ -545,22 +465,6 @@
         {/if}
     </Tabs>
 
-    <!--
-    
-    <div
-        class="grid grid-cols-1 items-center border-gray-200 border-t dark:border-gray-700 justify-between"
-    >
-        <div class="flex justify-between items-center pt-5">
-            
-            <A
-                href="/"
-                class="uppercase text-sm font-semibold hover:text-primary-700 dark:hover:text-primary-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:focus:ring-gray-700 dark:border-gray-700 px-3 py-2 hover:no-underline"
-            >
-                Users Report
-                <ChevronRightOutline class="w-2.5 h-2.5 ms-1.5" />
-            </A>
-        </div>
-    </div>
--->
+
 </Card>
 {JSON.stringify(consumerGraphOptions.labels)}
