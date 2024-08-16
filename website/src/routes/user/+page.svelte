@@ -20,12 +20,15 @@
 
 {#if data.users}
     <div class="text-center">
-        <Heading tag="h6" class="text-primary-600 mt-8">Wählen Sie Ihren Standort</Heading>
+        <Heading tag="h6" class="text-primary-600 mt-8 mb-4">Wählen Sie Ihren Standort</Heading>
     </div>
 
     <div class="max-w-xl m-auto justify-center flex">
         <Listgroup active items={links} let:item class="w-11/12">
-            {item.name}
+            
+            <span class="text-xl">
+                {item.name}
+            </span>
         </Listgroup>
     </div>
 {/if}
