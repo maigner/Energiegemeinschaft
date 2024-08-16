@@ -1,22 +1,37 @@
 <script>
-    import {
-        Chart,
-        Card,
-        Tabs,
-        TabItem,
-    } from "flowbite-svelte";
-    
+    import { Chart, Card, Tabs, TabItem } from "flowbite-svelte";
+
     import ChartHeader from "./ChartHeader.svelte";
     import { onMount } from "svelte";
     import DataRangePagination from "./DataRangePagination.svelte";
     import NoDataModal from "./NoDataModal.svelte";
-
 
     export let data;
 
     data.noDataModalOpen = false;
 
     let unit = "kW";
+
+    data.currentStartDate = data.metricsTimestampRange.first_timestamp;
+    data.currentEndDate = data.metricsTimestampRange.last_timestamp;
+
+    data.dateSelectionOptions = [
+        {
+            name: "1. Quartal 2024",
+            startDate: new Date("2024-01-01T00:00:00"),
+            endDate: new Date("2024-03-30T23:59:59"),
+        },
+        {
+            name: "2. Quartal 2024",
+            startDate: new Date("2024-04-01T00:00:00"),
+            endDate: new Date("2024-06-30T23:59:59"),
+        },
+        {
+            name: "Gesamt",
+            startDate: data.metricsTimestampRange.first_timestamp,
+            endDate: data.metricsTimestampRange.last_timestamp,
+        },
+    ];
 
     let options = {
         chart: {
@@ -35,7 +50,6 @@
             enabled: true,
             x: {
                 show: true,
-                
             },
             y: {
                 formatter: (value) => {
@@ -101,12 +115,6 @@
         },
     };
 
-    /**
-     * @type {any[]}
-     */
-    let labels = [];
-    let labelMap = {};
-
     // metrics
     let prodTotal = [];
 
@@ -150,9 +158,6 @@
         ...options,
     };
 
-    data.currentStartDate = data.metricsTimestampRange.first_timestamp;
-    data.currentEndDate = data.metricsTimestampRange.last_timestamp;
-
     const loadData = async (startDate, endDate) => {
         const response = await fetch("/api/user/data/averageMetrics", {
             method: "POST",
@@ -182,10 +187,27 @@
         }
 
         // labels
+
+        /**
+         * @type {any[]}
+         */
+        let labels = [];
+        let labelMap = {};
         data.averageMetrics.forEach((element) => {
+            if (element.time === "") {
+                console.log("Empty Label");
+                console.log({ element });
+            }
             if (!(element.time in labelMap)) {
                 labels.push(element.time);
                 labelMap[element.time] = true;
+            }
+        });
+
+        labels.forEach((label) => {
+            if (label === "") {
+                console.log("label empty");
+                console.log({ label });
             }
         });
 
@@ -203,6 +225,8 @@
                     element.avg_value,
             );
 
+        checkDataSeries({ prodTotal });
+
         overshoot = data.averageMetrics
             .filter(
                 (element) =>
@@ -211,6 +235,8 @@
             )
             .map((element) => element.avg_value);
 
+        checkDataSeries({ overshoot });
+
         consumptionTotal = data.averageMetrics
             .filter(
                 (element) =>
@@ -218,6 +244,7 @@
                     "Gesamtverbrauch lt. Messung (bei Teilnahme gem. Erzeugung)",
             )
             .map((element) => element.avg_value);
+        checkDataSeries({ consumptionTotal });
 
         eegReceive = data.averageMetrics
             .filter(
@@ -226,10 +253,15 @@
                     "Eigendeckung gemeinschaftliche Erzeugung",
             )
             .map((element) => element.avg_value);
+
+        checkDataSeries({ eegReceive });
+
         // difference goes into EEG
         eegInject = prodTotal.map((value, index) => {
             return value - overshoot[index];
         });
+
+        checkDataSeries({ eegInject });
 
         producerGraphOptions = {
             series: [
@@ -346,69 +378,56 @@
         return { startDate, endDate };
     }
 
-
-    let currentDataRangeSelection = "";
+    let currentDataRangeSelection = {
+        name: "",
+    };
     $: {
         //console.log(data.dataRangeSelection);
-
-        if (data.dataRangeSelection !== currentDataRangeSelection) {
-            currentDataRangeSelection = data.dataRangeSelection;
-            //console.log("update");
-            updateChart(data.dataRangeSelection);
-            currentDataRangeSelection = data.dataRangeSelection;
+        if (data.dataRangeSelection) {
+            if (
+                data.dataRangeSelection.name !== currentDataRangeSelection.name
+            ) {
+                currentDataRangeSelection = data.dataRangeSelection;
+                console.log("update");
+                updateChart(data.dataRangeSelection);
+            }
         }
     }
 
-
     async function updateChart(dataRangeSelection) {
-        //let d = await loadData(startDate, endDate);
-
-        switch (dataRangeSelection) {
-            case "Gesamt":
-                //console.log("reset do defaults");
-                loadData(
-                    data.metricsTimestampRange.first_timestamp,
-                    data.metricsTimestampRange.last_timestamp,
-                );
-
-                break;
-            case "Quartal":
-                //console.log("welches Quartal?");
-                let quarterDates = getQuarterDates(-1);
-                
-                loadData(quarterDates.startDate, quarterDates.endDate);
-
-                break;
-            case "Halbjahr":
-                //console.log("welches Halbjahr?");
-                let halfYearDates = getHalfYearDates(-1);
-                loadData(halfYearDates.startDate, halfYearDates.endDate);
-                break;
-            
-            case "Jahr":
-                //console.log("welches Jahr?");
-                let yearDates = getYearDates(0);
-                loadData(yearDates.startDate, yearDates.endDate);
-                break;
-        }
+        console.log({ dataRangeSelection });
+        loadData(dataRangeSelection.startDate, dataRangeSelection.endDate);
     }
 
     onMount(() => {
-        data.dataRangeSelection = "Gesamt";
+        data.dataRangeSelection = {
+            name: "Gesamt",
+            startDate: data.metricsTimestampRange.first_timestamp,
+            endDate: data.metricsTimestampRange.last_timestamp,
+        };
     });
+
+    function checkDataSeries(series) {
+        for (const seriesName in series) {
+            console.log({ seriesName });
+            const list = series[seriesName];
+            list.forEach((val) => {
+                if (isNaN(val)) {
+                    console.log({ val });
+                }
+            });
+        }
+    }
 </script>
 
 <NoDataModal bind:data />
 
-
 <Card class="max-w-full">
     <DataRangePagination bind:data />
-    
- 
+
     <Tabs>
-       
         {#if consumptionTotal.length > 0}
-            <TabItem open={ consumptionTotal.length > 0 } title="Bezug">
+            <TabItem open={consumptionTotal.length > 0} title="Bezug">
                 <ChartHeader bind:data>
                     <span slot="title">&#x2300; Bezug nach Tageszeit</span>
                     <span slot="subTitle">in kiloWatt</span>
@@ -419,7 +438,7 @@
         {/if}
 
         {#if prodTotal.length > 0}
-            <TabItem open={ consumptionTotal.length === 0 } title="Einspeisung">
+            <TabItem open={consumptionTotal.length === 0} title="Einspeisung">
                 <ChartHeader bind:data>
                     <span slot="title">&#x2300; Einspeisung nach Tageszeit</span
                     >
@@ -449,3 +468,5 @@
     </div>
 -->
 </Card>
+
+{JSON.stringify(producerGraphOptions)}

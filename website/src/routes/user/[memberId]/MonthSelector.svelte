@@ -7,12 +7,10 @@
     //data.dataRangeSelection = "Gesamt";
 
     let dropDownOpen = false;
-
 </script>
 
-
 <Button
-    >{data.dataRangeSelection}<ChevronDownOutline
+    >{data.dataRangeSelection.name}<ChevronDownOutline
         class="w-6 h-6 ms-2 text-white dark:text-white"
     /></Button
 >
@@ -22,26 +20,18 @@
         <span class="block text-sm text-gray-900 dark:text-white"
             >Datenauswahl</span
         >
-        <span class="block truncate text-sm font-medium">Wählen Sie einen Zeitraum</span
+        <span class="block truncate text-sm font-medium"
+            >Wählen Sie einen Zeitraum</span
         >
     </div>
 
-    <DropdownItem on:click={()=> {
-        data.dataRangeSelection = "Quartal";
-        dropDownOpen = false;
-    }}>Quartal</DropdownItem>
-    <DropdownItem on:click={()=> {
-        data.dataRangeSelection = "Halbjahr";
-        dropDownOpen = false;
-    }}>Halbjahr</DropdownItem>
-    <DropdownItem on:click={()=> {
-        data.dataRangeSelection = "Jahr";
-        dropDownOpen = false;
-    }}>Jahr</DropdownItem>
-    <DropdownItem on:click={()=> {
-        data.dataRangeSelection = "Gesamt";
-        dropDownOpen = false;
-    }}>Gesamt</DropdownItem>
 
-
+    {#each data.dateSelectionOptions as dateSelectionOption}
+        <DropdownItem
+            on:click={() => {
+                data.dataRangeSelection = dateSelectionOption;
+                dropDownOpen = false;
+            }}>{dateSelectionOption.name}</DropdownItem
+        >
+    {/each}
 </Dropdown>
