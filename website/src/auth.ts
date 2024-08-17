@@ -13,10 +13,9 @@ export async function authorizationHandle({ event, resolve }) {
     error(404, {
       message: 'Not found'
     });
-    return;
   }
 
-  if (event.route.id.startsWith('/board')) {
+  if (event.route.id?.startsWith('/board')) {
     //console.log("Requires authentication");
     const session = await event.locals.auth();
 
@@ -25,7 +24,7 @@ export async function authorizationHandle({ event, resolve }) {
     }
   }
 
-  if (event.route.id.startsWith('/user')) {
+  if (event.route.id?.startsWith('/user')) {
     //console.log("Requires authentication");
     const session = await event.locals.auth();
 

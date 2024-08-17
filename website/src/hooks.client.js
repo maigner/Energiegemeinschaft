@@ -13,7 +13,7 @@ export async function handleError({ error, event }) {
     */
 
     console.log("Client ERROR: ");
-    // console.log({error, event});
+    //console.log({error, event});
 
 	return {
 		message: 'Whoops!'
