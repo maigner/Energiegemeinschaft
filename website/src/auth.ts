@@ -6,7 +6,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { authDbPool } from "$lib/server/db/db";
 import { createTransport } from "nodemailer";
 
-export async function authorizationHandle({ event, resolve }) {
+export const authorizationHandle = async({ event, resolve }) => {
 
   if (!event.route.id) {
     console.log("invalid route");
@@ -37,7 +37,7 @@ export async function authorizationHandle({ event, resolve }) {
 
 
   return resolve(event);
-}
+};
 
 function html(params: { url: string; host: string; theme: Theme }) {
   const { url, host, theme } = params

@@ -13,11 +13,8 @@
 	<slot />
 </div>
 
-<!--
-<div class="mt-16 flex place-content-center">
-	<img src="/sponsors.jpg" class="max-w-sm" alt="sponsors" />
-</div>
--->
+
+
 
 {#if $page.route.id !== "/impressum" &&  $page.route.id?.toString().startsWith("/board") == false }
 	<div class="text-center mt-20 text-xs text-primary-800">
@@ -27,3 +24,14 @@
 {/if}
 
 
+<div class="mt-16 flex flex-col items-center">
+	<div class="">
+		Mit freundlicher Unterstützung von:
+
+	</div>
+	<div class="">
+		<img src="/sponsors/SPK-Salzkammergut_Special_print_PNT.jpg" class="max-w-xs" alt="sponsors" />
+
+	</div>
+
+</div>
