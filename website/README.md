@@ -39,10 +39,6 @@ You can preview the production build with `npm run preview`.
 
 ## Devel
 
-# not needed?? npx sst dev --profile=martin &
-
-npm run prepare && npm run dev
-
 
 ## Deploy to AWS 
 
