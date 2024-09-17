@@ -30,8 +30,7 @@
 
 	</div>
 	<div class="">
-		<img src="/sponsors/SPK-Salzkammergut_Special_print_PNT.jpg" class="max-w-xs" alt="sponsors" />
-
+		<img src="/sponsors/SPK-Salzkammergut_Special_print_PNT.jpg" class="max-w-64" alt="sponsors" />
 	</div>
 
 </div>
