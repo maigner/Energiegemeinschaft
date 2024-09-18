@@ -41,6 +41,7 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     "members.apps.MembersConfig",
     "metering.apps.MeteringConfig",
+    "accounting.apps.AccountingConfig",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
