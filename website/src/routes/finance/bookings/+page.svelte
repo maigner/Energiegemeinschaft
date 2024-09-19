@@ -142,9 +142,15 @@
                                         }
 
                                         const response = await res.json();
+
+                                        if (response.success) {
+
+                                            alert(JSON.stringify(response.data));
+
+                                        }
+
                                     } catch (err) {
-                                        const error = err.message;
-                                        alert(error);
+                                        alert(err);
                                     }
                                 }}
                             />

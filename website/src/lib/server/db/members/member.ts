@@ -1,6 +1,4 @@
-import { middlewareDbConnection, middlewareDbPool } from "$lib/server/db/db";
-
-
+import { middlewareDbConnection } from "$lib/server/db/db";
 
 
 export const getBoardMemberByEmail = async (email: string) => {
@@ -56,7 +54,7 @@ export const getAllMembershipApprovalTasks = async () => {
     sql.release();
     const rows = result?.rows;
 
-    const status = rows.map((row) => {
+    const status = rows.map((row: { name: any; address: any; email: any; }) => {
         return {
             name: "membershipApproval",
             data: {
@@ -218,7 +216,7 @@ export const getMeasurementPoints = async () => {
 };
 
 
-export const getAverageMetrics = async (memberId: number, startDate, endDate) => {
+export const getAverageMetrics = async (memberId: number, startDate: any, endDate: any) => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`
             select
