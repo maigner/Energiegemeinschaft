@@ -24,7 +24,7 @@ export async function handleError({ error, event }) {
     
 	console.log(event.url.href);
 
-	//console.log({error});
+	console.log({error});
 
 
 	//throw redirect(307, '/');
