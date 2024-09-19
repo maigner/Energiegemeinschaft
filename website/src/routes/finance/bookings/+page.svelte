@@ -9,15 +9,19 @@
         TableHeadCell,
         List,
         DescriptionList,
-        Li,
-        Heading
+        Label,
+        Heading,
+        Select,
     } from "flowbite-svelte";
+
     import { formatDate } from "$lib/format";
 
     export let data;
 </script>
 
 <Heading tag="h1" class="text-primary-700 mb-4">Buchungen</Heading>
+
+<JsonView json={data.bookingLabels} />
 
 <Table>
     <TableHead>
@@ -26,8 +30,8 @@
         <TableHeadCell>Betrag</TableHeadCell>
     </TableHead>
     <TableBody tableBodyClass="divide-y">
-        {#each data.bookings as booking}
-            <TableBodyRow>
+        {#each data.bookings as booking, index}
+            <TableBodyRow class={index % 2 === 0 ? "bg-white" : "bg-gray-100"}>
                 <TableBodyCell>
                     <List
                         tag="dl"
@@ -57,13 +61,13 @@
                         tag="dl"
                         class=" text-gray-900 dark:text-white divide-gray-200  dark:divide-gray-700"
                     >
-                        {#if booking.parner_name}
+                        {#if booking.partner_name}
                             <div class="flex flex-col pb-3">
                                 <DescriptionList tag="dt" class="mb-1"
                                     >Name</DescriptionList
                                 >
                                 <DescriptionList tag="dd">
-                                    {booking.parner_name}
+                                    {booking.partner_name}
                                 </DescriptionList>
                             </div>
                         {/if}
@@ -92,22 +96,42 @@
                             </div>
                         {/if}
                     </List>
+
+                    <div
+                        class="flex justify-between items-center p-4 bg-yellow-200"
+                    >
+                        <div class="bg-blue-500 text-white p-4">
+                            existing labels
+                        </div>
+                        <div class="bg-green-500 text-white p-4">
+                            add new label
+
+                            <Select
+                                class="mt-2"
+                                placeholder="Label..."
+                                items={data.bookingLabels.map((e) => {
+                                    return {
+                                        value: e.id,
+                                        name: e.label,
+                                    };
+                                })}
+                                on:change={(e) => {
+                                    alert(JSON.stringify(e));
+                                }}
+                            />
+
+                        </div>
+                    </div>
                 </TableBodyCell>
 
-
                 <TableBodyCell>
-                    
-
                     <div class="flex justify-end">
                         <div class="text-xl">
                             {booking.amount}
                         </div>
                     </div>
-
-                    
                 </TableBodyCell>
             </TableBodyRow>
         {/each}
     </TableBody>
 </Table>
-

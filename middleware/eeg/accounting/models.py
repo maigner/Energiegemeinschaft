@@ -1,5 +1,12 @@
 from django.db import models
 
+class BookingLabel(models.Model):
+    label = models.CharField(max_length=100, verbose_name="Label")
+
+    def __str__(self):
+        return self.label
+
+
 # based on George CSV Export
 class Booking(models.Model):
     account_name = models.CharField(max_length=255)  # "Eigener Kontoname"
@@ -23,6 +30,7 @@ class Booking(models.Model):
     payment_reference = models.CharField(max_length=255, null=True, blank=True)  # "Zahlungsreferenz"
     mandate_id = models.CharField(max_length=255, null=True, blank=True)  # "Mandats ID"
     creditor_id = models.CharField(max_length=255, null=True, blank=True)  # "Creditor ID"
+    labels = models.ManyToManyField(BookingLabel, related_name="bookings", blank=True, verbose_name="Labels")
 
     class Meta:
         unique_together = (
