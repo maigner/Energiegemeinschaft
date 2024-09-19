@@ -16,8 +16,8 @@
 
     let unit = "kW";
 
-    data.currentStartDate = data.metricsTimestampRange.first_timestamp;
-    data.currentEndDate = data.metricsTimestampRange.last_timestamp;
+    $: data.currentStartDate = data.metricsTimestampRange.first_timestamp;
+    $: data.currentEndDate = data.metricsTimestampRange.last_timestamp;
 
     data.dateSelectionOptions = [
         {
@@ -29,6 +29,16 @@
             name: "2. Quartal 2024",
             startDate: new Date("2024-04-01T00:00:00"),
             endDate: new Date("2024-06-30T23:59:59"),
+        },
+        {
+            name: "3. Quartal 2024",
+            startDate: new Date("2024-07-01T00:00:00"),
+            endDate: new Date("2024-09-30T23:59:59"),
+        },
+        {
+            name: "4. Quartal 2024",
+            startDate: new Date("2024-10-01T00:00:00"),
+            endDate: new Date("2024-12-31T23:59:59"),
         },
         {
             name: "Gesamt",
@@ -389,7 +399,8 @@
                 data.dataRangeSelection.name !== currentDataRangeSelection.name
             ) {
                 currentDataRangeSelection = data.dataRangeSelection;
-                console.log("update");
+                //console.log("update");
+                //console.log(data.dataRangeSelection);
                 updateChart(data.dataRangeSelection);
             }
         }

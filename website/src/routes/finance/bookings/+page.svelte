@@ -23,7 +23,6 @@
     <TableHead>
         <TableHeadCell>Datum</TableHeadCell>
         <TableHeadCell>Partner</TableHeadCell>
-        <TableHeadCell>Notizen</TableHeadCell>
         <TableHeadCell>Betrag</TableHeadCell>
     </TableHead>
     <TableBody tableBodyClass="divide-y">
@@ -95,19 +94,7 @@
                     </List>
                 </TableBodyCell>
 
-                <TableBodyCell
-                    >
-                    
-       
 
-
-                    <span class="text-sm">
-                        {booking.note}
-                    </span>
-                    
-                    
-                    </TableBodyCell
-                >
                 <TableBodyCell>
                     
 

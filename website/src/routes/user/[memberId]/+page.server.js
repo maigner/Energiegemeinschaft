@@ -17,7 +17,7 @@ export async function load({ params, parent, event }) {
             && user.email === session.user.email;
         });
     
-    //console.log({validUser});
+    console.log({validUser});
 
     if (validUser.length === 0) {
         console.log("Unauthorized: " + session.user.email);

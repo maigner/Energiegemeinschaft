@@ -268,5 +268,8 @@ export const getMetricTimestampRange = async (memberId: number) => {
     await sql.end();
     sql.release();
     const rows = result?.rows;
+
+    console.log(rows);
+
     return rows[0];
 };
