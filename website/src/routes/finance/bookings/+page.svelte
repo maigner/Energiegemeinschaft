@@ -15,13 +15,13 @@
     } from "flowbite-svelte";
 
     import { formatDate } from "$lib/format";
+    import { tick } from "svelte";
+    import LabelBox from "./LabelBox.svelte";
 
     export let data;
 </script>
 
 <Heading tag="h1" class="text-primary-700 mb-4">Buchungen</Heading>
-
-<JsonView json={data.bookingLabels} />
 
 <Table>
     <TableHead>
@@ -31,6 +31,8 @@
     </TableHead>
     <TableBody tableBodyClass="divide-y">
         {#each data.bookings as booking, index}
+            
+
             <TableBodyRow class={index % 2 === 0 ? "bg-white" : "bg-gray-100"}>
                 <TableBodyCell>
                     <List
@@ -97,65 +99,8 @@
                         {/if}
                     </List>
 
-                    <div
-                        class="flex justify-between items-center p-4 bg-yellow-200"
-                    >
-                        <div class="bg-blue-500 text-white p-4">
-                            existing labels
-                        </div>
-                        <div class="bg-green-500 text-white p-4">
-                            add new label
+                    <LabelBox bind:data bookingId={booking.id}/>
 
-                            <Select
-                                class="mt-2"
-                                placeholder="Label..."
-                                items={data.bookingLabels.map((e) => {
-                                    return {
-                                        value: e.id,
-                                        name: e.label,
-                                    };
-                                })}
-                                bind:value={booking.labelIdToAdd}
-                                on:change={async (e) => {
-                                    
-
-                                    const bookingId = booking.id;
-                                    const labelId = booking.labelIdToAdd;
-
-                                    try {
-                                        const res = await fetch(
-                                            "/api/finance/bookings/addLabelToBooking",
-                                            {
-                                                method: "POST",
-                                                headers: {
-                                                    "Content-Type":
-                                                        "application/json",
-                                                },
-                                                body: JSON.stringify({ bookingId, labelId }), // Send label as JSON
-                                            },
-                                        );
-
-                                        if (!res.ok) {
-                                            throw new Error(
-                                                "Network response was not ok",
-                                            );
-                                        }
-
-                                        const response = await res.json();
-
-                                        if (response.success) {
-
-                                            alert(JSON.stringify(response.data));
-
-                                        }
-
-                                    } catch (err) {
-                                        alert(err);
-                                    }
-                                }}
-                            />
-                        </div>
-                    </div>
                 </TableBodyCell>
 
                 <TableBodyCell>

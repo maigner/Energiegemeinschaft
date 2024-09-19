@@ -23,7 +23,7 @@ export const getBookings = async (startDate: Date, endDate: Date) => {
 };
 
 
-export const getBookingLabels = async () => {
+export const getLabels = async () => {
     const sql = await middlewareDbConnection();
 
     const result = await sql.query(`
@@ -31,6 +31,23 @@ export const getBookingLabels = async () => {
             *
         from accounting_bookinglabel
         order by accounting_bookinglabel.label
+        `,
+        []
+    );
+
+    await sql.end();
+    sql.release();
+    return result?.rows;
+};
+
+
+export const getBookingsLabels = async () => {
+    const sql = await middlewareDbConnection();
+
+    const result = await sql.query(`
+        select
+            booking_id, bookinglabel_id as label_id
+        from accounting_booking_labels
         `,
         []
     );
