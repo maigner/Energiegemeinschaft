@@ -115,11 +115,39 @@
                                         name: e.label,
                                     };
                                 })}
-                                on:change={(e) => {
-                                    alert(JSON.stringify(e));
+                                bind:value={booking.labelIdToAdd}
+                                on:change={async (e) => {
+                                    
+
+                                    const bookingId = booking.id;
+                                    const labelId = booking.labelIdToAdd;
+
+                                    try {
+                                        const res = await fetch(
+                                            "/api/finance/bookings/addLabelToBooking",
+                                            {
+                                                method: "POST",
+                                                headers: {
+                                                    "Content-Type":
+                                                        "application/json",
+                                                },
+                                                body: JSON.stringify({ bookingId, labelId }), // Send label as JSON
+                                            },
+                                        );
+
+                                        if (!res.ok) {
+                                            throw new Error(
+                                                "Network response was not ok",
+                                            );
+                                        }
+
+                                        const response = await res.json();
+                                    } catch (err) {
+                                        const error = err.message;
+                                        alert(error);
+                                    }
                                 }}
                             />
-
                         </div>
                     </div>
                 </TableBodyCell>

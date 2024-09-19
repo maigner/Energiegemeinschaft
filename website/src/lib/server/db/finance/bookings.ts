@@ -37,9 +37,6 @@ export const getBookingLabels = async () => {
 
     await sql.end();
     sql.release();
-
-    console.log(result.rows);
-
     return result?.rows;
 };
 

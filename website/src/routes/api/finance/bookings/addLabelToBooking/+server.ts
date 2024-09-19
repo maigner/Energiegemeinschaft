@@ -50,7 +50,7 @@ export async function POST(event) {
     const session = await event.locals.auth();
 
     //session?.user?.email
-    //console.log(session.user.email);
+    console.log({session});
 
     if (!session?.user?.email) {
         return new Response(null, { status: 401, statusText: "Unauthorized" })
@@ -61,16 +61,14 @@ export async function POST(event) {
     }
 
     
-    const { userId, startDate, endDate } = await event?.request?.json();
+    const { bookingId, labelId } = await event?.request?.json();
 
 
 
 
 
 
-
-
-    //console.log({ userId, startDate, endDate });
+    console.log({ bookingId, labelId });
 
     const result = {foo: "bar"};
 
