@@ -46,8 +46,9 @@ export const getBookingsLabels = async () => {
 
     const result = await sql.query(`
         select
-            booking_id, bookinglabel_id as label_id
-        from accounting_booking_labels
+            bl.booking_id, bl.bookinglabel_id as label_id, label.color, label.label
+        from accounting_booking_labels bl
+        inner join accounting_bookinglabel label on label.id = bl.bookinglabel_id
         `,
         []
     );
@@ -61,6 +62,8 @@ export const getBookingsLabels = async () => {
 export const insertOrUpdateBookingLabel = async (bookingId: number, labelId: number) => {
     const sql = await middlewareDbConnection();
 
+    let result;
+
     try {
         const query = `
           INSERT INTO accounting_booking_labels (booking_id, bookinglabel_id)
@@ -72,8 +75,23 @@ export const insertOrUpdateBookingLabel = async (bookingId: number, labelId: num
         // Execute the query
         await sql.query(query, [bookingId, labelId]);
 
+        const result = await sql.query(`
+            select
+                bl.booking_id, bl.bookinglabel_id as label_id, label.color, label.label
+            from accounting_booking_labels bl
+            inner join accounting_bookinglabel label on label.id = bl.bookinglabel_id
+            where bl.booking_id = $1 and bl.bookinglabel_id = $2
+            `,
+            [bookingId, labelId]
+        );
+
+
+        await sql.end();
+
+        console.log(result.rows[0]);
+
         // Return a tuple with a success message and the inserted data
-        return { success: true, message: 'Insert or update successful', data: { bookingId, labelId } };
+        return { success: true, message: 'Insert or update successful', data: result.rows[0] };
     } catch (error: any) {
         console.error('Error executing query', error.stack);
 

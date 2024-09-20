@@ -1,6 +1,6 @@
 <script>
     import { JsonView } from "@zerodevx/svelte-json-view";
-    import { Select } from "flowbite-svelte";
+    import { Badge, Select, Indicator } from "flowbite-svelte";
 
     export let data;
     export let bookingId;
@@ -34,9 +34,23 @@
 
 <div class="flex justify-between items-center p-4 bg-yellow-100">
     <div class="bg-blue-100 p-4">
-        existing labels
+        
+
+
+        
 
         <JsonView json={existingLabels}></JsonView>
+
+        {#each existingLabels as label}
+
+            
+            <Badge color={label.color} rounded class="px-2.5 py-0.5">
+                <Indicator color={label.color} size="xs" class="me-1" />{label.label}
+            </Badge>
+
+        {/each}
+
+
     </div>
     <div class="bg-green-100 p-4">
         add new label
@@ -69,12 +83,7 @@
                     const response = await res.json();
 
                     if (response.success) {
-                        let a = {
-                            booking_id: response.data.bookingId,
-                            label_id: response.data.labelId,
-                        };
-
-                        data.bookingsLabels.push(a);
+                        data.bookingsLabels.push(response.data);
                         data.bookingsLabels = data.bookingsLabels;
                         labelId = "";
                     }

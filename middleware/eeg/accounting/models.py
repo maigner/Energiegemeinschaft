@@ -2,7 +2,8 @@ from django.db import models
 
 class BookingLabel(models.Model):
     label = models.CharField(max_length=100, verbose_name="Label")
-
+    color = models.CharField(max_length=20, verbose_name="Color")
+    
     def __str__(self):
         return self.label
 
