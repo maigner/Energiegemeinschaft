@@ -21,7 +21,7 @@
     export let data;
 </script>
 
-<Heading tag="h1" class="text-primary-700 mb-4">Buchungen</Heading>
+<Heading tag="h3" class="text-primary-700 mb-4">Buchungen</Heading>
 
 <Table>
     <TableHead>
@@ -37,14 +37,16 @@
                 <TableBodyCell>
                     <List
                         tag="dl"
-                        class=" text-gray-900 dark:text-white divide-gray-200  dark:divide-gray-700"
+                        class="text-gray-900 dark:text-white divide-gray-200  dark:divide-gray-700"
                     >
                         <div class="flex flex-col pb-3">
                             <DescriptionList tag="dt" class="mb-1"
                                 >Buchung</DescriptionList
                             >
                             <DescriptionList tag="dd">
-                                {formatDate(booking.booking_date)}
+                                <span class="text-xs">
+                                    {formatDate(booking.booking_date)}
+                                </span>
                             </DescriptionList>
                         </div>
                         <div class="flex flex-col pb-3">
@@ -52,8 +54,11 @@
                                 >Valuta</DescriptionList
                             >
                             <DescriptionList tag="dd">
-                                {formatDate(booking.value_date)}
+                                <span class="text-xs">
+                                    {formatDate(booking.value_date)}
+                                </span>
                             </DescriptionList>
+                            
                         </div>
                     </List>
                 </TableBodyCell>
@@ -69,7 +74,9 @@
                                     >Name</DescriptionList
                                 >
                                 <DescriptionList tag="dd">
-                                    {booking.partner_name}
+                                    <span class="text-sm">
+                                        {booking.partner_name}
+                                    </span>
                                 </DescriptionList>
                             </div>
                         {/if}
@@ -80,7 +87,9 @@
                                     >IBAN</DescriptionList
                                 >
                                 <DescriptionList tag="dd">
-                                    {booking.partner_iban}
+                                    <span class="text-sm">
+                                        {booking.partner_iban}
+                                    </span>
                                 </DescriptionList>
                             </div>
                         {/if}
@@ -105,7 +114,7 @@
 
                 <TableBodyCell>
                     <div class="flex justify-end">
-                        <div class="text-xl">
+                        <div class="text-sm">
                             {booking.amount}
                         </div>
                     </div>

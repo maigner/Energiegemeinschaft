@@ -40,7 +40,7 @@
                     color={label.color}
                     size="md"
                     class="me-1"
-                /><span class="text-sm">{label.label}</span>
+                /><span class="text-xs">{label.label}</span>
                 <Button
                     pill={true}
                     class="!p-1 ml-2 text-xs"
@@ -93,7 +93,7 @@
     <div class="">
 
         <Select
-            class="mt-2"
+            class="mt-2 text-xs"
             placeholder="Label..."
             items={labelsToAdd}
             bind:value={labelId}
