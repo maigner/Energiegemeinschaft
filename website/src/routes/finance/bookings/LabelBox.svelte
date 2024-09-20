@@ -1,6 +1,7 @@
 <script>
     import { JsonView } from "@zerodevx/svelte-json-view";
-    import { Badge, Select, Indicator } from "flowbite-svelte";
+    import { Badge, Select, Indicator, Button } from "flowbite-svelte";
+    import { ThumbsUpSolid, TrashBinOutline } from "flowbite-svelte-icons";
 
     export let data;
     export let bookingId;
@@ -30,30 +31,66 @@
     let labelId;
 </script>
 
-{bookingId}
 
-<div class="flex justify-between items-center p-4 bg-yellow-100">
-    <div class="bg-blue-100 p-4">
-        
+<div class="flex justify-between items-center">
+    <div class="">
+        {#each existingLabels as label, index (label.label_id)}
+            <Badge color={label.color} rounded class="px-2 py-1 m-1 relative">
+                <Indicator
+                    color={label.color}
+                    size="md"
+                    class="me-1"
+                /><span class="text-sm">{label.label}</span>
+                <Button
+                    pill={true}
+                    class="!p-1 ml-2 text-xs"
+                    on:click={async () => {
+                        try {
+                            const res = await fetch(
+                                "/api/finance/bookings/removeLabelFromBooking",
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                        bookingId,
+                                        labelId: label.label_id,
+                                    }),
+                                },
+                            );
 
+                            if (!res.ok) {
+                                throw new Error("Network response was not ok");
+                            }
 
-        
+                            const response = await res.json();
 
-        <JsonView json={existingLabels}></JsonView>
+                            if (response.success) {
+                                data.bookingsLabels =
+                                    data.bookingsLabels.filter((/** @type {{ booking_id: any; label_id: any; }} */ it) => {
+                                        return !(
+                                            it.booking_id ===
+                                                label.booking_id &&
+                                            it.label_id === label.label_id
+                                        );
+                                    });
+                            }
+                        } catch (err) {
+                            alert(err);
+                        }
 
-        {#each existingLabels as label}
-
-            
-            <Badge color={label.color} rounded class="px-2.5 py-0.5">
-                <Indicator color={label.color} size="xs" class="me-1" />{label.label}
+                        // TODO: call API to actually delete
+                    }}
+                >
+                    
+                    <TrashBinOutline />
+                </Button>
             </Badge>
-
         {/each}
-
-
     </div>
-    <div class="bg-green-100 p-4">
-        add new label
+
+    <div class="">
 
         <Select
             class="mt-2"

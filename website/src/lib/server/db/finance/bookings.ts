@@ -66,10 +66,10 @@ export const insertOrUpdateBookingLabel = async (bookingId: number, labelId: num
 
     try {
         const query = `
-          INSERT INTO accounting_booking_labels (booking_id, bookinglabel_id)
-          VALUES ($1, $2)
-          ON CONFLICT (booking_id, bookinglabel_id)
-          DO NOTHING;
+            INSERT INTO accounting_booking_labels (booking_id, bookinglabel_id)
+            VALUES ($1, $2)
+            ON CONFLICT (booking_id, bookinglabel_id)
+            DO NOTHING;
         `;
 
         // Execute the query
@@ -88,10 +88,37 @@ export const insertOrUpdateBookingLabel = async (bookingId: number, labelId: num
 
         await sql.end();
 
-        console.log(result.rows[0]);
-
         // Return a tuple with a success message and the inserted data
         return { success: true, message: 'Insert or update successful', data: result.rows[0] };
+    } catch (error: any) {
+        console.error('Error executing query', error.stack);
+
+        // Return a tuple with an error message
+        return { success: false, message: 'Error executing query', error: error.stack };
+    } finally {
+        sql.release(); // Release the client back to the pool
+    }
+};
+
+
+
+export const deleteBookingLabel = async (bookingId: number, labelId: number) => {
+    const sql = await middlewareDbConnection();
+
+    console.log({bookingId, labelId});
+
+    try {
+        const query = `
+            DELETE FROM accounting_booking_labels
+            WHERE booking_id = $1 AND bookinglabel_id = $2;
+        `;
+
+        // Execute the query
+        await sql.query(query, [bookingId, labelId]);
+
+        
+        // Return a tuple with a success message and the inserted data
+        return { success: true, message: 'Delete successful', data: null };
     } catch (error: any) {
         console.error('Error executing query', error.stack);
 
