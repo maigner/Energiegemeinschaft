@@ -21,13 +21,12 @@
     export let data;
 </script>
 
-<Heading tag="h3" class="text-primary-700 mb-4">Buchungen</Heading>
+<Heading tag="h3" class="text-center text-primary-700 mb-4">Buchungen</Heading>
 
 <Table>
     <TableHead>
-        <TableHeadCell>Datum</TableHeadCell>
-        <TableHeadCell>Partner</TableHeadCell>
-        <TableHeadCell>Betrag</TableHeadCell>
+        <TableHeadCell>Buchung</TableHeadCell>
+        <TableHeadCell>Details</TableHeadCell>
     </TableHead>
     <TableBody tableBodyClass="divide-y">
         {#each data.bookings as booking, index}
@@ -39,6 +38,20 @@
                         tag="dl"
                         class="text-gray-900 dark:text-white divide-gray-200  dark:divide-gray-700"
                     >
+
+
+
+                        <div class="flex flex-col pb-3">
+                            <DescriptionList tag="dt" class="mb-1"
+                                >Betrag</DescriptionList
+                            >
+                            <DescriptionList tag="dd">
+                                <span class="text-md">
+                                    {booking.amount}
+                                </span>
+                            </DescriptionList>
+                        </div>
+
                         <div class="flex flex-col pb-3">
                             <DescriptionList tag="dt" class="mb-1"
                                 >Buchung</DescriptionList
@@ -112,13 +125,7 @@
 
                 </TableBodyCell>
 
-                <TableBodyCell>
-                    <div class="flex justify-end">
-                        <div class="text-sm">
-                            {booking.amount}
-                        </div>
-                    </div>
-                </TableBodyCell>
+                
             </TableBodyRow>
         {/each}
     </TableBody>
