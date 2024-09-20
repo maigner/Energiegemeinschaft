@@ -104,9 +104,6 @@ export const insertOrUpdateBookingLabel = async (bookingId: number, labelId: num
 
 export const deleteBookingLabel = async (bookingId: number, labelId: number) => {
     const sql = await middlewareDbConnection();
-
-    console.log({bookingId, labelId});
-
     try {
         const query = `
             DELETE FROM accounting_booking_labels
