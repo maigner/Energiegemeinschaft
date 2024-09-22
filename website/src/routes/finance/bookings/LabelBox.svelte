@@ -32,7 +32,7 @@
 </script>
 
 
-<div class=" flex items-center justify-between">
+<div class="">
     <div class="">
         {#each existingLabels as label, index (label.label_id)}
             <Badge color={label.color} rounded class="px-2 py-1 m-1 relative">
