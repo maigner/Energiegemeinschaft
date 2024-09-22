@@ -19,7 +19,7 @@
 
     $: labelList = Object.keys(bookingsByLabel).map((label) => {
         return data.labels.find((l) => l.label === label);
-    });
+    }).sort( (a, b) => a.label >= b.label);
 
 
 

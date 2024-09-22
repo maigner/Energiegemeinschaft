@@ -23,7 +23,7 @@
                 value: it.id,
                 name: it.label,
             };
-        });
+        }).sort((a, b) => a.name >= b.name);
 
     /**
      * @type {number}
@@ -32,7 +32,7 @@
 </script>
 
 
-<div class="flex justify-between items-center">
+<div class="">
     <div class="">
         {#each existingLabels as label, index (label.label_id)}
             <Badge color={label.color} rounded class="px-2 py-1 m-1 relative">
@@ -90,11 +90,12 @@
         {/each}
     </div>
 
+
     <div class="">
 
         <Select
             class="mt-2 text-xs"
-            placeholder="Label..."
+            placeholder="Kategorie..."
             items={labelsToAdd}
             bind:value={labelId}
             on:change={async (e) => {
