@@ -17,11 +17,19 @@
     import { formatDate } from "$lib/format";
     import { tick } from "svelte";
     import LabelBox from "./LabelBox.svelte";
+    import Dashboard from "./Dashboard.svelte";
 
     export let data;
 </script>
 
-<Heading tag="h3" class="text-center text-primary-700 mb-4">Buchungen</Heading>
+<Heading tag="h3" class="text-center text-primary-700 mb-4">Buchhaltung</Heading
+>
+
+<Heading tag="h4" class="text-center text-primary-700 mb-4">Übersicht</Heading>
+
+<Dashboard bind:data />
+
+<Heading tag="h4" class="text-center text-primary-700 mb-4">Buchungen</Heading>
 
 <Table>
     <TableHead>
@@ -30,17 +38,12 @@
     </TableHead>
     <TableBody tableBodyClass="divide-y">
         {#each data.bookings as booking, index}
-            
-
             <TableBodyRow class={index % 2 === 0 ? "bg-white" : "bg-gray-100"}>
                 <TableBodyCell>
                     <List
                         tag="dl"
                         class="text-gray-900 dark:text-white divide-gray-200  dark:divide-gray-700"
                     >
-
-
-
                         <div class="flex flex-col pb-3">
                             <DescriptionList tag="dt" class="mb-1"
                                 >Betrag</DescriptionList
@@ -71,7 +74,6 @@
                                     {formatDate(booking.value_date)}
                                 </span>
                             </DescriptionList>
-                            
                         </div>
                     </List>
                 </TableBodyCell>
@@ -121,11 +123,8 @@
                         {/if}
                     </List>
 
-                    <LabelBox bind:data bookingId={booking.id}/>
-
+                    <LabelBox bind:data bookingId={booking.id} />
                 </TableBodyCell>
-
-                
             </TableBodyRow>
         {/each}
     </TableBody>
