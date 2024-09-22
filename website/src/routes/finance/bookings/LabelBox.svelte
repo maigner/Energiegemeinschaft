@@ -91,9 +91,10 @@
     </div>
 
 
-    <div class="">
+    <div class="w-40 max-w-60">
 
         <Select
+            
             class="mt-2 text-xs"
             placeholder="Kategorie..."
             items={labelsToAdd}
