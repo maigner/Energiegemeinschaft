@@ -15,8 +15,6 @@ export async function load({ url, parent }) {
     }
 
 
-    console.log({folder});
-
 
     return {
         //member: member,

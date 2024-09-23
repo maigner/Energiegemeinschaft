@@ -9,9 +9,8 @@ export async function load({ params, parent }) {
     // member info
     let { session, member } = await parent();
 
-    console.log({params});
 
-    // TODO: kassiere only
+    //kassiere only
     const authorized = await cashierSession(session);
     if (!authorized) {
         return {};
