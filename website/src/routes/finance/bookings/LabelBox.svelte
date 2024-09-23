@@ -91,7 +91,7 @@
     </div>
 
 
-    <div class="w-40 max-w-60">
+    <div class="w-40 max-w-60 ml-auto">
 
         <Select
             

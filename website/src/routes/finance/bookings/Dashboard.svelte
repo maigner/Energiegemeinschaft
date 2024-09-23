@@ -51,12 +51,12 @@
                         
                 </TableBodyCell>
 
-                <TableBodyCell class="whitespace-normal">
+                <TableBodyCell class="whitespace-normal text-right">
 
                     {bookings.reduce((sum, booking) => sum + parseFloat(booking?.amount), 0).toFixed(2)}
                 </TableBodyCell>
 
-                <TableBodyCell class="whitespace-normal">
+                <TableBodyCell class="whitespace-normal text-right">
                     {bookings.reduce((sum, booking) => sum + Math.abs(parseFloat(booking?.amount)), 0).toFixed(2)}
                 </TableBodyCell>
             </TableBodyRow>
@@ -69,11 +69,11 @@
                     
             </TableBodyCell>
 
-            <TableBodyCell class="whitespace-normal text-lg">
+            <TableBodyCell class="whitespace-normal text-lg text-right">
                 {data.filteredBookings.reduce((sum, booking) => sum + parseFloat(booking.amount), 0).toFixed(2)}
             </TableBodyCell>
 
-            <TableBodyCell class="whitespace-normal text-lg">
+            <TableBodyCell class="whitespace-normal text-lg text-right">
                 {data.filteredBookings.reduce((sum, booking) => sum + Math.abs(parseFloat(booking.amount)), 0).toFixed(2)}
             </TableBodyCell>
         </TableBodyRow>
