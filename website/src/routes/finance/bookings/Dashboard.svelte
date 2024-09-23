@@ -5,14 +5,19 @@
     export let data;
 
     $: bookingsByLabel = data.bookingsLabels.reduce((group, bookingLabel) => {
+        
+        const bookingId = bookingLabel.booking_id;
+
+        // only filtered bookings
+        const booking = data.filteredBookings.find(
+            (booking) => booking.id === bookingId,
+        );
+        if (!booking) return group;
+
         const category = bookingLabel.label;
         if (!group[category]) {
             group[category] = [];
         }
-        const bookingId = bookingLabel.booking_id;
-        const booking = data.bookings.find(
-            (booking) => booking.id === bookingId,
-        );
         group[category].push(booking);
         return group;
     }, {});
@@ -47,11 +52,12 @@
                 </TableBodyCell>
 
                 <TableBodyCell class="whitespace-normal">
-                    {bookings.reduce((sum, booking) => sum + parseFloat(booking.amount), 0).toFixed(2)}
+
+                    {bookings.reduce((sum, booking) => sum + parseFloat(booking?.amount), 0).toFixed(2)}
                 </TableBodyCell>
 
                 <TableBodyCell class="whitespace-normal">
-                    {bookings.reduce((sum, booking) => sum + Math.abs(parseFloat(booking.amount)), 0).toFixed(2)}
+                    {bookings.reduce((sum, booking) => sum + Math.abs(parseFloat(booking?.amount)), 0).toFixed(2)}
                 </TableBodyCell>
             </TableBodyRow>
         {/each}
@@ -64,11 +70,11 @@
             </TableBodyCell>
 
             <TableBodyCell class="whitespace-normal text-lg">
-                {data.bookings.reduce((sum, booking) => sum + parseFloat(booking.amount), 0).toFixed(2)}
+                {data.filteredBookings.reduce((sum, booking) => sum + parseFloat(booking.amount), 0).toFixed(2)}
             </TableBodyCell>
 
             <TableBodyCell class="whitespace-normal text-lg">
-                {data.bookings.reduce((sum, booking) => sum + Math.abs(parseFloat(booking.amount)), 0).toFixed(2)}
+                {data.filteredBookings.reduce((sum, booking) => sum + Math.abs(parseFloat(booking.amount)), 0).toFixed(2)}
             </TableBodyCell>
         </TableBodyRow>
 

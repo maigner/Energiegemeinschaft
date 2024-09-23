@@ -2,12 +2,11 @@ import { getLabels, getBookings, getBookingsLabels } from '$lib/server/db/financ
 import { cashierSession } from '$lib/server/db/members/authorization';
 
 /** @type {import('./$types').LayoutServerLoad} */
-export async function load({ locals, parent }) {
+export async function load({ url, parent }) {
 
     // member info
     let { session, member } = await parent();
 
-    //console.log({ member });
 
     // TODO: kassiere only
     const authorized = await cashierSession(session);
@@ -15,9 +14,11 @@ export async function load({ locals, parent }) {
         return {};
     }
 
+
+
     return {
         //member: member,
-        bookings: await getBookings(new Date("2023-09-01"), new Date("2024-09-30")),
+        bookings: await getBookings(),
         labels: await getLabels(),
         bookingsLabels: await getBookingsLabels()
     }
