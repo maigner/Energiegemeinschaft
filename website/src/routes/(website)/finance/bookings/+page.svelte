@@ -13,7 +13,6 @@
         Select,
         Button,
         Tooltip,
-        Modal,
     } from "flowbite-svelte";
 
     import { formatDate } from "$lib/format";
@@ -131,7 +130,7 @@
                         >
                             <UploadOutline />
                         </Button>
-                        <Tooltip>Beleg, etc. hochladen</Tooltip>
+                        <!--<Tooltip>Beleg, etc. hochladen</Tooltip>-->
                     </div>
                 </TableBodyCell>
 
