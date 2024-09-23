@@ -7,6 +7,8 @@ export async function load({ parent, locals }) {
     // member info
     let { session, member } = await parent();
 
+    //console.log({member});
+
     // @ts-ignore
     const users = await getUsersByEmail(session?.user?.email);
 
