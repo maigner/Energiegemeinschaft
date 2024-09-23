@@ -33,14 +33,7 @@
             >Mein Bereich</span
         >
     </NavBrand>
-    {#if data.member?.board_member}
-        <NavBrand href="/board">
-            <span
-                class="self-center whitespace-nowrap text-l font-semibold dark:text-white text-primary-900"
-                >Vorstandsbereich</span
-            >
-        </NavBrand>
-    {/if}
+
 
     <div class="flex items-center md:order-2">
         <!--

@@ -4,9 +4,9 @@
 	import { Hr } from "flowbite-svelte";
 	import Navigation from "./Navigation.svelte";
 
-	//export let data;
+	export let data;
 </script>
-<Navigation />
+<Navigation bind:data />
 
 
 <div class="xl:max-w-6xl lg:max-w-4xl md:max-w-3xl mx-auto">

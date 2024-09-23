@@ -8,6 +8,9 @@
         QuestionCircleOutline,
         UserAddOutline,
         UserOutline,
+        CashOutline,
+        ChartMixedDollarOutline,
+        AwardOutline
     } from "flowbite-svelte-icons";
 
     import {
@@ -18,10 +21,12 @@
         NavHamburger,
     } from "flowbite-svelte";
 
+    export let data;
+
     let hidden = true;
 
     //let buttonStyle = "sm:w-10 sm:h-10 md:w-10 md:h-10 lg:w-12 lg:h-12 mb-1";
-    let buttonStyle = "mb-1";    
+    let buttonStyle = "mb-1";
 
     let closeNav = () => {
         hidden = true;
@@ -31,7 +36,11 @@
 <Navbar let:NavContainer>
     <NavContainer class="border px-4 py-1 rounded-lg">
         <NavBrand href="/">
-            <img src="/logo2024.webp" class="sm:h-24 md:h-32 lg:h-36 xl:h-40 h-16" alt="Logo" />
+            <img
+                src="/logo2024.webp"
+                class="sm:h-24 md:h-32 lg:h-36 xl:h-40 h-16"
+                alt="Logo"
+            />
         </NavBrand>
         <NavHamburger
             onClick={() => {
@@ -61,13 +70,14 @@
                         on:click={closeNav}
                     >
                         <UserAddOutline
-                            class="{buttonStyle} {$page.route.id === '/mitmachen'
+                            class="{buttonStyle} {$page.route.id ===
+                            '/mitmachen'
                                 ? 'text-green-600'
                                 : 'text-green-800'}  group-hover:text-green-600 "
                         />
                     </BottomNavItem>
                 </NavLi>
-                
+
                 <NavLi href="/faq">
                     <BottomNavItem
                         btnName="Fragen"
@@ -109,7 +119,37 @@
                         />
                     </BottomNavItem>
                 </NavLi>
-                
+
+                {#if data.member?.board_member}
+                    <NavLi href="/board">
+                        <BottomNavItem
+                            btnName="Vorstand"
+                            href="/board"
+                            on:click={closeNav}
+                        >
+                            <AwardOutline
+                                class="{buttonStyle} {$page.route.id?.startsWith('/board')
+                                    ? 'text-green-600'
+                                    : 'text-green-800'}  group-hover:text-green-600 "
+                            />
+                        </BottomNavItem>
+                    </NavLi>
+                {/if}
+                {#if data.isCashierSession}
+                    <NavLi href="/finance/bookings">
+                        <BottomNavItem
+                            btnName="Finanzen"
+                            href="/finance/bookings"
+                            on:click={closeNav}
+                        >
+                            <ChartMixedDollarOutline
+                                class="{buttonStyle} {$page.route.id?.startsWith('/finance/bookings')
+                                    ? 'text-green-600'
+                                    : 'text-green-800'}  group-hover:text-green-600 "
+                            />
+                        </BottomNavItem>
+                    </NavLi>
+                {/if}
             </div>
         </NavUl>
     </NavContainer>

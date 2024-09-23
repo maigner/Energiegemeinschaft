@@ -1,3 +1,4 @@
+import { cashierSession } from '$lib/server/db/members/authorization';
 import { getUsersByEmail, getBoardMemberByEmail } from '$lib/server/db/members/member';
 
 
@@ -8,6 +9,8 @@ export async function load(event) {
 
 	// receive session from authjs
 	const session = await event.locals.auth();
+	const isCashierSession = await cashierSession(session);
+
 
 	// @ts-ignore
     const member = await getBoardMemberByEmail(session?.user?.email);
@@ -15,6 +18,7 @@ export async function load(event) {
 
 	return {
 		session: session,
+		isCashierSession: isCashierSession,
 		member: member
 	}
 }
