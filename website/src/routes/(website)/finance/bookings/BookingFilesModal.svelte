@@ -5,7 +5,10 @@
 
 
     export let booking;
-    export let open;
+    /**
+     * @type {boolean}
+     */
+     export let open;
 
 
 </script>

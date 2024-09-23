@@ -4,4 +4,4 @@
     export let bookingId;
 </script>
 
-files
+{data}{bookingId}

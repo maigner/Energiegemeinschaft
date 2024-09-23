@@ -26,6 +26,9 @@
     export let data;
 
     let openBookingModal = false;
+    /**
+     * @type {object|null}
+     */
     let selectedBooking = null;
 
     /**
@@ -33,9 +36,14 @@
      */
     let year = "2024";
 
-    $: data.filteredBookings = data.bookings.filter((booking) => {
-        return booking.booking_date.getFullYear() === parseInt(year);
-    });
+
+    $: data.filteredBookings = data.bookings.filter(
+        (
+            /** @type {{ booking_date: { getFullYear: () => number; }; }} */ booking,
+        ) => {
+            return booking.booking_date.getFullYear() === parseInt(year);
+        },
+    );
 </script>
 
 <Heading tag="h3" class="text-center text-primary-700 mb-4">
@@ -56,9 +64,10 @@
     </div>
 </div>
 
-
-
-<BookingFilesModal bind:booking={selectedBooking} bind:open={openBookingModal} />
+<BookingFilesModal
+    bind:booking={selectedBooking}
+    bind:open={openBookingModal}
+/>
 
 <Heading tag="h4" class="text-center text-primary-700 mb-4">Übersicht</Heading>
 

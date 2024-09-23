@@ -3,7 +3,7 @@ import { cashierSession } from '$lib/server/db/members/authorization';
 //import { nextcloudClient } from '$lib/server/nextcloud/client';
 
 
-/** @type {import('./$types').LayoutServerLoad} */
+/** @type {import('./$types').PageServerLoad} */
 export async function load({ params, parent }) {
 
     // member info

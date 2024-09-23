@@ -6,11 +6,10 @@
     import DataRangePagination from "./DataRangePagination.svelte";
     import NoDataModal from "./NoDataModal.svelte";
 
-
     /**
-     * @type {{ noDataModalOpen: boolean; currentStartDate: any; metricsTimestampRange: { first_timestamp: any; last_timestamp: any; }; currentEndDate: any; dateSelectionOptions: { name: string; startDate: any; endDate: any; }[]; user: { identifier: any; }; averageMetrics: any[]; dataRangeSelection: { name: any; startDate?: any; endDate?: any; }; }}
+     * @type {any}
      */
-     export let data;
+    export let data;
 
     data.noDataModalOpen = false;
 
@@ -240,7 +239,6 @@
     // difference goes into EEG
     let eegInject = [];
 
-
     /** @type {import('apexcharts').ApexOptions} */
     // @ts-ignore
     let producerGraphOptions = {
@@ -277,8 +275,10 @@
         ...options,
     };
 
-
-    const loadData = async (/** @type {Date} */ startDate, /** @type {Date} */ endDate) => {
+    const loadData = async (
+        /** @type {Date} */ startDate,
+        /** @type {Date} */ endDate,
+    ) => {
         const response = await fetch("/api/user/data/averageMetrics", {
             method: "POST",
             body: JSON.stringify({
@@ -320,39 +320,36 @@
                     element.avg_value,
             );
 
-
         overshoot = data.averageMetrics
             .filter(
-                (element) =>
+                (/** @type {{ metric_name: string; }} */ element) =>
                     element.metric_name ===
                     "Gesamt/Überschusserzeugung, Gemeinschaftsüberschuss",
             )
-            .map((element) => element.avg_value);
-
+            .map((/** @type {{ avg_value: any; }} */ element) => element.avg_value);
 
         consumptionTotal = data.averageMetrics
             .filter(
-                (element) =>
+                (/** @type {{ metric_name: string; }} */ element) =>
                     element.metric_name ===
                     "Gesamtverbrauch lt. Messung (bei Teilnahme gem. Erzeugung)",
             )
-            .map((element) => element.avg_value);
+            .map((/** @type {{ avg_value: any; }} */ element) => element.avg_value);
 
         eegReceive = data.averageMetrics
             .filter(
-                (element) =>
+                (/** @type {{ metric_name: string; }} */ element) =>
                     element.metric_name ===
                     "Eigendeckung gemeinschaftliche Erzeugung",
             )
-            .map((element) => element.avg_value);
-
+            .map((/** @type {{ avg_value: any; }} */ element) => element.avg_value);
 
         // difference goes into EEG
-        eegInject = prodTotal.map((value, index) => {
+        eegInject = prodTotal.map((/** @type {number} */ value, /** @type {number} */ index) => {
             return value - overshoot[index];
         });
 
-
+        // @ts-ignore
         producerGraphOptions = {
             series: [
                 {
@@ -368,7 +365,8 @@
             ],
             ...options,
         };
-        
+
+        // @ts-ignore
         consumerGraphOptions = {
             series: [
                 {
@@ -384,11 +382,7 @@
             ],
             ...options,
         };
-
     };
-
-
-
 
     let currentDataRangeSelection = {
         name: "",
@@ -406,6 +400,9 @@
         }
     }
 
+    /**
+     * @param {{ startDate: Date; endDate: Date; }} dataRangeSelection
+     */
     async function updateChart(dataRangeSelection) {
         //console.log({ dataRangeSelection });
         loadData(dataRangeSelection.startDate, dataRangeSelection.endDate);
@@ -418,7 +415,6 @@
             endDate: data.metricsTimestampRange.last_timestamp,
         };
     });
-
 
     let tabOpen = {
         production: false,
@@ -434,11 +430,9 @@
             tabOpen.consumption = false;
         }
     }
-
 </script>
 
 <NoDataModal bind:data />
-
 
 <Card class="max-w-full">
     <DataRangePagination bind:data />
@@ -467,6 +461,4 @@
             </TabItem>
         {/if}
     </Tabs>
-
-
 </Card>

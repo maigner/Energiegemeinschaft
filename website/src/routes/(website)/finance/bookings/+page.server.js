@@ -1,11 +1,11 @@
 import { getLabels, getBookings, getBookingsLabels } from '$lib/server/db/finance/bookings';
 import { cashierSession } from '$lib/server/db/members/authorization';
 
-/** @type {import('./$types').LayoutServerLoad} */
-export async function load({ url, parent }) {
+/** @type {import('./$types').PageServerLoad} */
+export async function load({ parent }) {
 
     // member info
-    let { session, member } = await parent();
+    let { session } = await parent();
 
 
     // TODO: kassiere only
