@@ -5,7 +5,7 @@
     import { Label, Input, ButtonGroup } from "flowbite-svelte";
     import { EnvelopeSolid } from "flowbite-svelte-icons";
     
-    import { signIn, signOut } from '@auth/sveltekit/client'
+    import { signIn, signOut } from '@auth/sveltekit/client';
 
     export let data;
 

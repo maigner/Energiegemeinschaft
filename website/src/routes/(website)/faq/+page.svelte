@@ -5,7 +5,7 @@
     //import { JSONEditor } from "svelte-jsoneditor";
     import { AccordionItem, Accordion } from 'flowbite-svelte';
 
-    export let data../../faq/$types.js;
+    export let data;
 
     let content = { json: data };
 
