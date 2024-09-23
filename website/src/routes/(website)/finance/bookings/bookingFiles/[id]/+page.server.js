@@ -1,12 +1,14 @@
 import { getLabels, getBookings, getBookingsLabels } from '$lib/server/db/finance/bookings';
 import { cashierSession } from '$lib/server/db/members/authorization';
+import { nextcloudClient } from '$lib/server/nextcloud/client';
 
 /** @type {import('./$types').LayoutServerLoad} */
-export async function load({ url, parent }) {
+export async function load({ params, parent }) {
 
     // member info
     let { session, member } = await parent();
 
+    console.log({params});
 
     // TODO: kassiere only
     const authorized = await cashierSession(session);
@@ -14,13 +16,15 @@ export async function load({ url, parent }) {
         return {};
     }
 
+    const nc = nextcloudClient;
+    const folder = await nc.getFolder("/website")
+
+    //console.log({folder});
 
 
     return {
         //member: member,
-        bookings: await getBookings(),
-        labels: await getLabels(),
-        bookingsLabels: await getBookingsLabels()
+        bookingId: params.id
     }
 
 }

@@ -12,7 +12,8 @@
         Heading,
         Select,
         Button,
-        Tooltip
+        Tooltip,
+        Modal,
     } from "flowbite-svelte";
 
     import { formatDate } from "$lib/format";
@@ -20,8 +21,12 @@
     import Dashboard from "./Dashboard.svelte";
     import { UploadOutline } from "flowbite-svelte-icons";
     import FileBox from "./FileBox.svelte";
+    import BookingFilesModal from "./BookingFilesModal.svelte";
 
     export let data;
+
+    let openBookingModal = false;
+    let selectedBooking = null;
 
     /**
      * @type {string}
@@ -50,6 +55,10 @@
         />
     </div>
 </div>
+
+
+
+<BookingFilesModal bind:booking={selectedBooking} bind:open={openBookingModal} />
 
 <Heading tag="h4" class="text-center text-primary-700 mb-4">Übersicht</Heading>
 
@@ -103,9 +112,12 @@
                         </div>
                     </List>
                     <div>
-                        <Button color="alternative" 
+                        <Button
+                            color="alternative"
                             on:click={() => {
-                                alert("foo");
+                                //alert("foo");
+                                selectedBooking = booking;
+                                openBookingModal = true;
                             }}
                         >
                             <UploadOutline />

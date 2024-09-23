@@ -1,6 +1,6 @@
-import { getAverageMetrics, getMetricTimestampRange } from '$lib/server/db/members/member';
+import { getMetricTimestampRange } from '$lib/server/db/members/member';
 import { error } from '@sveltejs/kit';
-import { signOut } from '../../../auth';
+import { signOut } from '../../../../auth';
 
 
 export async function load({ params, parent, event }) {
