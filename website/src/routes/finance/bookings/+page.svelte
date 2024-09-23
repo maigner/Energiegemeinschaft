@@ -9,18 +9,17 @@
         TableHeadCell,
         List,
         DescriptionList,
-        Label,
         Heading,
         Select,
-        Button
+        Button,
+        Tooltip
     } from "flowbite-svelte";
 
     import { formatDate } from "$lib/format";
-    import { tick } from "svelte";
     import LabelBox from "./LabelBox.svelte";
     import Dashboard from "./Dashboard.svelte";
-    import { browser } from "$app/environment";
-    import { goto } from "$app/navigation";
+    import { UploadOutline } from "flowbite-svelte-icons";
+    import FileBox from "./FileBox.svelte";
 
     export let data;
 
@@ -29,25 +28,27 @@
      */
     let year = "2024";
 
-    $: data.filteredBookings = data.bookings.filter( (booking) => {
+    $: data.filteredBookings = data.bookings.filter((booking) => {
         return booking.booking_date.getFullYear() === parseInt(year);
     });
-
-    
 </script>
 
-<Heading tag="h3" class="text-center text-primary-700 mb-4">Buchhaltung</Heading
->
+<Heading tag="h3" class="text-center text-primary-700 mb-4">
+    Buchhaltung
+</Heading>
 
 <div class="max-w-32 w-32 flex justify-center m-auto">
     <div class="flex">
-        <Select class="mt-2 mb-4 text-center" items={[
-            {value: "2023", name: "2023"},
-            {value: "2024", name: "2024"},
-        ]} bind:value={year} placeholder="Jahr"  />
-    
+        <Select
+            class="mt-2 mb-4 text-center"
+            items={[
+                { value: "2023", name: "2023" },
+                { value: "2024", name: "2024" },
+            ]}
+            bind:value={year}
+            placeholder="Jahr"
+        />
     </div>
-    
 </div>
 
 <Heading tag="h4" class="text-center text-primary-700 mb-4">Übersicht</Heading>
@@ -62,7 +63,7 @@
         <TableHeadCell>Details</TableHeadCell>
     </TableHead>
     <TableBody tableBodyClass="divide-y">
-        {#each data.filteredBookings as booking, index}
+        {#each data.filteredBookings as booking, index (booking.id)}
             <TableBodyRow class={index % 2 === 0 ? "bg-white" : "bg-gray-100"}>
                 <TableBodyCell>
                     <List
@@ -101,6 +102,16 @@
                             </DescriptionList>
                         </div>
                     </List>
+                    <div>
+                        <Button color="alternative" 
+                            on:click={() => {
+                                alert("foo");
+                            }}
+                        >
+                            <UploadOutline />
+                        </Button>
+                        <Tooltip>Beleg, etc. hochladen</Tooltip>
+                    </div>
                 </TableBodyCell>
 
                 <TableBodyCell class="whitespace-normal">
@@ -149,6 +160,8 @@
                     </List>
 
                     <LabelBox bind:data bookingId={booking.id} />
+
+                    <FileBox bind:data bookingId={booking.id} />
                 </TableBodyCell>
             </TableBodyRow>
         {/each}

@@ -1,5 +1,5 @@
 import { cashierSession } from '$lib/server/db/members/authorization';
-import { getUsersByEmail, getBoardMemberByEmail } from '$lib/server/db/members/member';
+import { getBoardMemberByEmail } from '$lib/server/db/members/member';
 
 
 /** @type {import('./$types').LayoutServerLoad} */
