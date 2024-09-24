@@ -1,6 +1,11 @@
 <script>
 
+
     import { Blockquote } from "flowbite-svelte";
+
+    export let data;
+
+    // BOARD_DOCUMENTS, BOARD_UPLOAD
 
 </script>
 
@@ -22,7 +27,7 @@
                 >
                     <a
                         target="_blank"
-                        href="https://nextcloud.maigner.net/s/9SkfdHywJCXwY8k"
+                        href="{data.docUrl}"
                         >in neuem Fenster öffnen</a
                     >
                 </cite>
@@ -48,7 +53,7 @@
                 >
                     <a
                         target="_blank"
-                        href="https://nextcloud.maigner.net/s/acrkeFCfZie4XbT"
+                        href="{data.uploadUrl}"
                         >in neuem Fenster öffnen</a
                     >
                 </cite>
