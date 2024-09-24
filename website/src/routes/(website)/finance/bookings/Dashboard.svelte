@@ -13,29 +13,43 @@
 
     export let data;
 
-    $: bookingsByLabel = data.bookingsLabels.reduce((/** @type {{ [x: string]: any[]; }} */ group, /** @type {{ booking_id: any; label: any; }} */ bookingLabel) => {
-        const bookingId = bookingLabel.booking_id;
+    $: bookingsByLabel = data.bookingsLabels.reduce(
+        (
+            /** @type {{ [x: string]: any[]; }} */ group,
+            /** @type {{ booking_id: any; label: any; }} */ bookingLabel,
+        ) => {
+            const bookingId = bookingLabel.booking_id;
 
-        // only filtered bookings
-        const booking = data.filteredBookings.find(
-            (/** @type {{ id: number; }} */ booking) => booking.id === bookingId,
-        );
-        if (!booking) return group;
+            // only filtered bookings
+            const booking = data.filteredBookings.find(
+                (/** @type {{ id: number; }} */ booking) =>
+                    booking.id === bookingId,
+            );
+            if (!booking) return group;
 
-        const category = bookingLabel.label;
-        if (!group[category]) {
-            group[category] = [];
-        }
-        group[category].push(booking);
-        return group;
-    }, {});
+            const category = bookingLabel.label;
+            if (!group[category]) {
+                group[category] = [];
+            }
+            group[category].push(booking);
+            return group;
+        },
+        {},
+    );
 
     $: labelList = Object.keys(bookingsByLabel)
         .map((label) => {
-            return data.labels.find((/** @type {{ label: string; }} */ l) => l.label === label);
+            return data.labels.find(
+                (/** @type {{ label: string; }} */ l) => l.label === label,
+            );
         })
-        // @ts-ignore
-        .sort((/** @type {{ label: string; }} */ a, /** @type {{ label: string; }} */ b) => a.label.localeCompare(b.label) >= 0);
+        .sort(
+            // @ts-ignore
+            (
+                /** @type {{ label: string; }} */ a,
+                /** @type {{ label: string; }} */ b,
+            ) => a.label.localeCompare(b.label) >= 0,
+        );
 </script>
 
 <Table class="mb-8">
@@ -96,7 +110,10 @@
             <TableBodyCell class="whitespace-normal text-lg text-right">
                 {data.filteredBookings
                     .reduce(
-                        (/** @type {number} */ sum, /** @type {{ amount: string; }} */ booking) => sum + parseFloat(booking.amount),
+                        (
+                            /** @type {number} */ sum,
+                            /** @type {{ amount: string; }} */ booking,
+                        ) => sum + parseFloat(booking.amount),
                         0,
                     )
                     .toFixed(2)}
@@ -105,8 +122,10 @@
             <TableBodyCell class="whitespace-normal text-lg text-right">
                 {data.filteredBookings
                     .reduce(
-                        (/** @type {number} */ sum, /** @type {{ amount: string; }} */ booking) =>
-                            sum + Math.abs(parseFloat(booking.amount)),
+                        (
+                            /** @type {number} */ sum,
+                            /** @type {{ amount: string; }} */ booking,
+                        ) => sum + Math.abs(parseFloat(booking.amount)),
                         0,
                     )
                     .toFixed(2)}

@@ -4,4 +4,3 @@
     export let bookingId;
 </script>
 
-{data}{bookingId}

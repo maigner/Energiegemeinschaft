@@ -15,6 +15,8 @@
         Tooltip,
     } from "flowbite-svelte";
 
+    import { Tabs, TabItem } from "flowbite-svelte";
+
     import { formatDate } from "$lib/format";
     import LabelBox from "./LabelBox.svelte";
     import Dashboard from "./Dashboard.svelte";
@@ -24,17 +26,17 @@
 
     export let data;
 
-    let openBookingModal = false;
-    /**
-     * @type {object|null}
-     */
-    let selectedBooking = null;
-
     /**
      * @type {string}
      */
     let year = "2024";
 
+    /**
+     * @type {object|null}
+     */
+    let selectedBooking = null;
+
+    let openBookingFilesModal = false;
 
     $: data.filteredBookings = data.bookings.filter(
         (
@@ -65,125 +67,129 @@
 
 <BookingFilesModal
     bind:booking={selectedBooking}
-    bind:open={openBookingModal}
+    bind:open={openBookingFilesModal}
 />
 
-<Heading tag="h4" class="text-center text-primary-700 mb-4">Übersicht</Heading>
-
-<Dashboard bind:data />
-
-<Heading tag="h4" class="text-center text-primary-700 mb-4">Buchungen</Heading>
-
-<Table>
-    <TableHead>
-        <TableHeadCell>Buchung</TableHeadCell>
-        <TableHeadCell>Details</TableHeadCell>
-    </TableHead>
-    <TableBody tableBodyClass="divide-y">
-        {#each data.filteredBookings as booking, index (booking.id)}
-            <TableBodyRow class={index % 2 === 0 ? "bg-white" : "bg-gray-100"}>
-                <TableBodyCell>
-                    <List
-                        tag="dl"
-                        class="text-gray-900 dark:text-white divide-gray-200  dark:divide-gray-700"
+<Tabs tabStyle="underline">
+    <TabItem  title="Übersicht">
+        <Dashboard bind:data />
+    </TabItem>
+    <TabItem open title="Buchungen">
+        <Table>
+            <TableHead>
+                <TableHeadCell>Buchung</TableHeadCell>
+                <TableHeadCell>Details</TableHeadCell>
+            </TableHead>
+            <TableBody tableBodyClass="divide-y">
+                {#each data.filteredBookings as booking, index (booking.id)}
+                    <TableBodyRow
+                        class={index % 2 === 0 ? "bg-white" : "bg-gray-100"}
                     >
-                        <div class="flex flex-col pb-3">
-                            <DescriptionList tag="dt" class="mb-1"
-                                >Betrag</DescriptionList
+                        <TableBodyCell>
+                            <List
+                                tag="dl"
+                                class="text-gray-900 dark:text-white divide-gray-200  dark:divide-gray-700"
                             >
-                            <DescriptionList tag="dd">
-                                <span class="text-md">
-                                    {booking.amount}
-                                </span>
-                            </DescriptionList>
-                        </div>
+                                <div class="flex flex-col pb-3">
+                                    <DescriptionList tag="dt" class="mb-1"
+                                        >Betrag</DescriptionList
+                                    >
+                                    <DescriptionList tag="dd">
+                                        <span class="text-md">
+                                            {booking.amount}
+                                        </span>
+                                    </DescriptionList>
+                                </div>
 
-                        <div class="flex flex-col pb-3">
-                            <DescriptionList tag="dt" class="mb-1"
-                                >Buchung</DescriptionList
+                                <div class="flex flex-col pb-3">
+                                    <DescriptionList tag="dt" class="mb-1"
+                                        >Buchung</DescriptionList
+                                    >
+                                    <DescriptionList tag="dd">
+                                        <span class="text-xs">
+                                            {formatDate(booking.booking_date)}
+                                        </span>
+                                    </DescriptionList>
+                                </div>
+                                <div class="flex flex-col pb-3">
+                                    <DescriptionList tag="dt" class="mb-1"
+                                        >Valuta</DescriptionList
+                                    >
+                                    <DescriptionList tag="dd">
+                                        <span class="text-xs">
+                                            {formatDate(booking.value_date)}
+                                        </span>
+                                    </DescriptionList>
+                                </div>
+                            </List>
+                            <div>
+                                <Button
+                                    color="alternative"
+                                    on:click={() => {
+                                        //alert("foo");
+                                        selectedBooking = booking;
+                                        openBookingFilesModal = true;
+                                    }}
+                                >
+                                    <UploadOutline />
+                                </Button>
+                                <!--<Tooltip>Beleg, etc. hochladen</Tooltip>-->
+                            </div>
+                        </TableBodyCell>
+
+                        <TableBodyCell class="whitespace-normal">
+                            <List
+                                tag="dl"
+                                class=" text-gray-900 dark:text-white divide-gray-200  dark:divide-gray-700"
                             >
-                            <DescriptionList tag="dd">
-                                <span class="text-xs">
-                                    {formatDate(booking.booking_date)}
-                                </span>
-                            </DescriptionList>
-                        </div>
-                        <div class="flex flex-col pb-3">
-                            <DescriptionList tag="dt" class="mb-1"
-                                >Valuta</DescriptionList
-                            >
-                            <DescriptionList tag="dd">
-                                <span class="text-xs">
-                                    {formatDate(booking.value_date)}
-                                </span>
-                            </DescriptionList>
-                        </div>
-                    </List>
-                    <div>
-                        <Button
-                            color="alternative"
-                            on:click={() => {
-                                //alert("foo");
-                                selectedBooking = booking;
-                                openBookingModal = true;
-                            }}
-                        >
-                            <UploadOutline />
-                        </Button>
-                        <!--<Tooltip>Beleg, etc. hochladen</Tooltip>-->
-                    </div>
-                </TableBodyCell>
+                                {#if booking.partner_name}
+                                    <div class="flex flex-col pb-3">
+                                        <DescriptionList tag="dt" class="mb-1"
+                                            >Name</DescriptionList
+                                        >
+                                        <DescriptionList tag="dd">
+                                            <span class="text-sm">
+                                                {booking.partner_name}
+                                            </span>
+                                        </DescriptionList>
+                                    </div>
+                                {/if}
 
-                <TableBodyCell class="whitespace-normal">
-                    <List
-                        tag="dl"
-                        class=" text-gray-900 dark:text-white divide-gray-200  dark:divide-gray-700"
-                    >
-                        {#if booking.partner_name}
-                            <div class="flex flex-col pb-3">
-                                <DescriptionList tag="dt" class="mb-1"
-                                    >Name</DescriptionList
-                                >
-                                <DescriptionList tag="dd">
-                                    <span class="text-sm">
-                                        {booking.partner_name}
-                                    </span>
-                                </DescriptionList>
-                            </div>
-                        {/if}
+                                {#if booking.partner_iban}
+                                    <div class="flex flex-col pb-3">
+                                        <DescriptionList tag="dt" class="mb-1"
+                                            >IBAN</DescriptionList
+                                        >
+                                        <DescriptionList tag="dd">
+                                            <span class="text-sm">
+                                                {booking.partner_iban}
+                                            </span>
+                                        </DescriptionList>
+                                    </div>
+                                {/if}
 
-                        {#if booking.partner_iban}
-                            <div class="flex flex-col pb-3">
-                                <DescriptionList tag="dt" class="mb-1"
-                                    >IBAN</DescriptionList
-                                >
-                                <DescriptionList tag="dd">
-                                    <span class="text-sm">
-                                        {booking.partner_iban}
-                                    </span>
-                                </DescriptionList>
-                            </div>
-                        {/if}
+                                {#if booking.booking_details}
+                                    <div class="flex flex-col pb-3">
+                                        <DescriptionList tag="dt" class="mb-1"
+                                            >Details</DescriptionList
+                                        >
+                                        <DescriptionList tag="dd">
+                                            <span class="text-xs">
+                                                {booking.booking_details}
+                                            </span>
+                                        </DescriptionList>
+                                    </div>
+                                {/if}
+                            </List>
 
-                        {#if booking.booking_details}
-                            <div class="flex flex-col pb-3">
-                                <DescriptionList tag="dt" class="mb-1"
-                                    >Details</DescriptionList
-                                >
-                                <DescriptionList tag="dd">
-                                    <span class="text-xs">
-                                        {booking.booking_details}
-                                    </span>
-                                </DescriptionList>
-                            </div>
-                        {/if}
-                    </List>
+                            <LabelBox bind:data bookingId={booking.id} />
 
-                    <LabelBox bind:data bookingId={booking.id} />
-
-                    <FileBox bind:data bookingId={booking.id} />
-                </TableBodyCell>
-            </TableBodyRow>
-        {/each}
-    </TableBody>
-</Table>
+                            <FileBox bind:data bookingId={booking.id} />
+                        </TableBodyCell>
+                    </TableBodyRow>
+                {/each}
+            </TableBody>
+        </Table>
+    </TabItem>
+    <TabItem title="Steuern"></TabItem>
+</Tabs>

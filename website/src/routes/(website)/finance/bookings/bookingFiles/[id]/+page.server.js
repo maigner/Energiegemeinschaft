@@ -1,6 +1,6 @@
 
 import { cashierSession } from '$lib/server/db/members/authorization';
-//import { nextcloudClient } from '$lib/server/nextcloud/client';
+import { nextcloudClient } from '$lib/server/nextcloud/client';
 
 
 /** @type {import('./$types').PageServerLoad} */
@@ -16,15 +16,22 @@ export async function load({ params, parent }) {
         return {};
     }
 
-    //const nc = nextcloudClient;
-    //const folder = await nc.getFolder("/website")
+    const bookingId = parseInt(params.id);
+    if (!bookingId) {
+        console.error("No id");
+        return {};
+    }
 
-    //console.log({folder});
+    const nc = nextcloudClient;
+    const folder = await nc.getFolder(`/website/finance/bookings/booking/${bookingId}`);
+
+    console.log({folder});
 
 
     return {
         //member: member,
-        bookingId: params.id
+        bookingId: bookingId,
+        nextcloudFolder: folder
     }
 
 }
