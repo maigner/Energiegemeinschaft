@@ -51,3 +51,13 @@ class Booking(models.Model):
         return f'Booking {self.booking_reference} - {self.partner_name}'
 
 
+class BookingAttachment(models.Model):
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.CASCADE,
+        related_name='attachments'  # This allows accessing attachments from a Booking instance
+    )
+    filename = models.CharField(max_length=512)  # Store the filename directly
+
+    def __str__(self):
+        return f"Attachment for {self.booking.booking_reference}: {self.filename}"

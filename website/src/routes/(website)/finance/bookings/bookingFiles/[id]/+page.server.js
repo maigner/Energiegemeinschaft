@@ -4,6 +4,7 @@ import { nextcloudClient } from '$lib/server/nextcloud/client';
 
 import { Readable } from 'stream';
 import { fail } from '@sveltejs/kit';
+import { addFileToBooking, deleteFileFromBooking } from '$lib/server/db/finance/bookings';
 
 
 /** @type {import('./$types').PageServerLoad} */
@@ -80,6 +81,7 @@ export const actions = {
 
         try {
             await nextcloud.deleteFile(filename);
+            await deleteFileFromBooking(bookingId, filename);
         } catch (err) {
             console.error(`Error deleting file ${filename}:`, err);
             return fail(500, { error: `Failed to delete ${filename}` });
@@ -118,6 +120,12 @@ export const actions = {
                 // Await the piping of the streams
                 await pipe(fileStream, writestream);
                 console.log(`File ${file.name} uploaded successfully.`);
+
+
+                // update DB
+                await addFileToBooking(bookingId, target);
+
+
             } catch (err) {
                 console.error(`Error writing file ${file.name}:`, err);
                 return fail(500, { error: `Failed to upload ${file.name}` });

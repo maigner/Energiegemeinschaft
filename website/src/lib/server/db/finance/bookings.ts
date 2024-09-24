@@ -114,7 +114,7 @@ export const deleteBookingLabel = async (bookingId: number, labelId: number) => 
         // Execute the query
         await sql.query(query, [bookingId, labelId]);
 
-        
+
         // Return a tuple with a success message and the inserted data
         return { success: true, message: 'Delete successful', data: null };
     } catch (error: any) {
@@ -127,6 +127,52 @@ export const deleteBookingLabel = async (bookingId: number, labelId: number) => 
     }
 };
 
+
+
+export const addFileToBooking = async (bookingId, filename) => {
+    const sql = await middlewareDbConnection();
+
+    const query = `
+    INSERT INTO accounting_bookingattachment (booking_id, filename)
+    VALUES ($1, $2)
+    RETURNING id;  -- Return the id of the newly created attachment
+  `;
+
+    try {
+        const res = await sql.query(query, [bookingId, filename]);
+        console.log(`Attachment added with ID: ${res.rows[0].id}`);
+
+    } catch (err) {
+        console.error('Error adding booking attachment:', err);
+    } finally {
+        sql.release();
+    }
+};
+
+
+export const deleteFileFromBooking = async (bookingId, filename) => {
+    const sql = await middlewareDbConnection();
+
+    const query = `
+        DELETE FROM accounting_bookingattachment
+        WHERE booking_id = $1 AND filename = $2
+        RETURNING id;  -- Optionally return the id of the deleted attachment
+    `;
+
+    try {
+        const res = await sql.query(query, [bookingId, filename]);
+
+        if (res.rowCount > 0) {
+            console.log(`Attachment deleted for ID: ${res.rows[0].id}`);
+        } else {
+            console.log('No attachment found with the provided booking ID and filename.');
+        }
+    } catch (err) {
+        console.error('Error deleting booking attachment:', err);
+    } finally {
+        sql.release();
+    }
+};
 
 
 export const test = async () => {
