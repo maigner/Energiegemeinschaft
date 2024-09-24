@@ -20,7 +20,7 @@
     import { formatDate } from "$lib/format";
     import LabelBox from "./LabelBox.svelte";
     import Dashboard from "./Dashboard.svelte";
-    import { UploadOutline } from "flowbite-svelte-icons";
+    import { FileCirclePlusOutline } from "flowbite-svelte-icons";
     import FileBox from "./FileBox.svelte";
     import BookingFilesModal from "./BookingFilesModal.svelte";
 
@@ -131,7 +131,7 @@
                                         openBookingFilesModal = true;
                                     }}
                                 >
-                                    <UploadOutline />
+                                    <FileCirclePlusOutline />
                                 </Button>
                                 <!--<Tooltip>Beleg, etc. hochladen</Tooltip>-->
                             </div>

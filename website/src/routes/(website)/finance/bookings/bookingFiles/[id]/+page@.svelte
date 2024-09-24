@@ -104,7 +104,7 @@
 <Heading
     tag="h6"
     customSize="text-lg font-semibold"
-    class="mb-2 text-lg font-semibold text-gray-900 dark:text-white"
+    class="mb-2 text-lg font-semibold"
     >Bestehende Dateien</Heading
 >
 
@@ -148,7 +148,7 @@
 <Heading
     tag="h6"
     customSize="text-lg font-semibold"
-    class="mb-2 text-lg font-semibold text-gray-900 dark:text-white"
+    class="mb-2 text-lg font-semibold"
     >Dateien Hochladen</Heading
 >
 <Dropzone
