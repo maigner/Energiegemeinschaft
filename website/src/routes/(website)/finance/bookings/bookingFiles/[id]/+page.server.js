@@ -22,7 +22,7 @@ export async function load({ params, parent }) {
         return {};
     }
 
-    const client = nextcloudClient;
+    const client = nextcloudClient();
     const folder = await client.getFolder(`/website/finance/bookings/booking/${bookingId}`);
 
     console.log({folder});

@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start": "PORT=8080 node build",
+    "start": "PORT=8080 node -r dotenv/config build",
     "dev": "npm run prepare && vite dev",
     "build": "npm run prepare && vite build",
     "preview": "vite preview",
@@ -42,6 +42,7 @@
     "@zerodevx/svelte-json-view": "^1.0.10",
     "chart.js": "^4.4.3",
     "date-fns": "^3.6.0",
+    "dotenv": "^16.4.5",
     "mapbox-gl": "^3.3.0",
     "nextcloud-node-client": "^1.8.1",
     "nodemailer": "^6.9.5",
