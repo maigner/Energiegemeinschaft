@@ -8,8 +8,8 @@
     export let open;
 </script>
 
-<Modal title="Dateien hinzufügen" bind:open size="xl" autoclose class="">
-    <div class="h-64">
+<Modal title="Anhänge" bind:open size="xl" autoclose class="">
+    <div class="h-96">
         <iframe class="w-full h-full"
             title="Buchung"
             src={`/finance/bookings/bookingFiles/${booking?.id}`}
