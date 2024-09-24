@@ -1,6 +1,5 @@
 
 import { cashierSession } from '$lib/server/db/members/authorization';
-import { getNextcloudClient } from '$lib/server/nextcloud/client';
 
 import Client from "nextcloud-node-client";
 
