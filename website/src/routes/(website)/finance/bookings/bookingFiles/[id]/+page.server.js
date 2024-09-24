@@ -2,6 +2,7 @@
 import { cashierSession } from '$lib/server/db/members/authorization';
 import { getNextcloudClient } from '$lib/server/nextcloud/client';
 
+import Client from "nextcloud-node-client";
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, parent }) {
@@ -22,8 +23,8 @@ export async function load({ params, parent }) {
         return {};
     }
 
-    const nc = getNextcloudClient();
-    const folder = await nc.getFolder(`/website/finance/bookings/booking/${bookingId}`);
+    const client = new Client();
+    const folder = await client.getFolder(`/website/finance/bookings/booking/${bookingId}`);
 
     console.log({folder});
 
