@@ -1,3 +1,10 @@
 import Client from "nextcloud-node-client";
 
-export const nextcloudClient = new Client();
+let client = new Client();
+
+export const getNextcloudClient = () => {
+    if (!client) {
+        client = new Client();
+    }
+    return client;
+};

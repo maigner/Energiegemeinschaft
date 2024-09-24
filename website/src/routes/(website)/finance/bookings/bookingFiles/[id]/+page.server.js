@@ -1,6 +1,6 @@
 
 import { cashierSession } from '$lib/server/db/members/authorization';
-import { nextcloudClient } from '$lib/server/nextcloud/client';
+import { getNextcloudClient } from '$lib/server/nextcloud/client';
 
 
 /** @type {import('./$types').PageServerLoad} */
@@ -22,7 +22,7 @@ export async function load({ params, parent }) {
         return {};
     }
 
-    const nc = nextcloudClient;
+    const nc = getNextcloudClient();
     const folder = await nc.getFolder(`/website/finance/bookings/booking/${bookingId}`);
 
     console.log({folder});
