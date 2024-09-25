@@ -2,7 +2,7 @@
     import { browser } from "$app/environment";
     import { JsonView } from "@zerodevx/svelte-json-view";
 
-    import { Button, Dropzone, Heading } from "flowbite-svelte";
+    import { Button, Dropzone, Heading, Spinner } from "flowbite-svelte";
     import { onMount } from "svelte";
     import { List, Li } from "flowbite-svelte";
     import {
@@ -104,8 +104,7 @@
 <Heading
     tag="h6"
     customSize="text-lg font-semibold"
-    class="mb-2 text-lg font-semibold"
-    >Bestehende Dateien</Heading
+    class="mb-2 text-lg font-semibold">Bestehende Dateien</Heading
 >
 
 <Table>
@@ -144,12 +143,10 @@
     </TableBody>
 </Table>
 
-
 <Heading
     tag="h6"
     customSize="text-lg font-semibold"
-    class="mb-2 text-lg font-semibold"
-    >Dateien Hochladen</Heading
+    class="mb-2 text-lg font-semibold">Dateien Hochladen</Heading
 >
 <Dropzone
     id="dropzone"
@@ -180,4 +177,3 @@
         PDF, DOCX, ... (max. 4 GB)
     </p>
 </Dropzone>
-

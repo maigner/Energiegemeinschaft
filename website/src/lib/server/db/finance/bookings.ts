@@ -174,6 +174,25 @@ export const deleteFileFromBooking = async (bookingId, filename) => {
     }
 };
 
+export const getBookingsAttachments = async () => {
+    const sql = await middlewareDbConnection();
+
+    const result = await sql.query(`
+        SELECT
+            ba.booking_id, 
+            ba.id as attachment_id, 
+            ba.filename
+        FROM accounting_bookingattachment ba
+        `,
+        []
+    );
+
+    await sql.end();
+    sql.release();
+    return result?.rows;
+};
+
+
 
 export const test = async () => {
     const sql = await middlewareDbConnection();
