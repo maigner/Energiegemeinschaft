@@ -20,9 +20,9 @@ export async function load({ params, parent }) {
         return {};
     }
 
-    const bookingId = parseInt(params.id);
+    const bookingId = parseInt(params.bookingId);
     if (!bookingId) {
-        console.error("No id");
+        console.error("No bookingId");
         return {};
     }
 

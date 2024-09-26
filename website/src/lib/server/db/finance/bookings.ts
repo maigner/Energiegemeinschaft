@@ -193,6 +193,27 @@ export const getBookingsAttachments = async () => {
 };
 
 
+export const getAttachment = async (attachmentId: number) => {
+    const sql = await middlewareDbConnection();
+
+    const result = await sql.query(`
+        SELECT
+            id, filename, booking_id
+        FROM accounting_bookingattachment 
+        WHERE id = $1
+        `,
+        [attachmentId]
+    );
+
+    await sql.end();
+    sql.release();
+
+    // Return the filename if a result is found, otherwise return null
+    return result?.rows[0];
+};
+
+
+
 
 export const test = async () => {
     const sql = await middlewareDbConnection();

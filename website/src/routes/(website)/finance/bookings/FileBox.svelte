@@ -1,7 +1,9 @@
 <script>
+    import { browser } from "$app/environment";
     import { JsonView } from "@zerodevx/svelte-json-view";
     import { Badge, Indicator, Button } from "flowbite-svelte";
     import { BookOpenOutline } from "flowbite-svelte-icons";
+    import download from "downloadjs";
 
     export let data;
     export let bookingId;
@@ -9,6 +11,23 @@
     $: fileList = data.bookingsAttachments.filter(
         (file) => file.booking_id === bookingId,
     );
+
+    async function downloadTempFile(attachmentId) {
+        // This submits a POST request to trigger the download action
+        const res = await fetch("/download", {
+            method: "POST",
+            body: new FormData(),
+        });
+
+        // Create a blob from the response
+        const blob = await res.blob();
+
+        // Create a link to download the file
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "tempfile.pdf"; // Set the download file name
+        link.click();
+    }
 </script>
 
 <div class="">
@@ -16,21 +35,12 @@
         <Badge color="dark" rounded class="px-2 py-1 m-1 relative">
             <span class="text-xs">{file.filename.split("/").slice(-1)[0]}</span>
             <Button
-                pill={true}
-                class="!p-1 ml-2 text-xs"
                 on:click={async () => {
                     try {
                         const res = await fetch(
-                            "/api/finance/bookings/removeLabelFromBooking",
+                            `/api/finance/bookings/getAttachment?attachmentId=${file.attachment_id}`,
                             {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                    bookingId,
-                                    fileId: file.id,
-                                }),
+                                method: "GET",
                             },
                         );
 
@@ -38,33 +48,19 @@
                             throw new Error("Network response was not ok");
                         }
 
-                        const response = await res.json();
+                        const blob = await res.blob();
 
-                        if (response.success) {
-                            /*
-                            data.bookingsLabels =
-                                data.bookingsLabels.filter(
-                                    (
-                                         it,
-                                    ) => {
-                                        return !(
-                                            it.booking_id ===
-                                                label.booking_id &&
-                                            it.label_id === label.label_id
-                                        );
-                                    },
-                                );*/
-                        }
+                        // Use the download library to download the file
+                        download(blob, file.filename.split("/").slice(-1)[0]);
                     } catch (err) {
                         alert(err);
                     }
-
-                    // TODO: call API to actually delete
                 }}
+                pill={true}
+                class="!p-1 ml-2 text-xs"
             >
                 <BookOpenOutline />
             </Button>
         </Badge>
     {/each}
 </div>
-
