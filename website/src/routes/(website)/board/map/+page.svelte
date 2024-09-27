@@ -31,19 +31,16 @@
         });
 
         console.log(data.memberLocations);
-        
-        data.memberLocations.forEach(location => {
+
+        data.memberLocations.forEach((location) => {
             //console.log(location);
-            const el = document.createElement('div');
-            el.className = 'marker';
+            const el = document.createElement("div");
+            el.className = "marker";
             new Marker()
                 .setLngLat([location.longitude, location.latitude])
-                .setPopup(new Popup().setHTML(
-                    `<p>${location.name}</p>`
-                ))
+                .setPopup(new Popup().setHTML(`<p>${location.name}</p>`))
                 .addTo(map);
         });
-        
     });
 
     onDestroy(() => {
@@ -51,10 +48,8 @@
     });
 </script>
 
-
-<div class="max-w-fit">
-        
-        <div class="map" bind:this={mapContainer} />
+<div class="">
+    <div class="map" bind:this={mapContainer} />
 
     <!--
     <div class="sidebar">
@@ -69,8 +64,10 @@
         position: absolute;
         width: 95%;
         height: 95%;
+        left: 0;
+        right: 0;
         border-radius: 10px;
-        border-color:  rgb(35 55 75 / 90%);
+        border-color: rgb(35 55 75 / 90%);
     }
     .sidebar {
         background-color: rgb(35 55 75 / 90%);

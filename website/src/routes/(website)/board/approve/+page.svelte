@@ -1,24 +1,13 @@
 <script>
     import Project from "$lib/Project.svelte";
     import { Blockquote, Button } from "flowbite-svelte";
-    import { JSONEditor } from "svelte-jsoneditor";
     import MembershipApprovalForm from "./MembershipApprovalForm.svelte";
-    import { signIn, signOut } from "@auth/sveltekit/client";
+    import { signOut } from "@auth/sveltekit/client";
     import OpenTaskStatus from "./OpenTaskStatus.svelte";
 
     export let data;
-
-    /** @type {import('./$types').ActionData} */
-    export let form;
-
-    let content = { json: { data: data, form: form } };
-
 </script>
 
-
-<!--
-<JSONEditor bind:content />
--->
 
 {#if data.member}
     <div class="max-w-xl m-auto justify-center">
