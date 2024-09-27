@@ -35,7 +35,7 @@ export async function GET(event) {
     //console.log({ attachment });
 
 
-    const nextcloud = nextcloudClient;
+    const nextcloud = nextcloudClient();
 
 
     const stat = await nextcloud.stat(attachment.filename);

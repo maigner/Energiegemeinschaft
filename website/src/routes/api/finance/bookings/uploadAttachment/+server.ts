@@ -50,11 +50,12 @@ export async function POST(event) {
     //console.log({ bookingId });
 
     const dir = `/website/finance/bookings/booking/${bookingId}`;
-    const nextcloud = nextcloudClient;
+    const nextcloud = nextcloudClient();
 
 
     try {
         await nextcloud.createDirectory(dir);
+        console.log("created " + dir);
     } catch (e) {
         console.error(e);
     }

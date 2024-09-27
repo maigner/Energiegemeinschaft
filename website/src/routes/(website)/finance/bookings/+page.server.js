@@ -73,7 +73,7 @@ export const actions = {
         console.log({ attachment });
 
 
-        const nextcloud = nextcloudClient;
+        const nextcloud = nextcloudClient();
 
 
         const stat = await nextcloud.stat(attachment.filename);
@@ -129,7 +129,7 @@ export const actions = {
 
         console.log({ filename });
 
-        const nextcloud = nextcloudClient;
+        const nextcloud = nextcloudClient();
 
         try {
             await nextcloud.deleteFile(filename);
@@ -157,7 +157,7 @@ export const actions = {
         }
 
         const dir = `/website/finance/bookings/booking/${bookingId}`;
-        const nextcloud = nextcloudClient;
+        const nextcloud = nextcloudClient();
 
 
         for (const file of files) {
