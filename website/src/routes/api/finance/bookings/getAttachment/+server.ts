@@ -39,7 +39,7 @@ export async function GET(event) {
 
 
     const stat = await nextcloud.stat(attachment.filename);
-    console.log({ stat });
+    //console.log({ stat });
 
     if (!stat) {
         return new Response(null, { status: 404, statusText: "No Stats for File" })
