@@ -169,5 +169,12 @@
             </TableBody>
         </Table>
     </TabItem>
-    <TabItem title="Steuern"></TabItem>
+    <TabItem title="Steuern">
+
+
+        
+
+
+
+    </TabItem>
 </Tabs>

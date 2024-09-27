@@ -1,6 +1,6 @@
 <script>
     import { JsonView } from "@zerodevx/svelte-json-view";
-    import { Badge, Button } from "flowbite-svelte";
+    import { Badge, Button, Spinner } from "flowbite-svelte";
     import { Fileupload, Label } from "flowbite-svelte";
     import {
         BookOpenOutline,
@@ -8,6 +8,7 @@
         TrashBinOutline,
     } from "flowbite-svelte-icons";
     import download from "downloadjs";
+    import { shortenString } from "$lib/format";
 
     export let data;
     export let bookingId;
@@ -19,12 +20,16 @@
     );
 
     let uploadVisible = false;
+    let isLoading = false;
 </script>
 
+{#if isLoading}
+    <Spinner />
+{/if}
 <div class="">
     {#each fileList as file, index (file.attachment_id)}
-        <Badge color="dark" rounded class="px-2 py-1 m-1 relative">
-            <span class="text-xs">{file.filename.split("/").slice(-1)[0]}</span>
+        <Badge color="indigo" rounded class="px-2 py-1 m-1 relative">
+            <span class="text-xs">{ shortenString(file.filename.split("/").slice(-1)[0], 20) }</span>
             <Button
                 on:click={async () => {
                     try {
@@ -60,6 +65,7 @@
     <div>
         <form
             on:change={async () => {
+                isLoading = true;
                 console.log(fileUploadFiles);
                 //upload
                 const formData = new FormData();
@@ -73,6 +79,7 @@
                 formData.append("bookingId", bookingId);
 
                 try {
+
                     const response = await fetch(
                         "/api/finance/bookings/uploadAttachment",
                         {
@@ -96,6 +103,8 @@
                     }
                 } catch (error) {
                     console.error("Error uploading file:", error);
+                } finally {
+                    isLoading = false;
                 }
             }}
         >
