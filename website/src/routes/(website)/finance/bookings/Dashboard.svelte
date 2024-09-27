@@ -55,8 +55,8 @@
 <Table class="mb-8">
     <TableHead>
         <TableHeadCell>Kategorie</TableHeadCell>
-        <TableHeadCell>Summe</TableHeadCell>
-        <TableHeadCell>Cash Flow</TableHeadCell>
+        <TableHeadCell class="text-right">Summe</TableHeadCell>
+        <TableHeadCell class="text-right">Cash Flow</TableHeadCell>
     </TableHead>
     <TableBody tableBodyClass="divide-y">
         {#each labelList as label, index (label.id)}
