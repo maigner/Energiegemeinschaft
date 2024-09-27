@@ -11,6 +11,7 @@
         DescriptionList,
         Heading,
         Select,
+        Button,
     } from "flowbite-svelte";
 
     import { Tabs, TabItem } from "flowbite-svelte";
@@ -20,6 +21,7 @@
     import Dashboard from "./Dashboard.svelte";
     import FileBox from "./FileBox.svelte";
     import Taxes from "./Taxes.svelte";
+    import { browser } from "$app/environment";
 
     export let data;
 
@@ -27,8 +29,6 @@
      * @type {string}
      */
     let year = "2024";
-
-
 
     $: data.filteredBookings = data.bookings.filter(
         (
@@ -57,12 +57,11 @@
     </div>
 </div>
 
-
 <Tabs tabStyle="underline">
     <TabItem open title="Übersicht">
         <Dashboard bind:data />
     </TabItem>
-    <TabItem  title="Buchungen">
+    <TabItem title="Buchungen">
         <Table>
             <TableHead>
                 <TableHeadCell>Buchung</TableHeadCell>
@@ -110,7 +109,6 @@
                                     </DescriptionList>
                                 </div>
                             </List>
-                            
                         </TableBodyCell>
 
                         <TableBodyCell class="whitespace-normal">
@@ -160,7 +158,6 @@
 
                             <LabelBox bind:data bookingId={booking.id} />
 
-                            
                             <div class="mt-4">
                                 <FileBox bind:data bookingId={booking.id} />
                             </div>
@@ -171,11 +168,7 @@
         </Table>
     </TabItem>
     <TabItem title="Steuern">
-
         <Taxes bind:data />
-
-
-
-
     </TabItem>
 </Tabs>
+

@@ -1,6 +1,8 @@
 <script>
     import { Mark } from "flowbite-svelte";
 
+    // https://docs.mapbox.com/mapbox-gl-js/example/simple-map/
+
     // https://docs.mapbox.com/help/tutorials/use-mapbox-gl-js-with-svelte/
     import { Map, Marker, Popup } from "mapbox-gl";
     import "mapbox-gl/dist/mapbox-gl.css";

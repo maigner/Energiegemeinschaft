@@ -1,8 +1,9 @@
 <script>
 	import "../../app.css";
 	import { page } from "$app/stores";
-	import { Hr } from "flowbite-svelte";
+	import { Button, Hr } from "flowbite-svelte";
 	import Navigation from "./Navigation.svelte";
+    import { browser } from "$app/environment";
 
 	export let data;
 </script>
@@ -15,6 +16,19 @@
 
 
 
+<div class="flex justify-center">
+    <Button
+        class="mt-48"
+        on:click={() => {
+            if (browser) {
+                window.scrollTo({
+                    top: 0,
+                    behavior: "smooth",
+                });
+            }
+        }}>zurück nach oben</Button
+    >
+</div>
 
 {#if $page.route.id !== "/impressum" &&  $page.route.id?.toString().startsWith("/board") == false }
 	<div class="text-center mt-20 text-xs text-primary-800">
