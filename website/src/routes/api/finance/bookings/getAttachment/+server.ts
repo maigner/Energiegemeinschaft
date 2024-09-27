@@ -9,9 +9,6 @@ import { getAttachment } from '$lib/server/db/finance/bookings.js';
 /** @type {import('../../$types').RequestHandler} */
 export async function GET(event) {
 
-    console.log({ event });
-
-
     const attachmentId = event.url.searchParams.get("attachmentId");
 
 
@@ -35,7 +32,7 @@ export async function GET(event) {
     if (!attachment) {
         return new Response(null, { status: 404, statusText: "No attachment" })
     }
-    console.log({ attachment });
+    //console.log({ attachment });
 
 
     const nextcloud = nextcloudClient;

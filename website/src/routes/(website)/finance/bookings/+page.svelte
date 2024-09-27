@@ -11,8 +11,6 @@
         DescriptionList,
         Heading,
         Select,
-        Button,
-        Tooltip,
     } from "flowbite-svelte";
 
     import { Tabs, TabItem } from "flowbite-svelte";
@@ -20,9 +18,7 @@
     import { formatDate } from "$lib/format";
     import LabelBox from "./LabelBox.svelte";
     import Dashboard from "./Dashboard.svelte";
-    import { FileCirclePlusOutline } from "flowbite-svelte-icons";
     import FileBox from "./FileBox.svelte";
-    import BookingFilesModal from "./BookingFilesModal.svelte";
 
     export let data;
 
@@ -31,12 +27,7 @@
      */
     let year = "2024";
 
-    /**
-     * @type {object|null}
-     */
-    let selectedBooking = null;
 
-    let openBookingFilesModal = false;
 
     $: data.filteredBookings = data.bookings.filter(
         (
@@ -65,16 +56,12 @@
     </div>
 </div>
 
-<BookingFilesModal
-    bind:booking={selectedBooking}
-    bind:open={openBookingFilesModal}
-/>
 
 <Tabs tabStyle="underline">
-    <TabItem  title="Übersicht">
+    <TabItem open title="Übersicht">
         <Dashboard bind:data />
     </TabItem>
-    <TabItem open title="Buchungen">
+    <TabItem  title="Buchungen">
         <Table>
             <TableHead>
                 <TableHeadCell>Buchung</TableHeadCell>
@@ -85,7 +72,7 @@
                     <TableBodyRow
                         class={index % 2 === 0 ? "bg-white" : "bg-gray-100"}
                     >
-                        <TableBodyCell>
+                        <TableBodyCell class="flex items-start">
                             <List
                                 tag="dl"
                                 class="text-gray-900 dark:text-white divide-gray-200  dark:divide-gray-700"
@@ -122,19 +109,7 @@
                                     </DescriptionList>
                                 </div>
                             </List>
-                            <div>
-                                <Button
-                                    color="alternative"
-                                    on:click={() => {
-                                        //alert("foo");
-                                        selectedBooking = booking;
-                                        openBookingFilesModal = true;
-                                    }}
-                                >
-                                    <FileCirclePlusOutline />
-                                </Button>
-                                <!--<Tooltip>Beleg, etc. hochladen</Tooltip>-->
-                            </div>
+                            
                         </TableBodyCell>
 
                         <TableBodyCell class="whitespace-normal">
@@ -184,7 +159,10 @@
 
                             <LabelBox bind:data bookingId={booking.id} />
 
-                            <FileBox bind:data bookingId={booking.id} />
+                            
+                            <div class="mt-4">
+                                <FileBox bind:data bookingId={booking.id} />
+                            </div>
                         </TableBodyCell>
                     </TableBodyRow>
                 {/each}

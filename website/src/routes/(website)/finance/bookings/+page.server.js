@@ -1,10 +1,26 @@
-import { getLabels, getBookings, getBookingsLabels, getBookingsAttachments, getAttachment } from '$lib/server/db/finance/bookings';
+import { getLabels, getBookings, getBookingsLabels, getBookingsAttachments, getAttachment, addFileToBooking } from '$lib/server/db/finance/bookings';
 import { cashierSession } from '$lib/server/db/members/authorization';
 import { tmpdir } from 'os';
 import path from 'path';
 import fs from 'fs';
 import { nextcloudClient } from '$lib/server/nextcloud/client';
 import { fail } from '@sveltejs/kit';
+import { Readable } from 'stream';
+
+const pipe = (source, destination) => {
+    return new Promise((resolve, reject) => {
+        source.pipe(destination);
+        destination.on('finish', resolve);
+        destination.on('error', reject);
+    });
+};
+
+const createReadStreamFromBuffer = (buffer) => {
+    const stream = new Readable();
+    stream.push(buffer);
+    stream.push(null); // Signal that we're done
+    return stream;
+};
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ parent }) {
@@ -86,7 +102,8 @@ export const actions = {
 
             const file = fs.readFileSync(tempFilePath);
 
-            return new Response(file, { status: 200,
+            return new Response(file, {
+                status: 200,
                 headers: {
                     'Content-Type': stat.mime, // Adjust MIME type for the file you're generating
                     'Content-Disposition': `attachment; filename="${outputFileName}"` // Forces download with a filename
@@ -96,6 +113,83 @@ export const actions = {
         } catch (e) {
             return fail(500, { error: `Cannot read from Nextcloud` });
         }
+
+
+    },
+    delete: async ({ request }) => {
+        const formData = await request.formData();
+        const filename = formData.get("filename");
+        const bookingId = formData.get("bookingId");
+        const dir = `/website/finance/bookings/booking/${bookingId}`;
+
+        if (!filename.startsWith(dir)) {
+            return fail(500, { error: `Illegal path` });
+        }
+
+
+        console.log({ filename });
+
+        const nextcloud = nextcloudClient;
+
+        try {
+            await nextcloud.deleteFile(filename);
+            await deleteFileFromBooking(bookingId, filename);
+        } catch (err) {
+            console.error(`Error deleting file ${filename}:`, err);
+            return fail(500, { error: `Failed to delete ${filename}` });
+        }
+
+        return {
+            success: true
+        };
+    },
+
+    upload: async ({ request }) => {
+
+        const formData = await request.formData();
+        const files = formData.getAll('files');
+        const bookingId = formData.get("bookingId");
+
+        console.log({bookingId});
+
+        if (files.length === 0) {
+            return fail(400, { error: 'No files uploaded' });
+        }
+
+        const dir = `/website/finance/bookings/booking/${bookingId}`;
+        const nextcloud = nextcloudClient;
+
+
+        for (const file of files) {
+            const target = `${dir}/${file.name}`;
+
+            // Convert the file to a buffer
+            // @ts-ignore
+            const buffer = Buffer.from(await file.arrayBuffer());
+
+            const fileStream = createReadStreamFromBuffer(buffer);
+            const writestream = nextcloud.createWriteStream(target);
+
+            try {
+                // Await the piping of the streams
+                await pipe(fileStream, writestream);
+                console.log(`File ${file.name} uploaded successfully.`);
+
+
+                // update DB
+                await addFileToBooking(bookingId, target);
+
+
+            } catch (err) {
+                console.error(`Error writing file ${file.name}:`, err);
+                return fail(500, { error: `Failed to upload ${file.name}` });
+            }
+
+        };
+
+        return {
+            success: true
+        };
 
 
     }

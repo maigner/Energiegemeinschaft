@@ -1,37 +1,28 @@
 <script>
-    import { browser } from "$app/environment";
     import { JsonView } from "@zerodevx/svelte-json-view";
-    import { Badge, Indicator, Button } from "flowbite-svelte";
-    import { BookOpenOutline } from "flowbite-svelte-icons";
+    import { Badge, Button } from "flowbite-svelte";
+    import { Fileupload, Label } from "flowbite-svelte";
+    import {
+        BookOpenOutline,
+        FileCirclePlusOutline,
+        TrashBinOutline,
+    } from "flowbite-svelte-icons";
     import download from "downloadjs";
 
     export let data;
     export let bookingId;
 
+    let fileUploadFiles;
+
     $: fileList = data.bookingsAttachments.filter(
         (file) => file.booking_id === bookingId,
     );
 
-    async function downloadTempFile(attachmentId) {
-        // This submits a POST request to trigger the download action
-        const res = await fetch("/download", {
-            method: "POST",
-            body: new FormData(),
-        });
-
-        // Create a blob from the response
-        const blob = await res.blob();
-
-        // Create a link to download the file
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = "tempfile.pdf"; // Set the download file name
-        link.click();
-    }
+    let uploadVisible = false;
 </script>
 
 <div class="">
-    {#each fileList as file, index (file.id)}
+    {#each fileList as file, index (file.attachment_id)}
         <Badge color="dark" rounded class="px-2 py-1 m-1 relative">
             <span class="text-xs">{file.filename.split("/").slice(-1)[0]}</span>
             <Button
@@ -63,4 +54,66 @@
             </Button>
         </Badge>
     {/each}
+</div>
+
+{#if uploadVisible}
+    <div>
+        <form
+            on:change={async () => {
+                console.log(fileUploadFiles);
+                //upload
+                const formData = new FormData();
+                //formData.append("file", fileUploadFiles);
+
+                let file = null;
+
+                console.log(formData);
+
+                formData.append("file", fileUploadFiles[0]); // Append the file to FormData
+                formData.append("bookingId", bookingId);
+
+                try {
+                    const response = await fetch(
+                        "/api/finance/bookings/uploadAttachment",
+                        {
+                            method: "POST",
+                            body: formData,
+                        },
+                    );
+
+                    const result = await response.json();
+                    console.log("Upload Result:", result);
+                    if (result.success) {
+                        // append attachment data to data.bookingsAttachments
+                        //console.log(result.attachment);
+
+                        data.bookingsAttachments.push({
+                            booking_id: result.attachment.booking_id,
+                            filename: result.attachment.filename,
+                            attachment_id: result.attachment.id,
+                        });
+                        data.bookingsAttachments = data.bookingsAttachments;
+                    }
+                } catch (error) {
+                    console.error("Error uploading file:", error);
+                }
+            }}
+        >
+            <Label class="space-y-2 mb-2">
+                <span>Datei hinzufügen</span>
+                <Fileupload multiple bind:files={fileUploadFiles} />
+            </Label>
+        </form>
+    </div>
+{/if}
+<div class="w-fit ml-auto">
+    <Button
+        color="alternative"
+        on:click={() => {
+            uploadVisible = !uploadVisible;
+        }}
+    >
+        <FileCirclePlusOutline />
+    </Button>
+    <!--<Tooltip>Beleg, etc. hochladen</Tooltip>-->
 </div>

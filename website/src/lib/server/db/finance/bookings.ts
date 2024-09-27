@@ -142,6 +142,9 @@ export const addFileToBooking = async (bookingId, filename) => {
         const res = await sql.query(query, [bookingId, filename]);
         console.log(`Attachment added with ID: ${res.rows[0].id}`);
 
+        const attachmentId = res.rows[0].id;
+        return await getAttachment(attachmentId);
+
     } catch (err) {
         console.error('Error adding booking attachment:', err);
     } finally {

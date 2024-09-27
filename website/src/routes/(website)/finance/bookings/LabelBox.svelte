@@ -1,7 +1,7 @@
 <script>
     import { JsonView } from "@zerodevx/svelte-json-view";
     import { Badge, Select, Indicator, Button } from "flowbite-svelte";
-    import { ThumbsUpSolid, TrashBinOutline } from "flowbite-svelte-icons";
+    import { TrashBinOutline } from "flowbite-svelte-icons";
 
     export let data;
     export let bookingId;
