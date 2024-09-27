@@ -52,6 +52,10 @@ export async function POST(event) {
     const dir = `/website/finance/bookings/booking/${bookingId}`;
     const nextcloud = nextcloudClient();
 
+    if (!nextcloud) {
+        return new Response(null, { status: 500, statusText: "no nextcloud" });
+    }
+
 
     try {
         await nextcloud.createDirectory(dir);
@@ -84,7 +88,7 @@ export async function POST(event) {
 
     } catch (err) {
         console.error(`Error writing file ${file.name}:`, err);
-        return new Response(null, { status: 500, statusText: "upload failed" })
+        return new Response(null, { status: 500, statusText: "upload failed" });
     }
 
 
