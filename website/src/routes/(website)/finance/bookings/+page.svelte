@@ -19,6 +19,7 @@
     import LabelBox from "./LabelBox.svelte";
     import Dashboard from "./Dashboard.svelte";
     import FileBox from "./FileBox.svelte";
+    import Taxes from "./Taxes.svelte";
 
     export let data;
 
@@ -171,8 +172,8 @@
     </TabItem>
     <TabItem title="Steuern">
 
+        <Taxes bind:data />
 
-        
 
 
 

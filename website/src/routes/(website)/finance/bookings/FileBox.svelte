@@ -1,6 +1,6 @@
 <script>
     import { JsonView } from "@zerodevx/svelte-json-view";
-    import { Badge, Button, Spinner } from "flowbite-svelte";
+    import { Badge, Button, Spinner, Tooltip } from "flowbite-svelte";
     import { Fileupload, Label } from "flowbite-svelte";
     import {
         BookOpenOutline,
@@ -28,8 +28,10 @@
 {/if}
 <div class="">
     {#each fileList as file, index (file.attachment_id)}
+
+        {@const filename = file.filename.split("/").slice(-1)[0]}
         <Badge color="indigo" rounded class="px-2 py-1 m-1 relative">
-            <span class="text-xs">{ shortenString(file.filename.split("/").slice(-1)[0], 20) }</span>
+            <span class="text-xs">{ shortenString(filename, 20) }</span>
             <Button
                 on:click={async () => {
                     try {
@@ -58,6 +60,7 @@
                 <BookOpenOutline />
             </Button>
         </Badge>
+        <Tooltip>{filename}</Tooltip>
     {/each}
 </div>
 
