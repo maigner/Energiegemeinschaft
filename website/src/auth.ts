@@ -22,7 +22,7 @@ export const authorizationHandle = async({ event, resolve }) => {
     const session = await event.locals.auth();
 
     if (!session) {
-      throw redirect(307, `/login?source=${event.route.id}`);
+      throw redirect(307, `/login?source=${event.route.id.replace("/(website)", "")}`);
     }
   }
 
@@ -31,7 +31,7 @@ export const authorizationHandle = async({ event, resolve }) => {
     const session = await event.locals.auth();
 
     if (!session) {
-      throw redirect(307, `/login?source=${event.route.id}`);
+      throw redirect(307, `/login?source=${event.route.id.replace("/(website)", "")}`);
     }
   }
 
