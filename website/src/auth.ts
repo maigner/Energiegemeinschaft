@@ -15,7 +15,9 @@ export const authorizationHandle = async({ event, resolve }) => {
     });
   }
 
-  if (event.route.id?.startsWith('/board')) {
+  console.log(event.route.id);
+
+  if (event.route.id?.startsWith('/(website)/board')) {
     //console.log("Requires authentication");
     const session = await event.locals.auth();
 
@@ -24,7 +26,7 @@ export const authorizationHandle = async({ event, resolve }) => {
     }
   }
 
-  if (event.route.id?.startsWith('/finance')) {
+  if (event.route.id?.startsWith('/(website)/finance')) {
     //console.log("Requires authentication");
     const session = await event.locals.auth();
 
@@ -33,7 +35,7 @@ export const authorizationHandle = async({ event, resolve }) => {
     }
   }
 
-  if (event.route.id?.startsWith('/user')) {
+  if (event.route.id?.startsWith('/(website)/user')) {
     //console.log("Requires authentication");
     const session = await event.locals.auth();
 
