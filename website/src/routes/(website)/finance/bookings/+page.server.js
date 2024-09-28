@@ -26,12 +26,11 @@ const createReadStreamFromBuffer = (buffer) => {
 export async function load({ parent }) {
 
     // member info
-    let { session } = await parent();
+    let { isCashierSession } = await parent();
 
 
     // TODO: kassiere only
-    const authorized = await cashierSession(session);
-    if (!authorized) {
+    if (!isCashierSession) {
         return {};
     }
 

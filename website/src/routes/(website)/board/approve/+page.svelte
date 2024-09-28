@@ -9,7 +9,7 @@
 </script>
 
 
-{#if data.member}
+{#if data.boardMember}
     <div class="max-w-xl m-auto justify-center">
         <figure class="m-4 text-center">
             <Blockquote alignment="center" size="xl" class="text-gray-900">

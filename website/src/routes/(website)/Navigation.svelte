@@ -120,7 +120,7 @@
                     </BottomNavItem>
                 </NavLi>
 
-                {#if data.member?.board_member}
+                {#if data.boardMember}
                     <NavLi href="/board">
                         <BottomNavItem
                             btnName="Vorstand"

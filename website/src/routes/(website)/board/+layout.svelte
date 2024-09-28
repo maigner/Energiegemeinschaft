@@ -5,7 +5,7 @@
     export let data;
 </script>
 
-{#if data.member}
+{#if data.boardMember}
     <Navigation bind:data />
 
     <slot />

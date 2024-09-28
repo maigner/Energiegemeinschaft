@@ -44,9 +44,9 @@
     </div>
     <Dropdown placement="bottom" triggeredBy="#avatar-menu">
         <DropdownHeader>
-            <span class="block text-sm">{data.member.name}</span>
+            <span class="block text-sm">{data.boardMember.name}</span>
             <span class="block truncate text-sm font-medium"
-                >{data.member.email}</span
+                >{data.boardMember.email}</span
             >
         </DropdownHeader>
         <!--

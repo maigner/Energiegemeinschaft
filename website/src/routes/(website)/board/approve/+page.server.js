@@ -9,11 +9,11 @@ export async function load({ fetch, params, parent, locals }) {
 
 
 
-    const { member } = await parent()
+    const { boardMember } = await parent()
 
-    if (!member) {
+    if (!boardMember) {
         return {
-            member: null,
+            boardMember: null,
             tasks: [],
             openTasks: [],
             taskStatus: {}
@@ -25,7 +25,7 @@ export async function load({ fetch, params, parent, locals }) {
         return task.data.newMember.email;
     });
     
-    let memberEmails = await completedMembershipApprovalTasks(member.id, new_member_emails);
+    let memberEmails = await completedMembershipApprovalTasks(boardMember.id, new_member_emails);
     let openTasks = tasks.filter((/** @type {{ data: { newMember: { email: any; }; }; }} */ task) => {
         return !memberEmails.includes(task.data.newMember.email);
     });

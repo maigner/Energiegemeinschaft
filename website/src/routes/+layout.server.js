@@ -13,12 +13,15 @@ export async function load(event) {
 
 
 	// @ts-ignore
-    const member = await getBoardMemberByEmail(session?.user?.email);
+	/**
+	 * 
+	 */
+    const boardMember = await getBoardMemberByEmail(session?.user?.email);
 
 
 	return {
 		session: session,
 		isCashierSession: isCashierSession,
-		member: member
+		boardMember: boardMember
 	}
 }
