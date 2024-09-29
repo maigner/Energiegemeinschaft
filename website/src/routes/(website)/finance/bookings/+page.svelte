@@ -43,7 +43,7 @@
     Buchhaltung
 </Heading>
 
-<div class="max-w-32 w-32 flex justify-center m-auto">
+<div id="selectYear" class="max-w-32 w-32 flex justify-center m-auto">
     <div class="flex">
         <Select
             class="mt-2 mb-4 text-center"
