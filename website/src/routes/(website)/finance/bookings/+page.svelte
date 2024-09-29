@@ -22,6 +22,7 @@
     import FileBox from "./FileBox.svelte";
     import Taxes from "./Taxes.svelte";
     import { browser } from "$app/environment";
+    import GeorgeImport from "./GeorgeImport.svelte";
 
     export let data;
 
@@ -58,7 +59,7 @@
 </div>
 
 <Tabs tabStyle="underline">
-    <TabItem open title="Übersicht">
+    <TabItem title="Übersicht">
         <Dashboard bind:data />
     </TabItem>
     <TabItem title="Buchungen">
@@ -169,6 +170,9 @@
     </TabItem>
     <TabItem title="Steuern">
         <Taxes bind:data />
+    </TabItem>
+    <TabItem open title="George">
+        <GeorgeImport bind:data />
     </TabItem>
 </Tabs>
 
