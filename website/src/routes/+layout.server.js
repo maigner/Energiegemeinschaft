@@ -1,5 +1,5 @@
 import { cashierSession } from '$lib/server/db/members/authorization';
-import { getBoardMemberByEmail } from '$lib/server/db/members/member';
+import { getBoardMemberByEmail, getCommunityMembersByEmail } from '$lib/server/db/members/member';
 
 
 /** @type {import('./$types').LayoutServerLoad} */
@@ -18,10 +18,17 @@ export async function load(event) {
 	 */
     const boardMember = await getBoardMemberByEmail(session?.user?.email);
 
+	// one email may be attached to multiple members
+	// that email is treatet as a "manager" role for all associated members
+	const communityMembers = await getCommunityMembersByEmail(session?.user?.email);
+
+
+
 
 	return {
 		session: session,
 		isCashierSession: isCashierSession,
-		boardMember: boardMember
+		boardMember: boardMember,
+		communityMembers: communityMembers
 	}
 }

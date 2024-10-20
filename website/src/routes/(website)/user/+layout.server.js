@@ -1,5 +1,4 @@
 import { getUsersByEmail } from '$lib/server/db/members/member';
-import { fail, redirect } from "@sveltejs/kit"
 
 /** @type {import('./$types').LayoutServerLoad} */
 export async function load({ parent, locals }) {

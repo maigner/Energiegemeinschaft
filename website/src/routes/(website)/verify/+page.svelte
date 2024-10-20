@@ -25,5 +25,10 @@
             Dort finden Sie eine Nachricht von info@ischlstrom.org mit weiteren Anweisungen...
         </p>
 
+
+        <p class="mt-8">
+           Sie können diesen Tab bzw. dieses Fenster nun schließen. 
+        </p>
+
     </Card>
 </div>

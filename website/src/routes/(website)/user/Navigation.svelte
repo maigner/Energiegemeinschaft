@@ -15,7 +15,7 @@
     import { signOut } from "@auth/sveltekit/client";
 
     /**
-     * @type {{ users: [any], member: { name: string; email: string; board_member: boolean }; }}
+     * @type {{ users: [any]; }}
      */
     export let data;
 
