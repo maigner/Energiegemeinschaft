@@ -47,3 +47,9 @@ class MeasurementPoint(models.Model):
         return f"{self.identifier}"
     
     
+class EventRegistration(models.Model):
+    email = models.EmailField(unique=False)
+    event_name = models.CharField(max_length=200)
+    date_time = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return f"{self.email} {self.event_name}"

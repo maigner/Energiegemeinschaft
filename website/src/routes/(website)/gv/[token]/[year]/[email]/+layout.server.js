@@ -30,6 +30,9 @@ export async function load({ parent, locals, params }) {
     }
 
 
+    // save registration!
+
+
     return {
         users: users,
         newsletterEmail: params.email
