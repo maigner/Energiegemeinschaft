@@ -40,7 +40,8 @@ export async function load({ parent, locals, params }) {
 
     return {
         users: users,
-        newsletterEmail: params.email
+        newsletterEmail: params.email,
+        answer: params.answer
     }
 
 }
