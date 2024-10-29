@@ -7,9 +7,9 @@
     {data.error}
 {:else}
     <div class="text-center">
-        {#if data.answer === "yes"}
-            <Heading tag="h1" class="text-primary-600 mt-8">Danke!</Heading>
+        <Heading tag="h1" class="text-primary-600 mt-8">Danke!</Heading>
 
+        {#if data.answer === "yes"}
             <p class="mt-8">Für Ihre Anmeldung zur Generalversammlung 2024</p>
 
             <p class="mt-4">
@@ -23,7 +23,9 @@
 
             <p class="mt-16">Ihr Vorstand von ISCHLSTROM</p>
         {:else if data.answer === "no"}
-            <p class="mt-8">Für Ihre Abmeldung von der Generalversammlung 2024</p>
+            <p class="mt-8">
+                Für Ihre Abmeldung von der Generalversammlung 2024
+            </p>
 
             <p class="mt-4">
                 {data.newsletterEmail}

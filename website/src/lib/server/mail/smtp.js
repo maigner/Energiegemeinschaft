@@ -27,7 +27,7 @@ export async function relay(originEmail, subject, message) {
     var mailMessage = {
         from: "info@ischlstrom.org",
         to: "info@ischlstrom.org",
-        subject: "EEG Kontaktaufnahme von " + originEmail,
+        subject: subject,
         text: JSON.stringify(message)
     };
 
