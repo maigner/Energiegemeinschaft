@@ -1,12 +1,16 @@
 import { NEWSLETTER_TOKEN_GV_2024 } from '$env/static/private';
 import { getUsersByEmail } from '$lib/server/db/members/member';
+import { relay } from '$lib/server/mail/smtp';
+
+//TODO: make this hack beautyful some day
+
 
 function validateEmail(email) {
     const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     return regex.test(email);
 }
 
-/** @type {import('./$types').LayoutServerLoad} */
+/** @type {import('../$types').LayoutServerLoad} */
 export async function load({ parent, locals, params }) {
 
     // member info
@@ -30,7 +34,8 @@ export async function load({ parent, locals, params }) {
     }
 
 
-    // save registration!
+    // save registration! do not await result from async relay
+    relay(params.email, "GV 2024", params);
 
 
     return {
