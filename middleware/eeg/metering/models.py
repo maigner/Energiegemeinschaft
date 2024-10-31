@@ -31,7 +31,7 @@ class MeterCode(models.Model):
 class Measurement(models.Model):
     measurement_point = models.ForeignKey(MeasurementPoint, on_delete=models.CASCADE)
     meter_code = models.ForeignKey(MeterCode, on_delete=models.CASCADE)
-    timestamp = models.DateTimeField()
+    timestamp = models.DateTimeField(db_index=True)
     value = models.DecimalField(max_digits=19, decimal_places=10)
     def __str__(self):
         return f"{self.meter_code}: {self.value}"

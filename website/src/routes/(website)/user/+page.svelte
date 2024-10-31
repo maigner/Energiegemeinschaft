@@ -1,4 +1,5 @@
 <script>
+    import { goto } from "$app/navigation";
     import { Heading } from "flowbite-svelte";
     import { Listgroup } from "flowbite-svelte";
 
@@ -11,6 +12,12 @@
             href: `/user/${user.identifier}`,
         };
     });
+
+    if (links.length === 1) {
+        // no selection necessary
+        goto(links[0].href);
+    }
+
 </script>
 
 

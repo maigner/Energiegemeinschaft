@@ -5,6 +5,7 @@
     import { onMount } from "svelte";
     import DataRangePagination from "./DataRangePagination.svelte";
     import NoDataModal from "./NoDataModal.svelte";
+    import { Spinner } from "flowbite-svelte";
 
     /**
      * @type {any}
@@ -275,10 +276,13 @@
         ...options,
     };
 
+    let isLoading = false;
+
     const loadData = async (
         /** @type {Date} */ startDate,
         /** @type {Date} */ endDate,
     ) => {
+        isLoading = true;
         const response = await fetch("/api/user/data/averageMetrics", {
             method: "POST",
             body: JSON.stringify({
@@ -326,7 +330,10 @@
                     element.metric_name ===
                     "Gesamt/Überschusserzeugung, Gemeinschaftsüberschuss",
             )
-            .map((/** @type {{ avg_value: any; }} */ element) => element.avg_value);
+            .map(
+                (/** @type {{ avg_value: any; }} */ element) =>
+                    element.avg_value,
+            );
 
         consumptionTotal = data.averageMetrics
             .filter(
@@ -334,7 +341,10 @@
                     element.metric_name ===
                     "Gesamtverbrauch lt. Messung (bei Teilnahme gem. Erzeugung)",
             )
-            .map((/** @type {{ avg_value: any; }} */ element) => element.avg_value);
+            .map(
+                (/** @type {{ avg_value: any; }} */ element) =>
+                    element.avg_value,
+            );
 
         eegReceive = data.averageMetrics
             .filter(
@@ -342,12 +352,17 @@
                     element.metric_name ===
                     "Eigendeckung gemeinschaftliche Erzeugung",
             )
-            .map((/** @type {{ avg_value: any; }} */ element) => element.avg_value);
+            .map(
+                (/** @type {{ avg_value: any; }} */ element) =>
+                    element.avg_value,
+            );
 
         // difference goes into EEG
-        eegInject = prodTotal.map((/** @type {number} */ value, /** @type {number} */ index) => {
-            return value - overshoot[index];
-        });
+        eegInject = prodTotal.map(
+            (/** @type {number} */ value, /** @type {number} */ index) => {
+                return value - overshoot[index];
+            },
+        );
 
         // @ts-ignore
         producerGraphOptions = {
@@ -382,6 +397,7 @@
             ],
             ...options,
         };
+        isLoading = false;
     };
 
     let currentDataRangeSelection = {
@@ -437,6 +453,12 @@
 <Card class="max-w-full">
     <DataRangePagination bind:data />
 
+    {#if isLoading}
+        <div class="w-max m-auto">
+            <Spinner />
+        </div>
+    {/if}
+
     <Tabs>
         {#if consumptionTotal.length > 0}
             <TabItem bind:open={tabOpen.consumption} title="Bezug">
@@ -445,7 +467,13 @@
                     <span slot="subTitle">in kiloWatt</span>
                 </ChartHeader>
 
-                <Chart bind:options={consumerGraphOptions} />
+                {#if !isLoading}
+                    <Chart bind:options={consumerGraphOptions} />
+                {:else}
+                    <div class="w-max m-auto">
+                        <Spinner />
+                    </div>
+                {/if}
             </TabItem>
         {/if}
 
@@ -456,8 +484,13 @@
                     >
                     <span slot="subTitle">in kiloWatt</span>
                 </ChartHeader>
-
-                <Chart bind:options={producerGraphOptions} />
+                {#if !isLoading}
+                    <Chart bind:options={producerGraphOptions} />
+                {:else}
+                    <div class="w-max m-auto">
+                        <Spinner />
+                    </div>
+                {/if}
             </TabItem>
         {/if}
     </Tabs>
