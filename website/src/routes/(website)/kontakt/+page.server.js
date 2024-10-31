@@ -20,6 +20,9 @@ export const actions = {
         if (!validateEmail(email)) {
             return {message: "No"};
         }
+        if (email === "test@email.com") {
+            return {message: "No"};
+        }
 
         console.log({email, message});
 
