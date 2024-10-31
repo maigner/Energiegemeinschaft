@@ -1,8 +1,7 @@
 <script>
-    import Project from "$lib/Project.svelte";
     import MeasurementPoints from "./MeasurementPoints.svelte";
     import MemberCountChart from "./MemberCountChart.svelte";
-    import { Blockquote, Heading } from 'flowbite-svelte';
+    import { Blockquote } from 'flowbite-svelte';
 
     export let data;
 </script>
@@ -32,9 +31,12 @@
 </div>
 
 
+
+
 <div class="flex place-content-center mt-8">
     <MemberCountChart bind:data />
 </div>
+
 
 <div class="flex place-content-center mt-8">
     <MeasurementPoints bind:data />
