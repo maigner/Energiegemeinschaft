@@ -1,5 +1,5 @@
 import { middlewareDbConnection } from "$lib/server/db/db";
-import { CASHIER1, CASHIER2, CHAIR1, CHAIR2 } from "$env/static/private";
+import { CASHIER1, CASHIER2, CHAIR1, CHAIR2, CONTROLLER1 } from "$env/static/private";
 
 
 export const getBoardMemberByEmail = async (email: string) => {
@@ -24,6 +24,9 @@ export const cashierSession = async (session: any) => {
         return true;
     }
     if (session?.user?.email === CASHIER2) {
+        return true;
+    }
+    if (session?.user?.email === CONTROLLER1) {
         return true;
     }
     return false;

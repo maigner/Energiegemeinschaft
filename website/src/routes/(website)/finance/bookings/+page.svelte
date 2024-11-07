@@ -59,7 +59,7 @@
 </div>
 
 <Tabs tabStyle="underline">
-    <TabItem title="Übersicht">
+    <TabItem open title="Übersicht">
         <Dashboard bind:data />
     </TabItem>
     <TabItem title="Buchungen">
@@ -171,7 +171,7 @@
     <TabItem title="Steuern">
         <Taxes bind:data />
     </TabItem>
-    <TabItem open title="George">
+    <TabItem title="George">
         <GeorgeImport bind:data />
     </TabItem>
 </Tabs>
