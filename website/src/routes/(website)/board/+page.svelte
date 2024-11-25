@@ -3,6 +3,10 @@
     import { Listgroup } from "flowbite-svelte";
     let links = [
         {
+            name: "Entwicklung Energie",
+            href: "/board/energy/overview",
+        },
+        {
             name: "Mitglieder",
             href: "/board/members",
         },

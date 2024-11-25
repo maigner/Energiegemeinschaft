@@ -61,6 +61,7 @@
         >
     </Dropdown>
     <NavUl bind:hidden slideParams={{ delay: 0, duration: 500 }}>
+        <NavLi on:click={closeNav} href="/board/energy/overview">Entwicklung Energie</NavLi>
         <NavLi on:click={closeNav} href="/board/members">Mitglieder</NavLi>
         <NavLi on:click={closeNav} href="/board/approve">Bewerbungen</NavLi>
         <NavLi on:click={closeNav} href="/board/files">Dokumente</NavLi>

@@ -1,6 +1,6 @@
 <script>
     import { JsonView } from "@zerodevx/svelte-json-view";
-import { format } from "date-fns";
+    import { format } from "date-fns";
 
     import { Heading } from "flowbite-svelte";
     import { Chart } from 'flowbite-svelte';
