@@ -11,7 +11,6 @@
     let totalConsumption = [];
     let totalProduction = [];
     let selfUse = [];
-    
 
     // filter((_, index) => index % n === n - 1).
 
@@ -24,6 +23,7 @@
     });
 
     // filter every nth element to smoothen chart
+    /*
     const n = 1;
     // every nth and the last
     labels = [
@@ -43,8 +43,9 @@
         ...selfUse.filter((_, index) => index % n === n - 1),
         ...selfUse.slice(-1),
     ];
-
+    
     // make sure to add the latest point. no worries about duplicates
+*/
 
     let options = {
         chart: {
@@ -158,5 +159,5 @@
         <span class="text-xs">Stand: {labels[labels.length - 1]}</span>
     </div>
 
-    <Chart bind:options />
+    <Chart class="m-4" bind:options />
 </div>
