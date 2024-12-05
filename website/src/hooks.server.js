@@ -31,6 +31,6 @@ export async function handleError({ error, event }) {
 
 
 	return {
-		message: 'Whoops!'
+		message: 'Leider stehen die angeforderten Daten gegenwärtig nicht bereit! Bitte versuchen Sie es zu einem späteren Zeitpunkt nocheinmal'
 	};
 }
