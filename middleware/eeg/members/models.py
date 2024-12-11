@@ -6,6 +6,8 @@ class Member(models.Model):
     identifier = models.IntegerField(unique=True)
     email = models.EmailField(unique=False)
     name = models.CharField(max_length=200)
+    first_name = models.CharField(max_length=200, null=True)
+    last_name = models.CharField(max_length=200, null=True)
     board_member = models.BooleanField(default=False)
     street = models.CharField(max_length=200, null=True)
     hnr = models.CharField(max_length=20, null=True)
