@@ -7,14 +7,26 @@
 
     export let data;
 
+    /**
+     * @type {any[]}
+     */
     let labels = [];
+    /**
+     * @type {number[]}
+     */
     let totalConsumption = [];
+    /**
+     * @type {number[]}
+     */
     let totalProduction = [];
+    /**
+     * @type {number[]}
+     */
     let selfUse = [];
 
     // filter((_, index) => index % n === n - 1).
 
-    data.weeklySums.forEach((it) => {
+    data.weeklySums.forEach((/** @type {{ week: any; total_consumption: string; total_production: string; self_use: string; }} */ it) => {
         //console.log(element.month);
         labels.push(`KW ${it.week}`);
         totalConsumption.push(parseFloat(it.total_consumption));
@@ -76,7 +88,7 @@
                 show: false,
             },
             y: {
-                formatter: function (value) {
+                formatter: function (/** @type {number} */ value) {
                     return `${value.toFixed(0)} kWh`; // Ensures tooltip also shows rounded values
                 },
             },
@@ -140,7 +152,7 @@
         yaxis: {
             show: true,
             labels: {
-                formatter: function (value) {
+                formatter: function (/** @type {number} */ value) {
                     return value.toFixed(0);
                 },
             },
