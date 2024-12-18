@@ -35,7 +35,7 @@
     </NavBrand>
 
 
-    <div class="flex items-center md:order-2">
+    <div class="ml-auto flex items-center md:order-2">
         <!--
         <NavHamburger
             onClick={() => {
@@ -52,7 +52,7 @@
             <span class="block text-sm">{data.users[0].name}</span>
             -->
             <span class="block truncate text-sm font-medium"
-                >{data.users[0].email}</span
+                >{data.session?.user.email}</span
             >
         </DropdownHeader>
         <!--

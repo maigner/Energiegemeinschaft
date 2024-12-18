@@ -41,6 +41,7 @@ export const authorizationHandle = async({ event, resolve }) => {
 
     if (!session) {
       throw redirect(307, `/login?source=${'/user'}`);
+      //throw redirect(307, `/login?source=${event.route.id.replace("/(website)", "")}`);
     }
   }
 

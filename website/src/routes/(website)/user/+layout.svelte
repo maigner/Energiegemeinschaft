@@ -5,15 +5,9 @@
 
     export let data;
 
-    if (browser) {
-        if (!data.users) {
-            goto("/login");
-        }
-    }
+    
 </script>
 
 <Navigation {data} />
 
-{#if data.users}
-    <slot />
-{/if}
+<slot />

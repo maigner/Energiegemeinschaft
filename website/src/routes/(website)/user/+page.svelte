@@ -1,23 +1,30 @@
 <script>
+    import { browser } from "$app/environment";
     import { goto } from "$app/navigation";
     import { Heading } from "flowbite-svelte";
     import { Listgroup } from "flowbite-svelte";
 
     export let data;
 
+
     /** @type {[ { name: string; href: string;  } ]} */
-    let links = data.users.map((/** @type {{ name: any; street: any; hnr: any; identifier: any; }} */ user) => {
+    let links = data.users?.map((/** @type {{ name: any; street: any; hnr: any; identifier: any; }} */ user) => {
         return {
             name: `${user.name}, ${user.street} ${user.hnr}`,
             href: `/user/${user.identifier}`,
         };
     });
 
-    if (links.length === 1) {
+    if (browser && links && links.length === 1) {
         // no selection necessary
         goto(links[0].href);
     }
 
+    if (browser && !data.users) {
+        goto("/user/onboarding");
+    }
+
+    
 </script>
 
 
