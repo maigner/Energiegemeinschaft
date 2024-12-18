@@ -6,6 +6,5 @@ export async function load({ parent, locals }) {
     // member info
     let { session } = await parent();
 
-    console.log({session});
 
 }

@@ -9,8 +9,8 @@ export async function load(event) {
 
 	// receive session from authjs
 	const session = await event.locals.auth();
-	const isCashierSession = await cashierSession(session);
 
+	const isCashierSession = await cashierSession(session);
 
 	// @ts-ignore
 	/**
@@ -21,9 +21,6 @@ export async function load(event) {
 	// one email may be attached to multiple members
 	// that email is treatet as a "manager" role for all associated members
 	const communityMembers = await getCommunityMembersByEmail(session?.user?.email);
-
-
-
 
 	return {
 		session: session,
