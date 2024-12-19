@@ -1,16 +1,14 @@
 <script>
-    import Fab, { Label } from "@smui/fab";
     import Slider from "@smui/slider";
     import { Card, Heading, Radio } from "flowbite-svelte";
 
     import { EegSavings } from "$lib/models/eegSavings";
+    import Fab from "$lib/Fab.svelte";
 
-
-     /**
+    /**
      * @type {{ competitors: { id: number; provider: string; name: string; price: any; }[]; selfUseRatio: any; }}
      */
-      export let data;
-
+    export let data;
 
     // first one by default
     let providerIndex = 0;
@@ -23,11 +21,10 @@
         totalConsumptionKWhPerYear,
         selfUseRatio,
         price,
-        radioGroupStrompreisbremse === 1 ? true : false
+        radioGroupStrompreisbremse === 1 ? true : false,
     );
 
     let savingsEuroPerYear = savingsModel.savingsGrossEuroPerYear();
-
 
     $: {
         price = data.competitors[providerIndex].price;
@@ -36,15 +33,12 @@
             totalConsumptionKWhPerYear,
             selfUseRatio,
             price,
-            radioGroupStrompreisbremse === 1 ? true : false
-        )
+            radioGroupStrompreisbremse === 1 ? true : false,
+        );
 
         savingsEuroPerYear = savingsModel.savingsGrossEuroPerYear();
     }
-
-
 </script>
-
 
 <div class="text-center">
     <Heading tag="h2" class="text-primary-600 mt-8">11 cent FIX</Heading>
@@ -52,17 +46,12 @@
 
 <div class="flex justify-center">
     <Card class="m-2 text-center max-w-3xl text-gray-900 " size="xl">
-        <p>
-            Sparen Sie mit ISCHL STROM
-        </p>
-        <p class="text-xs">
-            jährlich bis zu*
-        </p>
+        <p>Sparen Sie mit ISCHL STROM</p>
+        <p class="text-xs">jährlich bis zu*</p>
 
         <Heading tag="h2" class="text-primary-600 mt-8">
             {Math.round(savingsEuroPerYear)} EURO
         </Heading>
-
 
         <p class="mb-4 font-semibold mt-8">Ihr aktueller Stromanbieter</p>
         <ul
@@ -111,16 +100,13 @@
         <Slider bind:value={selfUseRatio} min={0.1} max={0.5} step={0.01} />
 
         <div class="flex place-content-center mt-14">
-            <Fab extended href="/mitmachen" color="primary">
-                <Label>Jetzt Mitmachen</Label>
-            </Fab>
+            <Fab href={"/mitmachen"} label={"Jetzt Mitmachen"} />
         </div>
-
 
         <div class="text-xs mt-6">
-            * Dieser Wert ist eine Schätzung unter der Annahme eines ausgegleichenen 
-            Verhältnisses zwischen Erzeugung und Verbrauch innerhalb von ISCHL STROM.
+            * Dieser Wert ist eine Schätzung unter der Annahme eines
+            ausgegleichenen Verhältnisses zwischen Erzeugung und Verbrauch
+            innerhalb von ISCHL STROM.
         </div>
     </Card>
-
 </div>

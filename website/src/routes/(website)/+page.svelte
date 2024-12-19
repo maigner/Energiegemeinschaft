@@ -1,13 +1,11 @@
 <script>
     import Project from "$lib/Project.svelte";
-    import Fab, { Label } from "@smui/fab";
     import { Card, Heading } from "flowbite-svelte";
     import { Blockquote } from "flowbite-svelte";
     import Savings from "./Savings.svelte";
+    import Fab from "$lib/Fab.svelte";
     //import { JSONEditor } from "svelte-jsoneditor";
-    import { dev } from "$app/environment";
-    import { QuoteSolid } from "flowbite-svelte-icons";
-    import MarktDerZukunft from "./MarktDerZukunft.svelte";
+
 
     export let data;
 
@@ -90,9 +88,8 @@
             Möchten Sie noch mehr zum Thema Energiegemeinschaften erfahren?
 
             <div class="flex place-content-center mt-4">
-                <Fab extended href="https://www.youtube.com/watch?v=DmedjR7SgbM" target="_blank" color="primary">
-                    <Label>EEGs auf Youtube</Label>
-                </Fab>
+                <Fab label="EEGs auf Youtube" href="https://www.youtube.com/watch?v=DmedjR7SgbM" target="_blank" />
+                
             </div>
         </div>
     </Project>
@@ -131,7 +128,7 @@
 </div>
 
 <div class="flex place-content-center mt-4">
-    <Fab extended href="/mitmachen" color="primary">
-        <Label>Jetzt Mitmachen</Label>
-    </Fab>
+
+    <Fab label="Jetzt Mitmachen" href="/mitmachen" target="_self" />
+
 </div>

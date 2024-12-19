@@ -1,7 +1,7 @@
 <script>
+    import Fab from "$lib/Fab.svelte";
     import Project from "$lib/Project.svelte";
     import { Blockquote, Heading } from "flowbite-svelte";
-    import Fab, { Label } from "@smui/fab";
 
     /**
      * @type {any}
@@ -57,11 +57,8 @@
             </p>
 
             <div class="flex place-content-center mb-4">
-                <Fab extended href="https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/NetzO%C3%96+Anleitung-1.pdf" target="_blank" color="primary">
-                    <Label>
-                        Anleitung herunterladen
-                    </Label>
-                </Fab>
+
+                <Fab label="Anleitung herunterladen" href="https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/NetzO%C3%96+Anleitung-1.pdf" target="_blank" />
             </div>
 
 
@@ -96,9 +93,8 @@
 </div>
 
 <div class="flex place-content-center mt-4">
-    <Fab extended href="https://forms.gle/dQMJmEeZp3bML4jP6" color="primary">
-        <Label>Zur Bewerbung</Label>
-    </Fab>
+    <Fab label="Zur Bewerbung" href="https://forms.gle/dQMJmEeZp3bML4jP6" target="_blank" />
+
 </div>
 
 <div class="flex place-content-center mt-4">
@@ -107,9 +103,7 @@
 
 
 <div class="flex place-content-center mt-4">
-    <Fab extended href="/faq" color="primary">
-        <Label>Ich habe noch Fragen</Label>
-    </Fab>
+    <Fab label="Ich habe noch Fragen" href="/faq" target="_self" />
 </div>
 
 
