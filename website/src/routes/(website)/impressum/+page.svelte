@@ -1,6 +1,6 @@
 <script>
-    import Fab, { Label } from "@smui/fab";
-    import { Card, Heading } from "flowbite-svelte";
+    import Fab from "$lib/Fab.svelte";
+import { Card, Heading } from "flowbite-svelte";
     import { AccordionItem, Accordion } from "flowbite-svelte";
 </script>
 
@@ -329,7 +329,7 @@
 
 
 <div class="flex place-content-center mt-4">
-    <Fab extended href="/" color="primary">
-        <Label>Zurück zum Start</Label>
-    </Fab>
+
+
+    <Fab href="/" label="Zurück zum Start" />
 </div>
