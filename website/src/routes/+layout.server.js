@@ -5,6 +5,7 @@ import { getBoardMemberByEmail, getCommunityMembersByEmail } from '$lib/server/d
 /** @type {import('./$types').LayoutServerLoad} */
 export async function load(event) {
 
+
 	//console.log("layout.server.js");
 
 	// receive session from authjs
