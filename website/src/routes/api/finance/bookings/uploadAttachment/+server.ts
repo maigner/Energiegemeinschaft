@@ -1,11 +1,9 @@
-import { insertOrUpdateBookingLabel } from '$lib/server/db/finance/bookings';
 import { cashierSession } from '$lib/server/db/members/authorization.js';
 import { nextcloudClient } from '$lib/server/nextcloud/client.js';
 import { json } from '@sveltejs/kit';
 
 import { Readable } from 'stream';
-import { fail } from '@sveltejs/kit';
-import { addFileToBooking, deleteFileFromBooking } from '$lib/server/db/finance/bookings';
+import { addFileToBooking } from '$lib/server/db/finance/bookings';
 
 const pipe = (source, destination) => {
     return new Promise((resolve, reject) => {
@@ -62,6 +60,7 @@ export async function POST(event) {
         console.log("created " + dir);
     } catch (e) {
         console.error(e);
+        return new Response(null, { status: 500, statusText: "createDirectory" });
     }
 
 

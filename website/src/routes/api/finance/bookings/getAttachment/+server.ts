@@ -1,6 +1,5 @@
 import { cashierSession } from '$lib/server/db/members/authorization';
 import { nextcloudClient } from '$lib/server/nextcloud/client';
-import { fail, json } from '@sveltejs/kit';
 import { tmpdir } from 'os';
 import path from 'path';
 import fs from 'fs';
@@ -24,15 +23,12 @@ export async function GET(event) {
     // You can customize this logic based on attachmentId (e.g., different files for different IDs)
     const tempDir = tmpdir();
 
-    // For the sake of this example, we'll just create a simple file based on attachmentId
-
 
     // @ts-ignore
     const attachment = await getAttachment(parseInt(attachmentId));
     if (!attachment) {
         return new Response(null, { status: 404, statusText: "No attachment" })
     }
-    //console.log({ attachment });
 
 
     const nextcloud = nextcloudClient();
