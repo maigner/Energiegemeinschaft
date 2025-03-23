@@ -41,6 +41,11 @@
             endDate: new Date("2024-12-31T23:59:59"),
         },
         {
+            name: "1. Quartal 2025",
+            startDate: new Date("2025-01-01T00:00:00"),
+            endDate: new Date("2025-03-30T23:59:59"),
+        },
+        {
             name: "Gesamt",
             startDate: data.metricsTimestampRange.first_timestamp,
             endDate: data.metricsTimestampRange.last_timestamp,
