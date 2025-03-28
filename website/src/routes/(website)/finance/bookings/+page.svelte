@@ -51,6 +51,7 @@
             items={[
                 { value: "2023", name: "2023" },
                 { value: "2024", name: "2024" },
+                { value: "2025", name: "2025" },
             ]}
             bind:value={year}
             placeholder="Jahr"

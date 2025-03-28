@@ -20,6 +20,7 @@ class Booking(models.Model):
     account_name = models.CharField(max_length=255)  # "Eigener Kontoname"
     iban = models.CharField(max_length=34)  # "Eigene IBAN", IBAN max length is 34 characters
     booking_date = models.DateField()  # "Buchungsdatum"
+    payment_date = models.DateField(null=True)  # "Zahlungs- bzw. Rechnungssdatum"
     partner_name = models.CharField(max_length=255)  # "Partnername"
     partner_iban = models.CharField(max_length=34)  # "Partner IBAN"
     bic_swift = models.CharField(max_length=11)  # "BIC/SWIFT", max length is 8-11 characters
