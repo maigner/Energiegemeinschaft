@@ -29,7 +29,7 @@
     /**
      * @type {string}
      */
-    let year = "2024";
+    let year = "2025";
 
     $: data.filteredBookings = data.bookings.filter(
         (

@@ -4,8 +4,6 @@ import { middlewareDbConnection } from "$lib/server/db/db";
 export const getBookings = async () => {
     const sql = await middlewareDbConnection();
 
-
-
     const result = await sql.query(`
         select
             *
@@ -18,9 +16,14 @@ export const getBookings = async () => {
     await sql.end();
     sql.release();
 
-    //console.log(result.rows);
-
-    return result?.rows;
+    // consider payment date. if payment date is set, the we override booking date and valuta date
+    // used for credit card payments, when actual payment happens before credit card accounting
+    // Assert: use the date, when the money is actually "gone"
+    return result?.rows.map(booking => ({
+        ...booking,
+        booking_date: booking.payment_date !== null ? booking.payment_date : booking.booking_date,
+        value_date: booking.payment_date !== null ? booking.payment_date : booking.value_date,
+    }) );
 };
 
 
