@@ -6,6 +6,7 @@ const config = {
   preprocess: [vitePreprocess({})],
   kit: {
     adapter: adapter(),
+    // for contact form. TODO: fix
     csrf: {
       checkOrigin: false,
     }

@@ -3,14 +3,12 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start": "PORT=8080 node -r dotenv/config build",
-    "dev": "npm run prepare && vite dev",
-    "build": "npm run prepare && vite build",
+    "start": "PORT=8080 PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host node -r dotenv/config build",
+    "dev": "vite dev",
+    "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json --watch",
-    "prepare": "npm run smui-theme",
-    "smui-theme": "smui-theme compile static/smui.css -i src/theme",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
