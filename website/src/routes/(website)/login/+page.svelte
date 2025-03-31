@@ -34,18 +34,19 @@
             </Heading>
 
             <p class="mt-4">
-                Wir überprüfen Ihre Identität anhand Ihrer E-Mail Adresse. Sie müssen dafür kein Passwort für ischlstrom.org festlegen.
+                Wir überprüfen Ihre Identität anhand Ihrer E-Mail-Adresse. Sie müssen dafür kein Passwort für ischlstrom.org festlegen.
             </p>
 
             <p class="mt-4 mb-8">
-                Sie finden nach Eingabe Ihrer E-Mail Adresse einen Zugangslink in Ihren Postfach.
+                Geben Sie bitte Ihre E-Mail-Adresse ein und klicken Sie auf "Senden".
+                Sie finden danach einen Zugangslink in Ihren Postfach.
             </p>
 
             <p
                 class="mb-3 font-normal text-gray-700 dark:text-gray-400 leading-tight"
             >
                 <Label for="input-group-1" class="block mb-2"
-                    >Geben Sie Ihre E-Mail Adresse ein</Label
+                    >Geben Sie Ihre E-Mail-Adresse ein</Label
                 >
                 <Input
                     bind:value={email}
@@ -72,7 +73,7 @@
             >Hallo {data.session?.user?.email}</Heading
         >
         <p class="mt-8">
-            Sie sind auf unserer Webseite mit dieser E-Mailadresse angemeldet.
+            Sie sind auf unserer Webseite mit dieser E-Mail-Adresse angemeldet.
         </p>
 
 

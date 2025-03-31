@@ -53,7 +53,7 @@
 
             <p class="mb-4">
                 Im eService-Portals können Sie Ihre Zählpunkte einsehen, Ihren Verbrauch bzw. Ihre Produktion überblicken und 
-                die Datenfreigabe für ISCHL STROM aktivieren.
+                die Datenfreigabe für ISCHLSTROM aktivieren.
             </p>
 
             <div class="flex place-content-center mb-4">
@@ -74,12 +74,18 @@
     <Project img="/pen_writing.webp" showMore={false}>
         <span slot="title">2. Mitglied werden</span>
         <div slot="content">
+
             <p class="mb-4">
-                Füllen Sie einfach folgendes Bewerbungsformular aus. 
+                Melden Sie sich mit Ihrer E-Mail-Adresse bei ISCHLSTROM an.
+            </p>
+            
+
+            <p class="mb-4">
+                Füllen Sie danach einfach unser Bewerbungsformular aus.
             </p>
             <p class="mb-4">
                 Bitte beachten Sie, dass Ihre Dateneingabe noch keine automatische Mitgliedschaft
-                bedeutet. Es fallen auch keine Kosten für Sie an.
+                bedeutet. Es fallen bis zur Aufnahme in die Energiegemeinschaft auch keine Kosten für Sie an.
             </p>
             <p class="mb-4"> 
                 Details zur Mitgliedschaft
@@ -93,8 +99,7 @@
 </div>
 
 <div class="flex place-content-center mt-4">
-    <Fab label="Zur Bewerbung" href="https://forms.gle/dQMJmEeZp3bML4jP6" target="_blank" />
-
+    <Fab label="Anmelden und Bewerben" href="/user" target="_self" />
 </div>
 
 <div class="flex place-content-center mt-4">
