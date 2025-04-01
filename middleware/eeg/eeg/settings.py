@@ -87,7 +87,7 @@ WSGI_APPLICATION = 'eeg.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "HOST": "db.maigner.net",
+        "HOST": "server",
         "NAME": "ischlstrom_middleware",
         "OPTIONS": {
             "service": "eeg-middleware",
