@@ -59,10 +59,6 @@ export async function load({ parent, locals }) {
                     {
                         identifier: "AT003000",
                         type: "CONSUMPTION"
-                    },
-                    {
-                        identifier: "AT003000",
-                        type: "GENERATION"
                     }
                 ]
             }

@@ -8,6 +8,7 @@
     } from "flowbite-svelte-icons";
 
     export let measurementPoints;
+    export let supportedTypes;
 </script>
 
 <Heading class="mt-8" tag="h6">Ihre Zählpunkte</Heading>
@@ -16,7 +17,7 @@
     <strong>AT0030000000123456789012345678901</strong>
 </p>
 
-{#each ["CONSUMPTION", "GENERATION"] as measurementPointType}
+{#each supportedTypes as measurementPointType}
     <div class="mt-8">
         {measurementPointType === "CONSUMPTION"
             ? "Bezugszählpunkt(e)"
