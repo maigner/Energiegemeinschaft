@@ -8,6 +8,7 @@
     import CheckSepa from "./CheckSepa.svelte";
     import CheckDataProcessing from "./CheckDataProcessing.svelte";
     import CheckNewsletter from "./CheckNewsletter.svelte";
+    import MeasurementPoints from "./MeasurementPoints.svelte";
 
     export let applicationData;
 
@@ -25,6 +26,7 @@
 <Iban bind:iban={applicationData.iban} />
 <AccountName bind:accountName={applicationData.accountName} />
 <CheckSepa bind:checkSepa={applicationData.checkBoxes.sepa} />
+<MeasurementPoints bind:measurementPoints={applicationData.measurementPoints} />
 <CheckDataProcessing bind:dataProcessing={applicationData.checkBoxes.dataProcessing} />
 <CheckNewsletter bind:checkNewsletter={applicationData.checkBoxes.newsletter} />
 

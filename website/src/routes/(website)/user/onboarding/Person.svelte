@@ -22,9 +22,7 @@
 <Iban bind:iban={applicationData.iban} />
 <AccountName bind:accountName={applicationData.accountName} />
 <CheckSepa bind:checkSepa={applicationData.checkBoxes.sepa} />
-
 <MeasurementPoints bind:measurementPoints={applicationData.measurementPoints} />
-
 <CheckDataProcessing bind:dataProcessing={applicationData.checkBoxes.dataProcessing} />
 <CheckNewsletter bind:checkNewsletter={applicationData.checkBoxes.newsletter} />
 
