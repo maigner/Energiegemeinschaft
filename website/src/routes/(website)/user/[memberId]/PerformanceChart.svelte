@@ -6,6 +6,7 @@
     import DataRangePagination from "./DataRangePagination.svelte";
     import NoDataModal from "./NoDataModal.svelte";
     import { Spinner } from "flowbite-svelte";
+    import { getQuarterRanges } from "$lib/quarters";
 
     /**
      * @type {any}
@@ -19,69 +20,18 @@
     $: data.currentStartDate = data.metricsTimestampRange.first_timestamp;
     $: data.currentEndDate = data.metricsTimestampRange.last_timestamp;
 
-    //TODO: dynamically generate intervals
-    data.dateSelectionOptions = [
-        {
-            name: "4. Quartal 2023",
-            startDate: new Date("2023-10-01T00:00:00"),
-            endDate: new Date("2023-12-31T23:59:59"),
-        },
-        {
-            name: "1. Quartal 2024",
-            startDate: new Date("2024-01-01T00:00:00"),
-            endDate: new Date("2024-03-30T23:59:59"),
-        },
-        {
-            name: "2. Quartal 2024",
-            startDate: new Date("2024-04-01T00:00:00"),
-            endDate: new Date("2024-06-30T23:59:59"),
-        },
-        {
-            name: "3. Quartal 2024",
-            startDate: new Date("2024-07-01T00:00:00"),
-            endDate: new Date("2024-09-30T23:59:59"),
-        },
-        {
-            name: "4. Quartal 2024",
-            startDate: new Date("2024-10-01T00:00:00"),
-            endDate: new Date("2024-12-31T23:59:59"),
-        },
-        {
-            name: "1. Quartal 2025",
-            startDate: new Date("2025-01-01T00:00:00"),
-            endDate: new Date("2025-03-30T23:59:59"),
-        },
-        {
-            name: "2. Quartal 2025",
-            startDate: new Date("2025-04-01T00:00:00"),
-            endDate: new Date("2025-06-30T23:59:59"),
-        },
-        {
-            name: "3. Quartal 2025",
-            startDate: new Date("2025-07-01T00:00:00"),
-            endDate: new Date("2025-09-30T23:59:59"),
-        },
-        {
-            name: "4. Quartal 2025",
-            startDate: new Date("2025-10-01T00:00:00"),
-            endDate: new Date("2025-12-31T23:59:59"),
-        },
+
+    data.dateSelectionOptions = getQuarterRanges(data.metricsTimestampRange.first_timestamp, data.metricsTimestampRange.last_timestamp);
+
+    data.dateSelectionOptions.push(
         {
             name: "Gesamt",
             startDate: data.metricsTimestampRange.first_timestamp,
             endDate: data.metricsTimestampRange.last_timestamp,
         },
-    ];
+    );
 
-    // filter out intervals BEFORE first timestamp of user
-    data.dateSelectionOptions = data.dateSelectionOptions.filter( elem => {
-        return !(elem.endDate < data.metricsTimestampRange.first_timestamp)
-    });
-
-    // filter out intervals AFTER last timestamp of user
-    data.dateSelectionOptions = data.dateSelectionOptions.filter( elem => {
-        return !(elem.startDate > data.metricsTimestampRange.last_timestamp)
-    });
+    console.log(data.dateSelectionOptions);
 
 
     let options = {
@@ -300,7 +250,7 @@
     let consumerGraphOptions = {
         series: [
             {
-                name: "Netzbezug",
+                name: "Gesamtverbrauch",
                 data: [],
                 color: "#de5213",
             },
@@ -422,7 +372,7 @@
         consumerGraphOptions = {
             series: [
                 {
-                    name: "Netzbezug",
+                    name: "Gesamtverbrauch",
                     data: consumptionTotal,
                     color: "#de5213",
                 },
