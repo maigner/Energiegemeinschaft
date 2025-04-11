@@ -31,8 +31,6 @@
         },
     );
 
-    console.log(data.dateSelectionOptions);
-
 
     let options = {
         chart: {
