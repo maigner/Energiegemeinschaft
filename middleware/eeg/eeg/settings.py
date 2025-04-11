@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "members.apps.MembersConfig",
     "metering.apps.MeteringConfig",
     "accounting.apps.AccountingConfig",
+    "weather.apps.WeatherConfig",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
