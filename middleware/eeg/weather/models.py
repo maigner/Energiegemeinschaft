@@ -3,7 +3,7 @@ from django.db import models
 # Create your models here.
 
 class HistoricWeatherData(models.Model):
-    timestamp = models.DateTimeField()
+    timestamp = models.DateTimeField(primary_key=True)
     temperature_2m = models.FloatField(help_text="Temperature at 2 meters (°C)")
     cloud_cover = models.FloatField(help_text="Total cloud cover (%)")
     direct_radiation = models.FloatField(help_text="Direct radiation (W/m²)")
