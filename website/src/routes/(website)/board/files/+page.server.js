@@ -8,7 +8,7 @@ const uploadUrl = `${BOARD_UPLOAD} `;
 export async function load({ locals, parent }) {
 
     // member info
-    let { session, member } = await parent();
+    let { session } = await parent();
 
 
     return {
