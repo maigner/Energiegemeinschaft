@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+
+
+@plugin 'flowbite/plugin';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --color-primary-50: #f1faeb;
+    --color-primary-100: #dff4d3;
+    --color-primary-200: #c0eaac;
+    --color-primary-300: #9adb7b;
+    --color-primary-400: #76c952;
+    --color-primary-500: #5cb837;
+    --color-primary-600: #418a26;
+    --color-primary-700: #346a21;
+    --color-primary-800: #2c551f;
+    --color-primary-900: #27491e;
+    --color-primary-950: #11270c;
+
+    --color-secundary-50: #f3f8ed;
+    --color-secundary-100: #e3f0d7;
+    --color-secundary-200: #c8e3b3;
+    --color-secundary-300: #a5d086;
+    --color-secundary-400: #85bc5f;
+    --color-secundary-500: #67a042;
+    --color-secundary-600: #4e7f31;
+    --color-secundary-700: #3a5d27;
+    --color-secundary-800: #344f25;
+    --color-secundary-900: #2e4423;
+    --color-secundary-950: #15240f;
+
+    --color-green-50: #f1faeb;
+    --color-green-100: #dff4d3;
+    --color-green-200: #c0eaac;
+    --color-green-300: #9adb7b;
+    --color-green-400: #76c952;
+    --color-green-500: #5cb837;
+    --color-green-600: #418a26;
+    --color-green-700: #346a21;
+    --color-green-800: #2c551f;
+    --color-green-900: #27491e;
+    --color-green-950: #11270c;
+}
+
+
+
+
+
+@layer base {
+
+    button,
+    [role="button"] {
+        cursor: pointer;
+    }
+}
+
+@source "../node_modules/flowbite-svelte/dist";
