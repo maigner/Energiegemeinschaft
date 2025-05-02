@@ -15,9 +15,9 @@ export const authDbPool = new Pool({
     connectionTimeoutMillis: 2000,
     ssl: {
         rejectUnauthorized: false,
-        ca: readFileSync('global-bundle.pem').toString(),
+        //ca: readFileSync('global-bundle.pem').toString(),
         //key: readFileSync('global-bundle.pem').toString(),
-        cert: readFileSync('global-bundle.pem').toString(),
+        //cert: readFileSync('global-bundle.pem').toString(),
     },
 });
 
@@ -32,9 +32,9 @@ export const middlewareDbPool = new Pool({
     connectionTimeoutMillis: 2000,
     ssl: {
         rejectUnauthorized: false,
-        ca: readFileSync('global-bundle.pem').toString(),
+        //ca: readFileSync('global-bundle.pem').toString(),
         //key: readFileSync('global-bundle.pem').toString(),
-        cert: readFileSync('global-bundle.pem').toString(),
+        //cert: readFileSync('global-bundle.pem').toString(),
     },
 });
 

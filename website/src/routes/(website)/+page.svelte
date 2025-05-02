@@ -2,7 +2,6 @@
     import Project from "$lib/Project.svelte";
     import { Card, Heading } from "flowbite-svelte";
     import { Blockquote } from "flowbite-svelte";
-    import Savings from "./Savings.svelte";
     import Fab from "$lib/Fab.svelte";
     import { QuoteSolid } from "flowbite-svelte-icons";
     //import { JSONEditor } from "svelte-jsoneditor";
@@ -41,9 +40,7 @@
     </figure>
 </div>
 
-<!--
-<Savings bind:data />
--->
+
 
 
 <div class="flex place-content-center">

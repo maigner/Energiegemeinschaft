@@ -1,17 +1,18 @@
-# website
+# sv
 
-using svelte kit. read about it!
+Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
 
-## Setting up project
+## Creating a project
 
+If you're seeing this, you've probably already done this step. Congrats!
 
-add a .env file
+```bash
+# create a new project in the current directory
+npx sv create
 
-
-## Set up Database for authjs and svelteKit
-
-https://authjs.dev/reference/sveltekit
-
+# create a new project in my-app
+npx sv create my-app
+```
 
 ## Developing
 
@@ -34,13 +35,4 @@ npm run build
 
 You can preview the production build with `npm run preview`.
 
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
-
-
-## Devel
-
-
-## Deploy to AWS 
-
-./deploy-prod.sh
-
+> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
