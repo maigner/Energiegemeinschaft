@@ -18,7 +18,7 @@
     import { List, Li, DescriptionList } from "flowbite-svelte";
 
     // member detail modal visible?
-    let memberDetailModal = $state(true);
+    let memberDetailModal = $state(false);
     // selected member for modal
     let member = $state(data.members[0]);
 
