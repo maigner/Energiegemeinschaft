@@ -1,10 +1,11 @@
 <script>
-    import { Mark } from "flowbite-svelte";
 
     // https://docs.mapbox.com/mapbox-gl-js/example/simple-map/
 
     // https://docs.mapbox.com/help/tutorials/use-mapbox-gl-js-with-svelte/
-    import { Map, Marker, Popup } from "mapbox-gl";
+
+    import mapboxgl from 'mapbox-gl';
+
     import "mapbox-gl/dist/mapbox-gl.css";
     import { onMount, onDestroy } from "svelte";
 
@@ -24,7 +25,7 @@
     onMount(() => {
         const initialState = { lng: lng, lat: lat, zoom: zoom };
 
-        map = new Map({
+        map = new mapboxgl.Map({
             container: mapContainer,
             accessToken: data.mapboxToken,
             style: `mapbox://styles/mapbox/outdoors-v11`,
@@ -38,9 +39,9 @@
             //console.log(location);
             const el = document.createElement("div");
             el.className = "marker";
-            new Marker()
+            new mapboxgl.Marker()
                 .setLngLat([location.longitude, location.latitude])
-                .setPopup(new Popup().setHTML(`<p>${location.name}</p>`))
+                .setPopup(new mapboxgl.Popup().setHTML(`<p>${location.name}</p>`))
                 .addTo(map);
         });
     });

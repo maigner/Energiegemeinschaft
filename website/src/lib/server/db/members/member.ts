@@ -6,7 +6,6 @@ export const getBoardMemberByEmail = async (email: string) => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member
     where email like $1 and board_member = true`, [email]);
-    await sql.end();
     sql.release();
     return (result?.rows.length > 0 ? result?.rows[0] : null);
 };
@@ -16,7 +15,6 @@ export const getCommunityMembersByEmail = async (email: string) => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member
     where email like $1`, [email]);
-    await sql.end();
     sql.release();
     return (result?.rows.length > 0 ? result?.rows : null);
 };
@@ -27,7 +25,6 @@ export const getUsersByEmail = async (email: string) => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member
     where email like $1`, [email]);
-    await sql.end();
     sql.release();
     return (result?.rows.length > 0 ? result?.rows : null);
 };
@@ -45,7 +42,6 @@ export const completedMembershipApprovalTasks = async (boardMemberId: string, ne
         where
         member.id = $2
         and new_member_email = any ($1)`, [new_member_emails, boardMemberId]);
-    await sql.end();
     sql.release();
     const rows = result?.rows;
 
@@ -62,7 +58,6 @@ export const getAllMembershipApprovalTasks = async () => {
         select * 
         from members_memberapprovaltask
         `);
-    await sql.end();
     sql.release();
     const rows = result?.rows;
 
@@ -134,7 +129,6 @@ export const getTaskStatus = async (newMemberEmails: string[]) => {
         where new_member_email = any ($1)
         group by mba.answer, mba.new_member_email, mba.new_member_approved
         `, [newMemberEmails]);
-    await sql.end();
     sql.release();
     const rows = result?.rows;
 
@@ -173,7 +167,6 @@ export const getMemberLocations = async () => {
         select id, email, name, latitude, longitude
         from members_member
         `);
-    await sql.end();
     sql.release();
     const rows = result?.rows;
     return rows;
@@ -201,7 +194,6 @@ export const getNumberOfMembersStats = async () => {
         order by month
         ;
         `);
-    await sql.end();
     sql.release();
     const rows = result?.rows;
     return rows;
@@ -220,7 +212,6 @@ export const getMeasurementPoints = async () => {
         where mp.member_id = m.id
         ;
         `);
-    await sql.end();
     sql.release();
     const rows = result?.rows;
     return rows;
@@ -253,7 +244,6 @@ export const getAverageMetrics = async (memberId: number, startDate: any, endDat
             ;
         `, [memberId, startDate, endDate]);
 
-    await sql.end();
     sql.release();
     const rows = result?.rows;
     return rows;
@@ -275,7 +265,6 @@ export const getMetricTimestampRange = async (memberId: number) => {
         group by member.identifier;
         `, [memberId]);
 
-    await sql.end();
     sql.release();
     const rows = result?.rows;
 
@@ -285,4 +274,31 @@ export const getMetricTimestampRange = async (memberId: number) => {
         return null;
     }
 
+};
+
+
+export const getMembers = async () => {
+    const sql = await middlewareDbConnection();
+
+    const result = await sql.query(`
+        SELECT
+            identifier,
+            email,
+            name,
+            first_name AS "firstName",
+            last_name AS "lastName",
+            board_member AS "boardMember",
+            street,
+            hnr,
+            zip,
+            city,
+            latitude,
+            longitude,
+            member_since AS "memberSince"
+        FROM member;
+    `);
+
+    sql.release();
+
+    return result?.rows;
 };

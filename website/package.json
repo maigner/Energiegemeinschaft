@@ -4,6 +4,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
+		"start": "PORT=8080 PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host node -r dotenv/config build",
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
@@ -31,6 +32,7 @@
 		"@auth/sveltekit": "^1.9.1",
 		"@zerodevx/svelte-json-view": "^1.0.11",
 		"date-fns": "^4.1.0",
+		"dotenv": "^16.5.0",
 		"downloadjs": "^1.4.7",
 		"mapbox-gl": "^3.11.1",
 		"nodemailer": "^6.10.1",
