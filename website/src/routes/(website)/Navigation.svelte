@@ -21,6 +21,7 @@
         NavHamburger,
     } from "flowbite-svelte";
 
+
     export let data;
 
     let hidden = true;
@@ -32,7 +33,6 @@
         hidden = true;
     };
 </script>
-
 <Navbar let:NavContainer>
     <NavContainer class="border px-4 py-1 rounded-lg">
         <NavBrand href="/">
@@ -150,6 +150,8 @@
                         </BottomNavItem>
                     </NavLi>
                 {/if}
+
+
             </div>
         </NavUl>
     </NavContainer>

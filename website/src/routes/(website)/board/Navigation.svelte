@@ -10,6 +10,7 @@
         DropdownItem,
         DropdownHeader,
         DropdownDivider,
+        DarkMode,
     } from "flowbite-svelte";
     import { signOut } from "@auth/sveltekit/client";
 
@@ -49,6 +50,9 @@
                 >{data.boardMember.email}</span
             >
         </DropdownHeader>
+        <DropdownItem >
+            <DarkMode />
+        </DropdownItem>
         <!--
         <DropdownItem>to do: Dashboard</DropdownItem>
         <DropdownItem>to do: Settings</DropdownItem>

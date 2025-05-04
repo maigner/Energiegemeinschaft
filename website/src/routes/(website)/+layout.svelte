@@ -7,6 +7,7 @@
 
 	export let data;
 </script>
+
 <Navigation bind:data />
 
 

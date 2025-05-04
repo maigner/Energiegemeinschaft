@@ -282,6 +282,7 @@ export const getMembers = async () => {
 
     const result = await sql.query(`
         SELECT
+            id,
             identifier,
             email,
             name,
