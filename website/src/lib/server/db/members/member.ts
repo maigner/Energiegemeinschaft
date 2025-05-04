@@ -287,15 +287,15 @@ export const getMembers = async () => {
             name,
             first_name AS "firstName",
             last_name AS "lastName",
-            board_member AS "boardMember",
             street,
             hnr,
             zip,
             city,
             latitude,
             longitude,
-            member_since AS "memberSince"
-        FROM member;
+            TO_CHAR(member_since, 'YYYY-MM-DD') AS "memberSince"
+        FROM members_member
+        order by member_since desc;
     `);
 
     sql.release();

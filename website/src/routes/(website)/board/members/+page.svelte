@@ -1,4 +1,5 @@
 <script>
+    import { JsonView } from "@zerodevx/svelte-json-view";
     import MeasurementPoints from "./MeasurementPoints.svelte";
     import MemberCountChart from "./MemberCountChart.svelte";
     import { Blockquote } from 'flowbite-svelte';
@@ -23,6 +24,13 @@
 <div class="flex place-content-center mt-8">
     <MemberCountChart bind:data />
 </div>
+
+
+<div class="flex place-content-center mt-8">
+    <JsonView json={data.members} />
+</div>
+
+
 
 <!--
 <div class="flex place-content-center mt-8">
