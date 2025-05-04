@@ -303,3 +303,32 @@ export const getMembers = async () => {
 
     return result?.rows;
 };
+
+
+export const getMember = async (identifier: number) => {
+    const sql = await middlewareDbConnection();
+
+    const result = await sql.query(`
+        SELECT
+            id,
+            identifier,
+            email,
+            name,
+            first_name AS "firstName",
+            last_name AS "lastName",
+            street,
+            hnr,
+            zip,
+            city,
+            latitude,
+            longitude,
+            TO_CHAR(member_since, 'YYYY-MM-DD') AS "memberSince"
+        FROM members_member
+        WHERE identifier = $1
+        LIMIT 1;
+    `, [identifier]);
+
+    sql.release();
+
+    return result?.rows?.[0] ?? null;
+};

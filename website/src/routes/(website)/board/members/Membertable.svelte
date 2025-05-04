@@ -16,13 +16,14 @@
     import { Modal } from "flowbite-svelte";
     import { JsonView } from "@zerodevx/svelte-json-view";
     import { List, Li, DescriptionList } from "flowbite-svelte";
+    import { goto } from "$app/navigation";
+
+    let { data } = $props();
 
     // member detail modal visible?
     let memberDetailModal = $state(false);
     // selected member for modal
     let member = $state(data.members[0]);
-
-    let { data } = $props();
 
     const table = new DataTable({
         /*
@@ -38,7 +39,11 @@
     });
 </script>
 
-<Modal title="Mitglied #{member.identifier}" autoclose bind:open={memberDetailModal}>
+<Modal
+    title="Mitglied #{member.identifier}"
+    autoclose
+    bind:open={memberDetailModal}
+>
     <List
         tag="dl"
         class="divide-y divide-gray-200 text-gray-900 dark:divide-gray-700  dark:text-white"
@@ -49,7 +54,9 @@
         </div>
 
         <div class="flex flex-col pb-3">
-            <DescriptionList tag="dt" class="mb-1">Mitglied seit</DescriptionList>
+            <DescriptionList tag="dt" class="mb-1"
+                >Mitglied seit</DescriptionList
+            >
             <DescriptionList tag="dd">{member.memberSince}</DescriptionList>
         </div>
 
@@ -60,10 +67,16 @@
 
         <div class="flex flex-col pb-3">
             <DescriptionList tag="dt" class="mb-1">Adresse</DescriptionList>
-            <DescriptionList tag="dd">{member.street}, {member.hnr}</DescriptionList>
+            <DescriptionList tag="dd"
+                >{member.street}, {member.hnr}</DescriptionList
+            >
         </div>
-
     </List>
+
+    <Button
+    href="/board/members/member/{member.identifier}"
+        >Energiekurven anzeigen</Button
+    >
 
     {#snippet footer()}
         <Button
@@ -110,8 +123,8 @@
             </TableHead>
             <TableBody>
                 {#each table.rows as row (row.id)}
-                    <TableBodyRow class="cursor-pointer"
-
+                    <TableBodyRow
+                        class="cursor-pointer"
                         on:click={() => {
                             member = row;
                             memberDetailModal = true;

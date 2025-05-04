@@ -10,7 +10,7 @@ import MemberCountChart from "./MemberCountChart.svelte";
 
 
 <div class="flex place-content-center mt-8">
-    <Membertable bind:data />
+    <Membertable data={data} />
 </div>
 
 
