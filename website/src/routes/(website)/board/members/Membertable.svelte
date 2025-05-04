@@ -63,10 +63,6 @@
             <DescriptionList tag="dd">{member.street}, {member.hnr}</DescriptionList>
         </div>
 
-        <div class="flex flex-col pb-3">
-            <DescriptionList tag="dt" class="mb-1">Name</DescriptionList>
-            <DescriptionList tag="dd">{member.name}</DescriptionList>
-        </div>
     </List>
 
     {#snippet footer()}
@@ -105,7 +101,7 @@
         </Input>
     </div>
 
-    <div class="mt-16">
+    <div class="mt-8">
         <Table>
             <TableHead>
                 {#each table.columns as column (column.id)}
@@ -114,7 +110,8 @@
             </TableHead>
             <TableBody>
                 {#each table.rows as row (row.id)}
-                    <TableBodyRow
+                    <TableBodyRow class="cursor-pointer"
+
                         on:click={() => {
                             member = row;
                             memberDetailModal = true;
