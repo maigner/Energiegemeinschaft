@@ -15,15 +15,14 @@
 
     import { Modal } from "flowbite-svelte";
     import { JsonView } from "@zerodevx/svelte-json-view";
+    import { List, Li, DescriptionList } from "flowbite-svelte";
 
     // member detail modal visible?
-    let memberDetailModal = $state(false);
+    let memberDetailModal = $state(true);
     // selected member for modal
     let member = $state(data.members[0]);
 
-
-	let { data } = $props();
-
+    let { data } = $props();
 
     const table = new DataTable({
         /*
@@ -39,8 +38,36 @@
     });
 </script>
 
-<Modal title="Mitglied" autoclose bind:open={memberDetailModal}>
-    <JsonView json={member} />
+<Modal title="Mitglied #{member.identifier}" autoclose bind:open={memberDetailModal}>
+    <List
+        tag="dl"
+        class="divide-y divide-gray-200 text-gray-900 dark:divide-gray-700  dark:text-white"
+    >
+        <div class="flex flex-col pb-3">
+            <DescriptionList tag="dt" class="mb-1">Name</DescriptionList>
+            <DescriptionList tag="dd">{member.name}</DescriptionList>
+        </div>
+
+        <div class="flex flex-col pb-3">
+            <DescriptionList tag="dt" class="mb-1">Mitglied seit</DescriptionList>
+            <DescriptionList tag="dd">{member.memberSince}</DescriptionList>
+        </div>
+
+        <div class="flex flex-col pb-3">
+            <DescriptionList tag="dt" class="mb-1">E-Mail</DescriptionList>
+            <DescriptionList tag="dd">{member.email}</DescriptionList>
+        </div>
+
+        <div class="flex flex-col pb-3">
+            <DescriptionList tag="dt" class="mb-1">Adresse</DescriptionList>
+            <DescriptionList tag="dd">{member.street}, {member.hnr}</DescriptionList>
+        </div>
+
+        <div class="flex flex-col pb-3">
+            <DescriptionList tag="dt" class="mb-1">Name</DescriptionList>
+            <DescriptionList tag="dd">{member.name}</DescriptionList>
+        </div>
+    </List>
 
     {#snippet footer()}
         <Button
@@ -87,10 +114,12 @@
             </TableHead>
             <TableBody>
                 {#each table.rows as row (row.id)}
-                    <TableBodyRow on:click={() => {
-                        member = row;
-                        memberDetailModal = true;
-                    }}>
+                    <TableBodyRow
+                        on:click={() => {
+                            member = row;
+                            memberDetailModal = true;
+                        }}
+                    >
                         {#each table.columns as column (column.id)}
                             <TableBodyCell>
                                 {row[column.key]}
