@@ -42,9 +42,13 @@
 
 
 
-
+<div class="text-center">
+    <Heading tag="h3" class="text-primary-600 mt-6"
+        >Ankündigung</Heading
+    >
+</div>
 <div class="flex place-content-center">
-    <Project img="/250320_Flyer Infoveranstaltung.jpg" showMore={false}>
+    <Project img="/250508-Infoflyer.jpeg" showMore={false}>
         <div slot="content">
 
             <figure class="mx-auto text-center">
