@@ -12,6 +12,7 @@
         Heading,
         Select,
         Button,
+        Input,
     } from "flowbite-svelte";
 
     import { Tabs, TabItem } from "flowbite-svelte";
@@ -29,8 +30,8 @@
     /**
      * @type {string}
      */
-    let yearString = "2024";//new Date().getFullYear().toString();
-    $: year = parseInt(yearString)
+    let yearString = "2024"; //new Date().getFullYear().toString();
+    $: year = parseInt(yearString);
 
     $: data.filteredBookings = data.bookings.filter(
         (
@@ -61,10 +62,10 @@
 </div>
 
 <Tabs tabStyle="underline">
-    <TabItem open title="Übersicht">
+    <TabItem title="Übersicht">
         <Dashboard bind:data bind:year />
     </TabItem>
-    <TabItem title="Buchungen">
+    <TabItem open title="Buchungen">
         <Table>
             <TableHead>
                 <TableHeadCell>Buchung</TableHeadCell>
@@ -111,8 +112,65 @@
                                         </span>
                                     </DescriptionList>
                                 </div>
+                                <div class="flex flex-col pb-3">
+                                    <DescriptionList tag="dt" class="mb-1"
+                                        >RC-Betrag</DescriptionList
+                                    >
+                                    <DescriptionList tag="dd">
+                                        <Input
+                                            class="max-w-38 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                            type="number"
+                                            bind:value={
+                                                booking.reverse_charge_amount
+                                            }
+                                            on:change={async () => {
+                                                try {
+                                                    const res = await fetch(
+                                                        "/api/finance/bookings/setReverseChargeAmountOfBooking",
+                                                        {
+                                                            method: "POST",
+                                                            headers: {
+                                                                "Content-Type":
+                                                                    "application/json",
+                                                            },
+                                                            body: JSON.stringify(
+                                                                {
+                                                                    bookingId:
+                                                                        booking.id,
+                                                                    reverseChargeAmount:
+                                                                        booking.reverse_charge_amount,
+                                                                },
+                                                            ),
+                                                        },
+                                                    );
+
+                                                    if (!res.ok) {
+                                                        const err =
+                                                            await res.text();
+                                                        throw new Error(
+                                                            `Server responded with ${res.status}: ${err}`,
+                                                        );
+                                                    }
+
+                                                    alert(
+                                                        booking.reverse_charge_amount,
+                                                    );
+                                                } catch (err) {
+                                                    alert(
+                                                        "Failed: " +
+                                                            err.message,
+                                                    );
+                                                    console.error(err);
+                                                }
+
+                                                
+                                            }}
+                                        />
+                                    </DescriptionList>
+                                </div>
                             </List>
                         </TableBodyCell>
+
 
                         <TableBodyCell class="whitespace-normal">
                             <List
@@ -177,4 +235,3 @@
         <GeorgeImport bind:data />
     </TabItem>
 </Tabs>
-

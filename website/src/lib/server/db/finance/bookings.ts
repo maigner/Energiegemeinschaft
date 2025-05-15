@@ -23,7 +23,7 @@ export const getBookings = async () => {
         ...booking,
         booking_date: booking.payment_date !== null ? booking.payment_date : booking.booking_date,
         value_date: booking.payment_date !== null ? booking.payment_date : booking.value_date,
-    }) );
+    }));
 };
 
 
@@ -62,6 +62,22 @@ export const getBookingsLabels = async () => {
     return result?.rows;
 };
 
+
+export const updateBookingReverseChargeAmount = async (bookingId: number, reverseChargeAmount: number) => {
+    const sql = await middlewareDbConnection();
+    const query = `
+    UPDATE accounting_booking
+    SET reverse_charge_amount = $1
+    WHERE id = $2
+    `;
+    const values = [reverseChargeAmount, bookingId];
+    try {
+        await sql.query(query, values);
+    } catch (error) {
+        console.error('Failed to update reverse_charge_amount:', error);
+        throw error;
+    }
+};
 
 export const insertOrUpdateBookingLabel = async (bookingId: number, labelId: number) => {
     const sql = await middlewareDbConnection();
