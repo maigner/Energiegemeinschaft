@@ -40,7 +40,11 @@ class Booking(models.Model):
     mandate_id = models.CharField(max_length=255, null=True, blank=True)  # "Mandats ID"
     creditor_id = models.CharField(max_length=255, null=True, blank=True)  # "Creditor ID"
     labels = models.ManyToManyField(BookingLabel, related_name="bookings", blank=True, verbose_name="Labels")
-
+    
+    # some bookings are partly accountend for reverse charge, e.g., Credit card bill for Cloud stuff
+    # this field states the actual amount ( <= amount )
+    reverse_charge_amount = models.FloatField(null=True, blank=True)
+        
     class Meta:
         unique_together = (
             'booking_date', 'partner_iban', 'amount', 'currency',
