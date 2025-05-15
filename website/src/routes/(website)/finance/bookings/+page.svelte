@@ -257,7 +257,9 @@
     <TabItem open title="Steuern">
         <Taxes bind:data />
     </TabItem>
+    <!--
     <TabItem title="George">
         <GeorgeImport bind:data />
     </TabItem>
+    -->
 </Tabs>
