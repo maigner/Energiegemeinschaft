@@ -4,7 +4,7 @@ import { tmpdir } from 'os';
 import path from 'path';
 import fs from 'fs';
 import { nextcloudClient } from '$lib/server/nextcloud/client';
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import { Readable } from 'stream';
 
 const pipe = (source, destination) => {
@@ -31,7 +31,7 @@ export async function load({ parent }) {
 
     // TODO: kassiere only
     if (!isCashierSession) {
-        return {};
+        error(401, {message: "unauthorized"});
     }
 
 

@@ -29,13 +29,14 @@
     /**
      * @type {string}
      */
-    let year = "2025";
+    let yearString = "2024";//new Date().getFullYear().toString();
+    $: year = parseInt(yearString)
 
     $: data.filteredBookings = data.bookings.filter(
         (
             /** @type {{ booking_date: { getFullYear: () => number; }; }} */ booking,
         ) => {
-            return booking.booking_date.getFullYear() === parseInt(year);
+            return booking.booking_date.getFullYear() === year;
         },
     );
 </script>
@@ -44,16 +45,16 @@
     Buchhaltung
 </Heading>
 
-<div id="selectYear" class="max-w-32 w-32 flex justify-center m-auto">
+<div id="selectYear" class="w-36 flex justify-center m-auto">
     <div class="flex">
         <Select
-            class="mt-2 mb-4 text-center"
+            class="mt-2 mb-4 min-w-20"
             items={[
                 { value: "2023", name: "2023" },
                 { value: "2024", name: "2024" },
                 { value: "2025", name: "2025" },
             ]}
-            bind:value={year}
+            bind:value={yearString}
             placeholder="Jahr"
         />
     </div>
@@ -61,7 +62,7 @@
 
 <Tabs tabStyle="underline">
     <TabItem open title="Übersicht">
-        <Dashboard bind:data />
+        <Dashboard bind:data bind:year />
     </TabItem>
     <TabItem title="Buchungen">
         <Table>

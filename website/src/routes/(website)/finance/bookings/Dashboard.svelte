@@ -12,6 +12,7 @@
     } from "flowbite-svelte";
 
     export let data;
+    export let year;
 
     $: bookingsByLabel = data.bookingsLabels.reduce(
         (
@@ -50,6 +51,32 @@
                 /** @type {{ label: string; }} */ b,
             ) => a.label.localeCompare(b.label) >= 0,
         );
+
+    $: bookingSumOfPreviousYears = data.bookings
+    .filter(
+        (
+            /** @type {{ booking_date: { getFullYear: () => number; }; }} */ booking,
+        ) => {
+            return booking.booking_date.getFullYear() < year;
+        },
+    )
+    .reduce(
+        (
+            /** @type {number} */ sum,
+            /** @type {{ amount: string; }} */ booking,
+        ) => sum + parseFloat(booking?.amount),
+        0,
+    );
+
+    $: bookingSumCurrentYear = data.filteredBookings
+                    .reduce(
+                        (
+                            /** @type {number} */ sum,
+                            /** @type {{ amount: string; }} */ booking,
+                        ) => sum + parseFloat(booking.amount),
+                        0);
+                    
+
 </script>
 
 <Table class="mb-8">
@@ -129,6 +156,19 @@
                         0,
                     )
                     .toFixed(2)}
+            </TableBodyCell>
+        </TableBodyRow>
+        <TableBodyRow>
+            <TableBodyCell class="whitespace-normal p-2">
+                <div class="pl-1 ">Finaler Kontostand</div>
+            </TableBodyCell>
+
+            <TableBodyCell class="whitespace-normal text-lg text-right">
+                {(bookingSumCurrentYear + bookingSumOfPreviousYears).toFixed(2)}
+            </TableBodyCell>
+
+            <TableBodyCell class="whitespace-normal text-lg text-right">
+                
             </TableBodyCell>
         </TableBodyRow>
     </TableBody>

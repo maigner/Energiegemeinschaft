@@ -41,17 +41,17 @@
     const faqCommon = [
         {
             question:
-                "Muss bei einem Beitritt zu Ischlstrom der derzeitige Energielieferant bzw. - abnehmer gekündigt werden?",
+                "Muss/darf/soll bei einem Beitritt zu Ischlstrom der derzeitige Energielieferant bzw. - abnehmer gekündigt werden?",
             answer: "Keinesfalls. Sie benötigen weiter hin einen Lieferanten bzw. Abnehmer, der Sie mit Energie auch dann versorgt bzw. Ihnen abnimmt, wenn durch die Mitglieder von Ischlstrom zu wenig Sonnenstrom produziert wird, bzw. zu wenig Bedarf an Sonnenstrom durch die Ischlstrom – Mitglieder besteht.",
         },
         {
             question: "Wie ist der Verein strukturiert?",
-            answer: "Alle Details finden sich in den Statuten.",
+            answer: "ISCHL STROM ist NICHT auf Gewinn ausgerichtet. Alle Details finden sich in den Statuten.",
             source: "https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf",
         },
         {
             question: "Wie wird der Strompreis festgelegt?",
-            answer: "Die Mitglieder stimmen über einen Vorschlag des Vereinsvorstandes ab.",
+            answer: "Die Mitglieder stimmen in der Generalversammlung über einen Vorschlag des Vereinsvorstandes ab.",
         },
     ];
 </script>
@@ -86,26 +86,7 @@
         <span slot="title">Fragen und Antworten</span>
         <div slot="content">
             <Tabs>
-                <TabItem open title="Kosten">
-                    <Accordion>
-                        {#each faqCosts as qa}
-                            <AccordionItem>
-                                <span slot="header">{qa.question}</span>
-                                <p
-                                    class="mb-2 text-gray-500 dark:text-gray-400"
-                                >
-                                    {qa.answer}
-                                </p>
-                                {#if qa.source}
-                                    <a href={qa.source} target="_blank"
-                                        >Quelle</a
-                                    >
-                                {/if}
-                            </AccordionItem>
-                        {/each}
-                    </Accordion>
-                </TabItem>
-                <TabItem title="Allgemeines">
+                <TabItem open title="Allgemeines">
                     <Accordion>
                         {#each faqCommon as qa}
                             <AccordionItem>
@@ -124,6 +105,27 @@
                         {/each}
                     </Accordion>
                 </TabItem>
+
+                <TabItem title="Kosten">
+                    <Accordion>
+                        {#each faqCosts as qa}
+                            <AccordionItem>
+                                <span slot="header">{qa.question}</span>
+                                <p
+                                    class="mb-2 text-gray-500 dark:text-gray-400"
+                                >
+                                    {qa.answer}
+                                </p>
+                                {#if qa.source}
+                                    <a href={qa.source} target="_blank"
+                                        >Quelle</a
+                                    >
+                                {/if}
+                            </AccordionItem>
+                        {/each}
+                    </Accordion>
+                </TabItem>
+                
             </Tabs>
         </div>
     </Project>

@@ -41,7 +41,7 @@
 </div>
 
 
-
+<!--
 <div class="text-center">
     <Heading tag="h3" class="text-primary-600 mt-6"
         >Ankündigung</Heading
@@ -85,6 +85,7 @@
         </div>
     </Project>
 </div>
+-->
 
 <div class="text-center">
     <Heading tag="h3" class="text-primary-600 mt-6"
