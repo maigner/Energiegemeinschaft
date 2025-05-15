@@ -13,7 +13,9 @@
         Select,
         Button,
         Input,
+        Toast,
     } from "flowbite-svelte";
+    import { slide } from "svelte/transition";
 
     import { Tabs, TabItem } from "flowbite-svelte";
 
@@ -24,6 +26,7 @@
     import Taxes from "./Taxes.svelte";
     import { browser } from "$app/environment";
     import GeorgeImport from "./GeorgeImport.svelte";
+    import { CheckCircleSolid } from "flowbite-svelte-icons";
 
     export let data;
 
@@ -40,7 +43,33 @@
             return booking.booking_date.getFullYear() === year;
         },
     );
+
+    let toastStatus = false;
+    let toastText = "";
+    let counter = 5;
+
+    function trigger() {
+        toastStatus = true;
+        counter = 5;
+        timeout();
+    }
+
+    function timeout() {
+        if (--counter > 0) return setTimeout(timeout, 1000);
+        toastStatus = false;
+    }
 </script>
+
+<div
+    class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-sm"
+>
+    <Toast dismissable={false} transition={slide} bind:toastStatus>
+        {#snippet icon()}
+            <CheckCircleSolid class="h-5 w-5" />
+        {/snippet}
+        {toastText}<br />{counter}s.
+    </Toast>
+</div>
 
 <Heading tag="h3" class="text-center text-primary-700 mb-4">
     Buchhaltung
@@ -65,7 +94,7 @@
     <TabItem title="Übersicht">
         <Dashboard bind:data bind:year />
     </TabItem>
-    <TabItem open title="Buchungen">
+    <TabItem title="Buchungen">
         <Table>
             <TableHead>
                 <TableHeadCell>Buchung</TableHeadCell>
@@ -152,9 +181,9 @@
                                                         );
                                                     }
 
-                                                    alert(
-                                                        booking.reverse_charge_amount,
-                                                    );
+                                                    toastText = `Speichere RC-Betrag: ${booking.reverse_charge_amount}`;
+                                                    trigger();
+
                                                 } catch (err) {
                                                     alert(
                                                         "Failed: " +
@@ -162,15 +191,12 @@
                                                     );
                                                     console.error(err);
                                                 }
-
-                                                
                                             }}
                                         />
                                     </DescriptionList>
                                 </div>
                             </List>
                         </TableBodyCell>
-
 
                         <TableBodyCell class="whitespace-normal">
                             <List
@@ -228,7 +254,7 @@
             </TableBody>
         </Table>
     </TabItem>
-    <TabItem title="Steuern">
+    <TabItem open title="Steuern">
         <Taxes bind:data />
     </TabItem>
     <TabItem title="George">
