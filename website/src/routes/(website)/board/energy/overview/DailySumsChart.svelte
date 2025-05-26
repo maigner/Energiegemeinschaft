@@ -1,0 +1,153 @@
+<script>
+    import { formatDate } from "$lib/format";
+    import { JsonView } from "@zerodevx/svelte-json-view";
+    import { format } from "date-fns";
+
+    import { Heading } from "flowbite-svelte";
+    import { Chart } from "flowbite-svelte";
+
+    export let data;
+
+    /**
+     * @type {any[]}
+     */
+    let labels = [];
+    /**
+     * @type {number[]}
+     */
+    let totalConsumption = [];
+    /**
+     * @type {number[]}
+     */
+    let totalProduction = [];
+    /**
+     * @type {number[]}
+     */
+    let selfUse = [];
+
+    // filter((_, index) => index % n === n - 1).
+
+    data.dailySums.forEach((it) => {
+        //console.log(element.month);
+        labels.push(`${formatDate(it.day)}`);
+        totalConsumption.push(parseFloat(it.total_consumption));
+        totalProduction.push(parseFloat(it.total_production));
+        selfUse.push(parseFloat(it.self_use));
+    });
+
+
+
+    let options = {
+        chart: {
+            height: "400px",
+            maxWidth: "100%",
+            type: "area",
+            fontFamily: "Inter, sans-serif",
+            dropShadow: {
+                enabled: false,
+            },
+            zoom: {
+                enabled: true, // Disables zooming
+            },
+            toolbar: {
+                tools: {
+                    zoom: true, // Hides zoom buttons
+                    zoomin: true,
+                    zoomout: true,
+                    pan: true,
+                    reset: true,
+                },
+            },
+        },
+
+        tooltip: {
+            enabled: true,
+            x: {
+                show: false,
+            },
+            y: {
+                formatter: function (/** @type {number} */ value) {
+                    return `${value.toFixed(0)} kWh`; // Ensures tooltip also shows rounded values
+                },
+            },
+        },
+        fill: {
+            type: "gradient",
+            gradient: {
+                opacityFrom: 0.55,
+                opacityTo: 0,
+                shade: "#1C64F2",
+                gradientToColors: ["#1C64F2"],
+            },
+        },
+        dataLabels: {
+            enabled: false,
+        },
+        stroke: {
+            width: 6,
+        },
+        grid: {
+            show: false,
+            strokeDashArray: 4,
+            padding: {
+                left: 2,
+                right: 2,
+                top: 0,
+            },
+        },
+        series: [
+            {
+                name: "Verbrauch",
+                data: totalConsumption,
+                color: "#ed2a00",
+            },
+            {
+                name: "Produktion",
+                data: totalProduction,
+                color: "#07831e",
+            },
+            {
+                name: "Verteilt",
+                data: selfUse,
+                color: "#52cb24",
+            },
+        ],
+        xaxis: {
+            categories: labels,
+            labels: {
+                show: true,
+            },
+            axisBorder: {
+                show: false,
+            },
+            axisTicks: {
+                show: false,
+            },
+            title: {
+                text: "Tag",
+            },
+        },
+        yaxis: {
+            show: true,
+            labels: {
+                formatter: function (/** @type {number} */ value) {
+                    return value.toFixed(0);
+                },
+            },
+            title: {
+                text: "Tagessumme [kWh]",
+            },
+        },
+    };
+</script>
+
+<div class="w-full flex content-center flex-col">
+    <Heading class="text-primary-700 text-center" tag="h6"
+        >Letze 30 Tage</Heading
+    >
+    <div class="mx-auto">
+        <span class="text-xs">Stand: {labels[labels.length - 1]}</span>
+    </div>
+
+    <Chart class="m-4" bind:options />
+</div>
