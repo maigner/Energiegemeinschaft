@@ -30,9 +30,9 @@
     data.dailySums.forEach((it) => {
         //console.log(element.month);
         labels.push(`${formatDate(it.day)}`);
-        totalConsumption.push(parseFloat(it.total_consumption));
-        totalProduction.push(parseFloat(it.total_production));
-        selfUse.push(parseFloat(it.self_use));
+        totalConsumption.push(parseFloat(it.total_consumption) / 1000.0);
+        totalProduction.push(parseFloat(it.total_production) / 1000.0);
+        selfUse.push(parseFloat(it.self_use) / 1000.0);
     });
 
 
@@ -67,7 +67,7 @@
             },
             y: {
                 formatter: function (/** @type {number} */ value) {
-                    return `${value.toFixed(0)} kWh`; // Ensures tooltip also shows rounded values
+                    return `${value.toFixed(0)} MWh`; // Ensures tooltip also shows rounded values
                 },
             },
         },
@@ -135,7 +135,7 @@
                 },
             },
             title: {
-                text: "Tagessumme [kWh]",
+                text: "Tagessumme [MWh]",
             },
         },
     };
