@@ -9,6 +9,7 @@
         TableHeadCell,
         Heading,
     } from "flowbite-svelte";
+    import { Pagination, PaginationItem } from "flowbite-svelte";
 
     import { Input, Label, Button } from "flowbite-svelte";
     import { SearchOutline } from "flowbite-svelte-icons";
@@ -36,8 +37,12 @@
             { id: "memberSince", key: "memberSince", name: "seit" },
             { id: "name", key: "name", name: "Name" },
         ],
+        pageSize: 300,
     });
+
+
 </script>
+
 
 <Modal
     title="Mitglied #{member.identifier}"
@@ -73,8 +78,7 @@
         </div>
     </List>
 
-    <Button
-    href="/board/members/member/{member.identifier}"
+    <Button href="/board/members/member/{member.identifier}"
         >Energiekurven anzeigen</Button
     >
 
@@ -113,6 +117,20 @@
             {/snippet}
         </Input>
     </div>
+
+
+
+
+
+
+    <div>
+
+    </div>
+
+
+
+
+
 
     <div class="mt-8">
         <Table>
