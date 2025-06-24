@@ -11,26 +11,31 @@
     /**
      * @type {any}
      */
-    export let data;
+    let { data } = $props();
 
-    data.noDataModalOpen = false;
+    let noDataModalOpen = $state(false);
+    let currentStartDate = $state(new Date());
+    let currentEndDate = $state(new Date());
 
     let unit = "kW";
 
-    $: data.currentStartDate = data.metricsTimestampRange.first_timestamp;
-    $: data.currentEndDate = data.metricsTimestampRange.last_timestamp;
+    $effect(() => {
+        currentStartDate = data.metricsTimestampRange.first_timestamp;
+    });
+    $effect(() => {
+        currentEndDate = data.metricsTimestampRange.last_timestamp;
+    });
 
-
-    data.dateSelectionOptions = getQuarterRanges(data.metricsTimestampRange.first_timestamp, data.metricsTimestampRange.last_timestamp);
-
-    data.dateSelectionOptions.push(
-        {
-            name: "Gesamt",
-            startDate: data.metricsTimestampRange.first_timestamp,
-            endDate: data.metricsTimestampRange.last_timestamp,
-        },
+    data.dateSelectionOptions = getQuarterRanges(
+        data.metricsTimestampRange.first_timestamp,
+        data.metricsTimestampRange.last_timestamp,
     );
 
+    data.dateSelectionOptions.push({
+        name: "Gesamt",
+        startDate: data.metricsTimestampRange.first_timestamp,
+        endDate: data.metricsTimestampRange.last_timestamp,
+    });
 
     let options = {
         chart: {
@@ -212,14 +217,14 @@
     };
 
     // metrics
-    let prodTotal = [];
+    let prodTotal = $state([]);
 
     /**
      * @type {any[]}
      */
     let overshoot = [];
 
-    let consumptionTotal = [];
+    let consumptionTotal = $state([]);
 
     let eegReceive = [];
     // difference goes into EEG
@@ -227,7 +232,7 @@
 
     /** @type {import('apexcharts').ApexOptions} */
     // @ts-ignore
-    let producerGraphOptions = {
+    let producerGraphOptions = $state({
         series: [
             {
                 name: "Netzeinspeisung",
@@ -241,11 +246,11 @@
             },
         ],
         ...options,
-    };
+    });
 
     /** @type {import('apexcharts').ApexOptions} */
     // @ts-ignore
-    let consumerGraphOptions = {
+    let consumerGraphOptions = $state({
         series: [
             {
                 name: "Gesamtverbrauch",
@@ -259,9 +264,9 @@
             },
         ],
         ...options,
-    };
+    });
 
-    let isLoading = false;
+    let isLoading = $state(false);
 
     const loadData = async (
         /** @type {Date} */ startDate,
@@ -283,8 +288,8 @@
         const result = await response.json();
         //console.log(result);
 
-        data.currentStartDate = startDate;
-        data.currentEndDate = endDate;
+        currentStartDate = startDate;
+        currentEndDate = endDate;
 
         // data
         data.averageMetrics = result;
@@ -385,21 +390,20 @@
         isLoading = false;
     };
 
-    let currentDataRangeSelection = {
+    let currentDataRangeSelection = $state({
         name: "",
-    };
-    $: {
-        if (data.dataRangeSelection) {
-            if (
-                data.dataRangeSelection.name !== currentDataRangeSelection.name
-            ) {
-                currentDataRangeSelection = data.dataRangeSelection;
+    });
+
+    $effect(() => {
+        if (dataRangeSelection) {
+            if (dataRangeSelection.name !== currentDataRangeSelection.name) {
+                currentDataRangeSelection = dataRangeSelection;
                 //console.log("update");
                 //console.log(data.dataRangeSelection);
-                updateChart(data.dataRangeSelection);
+                updateChart(dataRangeSelection);
             }
         }
-    }
+    });
 
     /**
      * @param {{ startDate: Date; endDate: Date; }} dataRangeSelection
@@ -409,19 +413,18 @@
         loadData(dataRangeSelection.startDate, dataRangeSelection.endDate);
     }
 
-    onMount(() => {
-        data.dataRangeSelection = {
-            name: "Gesamt",
-            startDate: data.metricsTimestampRange.first_timestamp,
-            endDate: data.metricsTimestampRange.last_timestamp,
-        };
+    let dataRangeSelection = $state({
+        name: "Gesamt",
+        startDate: data.metricsTimestampRange.first_timestamp,
+        endDate: data.metricsTimestampRange.last_timestamp,
     });
 
     let tabOpen = {
         production: false,
         consumption: true,
     };
-    $: {
+
+    $effect(() => {
         if (prodTotal.length < 1 && consumptionTotal.length > 0) {
             tabOpen.production = false;
             tabOpen.consumption = true;
@@ -430,13 +433,14 @@
             tabOpen.production = true;
             tabOpen.consumption = false;
         }
-    }
+    });
+
 </script>
 
-<NoDataModal bind:data />
+<NoDataModal {data} bind:noDataModalOpen />
 
 <Card class="max-w-full">
-    <DataRangePagination bind:data />
+    <DataRangePagination {currentStartDate} {currentEndDate} />
 
     {#if isLoading}
         <div class="w-max m-auto">
@@ -446,14 +450,16 @@
 
     <Tabs>
         {#if consumptionTotal.length > 0}
-            <TabItem bind:open={tabOpen.consumption} title="Bezug">
-                <ChartHeader bind:data>
-                    <span slot="title">&#x2300; Bezug nach Tageszeit</span>
-                    <span slot="subTitle">in kiloWatt</span>
-                </ChartHeader>
+            <TabItem open={tabOpen.consumption} title="Bezug">
+                <ChartHeader
+                    {data}
+                    bind:dataRangeSelection
+                    title="&#x2300; Bezug nach Tageszeit"
+                    subTitle="in kiloWatt"
+                ></ChartHeader>
 
                 {#if !isLoading}
-                    <Chart bind:options={consumerGraphOptions} />
+                    <Chart options={consumerGraphOptions} />
                 {:else}
                     <div class="w-max m-auto">
                         <Spinner />
@@ -463,14 +469,15 @@
         {/if}
 
         {#if prodTotal.length > 0}
-            <TabItem bind:open={tabOpen.production} title="Einspeisung">
-                <ChartHeader bind:data>
-                    <span slot="title">&#x2300; Einspeisung nach Tageszeit</span
-                    >
-                    <span slot="subTitle">in kiloWatt</span>
-                </ChartHeader>
+            <TabItem open={tabOpen.production} title="Einspeisung">
+                <ChartHeader
+                    {data}
+                    bind:dataRangeSelection
+                    title="&#x2300; Einspeisung nach Tageszeit"
+                    subTitle="in kiloWatt"
+                ></ChartHeader>
                 {#if !isLoading}
-                    <Chart bind:options={producerGraphOptions} />
+                    <Chart options={producerGraphOptions} />
                 {:else}
                     <div class="w-max m-auto">
                         <Spinner />

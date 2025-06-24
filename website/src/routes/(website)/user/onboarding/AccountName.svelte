@@ -1,9 +1,7 @@
 <script>
     import { Input, Label, Helper } from "flowbite-svelte";
-    /**
-     * @type {string}
-     */
-     export let accountName;
+
+    let { accountName = $bindable() } = $props();
 </script>
 
 <div class="mt-4">
@@ -11,7 +9,9 @@
     <Input type="text" id="account_name" bind:value={accountName} required />
     {#if accountName === ""}
         <Helper class="mt-2" color="red">
-            <span class="font-medium">Bitte geben Sie den Verfügernamen Ihres Kontos an.</span>
+            <span class="font-medium"
+                >Bitte geben Sie den Verfügernamen Ihres Kontos an.</span
+            >
         </Helper>
     {/if}
 </div>

@@ -2,14 +2,14 @@
     import Fab from "$lib/Fab.svelte";
     import { Checkbox, Helper, Label } from "flowbite-svelte";
 
-    /**
-     * @type {boolean}
-     */
-    export let checkTerms;
 
-    let boxColor = "bg-yellow-300";
+    let { checkTerms = $bindable() } = $props();
 
-    $: boxColor = checkTerms ? "bg-green-300" : "bg-yellow-300";
+    let boxColor = $state("bg-yellow-300");
+
+    $effect(() => {
+        boxColor = checkTerms ? "bg-green-300" : "bg-yellow-300";
+    });
 </script>
 
 <div class={boxColor + " rounded-md p-4 mt-4"}>

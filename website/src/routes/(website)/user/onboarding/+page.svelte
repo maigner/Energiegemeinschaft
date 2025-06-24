@@ -1,11 +1,11 @@
 <script>
-    import { browser } from "$app/environment";
-    import { goto } from "$app/navigation";
-    import { JsonView } from "@zerodevx/svelte-json-view";
-    import { Button, Heading } from "flowbite-svelte";
+
+    import {  Heading } from "flowbite-svelte";
     import Application from "./Application.svelte";
 
-    export let data;
+    let { data } = $props();
+
+    let applicationData = $state(data.applicationData);
 </script>
 
 <div class="text-center">
@@ -29,4 +29,4 @@
 
 
 
-<Application bind:data />
+<Application { data } bind:applicationData />

@@ -1,5 +1,4 @@
 <script>
-    import { JsonView } from "@zerodevx/svelte-json-view";
     import FirstName from "./FirstName.svelte";
     import LastName from "./LastName.svelte";
     import Address from "./Address.svelte";
@@ -11,8 +10,7 @@
     import CheckNewsletter from "./CheckNewsletter.svelte";
     import MeasurementPoints from "./MeasurementPoints.svelte";
 
-    export let applicationData;
-
+    let { applicationData = $bindable() } = $props();
 </script>
 
 <CheckTerms bind:checkTerms={applicationData.checkBoxes.terms} />
@@ -22,7 +20,11 @@
 <Iban bind:iban={applicationData.iban} />
 <AccountName bind:accountName={applicationData.accountName} />
 <CheckSepa bind:checkSepa={applicationData.checkBoxes.sepa} />
-<MeasurementPoints supportedTypes={["CONSUMPTION", "GENERATION"]} bind:measurementPoints={applicationData.measurementPoints} />
-<CheckDataProcessing bind:dataProcessing={applicationData.checkBoxes.dataProcessing} />
+<MeasurementPoints
+    supportedTypes={["CONSUMPTION", "GENERATION"]}
+    bind:measurementPoints={applicationData.measurementPoints}
+/>
+<CheckDataProcessing
+    bind:dataProcessing={applicationData.checkBoxes.dataProcessing}
+/>
 <CheckNewsletter bind:checkNewsletter={applicationData.checkBoxes.newsletter} />
-

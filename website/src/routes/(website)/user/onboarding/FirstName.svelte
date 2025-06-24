@@ -1,9 +1,7 @@
 <script>
     import { Input, Label, Helper } from "flowbite-svelte";
-    /**
-     * @type {string}
-     */
-     export let firstName;
+
+     let {firstName = $bindable()} = $props();
 </script>
 
 <div class="mt-4">

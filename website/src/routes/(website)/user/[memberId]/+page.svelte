@@ -3,7 +3,9 @@
     import PerformanceChart from "./PerformanceChart.svelte";
     import { JsonView } from "@zerodevx/svelte-json-view";
 
-    export let data;
+    let { data } = $props();
+    
+    $inspect(data);
     
 
 </script>
@@ -17,4 +19,5 @@
     >
 </div>
 
-<PerformanceChart bind:data />
+
+<PerformanceChart data={data} />

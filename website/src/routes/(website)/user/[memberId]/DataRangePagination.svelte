@@ -2,13 +2,13 @@
     import { formatDate } from "$lib/format";
 
 
-    export let data;
+    let { currentStartDate, currentEndDate } = $props();
 
 
 </script>
 
 <div class="text-center text-xl">
-    { formatDate(data.currentStartDate)}
+    { formatDate(currentStartDate)}
     bis
-    { formatDate(data.currentEndDate)}
+    { formatDate(currentEndDate)}
 </div>

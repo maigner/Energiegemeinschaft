@@ -10,7 +10,7 @@
     import CheckNewsletter from "./CheckNewsletter.svelte";
     import MeasurementPoints from "./MeasurementPoints.svelte";
 
-    export let applicationData;
+    let {applicationData = $bindable()} = $props();
 
 </script>
 

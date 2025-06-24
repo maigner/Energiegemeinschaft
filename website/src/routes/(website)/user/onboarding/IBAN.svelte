@@ -1,14 +1,12 @@
 <script>
     import { formatIBAN, isValidIBAN } from "$lib/iban";
     import { Input, Label, Helper } from "flowbite-svelte";
-    /**
-     * @type {string}
-     */
-    export let iban;
 
-    
+    let { iban = $bindable() } = $props();
 
-    $: iban = formatIBAN(iban);
+    $effect(() => {
+        iban = formatIBAN(iban);
+    });
 </script>
 
 <div class="mt-4">

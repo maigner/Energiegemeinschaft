@@ -1,7 +1,7 @@
 <script>
     import { Input, Label, Helper } from "flowbite-svelte";
 
-     export let address;
+    let { address = $bindable() } = $props();
 </script>
 
 <div class="mt-4">
@@ -27,7 +27,8 @@
     <Input type="text" id="zipCode" bind:value={address.zipCode} required />
     {#if address.zipCode === ""}
         <Helper class="mt-2" color="red">
-            <span class="font-medium">Bitte geben Sie die Postleitzahl an.</span>
+            <span class="font-medium">Bitte geben Sie die Postleitzahl an.</span
+            >
         </Helper>
     {/if}
 </div>

@@ -9,30 +9,30 @@
     import { browser } from "$app/environment";
     import { goto } from "$app/navigation";
 
-    export let data;
+    let { data, applicationData = $bindable() } = $props();
 
-    let homeOrCompany = "home";
+    let homeOrCompany = $state("home");
 
-    let formComplete = false;
+    let formComplete = $state(false);
 
-    $: {
+    $effect(() => {
         if (homeOrCompany === "home") {
             formComplete =
-                data.applicationData.person.firstName !== "" &&
-                data.applicationData.person.lastName !== "" &&
-                data.applicationData.person.address.street !== "" &&
-                data.applicationData.person.address.number !== "" &&
-                data.applicationData.person.address.zipCode !== "" &&
-                data.applicationData.person.address.city !== "" &&
-                data.applicationData.person.iban !== "" &&
-                isValidIBAN(data.applicationData.person.iban) &&
-                data.applicationData.person.accountName != "" &&
-                data.applicationData.person.checkBoxes.terms === true &&
-                data.applicationData.person.checkBoxes.sepa === true &&
-                data.applicationData.person.checkBoxes.dataProcessing ===
+                applicationData.person.firstName !== "" &&
+                applicationData.person.lastName !== "" &&
+                applicationData.person.address.street !== "" &&
+                applicationData.person.address.number !== "" &&
+                applicationData.person.address.zipCode !== "" &&
+                applicationData.person.address.city !== "" &&
+                applicationData.person.iban !== "" &&
+                isValidIBAN(applicationData.person.iban) &&
+                applicationData.person.accountName != "" &&
+                applicationData.person.checkBoxes.terms === true &&
+                applicationData.person.checkBoxes.sepa === true &&
+                applicationData.person.checkBoxes.dataProcessing ===
                     true &&
-                data.applicationData.person.measurementPoints.length >= 1 &&
-                data.applicationData.person.measurementPoints.every(
+                applicationData.person.measurementPoints.length >= 1 &&
+                applicationData.person.measurementPoints.every(
                     (value) =>
                         isValidMeasurementPointIdentifier(value.identifier) ===
                         true,
@@ -40,27 +40,29 @@
         }
         if (homeOrCompany === "company") {
             formComplete =
-                data.applicationData.company.companyName !== "" &&
-                data.applicationData.company.address.street !== "" &&
-                data.applicationData.company.address.number !== "" &&
-                data.applicationData.company.address.zipCode !== "" &&
-                data.applicationData.company.address.city !== "" &&
-                data.applicationData.company.iban !== "" &&
-                isValidIBAN(data.applicationData.company.iban) &&
-                data.applicationData.company.accountName != "" &&
-                data.applicationData.company.checkBoxes.terms === true &&
-                data.applicationData.company.checkBoxes.sepa === true &&
-                data.applicationData.company.checkBoxes.dataProcessing ===
+                applicationData.company.companyName !== "" &&
+                applicationData.company.address.street !== "" &&
+                applicationData.company.address.number !== "" &&
+                applicationData.company.address.zipCode !== "" &&
+                applicationData.company.address.city !== "" &&
+                applicationData.company.iban !== "" &&
+                isValidIBAN(applicationData.company.iban) &&
+                applicationData.company.accountName != "" &&
+                applicationData.company.checkBoxes.terms === true &&
+                applicationData.company.checkBoxes.sepa === true &&
+                applicationData.company.checkBoxes.dataProcessing ===
                     true &&
-                data.applicationData.company.measurementPoints.length >= 1 &&
-                data.applicationData.company.measurementPoints.every(
+                applicationData.company.measurementPoints.length >= 1 &&
+                applicationData.company.measurementPoints.every(
                     (value) =>
                         isValidMeasurementPointIdentifier(value.identifier) ===
                         true,
                 );
         }
-    }
+    });
 </script>
+
+<JsonView json={applicationData} />
 
 <div class="">
     <Heading tag="h3" class="text-primary-600 mt-6 text-center">Bewerbungsformular</Heading>
@@ -74,7 +76,7 @@
         <div class="text-center">
             <Button
                 class="text-[8px] p-2"
-                on:click={() => {
+                onclick={() => {
                     signOut();
                 }}
             >
@@ -109,10 +111,10 @@
 
         <div>
             {#if homeOrCompany === "home"}
-                <Person bind:applicationData={data.applicationData.person} />
+                <Person bind:applicationData={applicationData.person} />
             {/if}
             {#if homeOrCompany === "company"}
-                <Company bind:applicationData={data.applicationData.company} />
+                <Company bind:applicationData={applicationData.company} />
             {/if}
         </div>
 
@@ -120,12 +122,13 @@
             <Button
                 disabled={!formComplete}
                 pill
-                on:click={async () => {
-                    let applicationData = {};
+                onclick={async () => {
+                    let _applicationData = {};
+                    console.log({applicationData});
                     if (homeOrCompany === "home") {
-                        applicationData = data.applicationData.person;
+                        _applicationData = applicationData.person;
                     } else if (homeOrCompany === "company") {
-                        applicationData = data.applicationData.company;
+                        _applicationData = applicationData.company;
                     } else {
                         throw new Error("Data corrupted");
                     }
@@ -136,11 +139,12 @@
                             body: JSON.stringify({
                                 email: data.session?.user?.email,
                                 homeOrCompany: homeOrCompany,
-                                applicationData: applicationData,
+                                applicationData: _applicationData,
                             }),
                         });
 
                         const result = await res.json();
+                        console.log({result});
                         let responseMessage =
                             result.message || "Error submitting form";
 

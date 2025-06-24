@@ -159,7 +159,7 @@ export async function POST(event) {
     try {
         const { email, homeOrCompany, applicationData } = await event?.request?.json();
 
-        //console.log("Received data:", { email, homeOrCompany, applicationData });
+        console.log("Received data:", { email, homeOrCompany, applicationData });
 
         const htmlExternal = summaryEmailExternal({ email, homeOrCompany, applicationData });
         const htmlInternal = summaryEmailInternal({ email, homeOrCompany, applicationData });
@@ -179,6 +179,7 @@ export async function POST(event) {
             headers: { "Content-Type": "application/json" }
         });
     } catch (error) {
+        console.log({error});
         return new Response(JSON.stringify({ error: "Invalid request" }), {
             status: 400,
             headers: { "Content-Type": "application/json" }

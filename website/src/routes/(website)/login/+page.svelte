@@ -10,9 +10,9 @@
     import { browser } from "$app/environment";
     import { goto } from "$app/navigation";
 
-    export let data;
+    let { data } = $props();
 
-    let email = "";
+    let email = $state("");
 
     const handleEmailSignIn = () => {
         signIn("nodemailer", { email, callbackUrl: `${data.source}` });
@@ -61,7 +61,7 @@
                 </Input>
             </p>
 
-            <Button on:click={handleEmailSignIn}>Senden</Button>
+            <Button onclick={handleEmailSignIn}>Senden</Button>
         </Card>
     </div>
 {/if}
@@ -78,7 +78,7 @@
 
 
 
-        <Button class="mt-8" on:click={() => {
+        <Button class="mt-8" onclick={() => {
             if (browser) {
                 goto("/user");
             }
@@ -88,6 +88,6 @@
 
 {#if data.session}
     <div class="mt-96">
-        <button on:click={handleSignOut}>Sign out</button>
+        <button onclick={handleSignOut}>Sign out</button>
     </div>
 {/if}

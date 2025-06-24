@@ -1,19 +1,26 @@
 <script>
     import { isValidMeasurementPointIdentifier } from "$lib/measurementPointFormat";
     import { JsonView } from "@zerodevx/svelte-json-view";
-    import { Input, Label, Helper, Button, Tooltip, Heading } from "flowbite-svelte";
+    import {
+        Input,
+        Label,
+        Helper,
+        Button,
+        Tooltip,
+        Heading,
+    } from "flowbite-svelte";
     import {
         CircleMinusOutline,
         CirclePlusOutline,
     } from "flowbite-svelte-icons";
 
-    export let measurementPoints;
-    export let supportedTypes;
+    let { measurementPoints = $bindable(), supportedTypes } = $props();
 </script>
 
 <Heading class="mt-8" tag="h6">Ihre Zählpunkte</Heading>
 <p>
-    Hinweis: Eine Zählpunktnummer der NetzOÖ beginnt mit AT003000 und hat insgesamt 33 Stellen, z.B.:
+    Hinweis: Eine Zählpunktnummer der NetzOÖ beginnt mit AT003000 und hat
+    insgesamt 33 Stellen, z.B.:
     <strong>AT0030000000123456789012345678901</strong>
 </p>
 
@@ -44,7 +51,7 @@
                     <div class="w-1/12 my-auto">
                         <Button
                             class="p-1 bg-red-700 hover:bg-red-800"
-                            on:click={() => {
+                            onclick={() => {
                                 //alert(measurementPoint.identifier);
                                 measurementPoints = measurementPoints.filter(
                                     (item) =>
@@ -68,15 +75,13 @@
                         </Helper>
                     {/if}
                 </div>
-
-                
             </div>
         {/each}
         <div class="flex mt-1">
             <div>
                 <Button
                     class="p-1"
-                    on:click={() => {
+                    onclick={() => {
                         measurementPoints.push({
                             identifier: "AT003000",
                             type: measurementPointType,
