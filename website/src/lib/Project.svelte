@@ -1,11 +1,7 @@
 <script>
     import { Card, Button } from "flowbite-svelte";
 
-    /**
-     * @type {string}
-     */
-    export let img;
-    export let showMore = true;
+    let { img, showMore = true} = $props();
 </script>
 
 <div class="min-w-fit">
@@ -13,18 +9,20 @@
         <h5
             class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"
         >
-            <slot name="title" />
+            {@render title()}
         </h5>
-        <p><slot name="subtitle" /></p>
+        <p>{@render subtitle()}</p>
         <p
             class="mb-3 font-normal text-gray-700 dark:text-gray-400 leading-tight"
         >
-            <slot name="content" />
+            {@render content()}
         </p>
         {#if showMore}
-            <Button on:click={() => {
-                alert("Kommt bald...");
-            }}>Mehr erfahren</Button>
+            <Button
+                onclick={() => {
+                    alert("Kommt bald...");
+                }}>Mehr erfahren</Button
+            >
         {/if}
     </Card>
 </div>
