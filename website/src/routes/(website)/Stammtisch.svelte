@@ -6,7 +6,7 @@
 </script>
 
 <div class="text-center">
-    <Heading tag="h3" class="text-primary-600 mt-16">15. Mai 2024</Heading>
+    <Heading tag="h3" class="text-primary-600 mt-16">25. Juni 2025</Heading>
 </div>
 
 <div class="flex place-content-center">
@@ -21,9 +21,9 @@
                     <p>
                         "Wir laden Sie herzlich zu unserem Energiestammtisch am
                         <br />
-                        <strong>15. Mai um 18 Uhr</strong>
+                        <strong>25. Juni um 18 Uhr</strong>
                         <br />
-                        beim Goldenen Ochsen in der Arthur Schnitzler Bar ein."
+                        in die Pizzeria Piazza, im Salinengebäude ein."
                     </p>
                     <p class="mt-2">
                         "Stellen Sie uns alle Ihre Fragen und erhalten Sie alle
@@ -54,10 +54,6 @@
                 </figcaption>
             </figure>
 
-
-            <div class="flex place-content-center mt-10">
-                <p><a href="/faq">Häufig gestellte Fragen</a></p>
-            </div>
             
         </div>
     </Project>

@@ -10,7 +10,7 @@
 </script>
 
 
-<Button pill on:click={() => {
+<Button pill onclick={() => {
     if (browser) {
         if (target === "_self") {
             goto(href);

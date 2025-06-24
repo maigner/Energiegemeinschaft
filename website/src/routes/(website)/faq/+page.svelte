@@ -5,9 +5,7 @@
     //import { JSONEditor } from "svelte-jsoneditor";
     import { AccordionItem, Accordion } from "flowbite-svelte";
 
-    export let data;
-
-    let content = { json: data };
+    let { data } = $props();
 
     const faqCosts = [
         {
@@ -90,7 +88,7 @@
                     <Accordion>
                         {#each faqCommon as qa}
                             <AccordionItem>
-                                <span slot="header">{qa.question}</span>
+                                {#snippet header()}{qa.question}{/snippet}
                                 <p
                                     class="mb-2 text-gray-500 dark:text-gray-400"
                                 >
@@ -110,7 +108,7 @@
                     <Accordion>
                         {#each faqCosts as qa}
                             <AccordionItem>
-                                <span slot="header">{qa.question}</span>
+                                {#snippet header()}{qa.question}{/snippet}
                                 <p
                                     class="mb-2 text-gray-500 dark:text-gray-400"
                                 >
@@ -125,7 +123,6 @@
                         {/each}
                     </Accordion>
                 </TabItem>
-                
             </Tabs>
         </div>
     </Project>

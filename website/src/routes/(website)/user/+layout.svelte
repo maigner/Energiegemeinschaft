@@ -3,11 +3,9 @@
     import { browser } from "$app/environment";
     import { goto } from "$app/navigation";
 
-    export let data;
-
-    
+    let { data, children } = $props();
 </script>
 
 <Navigation {data} />
 
-<slot />
+{@render children()}

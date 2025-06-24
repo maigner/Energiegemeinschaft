@@ -135,24 +135,20 @@
     <div class="mt-8">
         <Table>
             <TableHead>
-                {#each table.columns as column (column.id)}
-                    <TableHeadCell>{column.name}</TableHeadCell>
-                {/each}
+                    <TableHeadCell>Name<br /> Mitglied seit</TableHeadCell>
             </TableHead>
             <TableBody>
                 {#each table.rows as row (row.id)}
                     <TableBodyRow
                         class="cursor-pointer"
-                        on:click={() => {
+                        onclick={() => {
                             member = row;
                             memberDetailModal = true;
                         }}
                     >
-                        {#each table.columns as column (column.id)}
                             <TableBodyCell>
-                                {row[column.key]}
+                                {row['name']} <br /> {row['memberSince']}
                             </TableBodyCell>
-                        {/each}
                     </TableBodyRow>
                 {/each}
             </TableBody>

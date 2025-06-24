@@ -5,13 +5,12 @@
         {
             name: "Entwicklung Energie",
             href: "/board/energy/overview",
+            current: false
         },
         {
             name: "Mitglieder",
             href: "/board/members",
         },
-        { name: "Bewerbungen", href: "/board/approve" },
-        { name: "Dokumente", href: "/board/files" },
         {
             name: "Karte",
             href: "/board/map",
@@ -41,8 +40,7 @@
     </div>
 
     <div class="max-w-xl m-auto justify-center flex">
-        <Listgroup active items={links} let:item class="w-48">
-            {item.name}
+        <Listgroup active items={links} class="w-48">
         </Listgroup>
     </div>
 {/if}

@@ -1,20 +1,16 @@
 <script>
     import Project from "$lib/Project.svelte";
-    import { Card, Heading } from "flowbite-svelte";
+    import {  Heading } from "flowbite-svelte";
     import { Blockquote } from "flowbite-svelte";
     import Fab from "$lib/Fab.svelte";
     import { QuoteSolid } from "flowbite-svelte-icons";
-    //import { JSONEditor } from "svelte-jsoneditor";
+    import Stammtisch from "./Stammtisch.svelte";
 
 
-    export let data;
+    let { data } = $props();
 
-    let content = { json: data };
 </script>
 
-<!--
-    <JSONEditor bind:content />
--->
 
 <div class="max-w-xl m-auto justify-center">
     <figure class="m-4 text-center">
@@ -41,51 +37,9 @@
 </div>
 
 
-<!--
-<div class="text-center">
-    <Heading tag="h3" class="text-primary-600 mt-6"
-        >Ankündigung</Heading
-    >
-</div>
-<div class="flex place-content-center">
-    <Project img="/250508-Infoflyer.jpeg" showMore={false}>
-        <div slot="content">
 
-            <figure class="mx-auto text-center">
-                <QuoteSolid
-                    class="mx-auto mb-3 w-12 h-12 text-gray-400 dark:text-gray-600"
-                />
-                <Blockquote alignment="center" size="2xl">
+<Stammtisch />
 
-                    <p class="mt-2">"Wir freuen uns auf Ihr Kommen!"</p>
-                </Blockquote>
-                <figcaption
-                    class="flex justify-center items-center mt-6 space-x-3 rtl:space-x-reverse"
-                >
-                    <img
-                        class="w-6 rounded-full"
-                        src="/people/katharina_thomson.webp"
-                        alt="Katharina Thomson"
-                    />
-                    <div
-                        class="flex items-center divide-x-2 rtl:divide-x-reverse divide-gray-500 dark:divide-gray-700"
-                    >
-                        <cite
-                            class="pe-3 font-medium text-gray-900 dark:text-white"
-                            >Katharina Thomson</cite
-                        >
-                        <cite
-                            class="ps-3 text-sm font-light text-gray-500 dark:text-gray-400"
-                            >Obfrau von ISCHL STROM</cite
-                        >
-                    </div>
-                </figcaption>
-            </figure>
-
-        </div>
-    </Project>
-</div>
--->
 
 <div class="text-center">
     <Heading tag="h3" class="text-primary-600 mt-6"
