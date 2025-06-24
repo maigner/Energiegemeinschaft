@@ -62,7 +62,6 @@
     });
 </script>
 
-<JsonView json={applicationData} />
 
 <div class="">
     <Heading tag="h3" class="text-primary-600 mt-6 text-center">Bewerbungsformular</Heading>
