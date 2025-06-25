@@ -45,9 +45,8 @@
     </div>
 
     <div class="flex place-content-center">
-        <Project img="/pen_writing.webp" showMore={false}>
-            <span slot="title">Wir freuen uns auf Ihre Nachricht...</span>
-            <div slot="content">
+        <Project img="/pen_writing.webp" showMore={false} title="Wir freuen uns auf Ihre Nachricht...">
+            <div>
                 <p class="mb-8">
                     ...oder nutzen Sie einfach dieses Kontaktformular.
                 </p>
@@ -68,7 +67,7 @@
                         <Textarea
                             id="message"
                             placeholder="Ihre Nachricht"
-                            rows="4"
+                            rows={4}
                             name="message"
                             required
                         />

@@ -1,7 +1,13 @@
 <script>
     import { Card, Button } from "flowbite-svelte";
 
-    let { img, showMore = true} = $props();
+    let {
+        img,
+        showMore = true,
+        title = "",
+        subttile = "",
+        children,
+    } = $props();
 </script>
 
 <div class="min-w-fit">
@@ -9,14 +15,14 @@
         <h5
             class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"
         >
-            {@render title()}
+            {title}
         </h5>
-        <p>{@render subtitle()}</p>
-        <p
+        <p>{subttile}</p>
+        <div
             class="mb-3 font-normal text-gray-700 dark:text-gray-400 leading-tight"
         >
-            {@render content()}
-        </p>
+            {@render children?.()}
+        </div>
         {#if showMore}
             <Button
                 onclick={() => {

@@ -10,9 +10,8 @@
 </div>
 
 <div class="flex place-content-center">
-    <Project img="/stammtisch.webp" showMore={false}>
-        <!--<span slot="title">Stammtisch</span>-->
-        <div slot="content">
+    <Project img="/stammtisch.webp" showMore={false} title="">
+        <div>
             <figure class="mx-auto max-w-screen-md text-center">
                 <QuoteSolid
                     class="mx-auto mb-3 w-12 h-12 text-gray-400 dark:text-gray-600"

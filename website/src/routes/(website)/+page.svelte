@@ -47,9 +47,8 @@
     >
 </div>
 <div class="flex place-content-center">
-    <Project img="/wasserrad.webp" showMore={false}>
-        <span slot="title">100% Erneuerbare Energie</span>
-        <div slot="content">
+    <Project img="/wasserrad.webp" showMore={false} title="100% Erneuerbare Energie" subttile="">
+        <div>
             ISCHL STROM fördert erneuerbare Energien, indem sie den gemeinsamen
             Einsatz von Solaranlagen erleichtern und den Überschussstrom in Bad
             Ischl verteilen.
@@ -57,9 +56,8 @@
     </Project>
 </div>
 <div class="flex place-content-center">
-    <Project img="/freiheit.webp" showMore={false}>
-        <span slot="title">Unabhängigkeit</span>
-        <div slot="content">
+    <Project img="/freiheit.webp" showMore={false} title="Unabhängigkeit">
+        <div>
             Energiegemeinschaften fördern die Unabhängigkeit von Konzernen, Öl
             und Gas und ermöglichen es den Mitgliedern, ihre Energieversorgung
             selbst mitzubestimmen.
@@ -68,9 +66,8 @@
 </div>
 
 <div class="flex place-content-center">
-    <Project img="/miteinander.webp" showMore={false}>
-        <span slot="title">Miteinander</span>
-        <div slot="content">
+    <Project img="/miteinander.webp" showMore={false} title="Miteinander">
+        <div>
             Wir vernetzten nicht nur unseren Strom sondern auch unsere
             Fähigkeiten. Energiegemeinschaften fördern den sozialen Zusammenhalt
             und den Austausch von Wissen und Ressourcen zwischen Mitgliedern,
@@ -80,9 +77,8 @@
 </div>
 
 <div class="flex place-content-center">
-    <Project img="/sichere_netzte.webp" showMore={false}>
-        <span slot="title">Energiegemeinschaften im Detail</span>
-        <div slot="content">
+    <Project img="/sichere_netzte.webp" showMore={false} title="Energiegemeinschaften im Detail">
+        <div>
             Möchten Sie noch mehr zum Thema Energiegemeinschaften erfahren?
 
             <div class="flex place-content-center mt-4">
@@ -99,9 +95,8 @@
     >
 </div>
 <div class="flex place-content-center">
-    <Project img="/gruppenfoto.webp" showMore={false}>
-        <span slot="title">Vereinsgründung</span>
-        <div slot="content">
+    <Project img="/gruppenfoto.webp" showMore={false} title="Vereinsgründung">
+        <div>
             Die Gründung einer Energiegemeinschaft ist ein bedeutender Schritt
             in Richtung nachhaltiger Energieversorgung. Menschen bündeln ihre
             Ressourcen und Fachkenntnisse, um erneuerbare Energie zum
@@ -111,9 +106,8 @@
 </div>
 
 <div class="flex place-content-center">
-    <Project img="/statut.webp" showMore={false}>
-        <span slot="title">Vereinsstatuten</span>
-        <div slot="content">
+    <Project img="/statut.webp" showMore={false} title="Vereinsstatuten">
+        <div>
             <a
                 target="_blank"
                 href="https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf"

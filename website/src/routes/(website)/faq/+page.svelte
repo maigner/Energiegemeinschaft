@@ -80,9 +80,8 @@
 </div>
 
 <div class="flex place-content-center mt-10">
-    <Project img="/faq.webp" showMore={false}>
-        <span slot="title">Fragen und Antworten</span>
-        <div slot="content">
+    <Project img="/faq.webp" showMore={false} title="Fragen und Antworten">
+        <div>
             <Tabs>
                 <TabItem open title="Allgemeines">
                     <Accordion>
@@ -129,9 +128,8 @@
 </div>
 
 <div class="flex place-content-center mt-10">
-    <Project img="/statut.webp" showMore={false}>
-        <span slot="title">Vereinsstatuten</span>
-        <div slot="content">
+    <Project img="/statut.webp" showMore={false} title="Vereinsstatuten">
+        <div>
             <a
                 target="_blank"
                 href="https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf"

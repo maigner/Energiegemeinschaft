@@ -39,9 +39,8 @@
 </div>
 
 <div class="flex place-content-center">
-    <Project img="/smart_meter.webp" showMore={false}>
-        <span slot="title">1. eService-Portal der Netz Oberösterreich aktivieren</span>
-        <div slot="content">
+    <Project img="/smart_meter.webp" showMore={false} title="1. eService-Portal der Netz Oberösterreich aktivieren">
+        <div>
 
             <p class="mb-4">
                 Registrieren Sie sich dazu im eService-Portal der Netz
@@ -71,9 +70,8 @@
 
 
 <div class="flex place-content-center">
-    <Project img="/pen_writing.webp" showMore={false}>
-        <span slot="title">2. Mitglied werden</span>
-        <div slot="content">
+    <Project img="/pen_writing.webp" showMore={false} title="2. Mitglied werden">
+        <div>
 
             <p class="mb-4">
                 Melden Sie sich mit Ihrer E-Mail-Adresse bei ISCHLSTROM an.
