@@ -1,6 +1,6 @@
 <script>
     import Fab from "$lib/Fab.svelte";
-import { Card, Heading } from "flowbite-svelte";
+    import { Card, Heading } from "flowbite-svelte";
     import { AccordionItem, Accordion } from "flowbite-svelte";
 </script>
 
@@ -12,7 +12,7 @@ import { Card, Heading } from "flowbite-svelte";
     <Card class="m-2 max-w-3xl" size="xl">
         <Accordion>
             <AccordionItem>
-                <span slot="header">Verantwortlich für  die EEG ischlstrom</span>
+                {#snippet header()}Verantwortlich für die EEG ischlstrom{/snippet}
 
                 <p class="mb-2 text-gray-500 dark:text-gray-400">
                     Erneuerbare-Energie-Gemeinschaft ISCHLSTROM
@@ -30,7 +30,8 @@ import { Card, Heading } from "flowbite-svelte";
                 <p class="text-gray-500 dark:text-gray-400"></p>
             </AccordionItem>
             <AccordionItem>
-                <span slot="header">Datenschutz</span>
+                {#snippet header()}Datenschutz{/snippet}
+
                 <p class="mb-2 text-gray-500 dark:text-gray-400">
                     Wir sammeln keine unnötigen Daten.
                 </p>
@@ -43,7 +44,7 @@ import { Card, Heading } from "flowbite-svelte";
             </AccordionItem>
 
             <AccordionItem>
-                <span slot="header">Technische Anprechpartnerin</span>
+                {#snippet header()}Technische Anprechpartnerin{/snippet}
 
                 <p class="mb-2 text-gray-500 dark:text-gray-400">
                     Erneuerbare-Energie-Gemeinschaft ISCHLSTROM
@@ -60,7 +61,7 @@ import { Card, Heading } from "flowbite-svelte";
             </AccordionItem>
 
             <AccordionItem>
-                <span slot="header">Bildquellen</span>
+                {#snippet header()}Bildquellen{/snippet}
 
                 <div class="text-xs text-gray-500 dark:text-gray-400">
                     <ul>
@@ -117,37 +118,78 @@ import { Card, Heading } from "flowbite-svelte";
                         </li>
 
                         <li>
-                            <a href="https://commons.wikimedia.org/wiki/File:Fountain_pen_writing_(literacy).jpg">Petar Milošević</a>, 
-                            <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>, via Wikimedia Commons
+                            <a
+                                href="https://commons.wikimedia.org/wiki/File:Fountain_pen_writing_(literacy).jpg"
+                                >Petar Milošević</a
+                            >,
+                            <a
+                                href="https://creativecommons.org/licenses/by-sa/4.0"
+                                >CC BY-SA 4.0</a
+                            >, via Wikimedia Commons
                         </li>
 
                         <li>
-                            <a href="https://commons.wikimedia.org/wiki/File:Statuta_venerabilis_collegii_Turonensis_(statuts_du_coll%C3%A8ge_de_Tours),_Parisiis_fundati._Edita_M._Alexandro_Dupoirier,_primario,_Et._M._Petro_Pepin,_procuratore.jpg">Collège de Tours (1333-1763 ; Paris) et Thiboust, Claude-Louis (1667-1737), imprimeur.</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>, via Wikimedia Commons
-                        </li>
-
-
-                        <li>
-                            <a href="https://commons.wikimedia.org/wiki/File:Question_book-4.svg">Tkgd2007</a>, <a href="http://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>, via Wikimedia Commons
-                        </li>
-
-                        <li>
-                            <a href="https://commons.wikimedia.org/wiki/File:K%C3%BCken_(10564766284).jpg">Dirk Vorderstraße</a>, <a href="https://creativecommons.org/licenses/by/2.0">CC BY 2.0</a>, via Wikimedia Commons
-                        </li>
-
-                        <li>
-                            <a href="https://commons.wikimedia.org/wiki/File:2013_Stammtisch_sign_Munich_pub.jpg">Takeaway</a>, <a href="https://creativecommons.org/licenses/by-sa/3.0">CC BY-SA 3.0</a>, via Wikimedia Commons
+                            <a
+                                href="https://commons.wikimedia.org/wiki/File:Statuta_venerabilis_collegii_Turonensis_(statuts_du_coll%C3%A8ge_de_Tours),_Parisiis_fundati._Edita_M._Alexandro_Dupoirier,_primario,_Et._M._Petro_Pepin,_procuratore.jpg"
+                                >Collège de Tours (1333-1763 ; Paris) et
+                                Thiboust, Claude-Louis (1667-1737), imprimeur.</a
+                            >,
+                            <a
+                                href="https://creativecommons.org/licenses/by-sa/4.0"
+                                >CC BY-SA 4.0</a
+                            >, via Wikimedia Commons
                         </li>
 
                         <li>
-                            <a href="https://commons.wikimedia.org/wiki/File:Public_Market_(5820690638).jpg">Atomic Taco from Seattle, WA, USA</a>, <a href="https://creativecommons.org/licenses/by-sa/2.0">CC BY-SA 2.0</a>, via Wikimedia Commons
+                            <a
+                                href="https://commons.wikimedia.org/wiki/File:Question_book-4.svg"
+                                >Tkgd2007</a
+                            >,
+                            <a
+                                href="http://creativecommons.org/licenses/by-sa/3.0/"
+                                >CC BY-SA 3.0</a
+                            >, via Wikimedia Commons
                         </li>
 
+                        <li>
+                            <a
+                                href="https://commons.wikimedia.org/wiki/File:K%C3%BCken_(10564766284).jpg"
+                                >Dirk Vorderstraße</a
+                            >,
+                            <a
+                                href="https://creativecommons.org/licenses/by/2.0"
+                                >CC BY 2.0</a
+                            >, via Wikimedia Commons
+                        </li>
+
+                        <li>
+                            <a
+                                href="https://commons.wikimedia.org/wiki/File:2013_Stammtisch_sign_Munich_pub.jpg"
+                                >Takeaway</a
+                            >,
+                            <a
+                                href="https://creativecommons.org/licenses/by-sa/3.0"
+                                >CC BY-SA 3.0</a
+                            >, via Wikimedia Commons
+                        </li>
+
+                        <li>
+                            <a
+                                href="https://commons.wikimedia.org/wiki/File:Public_Market_(5820690638).jpg"
+                                >Atomic Taco from Seattle, WA, USA</a
+                            >,
+                            <a
+                                href="https://creativecommons.org/licenses/by-sa/2.0"
+                                >CC BY-SA 2.0</a
+                            >, via Wikimedia Commons
+                        </li>
                     </ul>
                 </div>
             </AccordionItem>
 
             <AccordionItem>
-                <span slot="header">Offenlegung</span>
+                {#snippet header()}Offenlegung{/snippet}
+
                 <div class="text-xs">
                     <p>
                         <b
@@ -215,10 +257,14 @@ import { Card, Heading } from "flowbite-svelte";
                         entfernen.
                     </p>
                     <p>
-                        Unsere Cloudpartner sind wie folgt: Webserver und Datenbank laufen auf AWS. E-Mail und Onboarding wird über Google Cloud Services abgewickelt. Die Rechnungslegung erfolgt via EEG-Faktura von vfeeg.org
+                        Unsere Cloudpartner sind wie folgt: Webserver und
+                        Datenbank laufen auf AWS. E-Mail und Onboarding wird
+                        über Google Cloud Services abgewickelt. Die
+                        Rechnungslegung erfolgt via EEG-Faktura von vfeeg.org
                     </p>
                     <p>
-                        Sämtliche Verträge mit unseren Partnern wurden auf DSGVO-Konformität geprüft.
+                        Sämtliche Verträge mit unseren Partnern wurden auf
+                        DSGVO-Konformität geprüft.
                     </p>
                     <p>
                         Quelle: <b
@@ -236,100 +282,136 @@ import { Card, Heading } from "flowbite-svelte";
             </AccordionItem>
 
             <AccordionItem>
-                <span slot="header"> Erklärung zur Informationspflicht </span>
+                {#snippet header()}Erklärung zur Informationspflicht{/snippet}
+
                 <div class="text-xs">
                     Datenschutzerklärung
-                    <br class="mb-1"/>
-                    In folgender Datenschutzerklärung informieren wir Sie über die wichtigsten Aspekte der Datenverarbeitung im Rahmen unserer Webseite. Wir erheben und verarbeiten personenbezogene Daten nur auf Grundlage der gesetzlichen Bestimmungen (Datenschutzgrundverordnung, Telekommunikationsgesetz 2003).
-                    <br class="mb-1"/>
+                    <br class="mb-1" />
+                    In folgender Datenschutzerklärung informieren wir Sie über die
+                    wichtigsten Aspekte der Datenverarbeitung im Rahmen unserer Webseite.
+                    Wir erheben und verarbeiten personenbezogene Daten nur auf Grundlage
+                    der gesetzlichen Bestimmungen (Datenschutzgrundverordnung, Telekommunikationsgesetz
+                    2003).
+                    <br class="mb-1" />
 
-                    Sobald Sie als Benutzer auf unsere Webseite zugreifen oder diese besuchen wird Ihre IP-Adresse, Beginn sowie Beginn und Ende der Sitzung erfasst. Dies ist technisch bedingt und stellt somit ein berechtigtes Interesse iSv Art 6 Abs 1 lit f DSGVO.
-                    Kontakt mit uns
-                    <br class="mb-1"/>
+                    Sobald Sie als Benutzer auf unsere Webseite zugreifen oder
+                    diese besuchen wird Ihre IP-Adresse, Beginn sowie Beginn und
+                    Ende der Sitzung erfasst. Dies ist technisch bedingt und
+                    stellt somit ein berechtigtes Interesse iSv Art 6 Abs 1 lit
+                    f DSGVO. Kontakt mit uns
+                    <br class="mb-1" />
 
-                    Wenn Sie uns, entweder über unser Kontaktformular auf unserer Webseite, oder per Email kontaktieren, dann werden die von Ihnen an uns übermittelten Daten zwecks Bearbeitung Ihrer Anfrage oder für den Fall von weiteren Anschlussfragen für sechs Monate bei uns gespeichert. Es erfolgt, ohne Ihre Einwilligung, keine Weitergabe Ihrer übermittelten Daten.
+                    Wenn Sie uns, entweder über unser Kontaktformular auf
+                    unserer Webseite, oder per Email kontaktieren, dann werden
+                    die von Ihnen an uns übermittelten Daten zwecks Bearbeitung
+                    Ihrer Anfrage oder für den Fall von weiteren Anschlussfragen
+                    für sechs Monate bei uns gespeichert. Es erfolgt, ohne Ihre
+                    Einwilligung, keine Weitergabe Ihrer übermittelten Daten.
                     Cookies
-                    <br class="mb-1"/>
+                    <br class="mb-1" />
 
-                    Unsere Website verwendet so genannte Cookies. Dabei handelt es sich um kleine Textdateien, die mit Hilfe des Browsers auf Ihrem Endgerät abgelegt werden. Sie richten keinen Schaden an. Wir nutzen Cookies dazu, unser Angebot nutzerfreundlich zu gestalten. Einige Cookies bleiben auf Ihrem Endgerät gespeichert, bis Sie diese löschen. Sie ermöglichen es uns, Ihren Browser beim nächsten Besuch wiederzuerkennen. Wenn Sie dies nicht wünschen, so können Sie Ihren Browser so einrichten, dass er Sie über das Setzen von Cookies informiert und Sie dies nur im Einzelfall erlauben. Bei der Deaktivierung von Cookies kann die Funktionalität unserer Website eingeschränkt sein.
-                    
-                    <br class="mb-1"/>
+                    Unsere Website verwendet so genannte Cookies. Dabei handelt
+                    es sich um kleine Textdateien, die mit Hilfe des Browsers
+                    auf Ihrem Endgerät abgelegt werden. Sie richten keinen
+                    Schaden an. Wir nutzen Cookies dazu, unser Angebot
+                    nutzerfreundlich zu gestalten. Einige Cookies bleiben auf
+                    Ihrem Endgerät gespeichert, bis Sie diese löschen. Sie
+                    ermöglichen es uns, Ihren Browser beim nächsten Besuch
+                    wiederzuerkennen. Wenn Sie dies nicht wünschen, so können
+                    Sie Ihren Browser so einrichten, dass er Sie über das Setzen
+                    von Cookies informiert und Sie dies nur im Einzelfall
+                    erlauben. Bei der Deaktivierung von Cookies kann die
+                    Funktionalität unserer Website eingeschränkt sein.
 
-                    
+                    <br class="mb-1" />
 
                     Server-Log Files
-                    <br class="mb-1"/>
+                    <br class="mb-1" />
 
-                    Diese Webseite und der damit verbundene Provider erhebt im Zuge der Webseitennutzung automatisch Informationen im Rahmen sogenannter „Server-Log Files“. Dies betrifft insbesondere:
-                    <br class="mb-1"/>
+                    Diese Webseite und der damit verbundene Provider erhebt im
+                    Zuge der Webseitennutzung automatisch Informationen im
+                    Rahmen sogenannter „Server-Log Files“. Dies betrifft
+                    insbesondere:
+                    <br class="mb-1" />
 
-                        IP-Adresse oder Hostname                    <br class="mb-1"/>
+                    IP-Adresse oder Hostname <br class="mb-1" />
 
-                        den verwendeten Browser                    <br class="mb-1"/>
+                    den verwendeten Browser <br class="mb-1" />
 
-                        Aufenthaltsdauer auf der Webseite sowie Datum und Uhrzeit                    <br class="mb-1"/>
+                    Aufenthaltsdauer auf der Webseite sowie Datum und Uhrzeit
+                    <br class="mb-1" />
 
-                        aufgerufene Seiten der Webseite                    <br class="mb-1"/>
+                    aufgerufene Seiten der Webseite <br class="mb-1" />
 
-                        Spracheinstellungen und Betriebssystem                    <br class="mb-1"/>
+                    Spracheinstellungen und Betriebssystem <br class="mb-1" />
 
-                        „Leaving-Page“ (auf welcher URL hat der Benutzer die Webseite verlassen)                    <br class="mb-1"/>
+                    „Leaving-Page“ (auf welcher URL hat der Benutzer die
+                    Webseite verlassen) <br class="mb-1" />
 
-                        ISP (Internet Service Provider)                    <br class="mb-1"/>
+                    ISP (Internet Service Provider) <br class="mb-1" />
 
-                        <br class="mb-1"/>
+                    <br class="mb-1" />
 
-                    Diese erhobenen Informationen werden nicht personenbezogen verarbeitet oder mit personenbezogenen Daten in Verbindung gebracht.
-                    <br class="mb-1"/>
+                    Diese erhobenen Informationen werden nicht personenbezogen
+                    verarbeitet oder mit personenbezogenen Daten in Verbindung
+                    gebracht.
+                    <br class="mb-1" />
 
-                    Der Webseitenbetreiber behält es sich vor, im Falle von Bekanntwerden rechtswidriger Tätigkeiten, diese Daten auszuwerten oder zu überprüfen.
-                    Newsletter
-                    <br class="mb-1"/>
+                    Der Webseitenbetreiber behält es sich vor, im Falle von
+                    Bekanntwerden rechtswidriger Tätigkeiten, diese Daten
+                    auszuwerten oder zu überprüfen. Newsletter
+                    <br class="mb-1" />
 
-                    Sie haben die Möglichkeit, über unsere Website unseren Newsletter zu abonnieren. Hierfür benötigen wir Ihre E-Mail-Adresse und ihre Erklärung, dass Sie mit dem Bezug des Newsletters einverstanden sind.
-                    Ihre Rechte als Betroffener
-                    <br class="mb-1"/>
+                    Sie haben die Möglichkeit, über unsere Website unseren
+                    Newsletter zu abonnieren. Hierfür benötigen wir Ihre
+                    E-Mail-Adresse und ihre Erklärung, dass Sie mit dem Bezug
+                    des Newsletters einverstanden sind. Ihre Rechte als
+                    Betroffener
+                    <br class="mb-1" />
 
-                    Sie als Betroffener haben bezüglich Ihrer Daten, welche bei uns gespeichert sind grundsätzlich ein Recht auf:
-                    <br class="mb-1"/>
+                    Sie als Betroffener haben bezüglich Ihrer Daten, welche bei
+                    uns gespeichert sind grundsätzlich ein Recht auf:
+                    <br class="mb-1" />
 
-                        Auskunft                    <br class="mb-1"/>
+                    Auskunft <br class="mb-1" />
 
-                        Löschung der Daten                    <br class="mb-1"/>
+                    Löschung der Daten <br class="mb-1" />
 
-                        Berichtigung der Daten                    <br class="mb-1"/>
+                    Berichtigung der Daten <br class="mb-1" />
 
-                        Übertragbarkeit der Daten                    <br class="mb-1"/>
+                    Übertragbarkeit der Daten <br class="mb-1" />
 
-                        Wiederruf und Widerspruch zur Datenverarbeitung                    <br class="mb-1"/>
+                    Wiederruf und Widerspruch zur Datenverarbeitung
+                    <br class="mb-1" />
 
-                        Einschränkung                    <br class="mb-1"/>
+                    Einschränkung <br class="mb-1" />
 
-                        <br class="mb-1"/>
+                    <br class="mb-1" />
 
-                    Wenn sie vermuten, dass im Zuge der Verarbeitung Ihrer Daten Verstöße gegen das Datenschutzrecht passiert sind, so haben Sie die Möglichkeit sich bei uns (info@ischlstrom.org) oder der Datenschutzbehörde zu beschweren.
-                    Sie erreichen uns unter folgenden Kontaktdaten:
-                    <br class="mb-1"/>
+                    Wenn sie vermuten, dass im Zuge der Verarbeitung Ihrer Daten
+                    Verstöße gegen das Datenschutzrecht passiert sind, so haben
+                    Sie die Möglichkeit sich bei uns (info@ischlstrom.org) oder
+                    der Datenschutzbehörde zu beschweren. Sie erreichen uns
+                    unter folgenden Kontaktdaten:
+                    <br class="mb-1" />
 
-                    Webseitenbetreiber: Erneuerbare-Energie-Gemeinschaft ISCHLSTROM                    <br class="mb-1"/>
+                    Webseitenbetreiber: Erneuerbare-Energie-Gemeinschaft
+                    ISCHLSTROM <br class="mb-1" />
 
-                    Telefonnummer: +43 660 3555118                    <br class="mb-1"/>
+                    Telefonnummer: +43 660 3555118 <br class="mb-1" />
 
-                    Email: info@ischlstrom.org                    <br class="mb-1"/>
+                    Email: info@ischlstrom.org <br class="mb-1" />
 
-                    <br class="mb-1"/>
+                    <br class="mb-1" />
 
-                    Quelle: DSGVO Generator Österreich in Kooperation mit Dachdecker und Spenglerei Wien
+                    Quelle: DSGVO Generator Österreich in Kooperation mit
+                    Dachdecker und Spenglerei Wien
                 </div>
             </AccordionItem>
         </Accordion>
     </Card>
 </div>
 
-
-
 <div class="flex place-content-center mt-4">
-
-
     <Fab href="/" label="Zurück zum Start" />
 </div>
