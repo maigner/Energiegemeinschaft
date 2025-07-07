@@ -30,7 +30,6 @@ class WeatherData(models.Model):
     cloud_cover_mid = models.FloatField(help_text="%")
     cloud_cover_high = models.FloatField(help_text="%")
 
-    visibility = models.FloatField(help_text="m")
     relative_humidity_2m = models.FloatField(help_text="%")
     dew_point_2m = models.FloatField(help_text="°C")
 

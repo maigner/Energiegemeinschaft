@@ -18,3 +18,29 @@ export const getMeasurementPoints = async (memberId: number) => {
 
 };
 
+
+export const getEnergyData = async (date: Date, memberId: number) => {
+
+    //TODO: fix time zone
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        select metering_measurement.*, mm.* from metering_measurement
+        inner join public.members_measurementpoint mm on mm.id = metering_measurement.measurement_point_id
+        inner join public.members_member m on m.id = mm.member_id
+        where m.id = $2
+        AND metering_measurement.timestamp::date = $1
+        order by metering_measurement.timestamp
+        ;
+        `, [date, memberId]);
+    sql.release();
+    const rows = result?.rows;
+    /*
+    rows.forEach( (obj) => {
+        obj.timestamp = new Date(obj.timestamp);
+    })
+    */
+   console.log(rows[0]);
+
+    return rows;
+
+};

@@ -49,6 +49,9 @@
             toolbar: {
                 show: false,
             },
+            zoom: {
+                enabled: false,
+            },
         },
         tooltip: {
             enabled: true,

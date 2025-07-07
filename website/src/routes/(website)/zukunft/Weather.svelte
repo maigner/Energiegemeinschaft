@@ -1,12 +1,9 @@
 <script>
-    import { formatDate } from "$lib/format";
-    import { JsonView } from "@zerodevx/svelte-json-view";
-    import { Heading } from "flowbite-svelte";
     import SingleDay from "./SingleDay.svelte";
 
     let { forecast } = $props();
 
-    const today = new Date();
+    const today = new Date("2024-12-18");
     
 </script>
 

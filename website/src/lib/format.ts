@@ -10,6 +10,17 @@ export function formatDate(date: Date): string {
   return `${day}.${month}.${year}`;
 }
 
+export function formatTime(date: Date): string {
+  if (typeof date === "undefined") {
+    return "";
+  }
+
+  const hours: string = String(date.getHours()).padStart(2, '0');
+  const minutes: string = String(date.getMinutes()).padStart(2, '0');
+
+  return `${hours}:${minutes}`;
+}
+
 
 export function shortenString(str, maxLength) {
   // Check if the string needs to be shortened
