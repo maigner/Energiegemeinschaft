@@ -3,6 +3,6 @@ from django.contrib import admin
 # Register your models here.
 from django.contrib import admin
 
-from .models import HistoricWeatherData
+from .models import WeatherData
 
-admin.site.register(HistoricWeatherData)
+admin.site.register(WeatherData)

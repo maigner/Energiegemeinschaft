@@ -44,4 +44,3 @@
 
 {/if}
 
-<JsonView json={energyData} />
