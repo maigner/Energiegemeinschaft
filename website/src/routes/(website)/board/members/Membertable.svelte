@@ -147,7 +147,15 @@
                         }}
                     >
                             <TableBodyCell>
-                                {row['name']} <br /> {row['memberSince']}
+                                <div>
+                                    {row['name']}
+                                </div>
+                                <div class="text-xs">
+                                    {row['street']} {row['hnr']}
+                                </div>
+                                <div class="text-xs">
+                                    {row['memberSince']}
+                                </div>
                             </TableBodyCell>
                     </TableBodyRow>
                 {/each}
