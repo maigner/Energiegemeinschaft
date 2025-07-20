@@ -13,6 +13,8 @@
 <Weather forecast={data.forecast} />
 -->
 
+
+
 <DayComparison
     communityMembers={data.communityMembers}
     date={new Date("2024-04-18")}
