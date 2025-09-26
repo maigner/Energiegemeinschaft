@@ -11,72 +11,77 @@
         TableHeadCell,
     } from "flowbite-svelte";
 
-    export let data;
-    export let year;
+    let { data, year, bookingsLabels, filteredBookings } = $props();
 
-    $: bookingsByLabel = data.bookingsLabels.reduce(
-        (
-            /** @type {{ [x: string]: any[]; }} */ group,
-            /** @type {{ booking_id: any; label: any; }} */ bookingLabel,
-        ) => {
-            const bookingId = bookingLabel.booking_id;
-
-            // only filtered bookings
-            const booking = data.filteredBookings.find(
-                (/** @type {{ id: number; }} */ booking) =>
-                    booking.id === bookingId,
-            );
-            if (!booking) return group;
-
-            const category = bookingLabel.label;
-            if (!group[category]) {
-                group[category] = [];
-            }
-            group[category].push(booking);
-            return group;
-        },
-        {},
-    );
-
-    $: labelList = Object.keys(bookingsByLabel)
-        .map((label) => {
-            return data.labels.find(
-                (/** @type {{ label: string; }} */ l) => l.label === label,
-            );
-        })
-        .sort(
-            // @ts-ignore
+    let bookingsByLabel = $derived.by(() => {
+        return bookingsLabels.reduce(
             (
-                /** @type {{ label: string; }} */ a,
-                /** @type {{ label: string; }} */ b,
-            ) => a.label.localeCompare(b.label) >= 0,
+                /** @type {{ [x: string]: any[]; }} */ group,
+                /** @type {{ booking_id: any; label: any; }} */ bookingLabel,
+            ) => {
+                const bookingId = bookingLabel.booking_id;
+
+                // only filtered bookings
+                const booking = filteredBookings.find(
+                    (/** @type {{ id: number; }} */ booking) =>
+                        booking.id === bookingId,
+                );
+                if (!booking) return group;
+
+                const category = bookingLabel.label;
+                if (!group[category]) {
+                    group[category] = [];
+                }
+                group[category].push(booking);
+                return group;
+            },
+            {},
         );
+    });
 
-    $: bookingSumOfPreviousYears = data.bookings
-    .filter(
-        (
-            /** @type {{ booking_date: { getFullYear: () => number; }; }} */ booking,
-        ) => {
-            return booking.booking_date.getFullYear() < year;
-        },
-    )
-    .reduce(
-        (
-            /** @type {number} */ sum,
-            /** @type {{ amount: string; }} */ booking,
-        ) => sum + parseFloat(booking?.amount),
-        0,
-    );
+    let labelList = $derived.by(() => {
+        return Object.keys(bookingsByLabel)
+            .map((label) => {
+                return data.labels.find(
+                    (/** @type {{ label: string; }} */ l) => l.label === label,
+                );
+            })
+            .sort(
+                // @ts-ignore
+                (
+                    /** @type {{ label: string; }} */ a,
+                    /** @type {{ label: string; }} */ b,
+                ) => a.label.localeCompare(b.label) >= 0,
+            );
+    });
 
-    $: bookingSumCurrentYear = data.filteredBookings
-                    .reduce(
-                        (
-                            /** @type {number} */ sum,
-                            /** @type {{ amount: string; }} */ booking,
-                        ) => sum + parseFloat(booking.amount),
-                        0);
-                    
+    let bookingSumOfPreviousYears = $derived.by(() => {
+        return data.bookings
+            .filter(
+                (
+                    /** @type {{ booking_date: { getFullYear: () => number; }; }} */ booking,
+                ) => {
+                    return booking.booking_date.getFullYear() < year;
+                },
+            )
+            .reduce(
+                (
+                    /** @type {number} */ sum,
+                    /** @type {{ amount: string; }} */ booking,
+                ) => sum + parseFloat(booking?.amount),
+                0,
+            );
+    });
 
+    let bookingSumCurrentYear = $derived.by(() => {
+        return filteredBookings.reduce(
+            (
+                /** @type {number} */ sum,
+                /** @type {{ amount: string; }} */ booking,
+            ) => sum + parseFloat(booking.amount),
+            0,
+        );
+    });
 </script>
 
 <Table class="mb-8">
@@ -85,7 +90,7 @@
         <TableHeadCell class="text-right">Summe</TableHeadCell>
         <TableHeadCell class="text-right">Cash Flow</TableHeadCell>
     </TableHead>
-    <TableBody tableBodyClass="divide-y">
+    <TableBody class="divide-y">
         {#each labelList as label, index (label.id)}
             {@const bookings = bookingsByLabel[label.label]}
             <TableBodyRow>
@@ -160,16 +165,15 @@
         </TableBodyRow>
         <TableBodyRow>
             <TableBodyCell class="whitespace-normal p-2">
-                <div class="pl-1 ">Finaler Kontostand</div>
+                <div class="pl-1">Finaler Kontostand</div>
             </TableBodyCell>
 
             <TableBodyCell class="whitespace-normal text-lg text-right">
                 {(bookingSumCurrentYear + bookingSumOfPreviousYears).toFixed(2)}
             </TableBodyCell>
 
-            <TableBodyCell class="whitespace-normal text-lg text-right">
-                
-            </TableBodyCell>
+            <TableBodyCell class="whitespace-normal text-lg text-right"
+            ></TableBodyCell>
         </TableBodyRow>
     </TableBody>
 </Table>

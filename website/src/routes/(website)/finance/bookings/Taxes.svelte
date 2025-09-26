@@ -1,4 +1,5 @@
 <script>
+    import { JsonView } from "@zerodevx/svelte-json-view";
     import {
         Badge,
         Indicator,
@@ -11,72 +12,78 @@
         Heading,
     } from "flowbite-svelte";
 
-    export let data;
+    let { filteredBookings, bookingsLabels } = $props();
 
-    $: bookingsByLabel = data.bookingsLabels.reduce(
-        (
-            /** @type {{ [x: string]: any[]; }} */ group,
-            /** @type {{ booking_id: any; label: any; }} */ bookingLabel,
-        ) => {
-            const bookingId = bookingLabel.booking_id;
+    let bookingsByLabel = $derived.by(() => {
+        return bookingsLabels.reduce(
+            (
+                /** @type {{ [x: string]: any[]; }} */ group,
+                /** @type {{ booking_id: any; label: any; }} */ bookingLabel,
+            ) => {
+                const bookingId = bookingLabel.booking_id;
 
-            // only filtered bookings. by current year
-            const booking = data.filteredBookings.find(
-                (/** @type {{ id: number; }} */ booking) =>
-                    booking.id === bookingId,
-            );
-            if (!booking) return group;
+                // only filtered bookings. by current year
+                const booking = filteredBookings.find(
+                    (/** @type {{ id: number; }} */ booking) =>
+                        booking.id === bookingId,
+                );
+                if (!booking) return group;
 
-            const category = bookingLabel.label;
-            if (!group[category]) {
-                group[category] = [];
-            }
-            group[category].push(booking);
-            return group;
-        },
-        {},
-    );
+                const category = bookingLabel.label;
+                if (!group[category]) {
+                    group[category] = [];
+                }
+                group[category].push(booking);
+                return group;
+            },
+            {},
+        );
+    });
 
-    $: sumOfIncome = bookingsByLabel["Einnahmen"]?.reduce(
-        (
-            /** @type {number} */ sum,
-            /** @type {{ amount: string; }} */ booking,
-        ) => sum + parseFloat(booking?.amount),
-        0,
-    );
-
-    $: sumOfExpenses = bookingsByLabel["Ausgaben"]?.reduce(
-        (
-            /** @type {number} */ sum,
-            /** @type {{ amount: string; }} */ booking,
-        ) => sum + parseFloat(booking?.amount),
-        0,
-    );
-
-    $: sumOfReverseCharge = data.filteredBookings
-        .filter((booking) => booking.reverse_charge_amount)
-        .reduce(
+    let sumOfIncome = $derived.by(() => {
+        return bookingsByLabel["Einnahmen"]?.reduce(
             (
                 /** @type {number} */ sum,
                 /** @type {{ amount: string; }} */ booking,
-            ) => sum + parseFloat(booking?.reverse_charge_amount),
+            ) => sum + parseFloat(booking?.amount),
             0,
         );
+    });
 
-    $: turnover = sumOfIncome + Math.abs(sumOfExpenses);
+    let sumOfExpenses = $derived.by(() => {
+        return bookingsByLabel["Ausgaben"]?.reduce(
+            (
+                /** @type {number} */ sum,
+                /** @type {{ amount: string; }} */ booking,
+            ) => sum + parseFloat(booking?.amount),
+            0,
+        );
+    });
+
+    let sumOfReverseCharge = $derived.by(() => {
+        return filteredBookings
+            .filter((booking) => booking.reverse_charge_amount)
+            .reduce(
+                (
+                    /** @type {number} */ sum,
+                    /** @type {{ amount: string; }} */ booking,
+                ) => sum + parseFloat(booking?.reverse_charge_amount),
+                0,
+            );
+    });
+
+    let turnover = $derived(sumOfIncome + Math.abs(sumOfExpenses));
 </script>
 
 <Heading tag="h4" class="text-center text-primary-700 mb-4">K2a: KÖSt</Heading>
-<span class="text-xs">
-    Beilage für betriebliche Einkünfte
-</span>
+<span class="text-xs"> Beilage für betriebliche Einkünfte </span>
 
 <Table class="mb-8">
     <TableHead>
         <TableHeadCell>Kategorie</TableHeadCell>
         <TableHeadCell class="text-right">Summe</TableHeadCell>
     </TableHead>
-    <TableBody tableBodyClass="divide-y">
+    <TableBody class="divide-y">
         <TableBodyRow>
             <TableBodyCell class="whitespace-normal p-2">
                 <Badge color="green" rounded class="px-2 py-1 m-1 relative">
@@ -84,13 +91,11 @@
                         class="text-xs">Einnahmen</span
                     >
                 </Badge>
-                <span class="text-xs">
-                    (Kennzahl 9040)
-                </span>
+                <span class="text-xs"> (Kennzahl 9040) </span>
             </TableBodyCell>
 
             <TableBodyCell class="whitespace-normal text-right">
-                {sumOfIncome.toFixed(2)}
+                {sumOfIncome?.toFixed(2)}
             </TableBodyCell>
         </TableBodyRow>
 
@@ -101,22 +106,18 @@
                         class="text-xs">Ausgaben</span
                     >
                 </Badge>
-                <span class="text-xs">
-                    (Kennzahl 9100)
-                </span>
+                <span class="text-xs"> (Kennzahl 9100) </span>
             </TableBodyCell>
 
             <TableBodyCell class="whitespace-normal text-right">
-                {sumOfExpenses.toFixed(2)}
+                {sumOfExpenses?.toFixed(2)}
             </TableBodyCell>
         </TableBodyRow>
 
         <TableBodyRow>
             <TableBodyCell class="whitespace-normal p-2">
                 <div class="pl-1 text-lg">Gewinn</div>
-                <span class="text-xs">
-                    (Kennzahl 636)
-                </span>
+                <span class="text-xs"> (Kennzahl 636) </span>
             </TableBodyCell>
 
             <TableBodyCell class="whitespace-normal text-lg text-right">
@@ -146,7 +147,7 @@
             <TableHeadCell>Kategorie</TableHeadCell>
             <TableHeadCell class="text-right">Summe</TableHeadCell>
         </TableHead>
-        <TableBody tableBodyClass="divide-y">
+        <TableBody class="divide-y">
             <TableBodyRow>
                 <TableBodyCell class="whitespace-normal p-2">
                     <Badge
@@ -179,14 +180,16 @@
     </Table>
 {/if}
 
-<Heading tag="h4" class="text-center text-primary-700 mb-4">Kleinunternehmer</Heading>
+<Heading tag="h4" class="text-center text-primary-700 mb-4"
+    >Kleinunternehmer</Heading
+>
 
 <Table class="mb-8">
     <TableHead>
         <TableHeadCell>Kategorie</TableHeadCell>
         <TableHeadCell class="text-right">Summe</TableHeadCell>
     </TableHead>
-    <TableBody tableBodyClass="divide-y">
+    <TableBody class="divide-y">
         <TableBodyRow>
             <TableBodyCell class="whitespace-normal p-2">
                 <Badge color="green" rounded class="px-2 py-1 m-1 relative">
@@ -197,7 +200,7 @@
             </TableBodyCell>
 
             <TableBodyCell class="whitespace-normal text-right">
-                {sumOfIncome.toFixed(2)}
+                {sumOfIncome?.toFixed(2)}
             </TableBodyCell>
         </TableBodyRow>
 
@@ -211,7 +214,7 @@
             </TableBodyCell>
 
             <TableBodyCell class="whitespace-normal text-right">
-                {sumOfExpenses.toFixed(2)}
+                {sumOfExpenses?.toFixed(2)}
             </TableBodyCell>
         </TableBodyRow>
 
@@ -238,3 +241,4 @@
         </TableBodyRow>
     </TableBody>
 </Table>
+
