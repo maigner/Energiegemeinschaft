@@ -28,25 +28,32 @@
     import GeorgeImport from "./GeorgeImport.svelte";
     import { CheckCircleSolid } from "flowbite-svelte-icons";
 
-    export let data;
+    let { data } = $props();
+
+    let bookingsLabels = $state(data.bookingsLabels);
+
+    let bookingsAttachments = $state(data.bookingsAttachments);
 
     /**
      * @type {string}
      */
-    let yearString = "2024"; //new Date().getFullYear().toString();
-    $: year = parseInt(yearString);
+    let yearString = $state("2025"); //new Date().getFullYear().toString();
 
-    $: data.filteredBookings = data.bookings.filter(
-        (
-            /** @type {{ booking_date: { getFullYear: () => number; }; }} */ booking,
-        ) => {
-            return booking.booking_date.getFullYear() === year;
-        },
+    let year = $derived(parseInt(yearString));
+
+    let filteredBookings = $state(
+        data.bookings.filter(
+            (
+                /** @type {{ booking_date: { getFullYear: () => number; }; }} */ booking,
+            ) => {
+                return booking.booking_date.getFullYear() === year;
+            },
+        ),
     );
 
-    let toastStatus = false;
-    let toastText = "";
-    let counter = 5;
+    let toastStatus = $state(false);
+    let toastText = $state("");
+    let counter = $state(5);
 
     function trigger() {
         toastStatus = true;
@@ -92,7 +99,7 @@
 
 <Tabs tabStyle="underline">
     <TabItem title="Übersicht">
-        <Dashboard bind:data bind:year />
+        <Dashboard {data} {filteredBookings} {bookingsLabels} {year} />
     </TabItem>
     <TabItem title="Buchungen">
         <Table>
@@ -100,8 +107,8 @@
                 <TableHeadCell>Buchung</TableHeadCell>
                 <TableHeadCell>Details</TableHeadCell>
             </TableHead>
-            <TableBody tableBodyClass="divide-y">
-                {#each data.filteredBookings as booking, index (booking.id)}
+            <TableBody class="divide-y">
+                {#each filteredBookings as booking, index (booking.id)}
                     <TableBodyRow
                         class={index % 2 === 0 ? "bg-white" : "bg-gray-100"}
                     >
@@ -152,7 +159,7 @@
                                             bind:value={
                                                 booking.reverse_charge_amount
                                             }
-                                            on:change={async () => {
+                                            onchange={async () => {
                                                 try {
                                                     const res = await fetch(
                                                         "/api/finance/bookings/setReverseChargeAmountOfBooking",
@@ -183,7 +190,6 @@
 
                                                     toastText = `Speichere RC-Betrag: ${booking.reverse_charge_amount}`;
                                                     trigger();
-
                                                 } catch (err) {
                                                     alert(
                                                         "Failed: " +
@@ -243,10 +249,18 @@
                                 {/if}
                             </List>
 
-                            <LabelBox bind:data bookingId={booking.id} />
+                            <LabelBox
+                                {data}
+                                bind:bookingsLabels
+                                bookingId={booking.id}
+                            />
 
                             <div class="mt-4">
-                                <FileBox bind:data bookingId={booking.id} />
+                                <FileBox
+                                    {data}
+                                    bind:fileList={bookingsAttachments}
+                                    bookingId={booking.id}
+                                />
                             </div>
                         </TableBodyCell>
                     </TableBodyRow>
@@ -255,7 +269,7 @@
         </Table>
     </TabItem>
     <TabItem open title="Steuern">
-        <Taxes bind:data />
+        <Taxes {bookingsLabels} {filteredBookings} />
     </TabItem>
     <!--
     <TabItem title="George">

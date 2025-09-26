@@ -10,30 +10,26 @@
     import download from "downloadjs";
     import { shortenString } from "$lib/format";
 
-    export let data;
-    export let bookingId;
+    let { data, bookingId, fileList = $bindable() } = $props();
 
-    let fileUploadFiles;
+    let fileUploadFiles = $state([]);
 
-    $: fileList = data.bookingsAttachments.filter(
-        (file) => file.booking_id === bookingId,
-    );
 
-    let uploadVisible = false;
-    let isLoading = false;
+
+    let uploadVisible = $state(false);
+    let isLoading = $state(false);
 </script>
 
 {#if isLoading}
     <Spinner />
 {/if}
 <div class="">
-    {#each fileList as file, index (file.attachment_id)}
-
+    {#each fileList.filter((file) => file.booking_id === bookingId) as file, index (file.attachment_id)}
         {@const filename = file.filename.split("/").slice(-1)[0]}
         <Badge color="indigo" rounded class="px-2 py-1 m-1 relative">
-            <span class="text-xs">{ shortenString(filename, 20) }</span>
+            <span class="text-xs">{shortenString(filename, 20)}</span>
             <Button
-                on:click={async () => {
+                onclick={async () => {
                     try {
                         const res = await fetch(
                             `/api/finance/bookings/getAttachment?attachmentId=${file.attachment_id}`,
@@ -67,7 +63,7 @@
 {#if uploadVisible}
     <div>
         <form
-            on:change={async () => {
+            onchange={async () => {
                 isLoading = true;
                 console.log(fileUploadFiles);
                 //upload
@@ -82,7 +78,6 @@
                 formData.append("bookingId", bookingId);
 
                 try {
-
                     const response = await fetch(
                         "/api/finance/bookings/uploadAttachment",
                         {
@@ -121,7 +116,7 @@
 <div class="w-fit ml-auto">
     <Button
         color="alternative"
-        on:click={() => {
+        onclick={() => {
             uploadVisible = !uploadVisible;
         }}
     >

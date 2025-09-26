@@ -3,42 +3,45 @@
     import { Badge, Select, Indicator, Button } from "flowbite-svelte";
     import { TrashBinOutline } from "flowbite-svelte-icons";
 
-    export let data;
-    export let bookingId;
+    let { data, bookingId, bookingsLabels = $bindable() } = $props();
 
-    $: existingLabels = data.bookingsLabels.filter(
-        (/** @type {{ booking_id: number; }} */ it) => {
-            return it.booking_id === bookingId;
-        },
-    );
-
-    $: labelsToAdd = data.labels
-        .filter((/** @type {{ id: number; }} */ it) => {
-            // not in existingLabels ?
-            let exists = existingLabels.filter(
-                (/** @type {{ label_id: number; }} */ l) => {
-                    return l.label_id === it.id;
-                },
-            );
-            return exists.length === 0;
-        })
-        .map((/** @type {{ id: number; label: string; }} */ it) => {
-            return {
-                value: it.id,
-                name: it.label,
-            };
-        })
-        .sort(
-            (
-                /** @type {{ name: string; }} */ a,
-                /** @type {{ name: string; }} */ b,
-            ) => a.name.localeCompare(b.name) >= 0,
+    let existingLabels = $derived.by(() => {
+        return bookingsLabels.filter(
+            (/** @type {{ booking_id: number; }} */ it) => {
+                return it.booking_id === bookingId;
+            },
         );
+    });
+
+    let labelsToAdd = $derived.by(() => {
+        return data.labels
+            .filter((/** @type {{ id: number; }} */ it) => {
+                // not in existingLabels ?
+                let exists = existingLabels.filter(
+                    (/** @type {{ label_id: number; }} */ l) => {
+                        return l.label_id === it.id;
+                    },
+                );
+                return exists.length === 0;
+            })
+            .map((/** @type {{ id: number; label: string; }} */ it) => {
+                return {
+                    value: it.id,
+                    name: it.label,
+                };
+            })
+            .sort(
+                (
+                    /** @type {{ name: string; }} */ a,
+                    /** @type {{ name: string; }} */ b,
+                ) => a.name.localeCompare(b.name) >= 0,
+            );
+    });
 
     /**
-     * @type {number}
+     * @type {string}
      */
-    let labelId;
+    let labelId = $state("");
 </script>
 
 <div class="">
@@ -51,7 +54,7 @@
                 <Button
                     pill={true}
                     class="!p-1 ml-2 text-xs"
-                    on:click={async () => {
+                    onclick={async () => {
                         try {
                             const res = await fetch(
                                 "/api/finance/bookings/removeLabelFromBooking",
@@ -74,18 +77,17 @@
                             const response = await res.json();
 
                             if (response.success) {
-                                data.bookingsLabels =
-                                    data.bookingsLabels.filter(
-                                        (
-                                            /** @type {{ booking_id: any; label_id: any; }} */ it,
-                                        ) => {
-                                            return !(
-                                                it.booking_id ===
-                                                    label.booking_id &&
-                                                it.label_id === label.label_id
-                                            );
-                                        },
-                                    );
+                                bookingsLabels = bookingsLabels.filter(
+                                    (
+                                        /** @type {{ booking_id: any; label_id: any; }} */ it,
+                                    ) => {
+                                        return !(
+                                            it.booking_id ===
+                                                label.booking_id &&
+                                            it.label_id === label.label_id
+                                        );
+                                    },
+                                );
                             }
                         } catch (err) {
                             alert(err);
@@ -106,7 +108,7 @@
             placeholder="Kategorie..."
             items={labelsToAdd}
             bind:value={labelId}
-            on:change={async (e) => {
+            onchange={async (e) => {
                 try {
                     const res = await fetch(
                         "/api/finance/bookings/addLabelToBooking",
@@ -129,8 +131,8 @@
                     const response = await res.json();
 
                     if (response.success) {
-                        data.bookingsLabels.push(response.data);
-                        data.bookingsLabels = data.bookingsLabels;
+                        bookingsLabels.push(response.data);
+                        bookingsLabels = bookingsLabels;
                         labelId = "";
                     }
                 } catch (err) {
