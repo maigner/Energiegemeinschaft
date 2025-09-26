@@ -13,13 +13,13 @@
 <div class="min-w-fit">
     <Card {img} class="m-2 max-w-3xl mb-10" size="xl">
         <h5
-            class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"
+            class="mx-2 mt-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"
         >
             {title}
         </h5>
-        <p>{subttile}</p>
+        <p class="m-2">{subttile}</p>
         <div
-            class="mb-3 font-normal text-gray-700 dark:text-gray-400 leading-tight"
+            class="m-2 mb-4 font-normal text-gray-700 dark:text-gray-400 leading-tight"
         >
             {@render children?.()}
         </div>
