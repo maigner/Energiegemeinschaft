@@ -221,11 +221,11 @@
         <TableBodyRow>
             <TableBodyCell class="whitespace-normal p-2">
                 <div class="pl-1 text-lg">Umsatz</div>
-                <div class="pl-1 text-xs">Einnahmen + |Ausgaben|</div>
+                <div class="pl-1 text-xs">Einnahmen</div>
             </TableBodyCell>
 
             <TableBodyCell class="whitespace-normal text-lg text-right">
-                {turnover.toFixed(2)}
+                {sumOfIncome?.toFixed(2)}
             </TableBodyCell>
         </TableBodyRow>
 
@@ -236,7 +236,7 @@
             </TableBodyCell>
 
             <TableBodyCell class="whitespace-normal text-lg text-right">
-                {((turnover / 55000) * 100).toFixed(2)}%
+                {((sumOfIncome / 55000) * 100).toFixed(2)}%
             </TableBodyCell>
         </TableBodyRow>
     </TableBody>

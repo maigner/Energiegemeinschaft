@@ -134,6 +134,7 @@
             </TableBodyRow>
         {/each}
 
+        <!--
         <TableBodyRow>
             <TableBodyCell class="whitespace-normal p-2">
                 <div class="pl-1 text-lg">Gesamt</div>
@@ -163,6 +164,7 @@
                     .toFixed(2)}
             </TableBodyCell>
         </TableBodyRow>
+-->
         <TableBodyRow>
             <TableBodyCell class="whitespace-normal p-2">
                 <div class="pl-1">Finaler Kontostand</div>

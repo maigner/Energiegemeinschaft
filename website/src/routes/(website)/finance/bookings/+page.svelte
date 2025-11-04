@@ -24,11 +24,11 @@
     import Dashboard from "./Dashboard.svelte";
     import FileBox from "./FileBox.svelte";
     import Taxes from "./Taxes.svelte";
-    import { browser } from "$app/environment";
-    import GeorgeImport from "./GeorgeImport.svelte";
     import { CheckCircleSolid } from "flowbite-svelte-icons";
 
     let { data } = $props();
+
+    let bookings = $state(data.bookings);
 
     let bookingsLabels = $state(data.bookingsLabels);
 
@@ -37,12 +37,12 @@
     /**
      * @type {string}
      */
-    let yearString = $state("2025"); //new Date().getFullYear().toString();
+    let yearString = $state("2024"); //new Date().getFullYear().toString();
 
     let year = $derived(parseInt(yearString));
 
-    let filteredBookings = $state(
-        data.bookings.filter(
+    let filteredBookings = $derived(
+        bookings.filter(
             (
                 /** @type {{ booking_date: { getFullYear: () => number; }; }} */ booking,
             ) => {
@@ -98,7 +98,7 @@
 </div>
 
 <Tabs tabStyle="underline">
-    <TabItem title="Übersicht">
+    <TabItem title="Übersicht" open={true}>
         <Dashboard {data} {filteredBookings} {bookingsLabels} {year} />
     </TabItem>
     <TabItem title="Buchungen">
@@ -268,12 +268,8 @@
             </TableBody>
         </Table>
     </TabItem>
-    <TabItem open title="Steuern">
+    <TabItem title="Steuern">
         <Taxes {bookingsLabels} {filteredBookings} />
     </TabItem>
-    <!--
-    <TabItem title="George">
-        <GeorgeImport bind:data />
-    </TabItem>
-    -->
+    
 </Tabs>
