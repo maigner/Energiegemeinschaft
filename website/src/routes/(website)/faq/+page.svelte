@@ -20,21 +20,17 @@
         },
         {
             question: "Wie hoch ist der aktuelle Einspeisetarif?",
-            answer: "11 cent/kWh",
+            answer: "9,5 cent/kWh (ab 1.1.2025)",
         },
         {
             question: "Wie hoch ist der aktuelle Bezugstarif?",
-            answer: "11 cent/kWh",
+            answer: "10 cent/kWh (ab 1.1.2025)",
         },
         {
             question: "Wie hoch ist der Mitgliedsbeitrag?",
-            answer: "20 EURO pro Jahr, bzw. 5 EURO pro Quartal",
+            answer: "Ab 1.1.2025 fällt kein Mitgliedsbeitrag mehr an.",
         },
-        {
-            question:
-                "Werden außer dem Mitgliedsbeitrag eine Grundeinlage und eine Beitrittsgebühr verrechnet?",
-            answer: "Aktuell wird nur ein Mitgliedsbeitrag in der Höhe von € 20,- jährlich, der pro Quartal mit € 5,- verrechnet wird, verrechnet. Zusätzliche Gebühren werden vom Vorstand derzeit nicht vorgeschlagen und sind wie alle Tarifänderungen von der Generalversammlung zu beschließen, d.h. durch die Mitglieder zu beschließen.",
-        },
+        
     ];
     const faqCommon = [
         {

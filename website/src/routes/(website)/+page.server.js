@@ -91,8 +91,8 @@ export async function load({ fetch, params, parent, locals }) {
 
     return {
         selfUseRatio: 0.3,
-        eegSellsCentPerKilowatt: 11.0,
-        eegBuysCentPerKilowatt: 11.0,
+        eegSellsCentPerKilowatt: 10.0,
+        eegBuysCentPerKilowatt: 9.5,
         competitors: competitorsV2
     }
 

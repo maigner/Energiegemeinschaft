@@ -41,6 +41,46 @@
 <Stammtisch />
 -->
 
+<div class="max-w-xl m-auto justify-center my-16">
+    <figure class="m-4 text-center">
+        <Blockquote alignment="center" size="xl" class="text-gray-900">
+            Neue Tarife ab 1.1.2025!
+            <br />
+            Die Generalversammlung der Energiegemeinschaft ISCHLSTROM hat ab 1.1.2025 
+            neue Tarife für die Verteilung des gemeinschaftlich erzeugten Stroms beschlossen.
+        </Blockquote>
+        <figcaption class=" justify-center items-center mt-6 space-x-3">
+            <div
+                class=" items-center divide-x-2 divide-gray-500 dark:divide-gray-700"
+            >
+                <cite class="pr-3 font-medium text-gray-900 dark:text-white"
+                    >Einspeisung</cite
+                >
+                <cite
+                    class="pl-3 text-lg font-bold text-gray-500 dark:text-gray-400"
+                    >9,5 cent/kWh</cite
+                >
+            </div>
+            <div
+                class=" items-center divide-x-2 divide-gray-500 dark:divide-gray-700"
+            >
+                <cite class="pr-3 font-medium text-gray-900 dark:text-white"
+                    >Bezug</cite
+                >
+                <cite
+                    class="pl-3 text-lg font-bold text-gray-500 dark:text-gray-400"
+                    >10 cent/kWh</cite
+                >
+            </div>
+            <div>
+                Der Mitgliedsbeitrag entfällt ab 2025!
+            </div>
+        </figcaption>
+        
+    </figure>
+</div>
+
+
 <div class="text-center">
     <Heading tag="h3" class="text-primary-600 mt-6"
         >Vorteile einer Energiegemeinschaft</Heading
