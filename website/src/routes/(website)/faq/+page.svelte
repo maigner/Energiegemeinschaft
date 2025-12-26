@@ -20,15 +20,15 @@
         },
         {
             question: "Wie hoch ist der aktuelle Einspeisetarif?",
-            answer: "9,5 cent/kWh (ab 1.1.2025)",
+            answer: "9,5 cent/kWh (ab 1.1.2026)",
         },
         {
             question: "Wie hoch ist der aktuelle Bezugstarif?",
-            answer: "10 cent/kWh (ab 1.1.2025)",
+            answer: "10 cent/kWh (ab 1.1.2026)",
         },
         {
             question: "Wie hoch ist der Mitgliedsbeitrag?",
-            answer: "Ab 1.1.2025 fällt kein Mitgliedsbeitrag mehr an.",
+            answer: "Ab 1.1.2026 fällt kein Mitgliedsbeitrag mehr an.",
         },
         
     ];

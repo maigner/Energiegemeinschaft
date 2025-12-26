@@ -44,7 +44,7 @@
 <div class="max-w-xl m-auto justify-center my-16">
     <figure class="m-4 text-center">
         <Blockquote alignment="center" size="xl" class="text-gray-900">
-            Neue Tarife ab 1.1.2025!
+            Neue Tarife ab 1.1.2026!
             <br />
             Die Generalversammlung der Energiegemeinschaft ISCHLSTROM hat ab 1.1.2025 
             neue Tarife für die Verteilung des gemeinschaftlich erzeugten Stroms beschlossen.
@@ -73,7 +73,7 @@
                 >
             </div>
             <div>
-                Der Mitgliedsbeitrag entfällt ab 2025!
+                Der Mitgliedsbeitrag entfällt ab 2026!
             </div>
         </figcaption>
         

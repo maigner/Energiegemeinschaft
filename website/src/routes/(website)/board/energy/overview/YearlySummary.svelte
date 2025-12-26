@@ -36,7 +36,7 @@
             case "2025":
                 return 110.0;
             case "2026":
-                return 95.0;
+                return 100.0;
         }
 
         return 0.0;
