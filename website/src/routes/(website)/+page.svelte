@@ -46,7 +46,7 @@
         <Blockquote alignment="center" size="xl" class="text-gray-900">
             Neue Tarife ab 1.1.2026!
             <br />
-            Die Generalversammlung der Energiegemeinschaft ISCHLSTROM hat ab 1.1.2025 
+            Die Generalversammlung der Energiegemeinschaft ISCHLSTROM hat ab 1.1.2026 
             neue Tarife für die Verteilung des gemeinschaftlich erzeugten Stroms beschlossen.
         </Blockquote>
         <figcaption class=" justify-center items-center mt-6 space-x-3">
