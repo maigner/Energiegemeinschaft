@@ -89,7 +89,7 @@
             },
             y: {
                 formatter: function (/** @type {number} */ value) {
-                    return `${value.toFixed(0)} MWh`; // Ensures tooltip also shows rounded values
+                    return `${value.toFixed(2)} MWh`; // Ensures tooltip also shows rounded values
                 },
             },
         },
