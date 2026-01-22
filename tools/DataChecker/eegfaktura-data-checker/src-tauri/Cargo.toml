@@ -1,7 +1,7 @@
 [package]
 name = "eegfaktura-data-checker"
 version = "0.1.0"
-description = "A Tauri App"
+description = "A Tool to check plausibility of EEGFaktura Data"
 authors = ["you"]
 edition = "2021"
 
