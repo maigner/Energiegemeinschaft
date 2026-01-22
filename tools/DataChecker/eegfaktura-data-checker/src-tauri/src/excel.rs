@@ -1,79 +1,107 @@
-// src-tauri/src/excel.rs
-
-use serde::Serialize;
+use calamine::{open_workbook, Reader, Xlsx};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-#[derive(Serialize)]
-pub struct XlsxRow(pub Vec<Option<String>>);
-
-#[derive(Serialize)]
-pub struct XlsxSheet {
-    pub name: String,
-    pub data: Vec<XlsxRow>,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExcelData {
+    pub sheets: Vec<SheetData>,
 }
 
-#[derive(Serialize)]
-pub struct XlsxError {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SheetData {
+    pub name: String,
+    pub rows: Vec<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExcelError {
     pub message: String,
 }
 
-impl From<String> for XlsxError {
-    fn from(msg: String) -> Self {
-        Self { message: msg }
-    }
-}
-
-impl From<anyhow::Error> for XlsxError {
-    fn from(err: anyhow::Error) -> Self {
-        Self {
+impl From<calamine::Error> for ExcelError {
+    fn from(err: calamine::Error) -> Self {
+        ExcelError {
             message: err.to_string(),
         }
     }
 }
 
-pub async fn read_xlsx_file(path: String) -> Result<Vec<XlsxSheet>, XlsxError> {
-    use calamine::{ExcelReader, Reader};
+impl From<calamine::XlsxError> for ExcelError {
+    fn from(err: calamine::XlsxError) -> Self {
+        ExcelError {
+            message: err.to_string(),
+        }
+    }
+}
 
+/// Read an Excel file and return all sheets with their data
+#[tauri::command]
+pub fn read_excel(path: String) -> Result<ExcelData, ExcelError> {
     let path = Path::new(&path);
 
-    if !path.exists() {
-        return Err(format!("File does not exist: {}", path.display()).into());
-    }
-
-    let mut excel: ExcelReader<_> = calamine::open_workbook_auto(&path)
-        .map_err(|e| format!("Failed to open Excel file: {}", e))?;
+    // Open the workbook
+    let mut workbook: Xlsx<_> = open_workbook(path)?;
 
     let mut sheets = Vec::new();
 
-    for (sheet_name, mut worksheet) in excel.worksheets() {
-        let mut rows = Vec::new();
+    // Get all sheet names
+    let sheet_names = workbook.sheet_names().to_owned();
 
-        if let Some(cell_range) = worksheet.rows() {
-            for row in cell_range {
-                let row_vec: Vec<Option<String>> = row
-                    .iter()
-                    .map(|cell| {
-                        Some(match cell {
-                            calamine::DataType::Empty => "".to_string(),
-                            calamine::DataType::String(s) => s.to_string(),
-                            calamine::DataType::Float(f) => f.to_string(),
-                            calamine::DataType::Int(i) => i.to_string(),
-                            calamine::DataType::Bool(b) => b.to_string(),
-                            calamine::DataType::Error(e) => format!("#ERROR: {}", e),
-                            calamine::DataType::DateTime(d) => format!("DATE: {}", d),
-                        })
-                    })
-                    .collect();
+    // Iterate through each sheet
+    for sheet_name in sheet_names {
+        if let Ok(range) = workbook.worksheet_range(&sheet_name) {
+            let mut rows = Vec::new();
 
-                rows.push(XlsxRow(row_vec));
+            // Convert each row to a vector of strings
+            for row in range.rows() {
+                let row_data: Vec<String> = row.iter().map(|cell| cell.to_string()).collect();
+
+                rows.push(row_data);
             }
-        }
 
-        sheets.push(XlsxSheet {
-            name: sheet_name.to_string(),
-            data: rows,
-        });
+            sheets.push(SheetData {
+                name: sheet_name,
+                rows,
+            });
+        }
     }
 
-    Ok(sheets)
+    Ok(ExcelData { sheets })
+}
+
+/// Read a specific sheet from an Excel file
+#[tauri::command]
+pub fn read_excel_sheet(path: String, sheet_name: String) -> Result<SheetData, ExcelError> {
+    let path = Path::new(&path);
+
+    let mut workbook: Xlsx<_> = open_workbook(path)?;
+
+    let range = workbook
+        .worksheet_range(&sheet_name)
+        .map_err(|e| ExcelError {
+            message: format!("Failed to read sheet '{}': {}", sheet_name, e),
+        })?;
+
+    let mut rows = Vec::new();
+
+    for row in range.rows() {
+        let row_data: Vec<String> = row.iter().map(|cell| cell.to_string()).collect();
+
+        rows.push(row_data);
+    }
+
+    Ok(SheetData {
+        name: sheet_name,
+        rows,
+    })
+}
+
+/// Get all sheet names from an Excel file
+#[tauri::command]
+pub fn get_sheet_names(path: String) -> Result<Vec<String>, ExcelError> {
+    let path = Path::new(&path);
+
+    let workbook: Xlsx<_> = open_workbook(path)?;
+
+    Ok(workbook.sheet_names().to_owned())
 }
