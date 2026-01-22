@@ -1,1 +1,0 @@
-memberID is the ID from EEG Faktura
