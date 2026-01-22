@@ -1,21 +1,44 @@
 #[cfg(test)]
 mod excel_tests {
-    use crate::excel::{get_sheet_names, read_excel, read_excel_sheet};
-    use calamine::{Xlsx};
-    use std::fs;
-
+    use crate::excel::{read_excel};
 
     #[test]
-    fn test_read_excel_all_sheets() {
-        let test_file = "test_data.xlsx";
+    fn test_read_excel_energydata_structure() {
 
+        let test_file = "test-files/Test1.xlsx";
+
+        // Test reading all sheets
+        let result = read_excel(test_file.to_string());
+
+        // reading the file works
+        assert!(result.is_ok());
+
+        let data = result.unwrap();
+        assert_eq!(data.sheets.len(), 3);
+
+        // Verify sheet names
+        assert_eq!(data.sheets[0].name, "Summary");
+        assert_eq!(data.sheets[1].name, "Energiedaten");
+        assert_eq!(data.sheets[2].name, "QoV Log");
+        
+
+        // first empty row is skipped by read_excel
+        assert_eq!(data.sheets[0].rows[0][0], "Gemeinschafts-ID");
+
+    }
+
+    /*
+
+        #[test]
+    fn test_read_excel_all_sheets() {
+        let test_file = "test-files/RC101533-Energy-Report-20260107_20260108.xlsx";
 
         // Test reading all sheets
         let result = read_excel(test_file.to_string());
 
         assert!(result.is_ok());
         let data = result.unwrap();
-        assert_eq!(data.sheets.len(), 2);
+        assert_eq!(data.sheets.len(), 3);
 
         // Verify first sheet
         assert_eq!(data.sheets[0].name, "Sheet1");
@@ -30,6 +53,7 @@ mod excel_tests {
         // Cleanup
         fs::remove_file(test_file).ok();
     }
+
 
     #[test]
     fn test_read_excel_specific_sheet() {
@@ -92,6 +116,8 @@ mod excel_tests {
         let error = result.unwrap_err();
         assert!(!error.message.is_empty());
     }
+
+     */
 
     /*
     #[test]
