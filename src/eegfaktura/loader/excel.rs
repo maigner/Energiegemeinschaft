@@ -3,8 +3,8 @@ use chrono::NaiveDateTime;
 
 #[derive(Debug)]
 struct Timestamp {
-    timestamp: String,
-    naive_date_time: NaiveDateTime,
+    timestamp: String,              //original string
+    naive_date_time: NaiveDateTime, // parsed date_time object
 }
 
 struct Sample {
@@ -67,6 +67,7 @@ fn parse_timeline(range: &Range<Data>) -> Result<Vec<Timestamp>, Error> {
     let timeline_range = range.range(timeline_range_start, timeline_range_end);
 
     for row in timeline_range.rows() {
+        // timestamp is stored as string in excel
         let ts_string = row[0].as_string().unwrap();
         let timestamp = Timestamp {
             timestamp: ts_string.clone(),
@@ -86,14 +87,13 @@ mod tests {
     #[test]
     fn test_parse_energy_file_timeline() {
         let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-        let member_list = "test-files/RC101533-Energy-Report-20251001_20251031_small.xlsx";
+        let member_list = "test-files/Energy-Report-small.xlsx";
         let path = format!("{}/{}", base_path, member_list);
         let energy_file = EnergyFile::new(path);
 
         let first_date = String::from("01.10.2025 00:00:00");
         let naive_date_time_first =
-            NaiveDateTime::parse_from_str(first_date.as_str(), "%d.%m.%Y %H:%M:%S")
-                .expect("Failed to parse date");
+            NaiveDateTime::parse_from_str(first_date.as_str(), "%d.%m.%Y %H:%M:%S").unwrap();
         assert_eq!(energy_file.timeline.first().unwrap().timestamp, first_date);
         assert_eq!(
             energy_file.timeline.first().unwrap().naive_date_time,
@@ -102,8 +102,7 @@ mod tests {
 
         let last_date = String::from("01.10.2025 01:00:00");
         let naive_date_time_last =
-            NaiveDateTime::parse_from_str(last_date.as_str(), "%d.%m.%Y %H:%M:%S")
-                .expect("Failed to parse date");
+            NaiveDateTime::parse_from_str(last_date.as_str(), "%d.%m.%Y %H:%M:%S").unwrap();
         assert_eq!(energy_file.timeline.last().unwrap().timestamp, last_date);
         assert_eq!(
             energy_file.timeline.last().unwrap().naive_date_time,
@@ -114,7 +113,7 @@ mod tests {
     #[test]
     fn test_parse_energy_file() {
         let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-        let member_list = "test-files/RC101533-Energy-Report-20251001_20251031_small.xlsx";
+        let member_list = "test-files/Energy-Report-small.xlsx";
         let path = format!("{}/{}", base_path, member_list);
 
         let energy_file = EnergyFile::new(path.clone());
