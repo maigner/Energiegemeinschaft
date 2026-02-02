@@ -1,31 +1,20 @@
 use calamine::{Data, DataType, Error, Range, Reader, Xlsx, open_workbook};
 use chrono::NaiveDateTime;
 
-#[derive(Debug)]
-pub struct Timestamp {
-    pub timestamp: String,              //original string
-    pub naive_date_time: NaiveDateTime, // parsed date_time object
-}
+// access types from parent
+use super::*;
 
-struct Sample {
-    timestamp: Timestamp,
-    value: f64,
-}
+// use calamine to parse excel and create a generic data structure for processing
+// that does not depend on calamine methods
+// i.e. get rid of excel complexity to make it compatible with data from faktura API
+// i.e. hide excel lib dependencies to call site
 
-enum EnergyDirection {
-    CONSUMPTION,
-    GENERATION,
-}
 
-struct Measurement {
-    meter_point_id: String,
-    direction: EnergyDirection,
-    values_over_time: Vec<Sample>,
-}
+
+
 
 pub struct EnergyFile {
     path: String,
-    energy_data_range: Range<Data>,
     pub timeline: Vec<Timestamp>,
 }
 
@@ -48,7 +37,6 @@ impl EnergyFile {
 
         EnergyFile {
             path,
-            energy_data_range: range,
             timeline: timeline,
         }
     }
@@ -119,6 +107,5 @@ mod tests {
         let energy_file = EnergyFile::new(path.clone());
 
         assert_eq!(energy_file.path, path.clone());
-        assert_eq!(energy_file.energy_data_range.height(), 14);
     }
 }
