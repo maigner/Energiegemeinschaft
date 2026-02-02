@@ -2,9 +2,9 @@ use calamine::{Data, DataType, Error, Range, Reader, Xlsx, open_workbook};
 use chrono::NaiveDateTime;
 
 #[derive(Debug)]
-struct Timestamp {
-    timestamp: String,              //original string
-    naive_date_time: NaiveDateTime, // parsed date_time object
+pub struct Timestamp {
+    pub timestamp: String,              //original string
+    pub naive_date_time: NaiveDateTime, // parsed date_time object
 }
 
 struct Sample {
@@ -26,11 +26,11 @@ struct Measurement {
 pub struct EnergyFile {
     path: String,
     energy_data_range: Range<Data>,
-    timeline: Vec<Timestamp>,
+    pub timeline: Vec<Timestamp>,
 }
 
 impl EnergyFile {
-    fn new(path: String) -> Self {
+    pub fn new(path: String) -> Self {
         let mut workbook: Xlsx<_> = match open_workbook(&path) {
             Ok(wb) => wb,
             Err(error) => panic!("Problem opening the workbook: {error:?}"),
