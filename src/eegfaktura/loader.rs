@@ -5,22 +5,38 @@ use chrono::NaiveDateTime;
 
 #[derive(Debug)]
 pub struct Timestamp {
-    pub timestamp: String,              // original string. is it needed?
-    pub naive_date_time: NaiveDateTime, // parsed date_time object
+    pub timestamp: NaiveDateTime, // parsed date_time object
 }
 
-struct Sample {
-    timestamp: Timestamp,
+#[derive(Debug)]
+pub struct Sample {
+    timeline_index: usize,
+    timestamp: NaiveDateTime,
     value: f64,
 }
 
-enum EnergyDirection {
+#[derive(Debug)]
+pub enum EnergyDirection {
     CONSUMPTION,
     GENERATION,
 }
 
-struct Measurement {
-    meter_point_id: String,
-    direction: EnergyDirection,
-    values_over_time: Vec<Sample>,
+#[derive(Debug)]
+pub enum MeterCode {
+    TotalConsumption,
+    ShareOnProduction,
+    ConsumptionOfProduction,
+    TotalProduction,
+    ProductionOvershoot
+}
+
+#[derive(Debug)]
+pub struct Measurement {
+    pub meter_point_id: String,
+    pub name: String,
+    pub period_start: NaiveDateTime,
+    pub period_end: NaiveDateTime,
+    pub direction: EnergyDirection,
+    pub meter_code: MeterCode,
+    pub values_over_time: Vec<Option<Sample>>,
 }
