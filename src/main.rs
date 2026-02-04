@@ -1,14 +1,13 @@
-use eegfaktura_datalib::eegfaktura::loader::{excel::EnergyFile};
+use eegfaktura_datalib::eegfaktura::loader::excel::EnergyFile;
 use std::{env, process::exit};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    
+
     if args.len() < 2 {
         println!("usage: eegfaktura-checker [command] [args]");
         println!(" commands:");
         println!("  csc: check samples complete");
-        
 
         exit(0);
     }
@@ -28,8 +27,6 @@ fn main() {
             exit(0);
         }
     }
-
-    
 }
 
 fn check_samples_complete(path: &String) {
@@ -48,8 +45,12 @@ fn check_samples_complete(path: &String) {
                 let sample = measurement.values_over_time.get(i).unwrap();
                 if sample.is_none() {
                     println!(
-                        "No Data,{},{},{:?}",
-                        timestamp.timestamp, measurement.meter_point_id, measurement.meter_code,
+                        "{}\t{}\t{:<12}\t{:<23}\t{}",
+                        timestamp.timestamp,
+                        measurement.meter_point_id,
+                        format!("{:?}", measurement.direction),
+                        format!("{:?}", measurement.meter_code),
+                        measurement.name
                     );
                 }
             }
