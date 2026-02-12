@@ -1,7 +1,11 @@
 <script>
-	import './layout.css';
+	import "./layout.css";
 
 	const { children } = $props();
 </script>
 
-{@render children()}
+<div
+	class="min-h-screen bg-[var(--color-bg-primary)] text-[var(--color-text-primary)]"
+>
+	{@render children()}
+</div>
