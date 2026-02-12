@@ -3,6 +3,10 @@
 
   import { Alert } from "flowbite-svelte";
 
+  function toggleDark() {
+    document.documentElement.classList.toggle("dark");
+  }
+
   let name = $state("");
   let greetMsg = $state("");
 
@@ -16,19 +20,19 @@
   }
 </script>
 
-<main class="container">
-  <div class="p-32">
-    <Alert>
-      <span class="font-medium">Info alert!</span>
-      Change a few things up and try submitting again.
-    </Alert>
-  </div>
+<button onclick={toggleDark}> Toggle Theme </button>
 
-  <h1>Welcome to Tauri + Svelte</h1>
+<div class="p-32">
+  <Alert>
+    <span class="font-medium">Info alert!</span>
+    Change a few things up and try submitting again.
+  </Alert>
+</div>
 
-  <form class="row" onsubmit={greet}>
-    <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{greetMsg}</p>
-</main>
+<h1>Welcome to Tauri + Svelte</h1>
+
+<form class="row" onsubmit={greet}>
+  <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
+  <button type="submit">Greet</button>
+</form>
+<p>{greetMsg}</p>
