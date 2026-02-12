@@ -22,6 +22,9 @@ impl EnergyFile {
             Err(error) => panic!("Problem opening the workbook: {error:?}"),
         };
 
+        // read "Summary" to get the correct start and end dates from "Aktiviert"
+
+
         let range = match workbook.worksheet_range("Energiedaten") {
             Ok(r) => r,
             Err(error) => panic!("Problem fetching Sheet Energiedaten: {error:?}"),
