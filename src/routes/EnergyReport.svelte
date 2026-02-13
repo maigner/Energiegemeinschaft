@@ -4,6 +4,7 @@
     import { JsonView } from "@zerodevx/svelte-json-view";
     import { Heading } from "flowbite-svelte";
     import { onMount } from "svelte";
+    import EnergyReportOverview from "./EnergyReportOverview.svelte";
 
     let energyReportFileList = $state();
 
@@ -12,7 +13,7 @@
             .then((result) => (energyReportFileList = result))
             .catch((error) => console.error(error));
     });
-
+/*
     listen("energyfile-ready", (event) => {
         console.log(`received event ${event.event}`);
 
@@ -20,8 +21,12 @@
 
         //alert(event.payload);
     });
+    */
 </script>
 
-<Heading tag="h1">Energy Report</Heading>
+<Heading tag="h3">EEGFaktura Energy Report</Heading>
+
+
+<EnergyReportOverview />
 
 <JsonView json={energyReportFileList} />
