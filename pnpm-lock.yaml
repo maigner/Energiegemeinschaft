@@ -14,6 +14,9 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: ^2
         version: 2.5.3
+      '@zerodevx/svelte-json-view':
+        specifier: ^1.0.11
+        version: 1.0.11(svelte@5.50.2)
     devDependencies:
       '@sveltejs/adapter-static':
         specifier: ^3.0.6
@@ -663,6 +666,11 @@ packages:
 
   '@yr/monotone-cubic-spline@1.0.3':
     resolution: {integrity: sha512-FQXkOta0XBSUPHndIKON2Y9JeQz5ZeMqLYZVVK93FliNBFm7LNMIZmY6FrMEB9XPcDbE2bekMbZD6kzDkxwYjA==}
+
+  '@zerodevx/svelte-json-view@1.0.11':
+    resolution: {integrity: sha512-mIjj0H1al/P4FPlbeDoiey93lNEUqBEAe5LIdD5GttZfEYt3awexD2lHwKNfUeY4jHizOJkoWTPN/2iO0GBqpw==}
+    peerDependencies:
+      svelte: ^3.57.0 || ^4.0.0 || ^5.0.0
 
   acorn@8.15.0:
     resolution: {integrity: sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==}
@@ -1461,6 +1469,10 @@ snapshots:
   '@types/resolve@1.20.2': {}
 
   '@yr/monotone-cubic-spline@1.0.3': {}
+
+  '@zerodevx/svelte-json-view@1.0.11(svelte@5.50.2)':
+    dependencies:
+      svelte: 5.50.2
 
   acorn@8.15.0: {}
 
