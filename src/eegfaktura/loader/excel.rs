@@ -9,13 +9,9 @@ use crate::eegfaktura::loader::{EnergyDirection, Measurement, MeterCode, Sample,
 // i.e. get rid of excel complexity to make it compatible with data from faktura API
 // i.e. hide excel lib dependencies to call site
 
-pub struct EnergyFile {
-    path: String,
-    timeline: Vec<Timestamp>,
-    measurements: Vec<Measurement>,
-}
 
-impl EnergyFile {
+
+impl super::EnergyReport {
     pub fn new(path: String) -> Self {
         let mut workbook: Xlsx<_> = match open_workbook(&path) {
             Ok(wb) => wb,
@@ -40,8 +36,7 @@ impl EnergyFile {
             Err(error) => panic!("Problem parsing measurements: {error:?}"),
         };
 
-        EnergyFile {
-            path,
+        super::EnergyReport {
             timeline: timeline,
             measurements: measurements,
         }
@@ -146,7 +141,6 @@ fn parse_meter_points(
                     let value: Option<f64> = if v.is_empty() { None } else { v.as_f64() };
 
                     value.map(|v| Sample {
-                        timeline_index: timestamp_index,
                         timestamp: timeline.get(timestamp_index).unwrap().timestamp,
                         value: v,
                     })
@@ -170,6 +164,8 @@ fn parse_meter_points(
 
 #[cfg(test)]
 mod tests {
+    use crate::eegfaktura::loader::EnergyReport;
+
     use super::*;
 
     #[test]
@@ -177,7 +173,7 @@ mod tests {
         let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
         let member_list = "test-files/Energy-Report-small.xlsx";
         let path = format!("{}/{}", base_path, member_list);
-        let energy_file = EnergyFile::new(path);
+        let energy_file = EnergyReport::new(path);
 
         let first_date = String::from("01.10.2025 00:00:00");
         let naive_date_time_first =
@@ -198,14 +194,5 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_parse_energy_file() {
-        let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-        let member_list = "test-files/Energy-Report-small.xlsx";
-        let path = format!("{}/{}", base_path, member_list);
 
-        let energy_file = EnergyFile::new(path.clone());
-
-        assert_eq!(energy_file.path, path.clone());
-    }
 }

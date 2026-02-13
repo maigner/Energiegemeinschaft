@@ -14,7 +14,7 @@ mod tests {
         let member_list = "test-files/Energy-Report-Errors.xlsx";
         let path = format!("{}/{}", base_path, member_list);
 
-        let energy_file = crate::eegfaktura::loader::excel::EnergyFile::new(path);
+        let energy_file = crate::eegfaktura::loader::EnergyReport::new(path);
 
         let first_date = String::from("01.10.2025 00:00:00");
         let naive_date_time_first =

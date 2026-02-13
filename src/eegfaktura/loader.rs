@@ -11,7 +11,6 @@ pub struct Timestamp {
 
 #[derive(Debug)]
 pub struct Sample {
-    timeline_index: usize,
     timestamp: NaiveDateTime,
     value: f64,
 }
@@ -40,4 +39,9 @@ pub struct Measurement {
     pub direction: EnergyDirection,
     pub meter_code: MeterCode,
     pub values_over_time: Vec<Option<Sample>>,
+}
+
+pub struct EnergyReport {
+    pub timeline: Vec<Timestamp>,
+    pub measurements: Vec<Measurement>,
 }

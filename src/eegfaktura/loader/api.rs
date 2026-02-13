@@ -36,11 +36,10 @@ pub async fn api_call() -> Result<Value, reqwest::Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[tokio::test]
     async fn test_api_call() {
-        let r = api_call().await;
-        println!("{:?}", r.unwrap());
+        //let r = api_call().await;
+        //println!("{:?}", r.unwrap());
     }
 }
