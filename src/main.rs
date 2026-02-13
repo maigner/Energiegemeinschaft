@@ -1,4 +1,4 @@
-use eegfaktura_datalib::eegfaktura::loader::excel::EnergyFile;
+use eegfaktura_datalib::eegfaktura::loader::excel::EnergyReport;
 use std::{env, process::exit};
 
 fn main() {
@@ -30,12 +30,12 @@ fn main() {
 }
 
 fn check_samples_complete(path: &String) {
-    let energy_file = EnergyFile::new(path.to_string());
-    let timeline = energy_file.get_timeline();
+    let energy_report = EnergyReport::new(path.to_string());
+    let timeline = energy_report.get_timeline();
 
     for i in 0..timeline.len() {
         let timestamp = timeline.get(i).unwrap();
-        for measurement in energy_file.get_measurements() {
+        for measurement in energy_report.get_measurements() {
             assert!(timeline.len() == measurement.values_over_time.len());
             // need to check measurement for this timestamp?
             if measurement.period_start <= timestamp.timestamp
