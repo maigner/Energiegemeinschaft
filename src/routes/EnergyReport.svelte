@@ -6,13 +6,7 @@
     import { onMount } from "svelte";
     import EnergyReportOverview from "./EnergyReportOverview.svelte";
 
-    let energyReportFileList = $state();
-
-    onMount(async () => {
-        invoke("list_energy_report_files")
-            .then((result) => (energyReportFileList = result))
-            .catch((error) => console.error(error));
-    });
+    
 /*
     listen("energyfile-ready", (event) => {
         console.log(`received event ${event.event}`);
@@ -29,4 +23,3 @@
 
 <EnergyReportOverview />
 
-<JsonView json={energyReportFileList} />

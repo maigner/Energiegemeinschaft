@@ -1,3 +1,4 @@
+use eegfaktura_datalib::eegfaktura::loader::EnergyReport;
 use glob::Pattern;
 use std::fs;
 use std::path::PathBuf;
@@ -33,7 +34,7 @@ fn list_energy_report_files() -> Result<Vec<PathBuf>, String> {
     match list_xlsx_files() {
         Ok(list) => {
             let pattern = Pattern::new("RC*-Energy-Report*").unwrap();
-            let energy_reports = list
+            let mut energy_reports: Vec<PathBuf> = list
                 .into_iter()
                 .filter(|path| {
                     path.file_name()
@@ -42,10 +43,43 @@ fn list_energy_report_files() -> Result<Vec<PathBuf>, String> {
                         .unwrap_or(false)
                 })
                 .collect();
+
+            // sort by modification date
+            energy_reports.sort_by_cached_key(|path| {
+                fs::metadata(path)
+                    .and_then(|m| m.modified())
+                    .ok()
+                    .map(|t| std::cmp::Reverse(t)) // Reverse for descending order
+            });
+
+            // last 10 only
+            energy_reports.truncate(10);
+
             Ok(energy_reports)
         }
         Err(e) => Err(e.to_string()),
     }
+}
+
+#[tauri::command]
+async fn load_energy_report_file(path: String) -> Result<bool, String> {
+    tokio::task::spawn_blocking(move || {
+        println!("checking path {:?}", path);
+        let mut energy_report = EnergyReport::new(path);
+        println!("complete {:?}", energy_report.measurements_complete);
+        energy_report.check_measurements_complete();
+        println!("complete {:?}", energy_report.measurements_complete);
+
+        // store energy_report in state
+        //Ok(true)
+        match energy_report.measurements_complete {
+            Some(true) => Ok(true),
+            Some(false) => Ok(false),
+            None => Err("unable to check data".to_string())
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -77,7 +111,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             get_welcome,
-            list_energy_report_files
+            list_energy_report_files,
+            load_energy_report_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
