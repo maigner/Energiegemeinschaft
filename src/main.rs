@@ -1,5 +1,6 @@
-use eegfaktura_datalib::eegfaktura::loader::excel::EnergyReport;
+use eegfaktura_datalib::eegfaktura::loader::EnergyReport;
 use std::{env, process::exit};
+
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -31,11 +32,12 @@ fn main() {
 
 fn check_samples_complete(path: &String) {
     let energy_report = EnergyReport::new(path.to_string());
-    let timeline = energy_report.get_timeline();
+    let measurements = energy_report.measurements; // immutable borrow
+    let timeline = energy_report.timeline;
 
     for i in 0..timeline.len() {
         let timestamp = timeline.get(i).unwrap();
-        for measurement in energy_report.get_measurements() {
+        for measurement in &measurements {
             assert!(timeline.len() == measurement.values_over_time.len());
             // need to check measurement for this timestamp?
             if measurement.period_start <= timestamp.timestamp
