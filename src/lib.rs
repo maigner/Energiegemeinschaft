@@ -22,7 +22,7 @@ mod tests {
 
         //TODO: refactor EnergyFile to getters for timeline etc. and make fields private
         assert_eq!(
-            energy_file.get_timeline().first().unwrap().timestamp,
+            energy_file.timeline.first().unwrap().timestamp,
             naive_date_time_first
         );
 
@@ -30,7 +30,7 @@ mod tests {
         let naive_date_time_last =
             NaiveDateTime::parse_from_str(last_date.as_str(), "%d.%m.%Y %H:%M:%S").unwrap();
         assert_eq!(
-            energy_file.get_timeline().last().unwrap().timestamp,
+            energy_file.timeline.last().unwrap().timestamp,
             naive_date_time_last
         );
     }

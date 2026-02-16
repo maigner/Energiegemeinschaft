@@ -39,7 +39,7 @@ impl super::EnergyReport {
         super::EnergyReport {
             timeline: timeline,
             measurements: measurements,
-            measurements_complete: true
+            measurements_complete: None
         }
     }
 
@@ -175,7 +175,7 @@ mod tests {
             NaiveDateTime::parse_from_str(first_date.as_str(), "%d.%m.%Y %H:%M:%S").unwrap();
         
         assert_eq!(
-            energy_file.get_timeline().first().unwrap().timestamp,
+            energy_file.timeline.first().unwrap().timestamp,
             naive_date_time_first
         );
 
@@ -184,7 +184,7 @@ mod tests {
             NaiveDateTime::parse_from_str(last_date.as_str(), "%d.%m.%Y %H:%M:%S").unwrap();
 
         assert_eq!(
-            energy_file.get_timeline().last().unwrap().timestamp,
+            energy_file.timeline.last().unwrap().timestamp,
             naive_date_time_last
         );
     }
