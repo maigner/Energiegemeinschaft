@@ -39,16 +39,11 @@ impl super::EnergyReport {
         super::EnergyReport {
             timeline: timeline,
             measurements: measurements,
+            measurements_complete: true
         }
     }
 
-    pub fn get_timeline(&self) -> &Vec<Timestamp> {
-        &self.timeline
-    }
-
-    pub fn get_measurements(&self) -> &Vec<Measurement> {
-        &self.measurements
-    }
+    
 }
 
 fn parse_timeline(range: &Range<Data>) -> Result<Vec<Timestamp>, Error> {
