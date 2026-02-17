@@ -2,12 +2,13 @@ use eegfaktura_datalib::eegfaktura::loader::EnergyReport;
 use glob::Pattern;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager, State};
 
-#[derive(serde::Serialize, Clone)]
-struct AppData {
-    welcome_message: &'static str,
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+#[derive(Clone)]
+struct AppState {
+    energy_reports: Arc<Mutex<HashMap<String, EnergyReport>>>,
 }
 
 fn list_xlsx_files() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
@@ -62,55 +63,41 @@ fn list_energy_report_files() -> Result<Vec<PathBuf>, String> {
 }
 
 #[tauri::command]
-async fn load_energy_report_file(path: String) -> Result<bool, String> {
-    tokio::task::spawn_blocking(move || {
-        println!("checking path {:?}", path);
-        let mut energy_report = EnergyReport::new(path);
-        println!("complete {:?}", energy_report.measurements_complete);
-        energy_report.check_measurements_complete();
-        println!("complete {:?}", energy_report.measurements_complete);
+async fn load_energy_report_file(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<bool>, String> {
+    let state_clone = state.inner().clone(); // Extract Arc before spawn_blocking
 
-        // store energy_report in state
-        //Ok(true)
-        match energy_report.measurements_complete {
-            Some(true) => Ok(true),
-            Some(false) => Ok(false),
-            None => Err("unable to check data".to_string())
-        }
+    tokio::task::spawn_blocking(move || {
+        let mut energy_report = EnergyReport::new(path.clone());
+        energy_report.check_measurements_complete();
+
+        let measurements_complete = energy_report.measurements_complete;
+
+        let mut reports_guard = state_clone
+            .energy_reports
+            .lock()
+            .map_err(|e| e.to_string())?;
+
+        reports_guard.insert(path, energy_report);
+
+        Ok(measurements_complete)
     })
     .await
     .map_err(|e| e.to_string())?
 }
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[tauri::command]
-fn get_welcome(state: State<'_, Mutex<AppData>>, app: AppHandle) -> String {
-    let s = state.lock().unwrap();
-
-    app.emit("energyfile-ready", s.welcome_message.to_string())
-        .unwrap();
-
-    s.welcome_message.to_string()
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let state = AppState {
+        energy_reports: Arc::new(Mutex::new(HashMap::new())),
+    };
+
     tauri::Builder::default()
-        .setup(|app| {
-            app.manage(Mutex::new(AppData {
-                welcome_message: "FooBar",
-            }));
-            Ok(())
-        })
+        .manage(state)
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            greet,
-            get_welcome,
             list_energy_report_files,
             load_energy_report_file
         ])
