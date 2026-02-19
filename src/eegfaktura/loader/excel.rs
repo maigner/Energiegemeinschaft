@@ -39,7 +39,8 @@ impl super::EnergyReport {
         super::EnergyReport {
             timeline: timeline,
             measurements: measurements,
-            measurements_complete: None
+            measurements_complete: None,
+            missing_samples: Vec::new(),
         }
     }
 
@@ -120,6 +121,7 @@ fn parse_meter_points(
                 _ => panic!("unknown meter code"),
             },
             values_over_time: Vec::new(),
+            has_missing_samples: false,
         };
 
         // starting at row index 9, we can scroll down the column
