@@ -1,8 +1,7 @@
 <script>
+  import { A } from "flowbite-svelte";
 
-  import Toolbar from "./Toolbar.svelte";
-  import EnergyReport from "./EnergyReport.svelte";
 </script>
 
-<Toolbar />
-<EnergyReport />
+
+<A href="/energyreport/overview" class="font-medium hover:underline">Energy Reports</A>

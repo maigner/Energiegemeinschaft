@@ -2,21 +2,7 @@
 	import "./layout.css";
 
 	const { children } = $props();
-	import {
-		Sidebar,
-		SidebarGroup,
-		SidebarItem,
-		SidebarWrapper,
-	} from "flowbite-svelte";
-	import {
-		HomeSolid,
-		ChartPieSolid,
-		InboxSolid,
-		UserSolid,
-		CogSolid,
-	} from "flowbite-svelte-icons";
-
-	let activeUrl = $state("/");
+	
 </script>
 
 <div class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">

@@ -1,7 +1,7 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
   import { JsonView } from "@zerodevx/svelte-json-view";
-  import { List, Li, Heading } from "flowbite-svelte";
+  import { List, Li, Heading, A } from "flowbite-svelte";
   import { CheckCircleSolid, CloseCircleSolid } from "flowbite-svelte-icons";
   import { onMount } from "svelte";
   import { Spinner } from "flowbite-svelte";
@@ -38,11 +38,21 @@
   });
 </script>
 
+<Heading tag="h3">EEGFaktura Energy Report</Heading>
+
 <Heading
   tag="h2"
   class="mb-2 text-lg font-semibold text-gray-900 dark:text-white"
   >Das sind die letzten (max. 10) Dateien aus deinem Download Ordner</Heading
 >
+
+{#if energyReportFileList?.length < 1}
+  <Heading
+    tag="h3"
+    class="mb-2 text-lg font-semibold text-gray-900 dark:text-white"
+    >Keine Dateien vorhanden. Exportiere aus EEG-Faktura nach Downloads</Heading
+  >
+{/if}
 
 <List tag="ul" class="space-y-1 text-gray-500 dark:text-gray-400">
   {#each energyReportFileList as energyReportFile}
@@ -53,16 +63,18 @@
           class="me-2 h-5 w-5 text-green-500 dark:text-green-400"
         />
       {:else if energyReportFile.hasErrors}
-        <CheckCircleSolid
-          class="me-2 h-5 w-5 text-green-500 dark:text-green-400"
-        />
-      {:else}
         <CloseCircleSolid
           class="me-2 h-5 w-5 text-gray-500 dark:text-gray-400"
         />
+        <A href="/energyreport/detail/" class="font-medium hover:underline"
+          >{energyReportFile.path}</A
+        >
+      {:else}
+        <CheckCircleSolid
+          class="me-2 h-5 w-5 text-green-500 dark:text-green-400"
+        />
+        {energyReportFile.path}
       {/if}
-
-      {energyReportFile.path}
     </Li>
   {/each}
 </List>

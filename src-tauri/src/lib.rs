@@ -70,6 +70,7 @@ async fn load_energy_report_file(
     let state_clone = state.inner().clone(); // Extract Arc before spawn_blocking
 
     tokio::task::spawn_blocking(move || {
+        println!("path: {}", path);
         let mut energy_report = EnergyReport::new(path.clone());
         energy_report.check_measurements_complete();
 
@@ -87,6 +88,9 @@ async fn load_energy_report_file(
     .await
     .map_err(|e| e.to_string())?
 }
+
+
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

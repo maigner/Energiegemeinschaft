@@ -2,7 +2,7 @@
 @import 'flowbite';
 
 @plugin 'flowbite/plugin';
-@custom-variant dark (&:where(.dark, .dark *));
+@variant dark (&:where(.dark, .dark *));
 
 
 
@@ -70,7 +70,7 @@
     --color-bg-primary: #0f172a;
     --color-bg-secondary: #1e293b;
     --color-border: #334155;
-    --color-text-primary: #f1f5f9;
+    --color-text-primary: #2471be;
     --color-text-secondary: #94a3b8;
 }
 
