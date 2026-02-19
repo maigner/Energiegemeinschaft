@@ -78,13 +78,13 @@
           class="me-2 h-5 w-5 text-gray-500 dark:text-gray-400"
         />
         <A href="/energyreport/detail/{energyReportFile.path}" class="font-medium hover:underline"
-          >{energyReportFile.path}</A
+          >{energyReportFile.path.split("/").pop()}</A
         >
       {:else}
         <CheckCircleSolid
           class="me-2 h-5 w-5 text-green-500 dark:text-green-400"
         />
-        {energyReportFile.path}
+        {energyReportFile.path.split("/").pop()}
       {/if}
     </Li>
   {/each}

@@ -25,7 +25,7 @@
 </script>
 
 
-<Heading tag="h4">Zählpunkte mit fehlenden Daten</Heading>
+Zählpunkte mit fehlenden Daten
 
 {#if Object.keys(dirtyMeterpoints).length === 0}
     <Spinner />
