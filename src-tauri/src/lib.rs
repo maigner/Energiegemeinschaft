@@ -1,5 +1,6 @@
 use eegfaktura_datalib::eegfaktura::loader::EnergyReport;
 use glob::Pattern;
+use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
 
@@ -63,7 +64,7 @@ fn list_energy_report_files() -> Result<Vec<PathBuf>, String> {
 }
 
 #[tauri::command]
-async fn load_energy_report_file(
+async fn check_energy_report_complete(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Option<bool>, String> {
@@ -71,15 +72,27 @@ async fn load_energy_report_file(
 
     tokio::task::spawn_blocking(move || {
         println!("path: {}", path);
-        let mut energy_report = EnergyReport::new(path.clone());
-        energy_report.check_measurements_complete();
-
-        let measurements_complete = energy_report.measurements_complete;
 
         let mut reports_guard = state_clone
             .energy_reports
             .lock()
             .map_err(|e| e.to_string())?;
+
+        if let Some(existing_report) = reports_guard.get(&path) {
+            
+            println!("Report already in hashmap, ");
+            
+            if existing_report.measurements_complete.is_some() {
+                println!("Report already checked, returning cached result");
+                return Ok(existing_report.measurements_complete);
+            }
+        }
+
+        let mut energy_report = EnergyReport::new(path.clone());
+
+        energy_report.check_measurements_complete();
+
+        let measurements_complete = energy_report.measurements_complete;
 
         reports_guard.insert(path, energy_report);
 
@@ -89,8 +102,83 @@ async fn load_energy_report_file(
     .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+async fn load_energy_report_file_details(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<EnergyReport, String> {
+    let state_clone = state.inner().clone(); // Extract Arc before spawn_blocking
 
+    tokio::task::spawn_blocking(move || {
+        println!("path: {}", path);
 
+        let reports = state_clone.energy_reports.lock().unwrap();
+
+        let report = reports.get(&path).unwrap();
+
+        Ok(report.clone())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct MeterpointSummary {
+    pub name: String,
+}
+
+#[tauri::command]
+async fn load_energy_report_file_dirty_meterpoints(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<HashMap<String, MeterpointSummary>, String> {
+    let state_clone = state.inner().clone(); // Extract Arc before spawn_blocking
+
+    println!("missing samples");
+
+    tokio::task::spawn_blocking(move || {
+        println!("path: {}", path);
+
+        let mut reports = state_clone
+            .energy_reports
+            .lock()
+            .map_err(|e| e.to_string())?;
+
+        let report = reports
+            .get_mut(&path)
+            .ok_or_else(|| format!("Report not found: {}", path))?;
+
+        // Calculate if not already done
+        if report.missing_samples.is_empty() {
+            report.get_missing_samples();
+        }
+
+        let mut result: HashMap<String, MeterpointSummary> = HashMap::new();
+
+        for measurement in report.measurements.iter_mut() {
+            if measurement.has_missing_samples {
+                //println!("measurement has missing samples");
+
+                if result.contains_key(&measurement.meter_point_id) == false {
+                    result.insert(
+                        measurement.meter_point_id.clone(),
+                        MeterpointSummary {
+                            name: measurement.name.clone(),
+                        },
+                    );
+                }
+            }
+        }
+
+        //let result = report.missing_samples.clone();
+
+        println!("done");
+
+        Ok(result)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -103,7 +191,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             list_energy_report_files,
-            load_energy_report_file
+            check_energy_report_complete,
+            load_energy_report_file_details,
+            load_energy_report_file_dirty_meterpoints
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
