@@ -1,7 +1,12 @@
 <script>
-  import { A } from "flowbite-svelte";
-
+  import SimpleMenu from "$lib/SimpleMenu.svelte";
 </script>
 
-
-<A href="/energyreport/overview" class="font-medium hover:underline">Energy Reports</A>
+<SimpleMenu
+  items={[
+    {
+      href: "/energyreport/overview",
+      display: "Energy Reports in Downloads",
+    },
+  ]}
+/>
