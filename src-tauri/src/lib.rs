@@ -1,11 +1,11 @@
 use eegfaktura_datalib::eegfaktura::loader::EnergyReport;
 use glob::Pattern;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use tauri_plugin_window_state::{StateFlags};
 
 #[derive(Clone)]
 struct AppState {
@@ -79,9 +79,8 @@ async fn check_energy_report_complete(
             .map_err(|e| e.to_string())?;
 
         if let Some(existing_report) = reports_guard.get(&path) {
-            
             println!("Report already in hashmap, ");
-            
+
             if existing_report.measurements_complete.is_some() {
                 println!("Report already checked, returning cached result");
                 return Ok(existing_report.measurements_complete);
@@ -188,6 +187,11 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(state)
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::all())
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             list_energy_report_files,
