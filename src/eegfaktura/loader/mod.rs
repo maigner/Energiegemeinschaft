@@ -1,7 +1,10 @@
-pub mod excel;
 use chrono::NaiveDateTime;
 use serde::Serialize;
 
+pub mod excel;
+
+#[cfg(test)]
+mod tests;
 
 
 
@@ -117,41 +120,3 @@ impl EnergyReport {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::eegfaktura::loader::EnergyReport;
-
-    #[test]
-    fn test_check_missing_data() {
-        let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-        let member_list = "test-files/Energy-Report-small-missing-data.xlsx";
-        let path = format!("{}/{}", base_path, member_list);
-        let mut energy_report = EnergyReport::new(path);
-        energy_report.check_measurements_complete();
-        assert_eq!(energy_report.measurements_complete, Some(false));
-
-        let member_list = "test-files/Energy-Report-small.xlsx";
-        let path = format!("{}/{}", base_path, member_list);
-        let mut energy_report = EnergyReport::new(path);
-        energy_report.check_measurements_complete();
-        assert_eq!(energy_report.measurements_complete, Some(true));
-    }
-
-    #[test]
-    fn test_check_missing_samples() {
-        let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-        let member_list = "test-files/Energy-Report-small-missing-data.xlsx";
-        let path = format!("{}/{}", base_path, member_list);
-        let mut energy_report = EnergyReport::new(path);
-        energy_report.get_missing_samples();
-        assert_eq!(energy_report.measurements_complete, Some(false));
-        assert!(energy_report.missing_samples.len() > 0);
-
-        let member_list = "test-files/Energy-Report-small.xlsx";
-        let path = format!("{}/{}", base_path, member_list);
-        let mut energy_report = EnergyReport::new(path);
-        energy_report.get_missing_samples();
-        assert_eq!(energy_report.measurements_complete, Some(true));
-        assert!(energy_report.missing_samples.len() == 0);
-    }
-}
