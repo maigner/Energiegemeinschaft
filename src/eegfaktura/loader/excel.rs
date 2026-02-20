@@ -174,7 +174,7 @@ impl super::Masterdata {
         };
 
         let h = range.headers();
-        println!("{:?}", h);
+        //println!("{:?}", h);
 
         let mut members: HashMap<String, Member> = HashMap::new();
 
@@ -186,7 +186,7 @@ impl super::Masterdata {
             .unwrap();
 
             if members.contains_key(&member_number) {
-                println!("membernumber found");
+                //println!("membernumber found");
             } else {
                 let first_name = match row.get(1) {
                     Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
@@ -241,7 +241,7 @@ impl super::Masterdata {
                 }
                 .unwrap();
 
-                println!("meter point id {}", meter_point_id);
+                //println!("meter point id {}", meter_point_id);
 
                 //26: meter point status
                 let meter_point_status = row
@@ -258,7 +258,7 @@ impl super::Masterdata {
                     .filter(|v| !v.is_empty())
                     .and_then(|v| {
                         let s = v.as_string()?;
-                        println!("Raw date string: '{}'", s);
+                        //println!("Raw date string: '{}'", s);
                         NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d")
                             .map_err(|e| println!("Parse error: {}", e))
                             .ok()
@@ -274,29 +274,29 @@ impl super::Masterdata {
                     .and_then(|s| EnergyDirection::from_str(&s))
                     .unwrap();
 
-                println!("energy_direction {:?}", energy_direction);
+                //println!("energy_direction {:?}", energy_direction);
 
                 //37 "aktiviert"
                 let meter_point_activated = row.get(37).filter(|v| !v.is_empty()).and_then(|v| {
                     let s = v.as_string()?;
-                    println!("Raw date string: '{}'", s);
+                    //println!("Raw date string: '{}'", s);
                     NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d")
                         .map_err(|e| println!("Parse error: {}", e))
                         .ok()
                 });
 
-                println!("meter_point_activated {:?}", meter_point_activated);
+                //println!("meter_point_activated {:?}", meter_point_activated);
 
                 //38 "deaktiviert"
                 let meter_point_deactivated = row.get(38).filter(|v| !v.is_empty()).and_then(|v| {
                     let s = v.as_string()?;
-                    println!("Raw date string: '{}'", s);
+                    //println!("Raw date string: '{}'", s);
                     NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d")
                         .map_err(|e| println!("Parse error meter_point_deactivated: {}", e))
                         .ok()
                 });
 
-                println!("meter_point_deactivated {:?}", meter_point_deactivated);
+                //println!("meter_point_deactivated {:?}", meter_point_deactivated);
 
                 // index 39 is "Tarif Name"
                 let subscription = match row.get(39) {
@@ -304,7 +304,7 @@ impl super::Masterdata {
                     _ => None,
                 };
 
-                println!("subscription {:?}", subscription);
+                //println!("subscription {:?}", subscription);
 
                 let meter_point = MeterPoint {
                     id: meter_point_id.clone(),
@@ -324,6 +324,9 @@ impl super::Masterdata {
             // update meter point data to member
         }
 
-        Masterdata { members: members }
+        Masterdata {
+            members: members,
+            file_complete: None,
+        }
     }
 }

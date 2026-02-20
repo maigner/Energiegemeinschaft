@@ -129,7 +129,22 @@ pub struct Member {
 
 pub struct Masterdata {
     pub members: HashMap<String, Member>,
+    pub file_complete: Option<bool>,
 }
+
+
+impl Masterdata {
+
+    pub fn get_file_complete(&mut self) {
+
+        println!("get_file_complete");
+
+
+        
+        self.file_complete = Some(true);
+    }
+}
+
 
 impl EnergyReport {
     pub fn get_missing_samples(&mut self) {
