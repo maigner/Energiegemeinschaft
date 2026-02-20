@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use calamine::{Data, DataType, Error, Range, Reader, Xlsx, open_workbook};
 use chrono::NaiveDateTime;
 
@@ -9,8 +11,6 @@ use crate::eegfaktura::loader::{EnergyDirection, Measurement, MeterCode, Sample,
 // i.e. get rid of excel complexity to make it compatible with data from faktura API
 // i.e. hide excel lib dependencies to call site
 
-
-
 impl super::EnergyReport {
     pub fn new(path: String) -> Self {
         let mut workbook: Xlsx<_> = match open_workbook(&path) {
@@ -19,7 +19,6 @@ impl super::EnergyReport {
         };
 
         // read "Summary" to get the correct start and end dates from "Aktiviert"
-
 
         let range = match workbook.worksheet_range("Energiedaten") {
             Ok(r) => r,
@@ -43,8 +42,6 @@ impl super::EnergyReport {
             missing_samples: Vec::new(),
         }
     }
-
-    
 }
 
 fn parse_timeline(range: &Range<Data>) -> Result<Vec<Timestamp>, Error> {
@@ -141,7 +138,7 @@ fn parse_meter_points(
                         timestamp: timeline.get(timestamp_index).unwrap().timestamp,
                         value: v,
                     })
-                },
+                }
                 None => None,
             };
             //println!("row_index {}, value {:?}", row_index, sample);
@@ -159,11 +156,147 @@ fn parse_meter_points(
     Ok(measurements)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemberType {
+    Private,
+    Business,
+}
+impl MemberType {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim() {
+            "Privat" => Some(MemberType::Private),
+            "Business" => Some(MemberType::Business),
+            _ => None,
+        }
+    }
+}
+
+pub struct Member {
+    pub member_number: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub company_name: Option<String>,
+    pub email: String,
+    pub member_type: MemberType,
+}
+
+pub struct Masterdata {
+    pub members: HashMap<String, Member>,
+}
+//TODO: implement member list somehow
+
+impl Masterdata {
+    pub fn new(path: String) -> Self {
+        let mut workbook: Xlsx<_> = match open_workbook(&path) {
+            Ok(wb) => wb,
+            Err(error) => panic!("Problem opening the workbook: {error:?}"),
+        };
+
+        let range = match workbook.worksheet_range("Mitglieder") {
+            Ok(r) => r,
+            Err(error) => panic!("Problem fetching Sheet Energiedaten: {error:?}"),
+        };
+
+        let h = range.headers();
+        println!("{:?}", h);
+
+        let mut members: HashMap<String, Member> = HashMap::new();
+
+        for row in range.rows() {
+            let member_number = match row.get(0) {
+                Some(v) if !v.is_empty() => v.as_string(),
+                _ => None,
+            }
+            .unwrap();
+
+            if members.contains_key(&member_number) {
+                println!("membernumber found");
+            } else {
+                let first_name = match row.get(1) {
+                    Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
+                    _ => None,
+                };
+                let last_name = match row.get(2) {
+                    Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
+                    _ => None,
+                };
+                let company_name = match row.get(1) {
+                    Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
+                    _ => None,
+                };
+                let email = match row.get(6) {
+                    Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
+                    _ => None,
+                }
+                .unwrap();
+
+                //22: teilnahme als
+                let member_type = row
+                    .get(22)
+                    .and_then(|v| v.as_string())
+                    .and_then(|s| MemberType::from_str(&s))
+                    .unwrap_or(MemberType::Private);
+
+                members.insert(
+                    member_number.clone(),
+                    Member {
+                        member_number: member_number.clone(),
+                        first_name: first_name,
+                        last_name: last_name,
+                        company_name: company_name,
+                        email: email,
+                        member_type: member_type
+                    },
+                );
+            }
+
+            /*
+            for (col_num, data) in row.iter().enumerate() {
+                // Print the data in each cell of the row.
+                println!("({row_num}, {col_num}): {data}");
+            }
+             */
+        }
+
+        Masterdata { members: members }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::eegfaktura::loader::EnergyReport;
 
-    use super::*;
+    #[test]
+    fn test_parse_member_list() {
+        let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
+        let member_list = "test-files/EEG-Masterdata.xlsx";
+        let path = format!("{}/{}", base_path, member_list);
+        let masterdata = Masterdata::new(path);
+        assert_eq!(masterdata.members.len(), 312);
+        assert_eq!(masterdata.members.get("005").unwrap().member_number, "005");
+        assert!(masterdata.members.get("005").unwrap().first_name.is_some());
+        assert_eq!(
+            masterdata.members.get("005").unwrap().first_name.as_deref(),
+            Some("Markus")
+        );
+        assert_eq!(
+            masterdata.members.get("006").unwrap().first_name.as_deref(),
+            Some("Thomas")
+        );
+        assert_eq!(
+            masterdata.members.get("318").unwrap().first_name.as_deref(),
+            Some("Valentin")
+        );
+        assert_eq!(
+            masterdata.members.get("005").unwrap().member_type,
+            MemberType::Private
+        );
+        assert_eq!(
+            masterdata.members.get("057").unwrap().member_type,
+            MemberType::Business
+        );
+    }
 
     #[test]
     fn test_parse_energy_file_timeline() {
@@ -175,7 +308,7 @@ mod tests {
         let first_date = String::from("01.10.2025 00:00:00");
         let naive_date_time_first =
             NaiveDateTime::parse_from_str(first_date.as_str(), "%d.%m.%Y %H:%M:%S").unwrap();
-        
+
         assert_eq!(
             energy_file.timeline.first().unwrap().timestamp,
             naive_date_time_first
@@ -190,6 +323,4 @@ mod tests {
             naive_date_time_last
         );
     }
-
-
 }
