@@ -1,5 +1,6 @@
 <script>
   import SimpleMenu from "$lib/SimpleMenu.svelte";
+    import MasterdataOverview from "./MasterdataOverview.svelte";
 </script>
 
 <SimpleMenu
@@ -12,4 +13,5 @@
 />
 
 
-checking for member list in Downloads
+
+<MasterdataOverview />
