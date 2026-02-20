@@ -1,11 +1,12 @@
-use chrono::NaiveDateTime;
+use std::collections::HashMap;
+
+use chrono::{NaiveDate, NaiveDateTime};
 use serde::Serialize;
 
 pub mod excel;
 
 #[cfg(test)]
 mod tests;
-
 
 
 #[derive(Debug, Clone, Serialize)]
@@ -19,10 +20,19 @@ pub struct Sample {
     value: f64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub enum EnergyDirection {
-    CONSUMPTION,
-    GENERATION,
+    Consumption,
+    Generation,
+}
+impl EnergyDirection {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim() {
+            "CONSUMPTION" => Some(EnergyDirection::Consumption),
+            "GENERATION" => Some(EnergyDirection::Generation),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -58,6 +68,67 @@ pub struct EnergyReport {
     pub measurements: Vec<Measurement>,
     pub measurements_complete: Option<bool>,
     pub missing_samples: Vec<MissingSample>,
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemberType {
+    Private,
+    Business,
+}
+impl MemberType {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim() {
+            "Privat" => Some(MemberType::Private),
+            "Business" => Some(MemberType::Business),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MeterPointStatus {
+    Active,
+    Inactive,
+    Rejected,
+    Invalid,
+    Pending,
+}
+impl MeterPointStatus {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim() {
+            "ACTIVE" => Some(MeterPointStatus::Active),
+            "INACTIVE" => Some(MeterPointStatus::Inactive),
+            "REJECTED" => Some(MeterPointStatus::Rejected),
+            "INVALID" => Some(MeterPointStatus::Invalid),
+            "PENDING" => Some(MeterPointStatus::Pending),
+            _ => None,
+        }
+    }
+}
+
+pub struct MeterPoint {
+    pub id: String,
+    pub status: MeterPointStatus,
+    pub registered: NaiveDate,
+    pub energy_direction: EnergyDirection,
+    pub activated: Option<NaiveDate>,
+    pub deactivated: Option<NaiveDate>,
+    pub subscription_name: Option<String>,
+}
+
+pub struct Member {
+    pub member_number: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub company_name: Option<String>,
+    pub email: String,
+    pub member_type: MemberType,
+    pub meter_points: HashMap<String, MeterPoint>,
+}
+
+pub struct Masterdata {
+    pub members: HashMap<String, Member>,
 }
 
 impl EnergyReport {

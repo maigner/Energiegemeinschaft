@@ -1,6 +1,82 @@
-use chrono::NaiveDateTime;
+use chrono::{NaiveDate, NaiveDateTime};
 
-use crate::eegfaktura::loader::{EnergyReport, excel::*};
+use crate::eegfaktura::loader::{
+    EnergyDirection, EnergyReport, Masterdata, MemberType, MeterPointStatus,
+};
+
+#[test]
+fn test_parse_member_list_meter_points_eof() {
+    let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
+    let member_list = "test-files/EEG-Masterdata.xlsx";
+    let path = format!("{}/{}", base_path, member_list);
+    let masterdata = Masterdata::new(path);
+    assert_eq!(masterdata.members.len(), 311);
+    assert_eq!(masterdata.members.get("318").unwrap().member_number, "318");
+
+    // grab a meter_point
+    let meter_point = masterdata
+        .members
+        .get("318")
+        .unwrap()
+        .meter_points
+        .get("AT0030000000000000000000030040032")
+        .unwrap();
+
+    assert_eq!(meter_point.id, "AT0030000000000000000000030040032");
+    assert_eq!(meter_point.status, MeterPointStatus::Pending);
+
+    let naive_date_time_first = NaiveDate::parse_from_str("2026-02-15", "%Y-%m-%d").unwrap();
+
+    assert_eq!(meter_point.registered, naive_date_time_first);
+
+    assert_eq!(meter_point.energy_direction, EnergyDirection::Generation);
+
+    assert!(meter_point.activated.is_none());
+    assert!(meter_point.deactivated.is_none());
+    assert!(meter_point.subscription_name.as_deref().is_none());
+}
+
+#[test]
+fn test_parse_member_list_meter_points() {
+    let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
+    let member_list = "test-files/EEG-Masterdata.xlsx";
+    let path = format!("{}/{}", base_path, member_list);
+    let masterdata = Masterdata::new(path);
+    assert_eq!(masterdata.members.len(), 311);
+    assert_eq!(masterdata.members.get("005").unwrap().member_number, "005");
+
+    // grab a meter_point
+    let meter_point = masterdata
+        .members
+        .get("005")
+        .unwrap()
+        .meter_points
+        .get("AT0030000000000000000000000118026")
+        .unwrap();
+
+    assert_eq!(meter_point.id, "AT0030000000000000000000000118026");
+    assert_eq!(meter_point.status, MeterPointStatus::Active);
+
+    let naive_date_time_first = NaiveDate::parse_from_str("2024-02-05", "%Y-%m-%d").unwrap();
+
+    assert_eq!(meter_point.registered, naive_date_time_first);
+
+    assert_eq!(meter_point.energy_direction, EnergyDirection::Consumption);
+
+    assert_eq!(
+        meter_point.activated.unwrap(),
+        NaiveDate::parse_from_str("2024-02-05", "%Y-%m-%d").unwrap()
+    );
+    assert_eq!(
+        meter_point.deactivated.unwrap(),
+        NaiveDate::parse_from_str("2999-12-31", "%Y-%m-%d").unwrap()
+    );
+
+    assert_eq!(
+        meter_point.subscription_name.as_deref().unwrap(),
+        "Tarif Verbrauch"
+    );
+}
 
 #[test]
 fn test_parse_member_list() {
@@ -8,7 +84,7 @@ fn test_parse_member_list() {
     let member_list = "test-files/EEG-Masterdata.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let masterdata = Masterdata::new(path);
-    assert_eq!(masterdata.members.len(), 312);
+    assert_eq!(masterdata.members.len(), 311);
     assert_eq!(masterdata.members.get("005").unwrap().member_number, "005");
     assert!(masterdata.members.get("005").unwrap().first_name.is_some());
     assert_eq!(

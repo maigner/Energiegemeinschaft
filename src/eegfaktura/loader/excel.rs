@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 
 use calamine::{Data, DataType, Error, Range, Reader, Xlsx, open_workbook};
-use chrono::NaiveDateTime;
+use chrono::{NaiveDate, NaiveDateTime};
 
 // access types from parent
-use crate::eegfaktura::loader::{EnergyDirection, Measurement, MeterCode, Sample, Timestamp};
+use crate::eegfaktura::loader::{
+    EnergyDirection, Masterdata, Measurement, Member, MemberType, MeterCode, MeterPoint,
+    MeterPointStatus, Sample, Timestamp,
+};
 
 // use calamine to parse excel and create a generic data structure for processing
 // that does not depend on calamine methods
@@ -99,8 +102,8 @@ fn parse_meter_points(
                 .expect("Failed to parse date"),
             name: name,
             direction: match energy_direction.as_str() {
-                "CONSUMPTION" => EnergyDirection::CONSUMPTION,
-                "GENERATION" => EnergyDirection::GENERATION,
+                "CONSUMPTION" => EnergyDirection::Consumption,
+                "GENERATION" => EnergyDirection::Generation,
                 _ => panic!("unknown energy direction"),
             },
             meter_code: match meter_code.as_str() {
@@ -156,36 +159,9 @@ fn parse_meter_points(
     Ok(measurements)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MemberType {
-    Private,
-    Business,
-}
-impl MemberType {
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.trim() {
-            "Privat" => Some(MemberType::Private),
-            "Business" => Some(MemberType::Business),
-            _ => None,
-        }
-    }
-}
-
-pub struct Member {
-    pub member_number: String,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
-    pub company_name: Option<String>,
-    pub email: String,
-    pub member_type: MemberType,
-}
-
-pub struct Masterdata {
-    pub members: HashMap<String, Member>,
-}
 //TODO: implement member list somehow
 
-impl Masterdata {
+impl super::Masterdata {
     pub fn new(path: String) -> Self {
         let mut workbook: Xlsx<_> = match open_workbook(&path) {
             Ok(wb) => wb,
@@ -202,7 +178,7 @@ impl Masterdata {
 
         let mut members: HashMap<String, Member> = HashMap::new();
 
-        for row in range.rows() {
+        for row in range.rows().skip(1) {
             let member_number = match row.get(0) {
                 Some(v) if !v.is_empty() => v.as_string(),
                 _ => None,
@@ -245,17 +221,107 @@ impl Masterdata {
                         last_name: last_name,
                         company_name: company_name,
                         email: email,
-                        member_type: member_type
+                        member_type: member_type,
+                        meter_points: HashMap::new(),
                     },
                 );
             }
 
-            /*
-            for (col_num, data) in row.iter().enumerate() {
-                // Print the data in each cell of the row.
-                println!("({row_num}, {col_num}): {data}");
+            // we have basic user data. now for the meter point specific stuff
+
+            if let Some(member) = members.get_mut(&member_number) {
+                //member.first_name = Some("Updated".to_string());
+                //member.email = "new@email.com".to_string();
+                // Changes ARE preserved in the HashMap
+
+                // index 25 is meter point number
+                let meter_point_id = match row.get(25) {
+                    Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
+                    _ => None,
+                }
+                .unwrap();
+
+                println!("meter point id {}", meter_point_id);
+
+                //26: meter point status
+                let meter_point_status = row
+                    .get(26)
+                    .and_then(|v| v.as_string())
+                    .and_then(|s| MeterPointStatus::from_str(&s))
+                    .unwrap_or(MeterPointStatus::Invalid);
+
+                //println!("meter_point_status {:?}", meter_point_status);
+
+                //29 "registriert"
+                let meter_point_registered = row
+                    .get(29)
+                    .filter(|v| !v.is_empty())
+                    .and_then(|v| {
+                        let s = v.as_string()?;
+                        println!("Raw date string: '{}'", s);
+                        NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d")
+                            .map_err(|e| println!("Parse error: {}", e))
+                            .ok()
+                    })
+                    .expect("Failed to parse meter_point_registered date");
+
+                //println!("meter_point_registered {:?}", meter_point_registered);
+
+                //30: direction
+                let energy_direction = row
+                    .get(30)
+                    .and_then(|v| v.as_string())
+                    .and_then(|s| EnergyDirection::from_str(&s))
+                    .unwrap();
+
+                println!("energy_direction {:?}", energy_direction);
+
+                //37 "aktiviert"
+                let meter_point_activated = row.get(37).filter(|v| !v.is_empty()).and_then(|v| {
+                    let s = v.as_string()?;
+                    println!("Raw date string: '{}'", s);
+                    NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d")
+                        .map_err(|e| println!("Parse error: {}", e))
+                        .ok()
+                });
+
+                println!("meter_point_activated {:?}", meter_point_activated);
+
+                //38 "deaktiviert"
+                let meter_point_deactivated = row.get(38).filter(|v| !v.is_empty()).and_then(|v| {
+                    let s = v.as_string()?;
+                    println!("Raw date string: '{}'", s);
+                    NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d")
+                        .map_err(|e| println!("Parse error meter_point_deactivated: {}", e))
+                        .ok()
+                });
+
+                println!("meter_point_deactivated {:?}", meter_point_deactivated);
+
+                // index 39 is "Tarif Name"
+                let subscription = match row.get(39) {
+                    Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
+                    _ => None,
+                };
+
+                println!("subscription {:?}", subscription);
+
+                let meter_point = MeterPoint {
+                    id: meter_point_id.clone(),
+                    status: meter_point_status,
+                    registered: meter_point_registered,
+                    energy_direction: energy_direction,
+                    activated: meter_point_activated,
+                    deactivated: meter_point_deactivated,
+                    subscription_name: subscription,
+                };
+
+                member
+                    .meter_points
+                    .insert(meter_point_id.clone(), meter_point);
             }
-             */
+
+            // update meter point data to member
         }
 
         Masterdata { members: members }
