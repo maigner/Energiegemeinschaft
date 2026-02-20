@@ -8,7 +8,6 @@ pub mod excel;
 #[cfg(test)]
 mod tests;
 
-
 #[derive(Debug, Clone, Serialize)]
 pub struct Timestamp {
     pub timestamp: NaiveDateTime,
@@ -70,7 +69,6 @@ pub struct EnergyReport {
     pub missing_samples: Vec<MissingSample>,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MemberType {
     Private,
@@ -130,21 +128,48 @@ pub struct Member {
 pub struct Masterdata {
     pub members: HashMap<String, Member>,
     pub file_complete: Option<bool>,
+    pub missing_subscriptions: Vec<String>,
+    pub missing_activations: Vec<String>,
 }
-
 
 impl Masterdata {
+    fn check_subscription(&mut self) {
+        println!("check_subscription");
+        let mut missing = false;
+        for (_member_number, member) in &self.members {
+            for (id, meter_point) in &member.meter_points {
+                if meter_point.subscription_name.is_none() {
+                    //println!("missing subscription{} {}", id, meter_point.id);
+                    missing = true;
+                    self.missing_subscriptions.push(id.clone());
+                }
+            }
+        }
+        self.file_complete = Some(!missing);
+    }
+
+    fn check_activated(&mut self) {
+        println!("check_activated");
+        let mut missing = false;
+        for (_member_number, member) in &self.members {
+            for (id, meter_point) in &member.meter_points {
+                if meter_point.activated.is_none() {
+                    //println!("missing activation{} {}", id, meter_point.id);
+                    missing = true;
+                    self.missing_activations.push(id.clone());
+                }
+            }
+        }
+        self.file_complete = Some(!missing);
+    }
 
     pub fn get_file_complete(&mut self) {
-
         println!("get_file_complete");
 
-
-        
-        self.file_complete = Some(true);
+        self.check_subscription();
+        self.check_activated();
     }
 }
-
 
 impl EnergyReport {
     pub fn get_missing_samples(&mut self) {
@@ -181,7 +206,6 @@ impl EnergyReport {
     }
 
     pub fn check_measurements_complete(&mut self) {
-
         let measurements = &self.measurements; // immutable borrow
         for i in 0..self.timeline.len() {
             let timestamp = self.timeline.get(i).unwrap();
@@ -205,4 +229,3 @@ impl EnergyReport {
         self.measurements_complete = Some(true);
     }
 }
-

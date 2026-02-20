@@ -173,7 +173,7 @@ impl super::Masterdata {
             Err(error) => panic!("Problem fetching Sheet Energiedaten: {error:?}"),
         };
 
-        let h = range.headers();
+        //let h = range.headers();
         //println!("{:?}", h);
 
         let mut members: HashMap<String, Member> = HashMap::new();
@@ -327,6 +327,8 @@ impl super::Masterdata {
         Masterdata {
             members: members,
             file_complete: None,
+            missing_activations: Vec::new(),
+            missing_subscriptions: Vec::new(),
         }
     }
 }

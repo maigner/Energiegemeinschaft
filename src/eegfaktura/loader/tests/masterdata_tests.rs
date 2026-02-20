@@ -1,8 +1,4 @@
-use chrono::{NaiveDate, NaiveDateTime};
-
-use crate::eegfaktura::loader::{
-    EnergyDirection, EnergyReport, Masterdata, MemberType, MeterPointStatus,
-};
+use crate::eegfaktura::loader::Masterdata;
 
 #[test]
 fn test_check_masterdata_complete() {
@@ -16,4 +12,8 @@ fn test_check_masterdata_complete() {
     masterdata.get_file_complete();
 
     assert!(masterdata.file_complete.is_some());
+    assert_eq!(masterdata.file_complete.unwrap(), false);
+
+    assert_eq!(masterdata.missing_activations.len(), 35);
+    assert_eq!(masterdata.missing_subscriptions.len(), 2);
 }
