@@ -133,41 +133,41 @@ pub struct Masterdata {
 }
 
 impl Masterdata {
-    fn check_subscription(&mut self) {
-        println!("check_subscription");
-        let mut missing = false;
+    fn check_subscription_complete(&mut self) -> bool {
+        //println!("check_subscription");
+        let mut complete = true;
         for (_member_number, member) in &self.members {
             for (id, meter_point) in &member.meter_points {
                 if meter_point.subscription_name.is_none() {
                     //println!("missing subscription{} {}", id, meter_point.id);
-                    missing = true;
+                    complete = false;
                     self.missing_subscriptions.push(id.clone());
                 }
             }
         }
-        self.file_complete = Some(!missing);
+        complete
     }
 
-    fn check_activated(&mut self) {
-        println!("check_activated");
-        let mut missing = false;
+    fn check_activated_complete(&mut self) -> bool {
+        //println!("check_activated");
+        let mut complete = true;
         for (_member_number, member) in &self.members {
             for (id, meter_point) in &member.meter_points {
                 if meter_point.activated.is_none() {
                     //println!("missing activation{} {}", id, meter_point.id);
-                    missing = true;
+                    complete = false;
                     self.missing_activations.push(id.clone());
                 }
             }
         }
-        self.file_complete = Some(!missing);
+        complete
     }
 
     pub fn get_file_complete(&mut self) {
-        println!("get_file_complete");
+        //println!("get_file_complete");
 
-        self.check_subscription();
-        self.check_activated();
+        self.file_complete =
+            Some(self.check_subscription_complete() && self.check_activated_complete());
     }
 }
 
