@@ -11,18 +11,6 @@ fn test_parse_energy_file_summary() {
     let path = format!("{}/{}", base_path, member_list);
     let energy_file = EnergyReport::new(path);
 
-    let naive_date_time_first =
-        NaiveDateTime::parse_from_str("05.02.2024 00:00:00", "%d.%m.%Y %H:%M:%S").unwrap();
-
-    assert_eq!(
-        energy_file
-            .meter_points_stats
-            .get("AT0030000000000000000000000118026")
-            .unwrap()
-            .timestamp_start,
-        naive_date_time_first
-    );
-
     assert_eq!(
         energy_file
             .meter_points_stats
@@ -30,6 +18,42 @@ fn test_parse_energy_file_summary() {
             .unwrap()
             .meter_point_id,
         "AT0030000000000000000000000118026"
+    );
+
+    assert_eq!(
+        energy_file
+            .meter_points_stats
+            .get("AT0030000000000000000000000118026")
+            .unwrap()
+            .timestamp_start,
+        NaiveDateTime::parse_from_str("05.02.2024 00:00:00", "%d.%m.%Y %H:%M:%S").unwrap()
+    );
+
+    assert_eq!(
+        energy_file
+            .meter_points_stats
+            .get("AT0030000000000000000000000122361")
+            .unwrap()
+            .timestamp_start,
+        NaiveDateTime::parse_from_str("09.10.2025 00:00:00", "%d.%m.%Y %H:%M:%S").unwrap()
+    );
+
+    assert_eq!(
+        energy_file
+            .meter_points_stats
+            .get("AT0030000000000000000000030112071")
+            .unwrap()
+            .timestamp_start,
+        NaiveDateTime::parse_from_str("05.09.2025 00:00:00", "%d.%m.%Y %H:%M:%S").unwrap()
+    );
+
+    assert_eq!(
+        energy_file
+            .meter_points_stats
+            .get("AT0030000000000000000000030071976")
+            .unwrap()
+            .timestamp_start,
+        NaiveDateTime::parse_from_str("10.10.2025 00:00:00", "%d.%m.%Y %H:%M:%S").unwrap()
     );
 }
 
