@@ -18,6 +18,9 @@ pub fn run() {
             commands::energy_reports::load_energy_report_file_dirty_meterpoints,
 
             commands::masterdata::check_masterdata_complete,
+            commands::masterdata::load_masterdata_missing_subscriptions,
+            commands::masterdata::load_masterdata_missing_activations,
+            
 
         ])
         .run(tauri::generate_context!())
