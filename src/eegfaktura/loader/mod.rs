@@ -134,7 +134,7 @@ pub struct Masterdata {
 
 impl Masterdata {
     fn check_subscription_complete(&mut self) -> bool {
-        //println!("check_subscription");
+        println!("check_subscription");
         let mut complete = true;
         for (_member_number, member) in &self.members {
             for (id, meter_point) in &member.meter_points {
@@ -148,13 +148,19 @@ impl Masterdata {
         complete
     }
 
+    /**
+     * list points that are active but have no (or wrong???, how?) activation date
+     */
     fn check_activated_complete(&mut self) -> bool {
-        //println!("check_activated");
+        println!("check_activated");
         let mut complete = true;
         for (_member_number, member) in &self.members {
             for (id, meter_point) in &member.meter_points {
-                if meter_point.activated.is_none() {
-                    //println!("missing activation{} {}", id, meter_point.id);
+                //println!("checking activation: {} {:?}", id, meter_point.status);
+
+                if meter_point.status == MeterPointStatus::Active && meter_point.activated.is_none()
+                {
+                    println!("missing activation{} {}", id, meter_point.id);
                     complete = false;
                     self.missing_activations.push(id.clone());
                 }
@@ -166,8 +172,10 @@ impl Masterdata {
     pub fn get_file_complete(&mut self) {
         //println!("get_file_complete");
 
-        self.file_complete =
-            Some(self.check_subscription_complete() && self.check_activated_complete());
+        let r1 = self.check_subscription_complete();
+        let r2 = self.check_activated_complete();
+
+        self.file_complete = Some(r1 && r2);
     }
 }
 

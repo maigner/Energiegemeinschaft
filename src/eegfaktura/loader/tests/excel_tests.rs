@@ -41,7 +41,7 @@ fn test_parse_member_list_meter_points() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
     let member_list = "test-files/EEG-Masterdata.xlsx";
     let path = format!("{}/{}", base_path, member_list);
-    let masterdata = Masterdata::new(path);
+    let mut masterdata = Masterdata::new(path);
     assert_eq!(masterdata.members.len(), 311);
     assert_eq!(masterdata.members.get("005").unwrap().member_number, "005");
 
@@ -76,6 +76,25 @@ fn test_parse_member_list_meter_points() {
         meter_point.subscription_name.as_deref().unwrap(),
         "Tarif Verbrauch"
     );
+
+    // grab another meter_point
+    let meter_point = masterdata
+        .members
+        .get("005")
+        .unwrap()
+        .meter_points
+        .get("AT0030000000000000000000030112071")
+        .unwrap();
+    assert_eq!(meter_point.id, "AT0030000000000000000000030112071");
+    assert!(meter_point.activated.is_none());
+    assert_eq!(meter_point.status, MeterPointStatus::Active);
+    assert_eq!(meter_point.status == MeterPointStatus::Active && meter_point.activated.is_none(), true);
+
+    masterdata.get_file_complete();
+    
+    assert_eq!(masterdata.missing_activations.len(), 1);
+
+    
 }
 
 #[test]
