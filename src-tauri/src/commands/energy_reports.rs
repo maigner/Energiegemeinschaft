@@ -15,10 +15,10 @@ pub async fn load_energy_report_file_dirty_meterpoints(
 ) -> Result<HashMap<String, MeterpointSummary>, String> {
     let state_clone = state.inner().clone(); // Extract Arc before spawn_blocking
 
-    println!("missing samples");
+    //println!("missing samples");
 
     tokio::task::spawn_blocking(move || {
-        println!("path: {}", path);
+        //println!("path: {}", path);
 
         let mut reports = state_clone.energy_reports.lock().map_err(
             |e: PoisonError<std::sync::MutexGuard<'_, HashMap<String, _>>>| e.to_string(),
@@ -77,10 +77,10 @@ pub async fn check_energy_report_complete(
         )?;
 
         if let Some(existing_report) = reports_guard.get(&path) {
-            println!("Report already in hashmap, ");
+            //println!("Report already in hashmap, ");
 
             if existing_report.measurements_complete.is_some() {
-                println!("Report already checked, returning cached result");
+                //println!("Report already checked, returning cached result");
                 return Ok(existing_report.measurements_complete);
             }
         }

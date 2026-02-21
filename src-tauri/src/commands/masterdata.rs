@@ -20,7 +20,7 @@ pub async fn load_masterdata_missing_activations(
 
         let masterdata = masterdata_guard.get_mut(&path).unwrap();
 
-        println!("{:?}", masterdata.missing_activations);
+        //println!("{:?}", masterdata.missing_activations);
 
         Ok(masterdata.missing_activations.clone())
     })
@@ -45,7 +45,7 @@ pub async fn load_masterdata_missing_subscriptions(
 
         let masterdata = masterdata_guard.get_mut(&path).unwrap();
 
-        println!("{:?}", masterdata.missing_subscriptions);
+        //println!("{:?}", masterdata.missing_subscriptions);
 
         Ok(masterdata.missing_subscriptions.clone())
     })
@@ -68,7 +68,7 @@ pub async fn check_masterdata_complete(
         )?;
 
         if let Some(existing_masterdata) = masterdata_guard.get(&path) {
-            println!("Masterdata already in hashmap, ");
+            //println!("Masterdata already in hashmap, ");
             return Ok(existing_masterdata.file_complete);
         }
 
