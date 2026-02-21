@@ -50,10 +50,6 @@ pub async fn load_energy_report_file_dirty_meterpoints(
             }
         }
 
-        //let result = report.missing_samples.clone();
-
-        println!("done");
-
         Ok(result)
     })
     .await
