@@ -61,19 +61,12 @@ fn parse_meter_point_data(range: &Range<Data>) -> Result<HashMap<String, EnergyR
 
     let mut result: HashMap<String, EnergyReportMeterPointStats> = HashMap::new();
 
-    //TODO
-    println!("parse_meter_point_data");
 
     // get sub-range from range
     let mut timeline_range_start = range.start().unwrap();
     timeline_range_start.0 = 12; // start row index below "Verbrauchszählpunkt"
-    let mut timeline_range_end = range.end().unwrap();
+    let timeline_range_end = range.end().unwrap();
     //timeline_range_end.1 = 0; // single column
-
-    println!(
-        "{:?} {:?} {:?} {:?}",
-        timeline_range_start.0, timeline_range_start.1, timeline_range_end.0, timeline_range_end.1
-    );
 
     let meter_point_range = range.range(timeline_range_start, timeline_range_end);
 
@@ -96,7 +89,6 @@ fn parse_meter_point_data(range: &Range<Data>) -> Result<HashMap<String, EnergyR
                         // but no actual value
                     }
                     _ => {
-                        println!("good row:: {}", v);
                         // this is a good row. parse it. add result to final data structure
                         // v is meter_point id now
                         let meter_point_id = v;
@@ -110,7 +102,6 @@ fn parse_meter_point_data(range: &Range<Data>) -> Result<HashMap<String, EnergyR
                             "%d.%m.%Y %H:%M:%S%f",
                         )
                         .unwrap();
-                        println!("date_start {}", datetime_start);
 
                         // col index 3
                         let datetime_end = NaiveDateTime::parse_from_str(
@@ -118,7 +109,6 @@ fn parse_meter_point_data(range: &Range<Data>) -> Result<HashMap<String, EnergyR
                             "%d.%m.%Y %H:%M:%S%f",
                         )
                         .unwrap();
-                        println!("date_start {}", datetime_end);
 
                         // col 4
                         // format: 04-08-2025 - 31-12-2999
@@ -134,8 +124,8 @@ fn parse_meter_point_data(range: &Range<Data>) -> Result<HashMap<String, EnergyR
                             NaiveDate::parse_from_str(date_active_parts[1].trim(), "%d-%m-%Y")
                                 .unwrap();
 
-                        println!("Start: {}", date_active_start); // 2025-10-09
-                        println!("End: {}", date_active_end); // 2999-12-31
+                        //println!("Start: {}", date_active_start); // 2025-10-09
+                        //println!("End: {}", date_active_end); // 2999-12-31
 
 
                         let meter_point_stats = EnergyReportMeterPointStats {
@@ -155,7 +145,7 @@ fn parse_meter_point_data(range: &Range<Data>) -> Result<HashMap<String, EnergyR
             }
             None => {
                 //skipping
-                println!("skipping");
+                //println!("skipping");
             }
         }
 
@@ -399,7 +389,7 @@ impl super::Masterdata {
                     let s = v.as_string()?;
                     //println!("Raw date string: '{}'", s);
                     NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d")
-                        .map_err(|e| println!("Parse error: {}", e))
+                        .map_err(|e| e.to_string())
                         .ok()
                 });
 
@@ -410,7 +400,7 @@ impl super::Masterdata {
                     let s = v.as_string()?;
                     //println!("Raw date string: '{}'", s);
                     NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d")
-                        .map_err(|e| println!("Parse error meter_point_deactivated: {}", e))
+                        .map_err(|e| e.to_string())
                         .ok()
                 });
 

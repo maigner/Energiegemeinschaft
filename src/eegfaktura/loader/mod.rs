@@ -146,7 +146,7 @@ pub struct Masterdata {
 
 impl Masterdata {
     fn check_subscription_complete(&mut self) -> bool {
-        println!("check_subscription");
+        //println!("check_subscription");
         let mut complete = true;
         for (_member_number, member) in &self.members {
             for (id, meter_point) in &member.meter_points {
@@ -164,7 +164,7 @@ impl Masterdata {
      * list points that are active but have no (or wrong???, how?) activation date
      */
     fn check_activated_complete(&mut self) -> bool {
-        println!("check_activated");
+        //println!("check_activated");
         let mut complete = true;
         for (_member_number, member) in &self.members {
             for (id, meter_point) in &member.meter_points {
@@ -172,7 +172,7 @@ impl Masterdata {
 
                 if meter_point.status == MeterPointStatus::Active && meter_point.activated.is_none()
                 {
-                    println!("missing activation{} {}", id, meter_point.id);
+                    //println!("missing activation{} {}", id, meter_point.id);
                     complete = false;
                     self.missing_activations.push(id.clone());
                 }
