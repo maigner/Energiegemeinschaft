@@ -5,15 +5,13 @@ use chrono::{NaiveDate, NaiveDateTime};
 
 // access types from parent
 use crate::eegfaktura::loader::{
-    EnergyDirection, Masterdata, Measurement, Member, MemberType, MeterCode, MeterPoint,
-    MeterPointStatus, Sample, Timestamp,
+    EnergyDirection, EnergyReportMeterPointStats, Masterdata, Measurement, Member, MemberType, MeterCode, MeterPoint, MeterPointStatus, Sample, Timestamp
 };
 
 // use calamine to parse excel and create a generic data structure for processing
 // that does not depend on calamine methods
 // i.e. get rid of excel complexity to make it compatible with data from faktura API
 // i.e. hide excel lib dependencies to call site
-
 impl super::EnergyReport {
     pub fn new(path: String) -> Self {
         let mut workbook: Xlsx<_> = match open_workbook(&path) {
@@ -38,13 +36,133 @@ impl super::EnergyReport {
             Err(error) => panic!("Problem parsing measurements: {error:?}"),
         };
 
+        // member data from energy report. to compare with masterdata file for conflicts.
+        let member_range = match workbook.worksheet_range("Summary") {
+            Ok(r) => r,
+            Err(error) => panic!("Problem fetching Sheet Summary: {error:?}"),
+        };
+        let meter_points_stats = match parse_meter_point_data(&member_range) {
+            Ok(m) => m,
+            Err(error) => panic!("Problem parse_meter_point_data Summary: {error:?}"),
+        };
+
         super::EnergyReport {
             timeline: timeline,
             measurements: measurements,
             measurements_complete: None,
             missing_samples: Vec::new(),
+            meter_points_stats: meter_points_stats,
+            //member_data: member_data,
         }
     }
+}
+
+fn parse_meter_point_data(range: &Range<Data>) -> Result<HashMap<String, EnergyReportMeterPointStats>, Error> {
+
+    let mut result: HashMap<String, EnergyReportMeterPointStats> = HashMap::new();
+
+    //TODO
+    println!("parse_meter_point_data");
+
+    // get sub-range from range
+    let mut timeline_range_start = range.start().unwrap();
+    timeline_range_start.0 = 12; // start row index below "Verbrauchszählpunkt"
+    let mut timeline_range_end = range.end().unwrap();
+    //timeline_range_end.1 = 0; // single column
+
+    println!(
+        "{:?} {:?} {:?} {:?}",
+        timeline_range_start.0, timeline_range_start.1, timeline_range_end.0, timeline_range_end.1
+    );
+
+    let meter_point_range = range.range(timeline_range_start, timeline_range_end);
+
+    // first come consumption points until a blank row
+    let mut current_energy_direction = EnergyDirection::Consumption;
+
+    // then there are in total two blank rows in excel
+    // then there is "Einspeisezählpunkt"
+    // then the rest
+
+    for row in meter_point_range.rows() {
+        // timestamp is stored as string in excel
+
+        match row[0].as_string() {
+            Some(v) => {
+                match v.as_str() {
+                    "Einspeisezählpunkt" => {
+                        // swith direction from now on
+                        current_energy_direction = EnergyDirection::Generation;
+                        // but no actual value
+                    }
+                    _ => {
+                        println!("good row:: {}", v);
+                        // this is a good row. parse it. add result to final data structure
+                        // v is meter_point id now
+                        let meter_point_id = v;
+
+                        let name = row[1].as_string().unwrap();
+
+                        // datetime format "05.02.2024 00:00:0000" -> "%d.%m.%Y %H:%M:%S%f"
+                        // col index 2
+                        let datetime_start = NaiveDateTime::parse_from_str(
+                            row[2].as_string().unwrap().as_str(),
+                            "%d.%m.%Y %H:%M:%S%f",
+                        )
+                        .unwrap();
+                        println!("date_start {}", datetime_start);
+
+                        // col index 3
+                        let datetime_end = NaiveDateTime::parse_from_str(
+                            row[3].as_string().unwrap().as_str(),
+                            "%d.%m.%Y %H:%M:%S%f",
+                        )
+                        .unwrap();
+                        println!("date_start {}", datetime_end);
+
+                        // col 4
+                        // format: 04-08-2025 - 31-12-2999
+                        // split start and end
+                        let date_active_string = row[4].as_string().unwrap();
+                        let date_active_parts: Vec<&str> =
+                            date_active_string.split(" - ").collect();
+
+                        let date_active_start =
+                            NaiveDate::parse_from_str(date_active_parts[0].trim(), "%d-%m-%Y")
+                                .unwrap();
+                        let date_active_end =
+                            NaiveDate::parse_from_str(date_active_parts[1].trim(), "%d-%m-%Y")
+                                .unwrap();
+
+                        println!("Start: {}", date_active_start); // 2025-10-09
+                        println!("End: {}", date_active_end); // 2999-12-31
+
+
+                        let meter_point_stats = EnergyReportMeterPointStats {
+                            meter_point_id: meter_point_id.clone(),
+                            energy_direction: current_energy_direction.clone(),
+                            name: name,
+                            timestamp_start: datetime_start,
+                            timestamp_end: datetime_end,
+                            date_active_start: date_active_start,
+                            date_active_end: date_active_end,
+                        };
+
+
+                        result.insert(meter_point_id.clone(), meter_point_stats);
+                    }
+                }
+            }
+            None => {
+                //skipping
+                println!("skipping");
+            }
+        }
+
+        //println!("{:?}", meter_point_id);
+    }
+
+    Ok(result)
 }
 
 fn parse_timeline(range: &Range<Data>) -> Result<Vec<Timestamp>, Error> {

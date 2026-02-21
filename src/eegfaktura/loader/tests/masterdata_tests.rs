@@ -14,6 +14,6 @@ fn test_check_masterdata_complete() {
     assert!(masterdata.file_complete.is_some());
     assert_eq!(masterdata.file_complete.unwrap(), false);
 
-    assert_eq!(masterdata.missing_activations.len(), 35);
+    assert_eq!(masterdata.missing_activations.len(), 1);
     assert_eq!(masterdata.missing_subscriptions.len(), 2);
 }

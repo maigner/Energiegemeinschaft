@@ -62,11 +62,23 @@ pub struct MissingSample {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct EnergyReportMeterPointStats {
+    pub meter_point_id: String, //same as key of containing hashmap
+    pub energy_direction: EnergyDirection,
+    pub name: String,
+    pub timestamp_start: NaiveDateTime,
+    pub timestamp_end: NaiveDateTime,
+    pub date_active_start: NaiveDate,
+    pub date_active_end: NaiveDate,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct EnergyReport {
     pub timeline: Vec<Timestamp>,
     pub measurements: Vec<Measurement>,
     pub measurements_complete: Option<bool>,
     pub missing_samples: Vec<MissingSample>,
+    pub meter_points_stats: HashMap<String, EnergyReportMeterPointStats>
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -5,6 +5,35 @@ use crate::eegfaktura::loader::{
 };
 
 #[test]
+fn test_parse_energy_file_summary() {
+    let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
+    let member_list = "test-files/Energy-Report-small.xlsx";
+    let path = format!("{}/{}", base_path, member_list);
+    let energy_file = EnergyReport::new(path);
+
+    let naive_date_time_first =
+        NaiveDateTime::parse_from_str("05.02.2024 00:00:00", "%d.%m.%Y %H:%M:%S").unwrap();
+
+    assert_eq!(
+        energy_file
+            .meter_points_stats
+            .get("AT0030000000000000000000000118026")
+            .unwrap()
+            .timestamp_start,
+        naive_date_time_first
+    );
+
+    assert_eq!(
+        energy_file
+            .meter_points_stats
+            .get("AT0030000000000000000000000118026")
+            .unwrap()
+            .meter_point_id,
+        "AT0030000000000000000000000118026"
+    );
+}
+
+#[test]
 fn test_parse_member_list_meter_points_eof() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
     let member_list = "test-files/EEG-Masterdata.xlsx";
@@ -88,13 +117,14 @@ fn test_parse_member_list_meter_points() {
     assert_eq!(meter_point.id, "AT0030000000000000000000030112071");
     assert!(meter_point.activated.is_none());
     assert_eq!(meter_point.status, MeterPointStatus::Active);
-    assert_eq!(meter_point.status == MeterPointStatus::Active && meter_point.activated.is_none(), true);
+    assert_eq!(
+        meter_point.status == MeterPointStatus::Active && meter_point.activated.is_none(),
+        true
+    );
 
     masterdata.get_file_complete();
-    
-    assert_eq!(masterdata.missing_activations.len(), 1);
 
-    
+    assert_eq!(masterdata.missing_activations.len(), 1);
 }
 
 #[test]
