@@ -1,7 +1,7 @@
 use chrono::{NaiveDate, NaiveDateTime};
 
 use crate::eegfaktura::loader::{
-    EnergyDirection, EnergyReport, Masterdata, MemberType, MeterPointStatus,
+    EnergyDirection, EnergyReport, Masterdata, MemberType, MeterPointStatus, QoV,
 };
 
 #[test]
@@ -232,6 +232,62 @@ fn test_parse_energy_file_qov_timeline() {
         energy_file.qov_timeline.last().unwrap().timestamp,
         naive_date_time_last
     );
+}
+
+#[test]
+fn test_parse_qov_samples() {
+    let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
+    let member_list = "test-files/Energy-Report-small.xlsx";
+    let path = format!("{}/{}", base_path, member_list);
+    let energy_file = EnergyReport::new(path);
+
+    assert_eq!(energy_file.qov_samples.len(), 7);
+    assert_eq!(energy_file.qov_timeline.len(), 578);
+
+    let qov_sample = energy_file
+        .qov_samples
+        .first()
+        .unwrap()
+        .samples
+        .first()
+        .unwrap()
+        .as_ref()
+        .unwrap();
+    assert_eq!(qov_sample.qov, QoV::L1);
+    assert_eq!(qov_sample.value.unwrap(), 0.001);
+
+    let qov_sample = energy_file
+        .qov_samples
+        .first()
+        .unwrap()
+        .samples
+        .last()
+        .unwrap()
+        .as_ref()
+        .unwrap();
+    assert_eq!(qov_sample.qov, QoV::L2);
+    assert_eq!(qov_sample.value.unwrap(), 0.002);
+
+    let qov_sample = energy_file
+        .qov_samples
+        .last()
+        .unwrap()
+        .samples
+        .first()
+        .unwrap()
+        .as_ref();
+    assert!(qov_sample.is_none());
+    let qov_sample = energy_file
+        .qov_samples
+        .last()
+        .unwrap()
+        .samples
+        .last()
+        .unwrap()
+        .as_ref()
+        .unwrap();
+    assert_eq!(qov_sample.qov, QoV::L1);
+    assert_eq!(qov_sample.value.unwrap(), 0.0);
 }
 
 #[test]

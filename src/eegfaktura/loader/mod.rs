@@ -72,7 +72,7 @@ pub struct EnergyReportMeterPointStats {
     pub date_active_end: NaiveDate,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub enum QoV {
     L0,
     L1,
