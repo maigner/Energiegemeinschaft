@@ -7,6 +7,9 @@
     import { Spinner } from "flowbite-svelte";
     import SimpleMenu from "$lib/SimpleMenu.svelte";
 
+    /**
+     * @type {any[]}
+     */
     let masterdataFileList = $state([]);
 
     onMount(async () => {
