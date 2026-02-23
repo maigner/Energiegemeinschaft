@@ -252,6 +252,25 @@ impl Masterdata {
 }
 
 impl EnergyReport {
+    pub fn get_qov_issues(&self) -> HashMap<String, Vec<QovSample>> {
+        let mut results: HashMap<String, Vec<QovSample>> = HashMap::new();
+
+        for qov_samples in &self.qov_samples {
+            let l3_samples: Vec<QovSample> = qov_samples
+                .samples
+                .iter()
+                .flatten()
+                .filter(|sample| matches!(sample.qov, QoV::L3) || matches!(sample.qov, QoV::L2))
+                .cloned()
+                .collect();
+
+            if !l3_samples.is_empty() {
+                results.insert(qov_samples.meter_point_id.clone(), l3_samples);
+            }
+        }
+        results
+    }
+
     pub fn get_missing_samples(&mut self) {
         //let mut measurements = &self.measurements; // immutable borrow
 

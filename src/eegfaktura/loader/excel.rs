@@ -69,7 +69,7 @@ impl super::EnergyReport {
             missing_samples: Vec::new(),
             meter_points_stats: meter_points_stats,
             qov_timeline: qov_timeline,
-            qov_samples: qov_samples,
+            qov_samples: qov_samples
         }
     }
 }

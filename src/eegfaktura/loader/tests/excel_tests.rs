@@ -323,3 +323,23 @@ fn test_check_missing_samples() {
     assert_eq!(energy_report.measurements_complete, Some(true));
     assert!(energy_report.missing_samples.len() == 0);
 }
+
+#[test]
+fn test_check_l2_l3_errors() {
+    let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
+    let member_list = "test-files/Energy-Report-small.xlsx";
+    let path = format!("{}/{}", base_path, member_list);
+    let energy_file = EnergyReport::new(path);
+
+    let qov_issues = energy_file.get_qov_issues();
+    let issues = qov_issues.get("AT0030000000000000000000000118026");
+    assert_eq!(issues.unwrap().len(), 198);
+
+    let issues = qov_issues.get("AT0030000000000000000000030086569");
+    assert_eq!(issues.unwrap().len(), 2);
+
+    let issues = qov_issues.get("AT0030000000000000000000030071976");
+    assert_eq!(issues.unwrap().len(), 192);
+
+
+}
