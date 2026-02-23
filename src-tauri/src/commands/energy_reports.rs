@@ -94,3 +94,37 @@ pub async fn check_energy_report_complete(
     .await
     .map_err(|e| e.to_string())?
 }
+
+
+#[tauri::command]
+pub async fn check_energy_report_invalid_values(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<bool, String> {
+    let state_clone = state.inner().clone(); // Extract Arc before spawn_blocking
+
+    tokio::task::spawn_blocking(move || {
+        //println!("path: {}", path);
+
+        let reports_guard = state_clone.energy_reports.lock().map_err(
+            |e: PoisonError<std::sync::MutexGuard<'_, HashMap<String, EnergyReport>>>| {
+                e.to_string()
+            },
+        )?;
+
+        if let Some(existing_report) = reports_guard.get(&path) {
+            //println!("Report already in hashmap, ");
+
+            if existing_report.get_qov_issues().is_empty() {
+                //println!("Report already checked, returning cached result");
+                return Ok(false);
+            } else {
+                return Ok(true);
+            }
+        }
+
+        Err("Report not found or not complete".to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
