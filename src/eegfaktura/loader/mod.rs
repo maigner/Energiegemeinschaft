@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use chrono::{NaiveDate, NaiveDateTime};
 use serde::Serialize;
@@ -42,6 +42,26 @@ pub enum MeterCode {
     TotalProduction,
     ProductionOvershoot,
 }
+impl FromStr for MeterCode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Gesamtverbrauch lt. Messung (bei Teilnahme gem. Erzeugung) [KWH]" => {
+                Ok(MeterCode::TotalConsumption)
+            }
+            "Anteil gemeinschaftliche Erzeugung [KWH]" => Ok(MeterCode::ShareOnProduction),
+            "Eigendeckung gemeinschaftliche Erzeugung [KWH]" => {
+                Ok(MeterCode::ConsumptionOfProduction)
+            }
+            "Gesamte gemeinschaftliche Erzeugung [KWH]" => Ok(MeterCode::TotalProduction),
+            "Gesamt/Überschusserzeugung, Gemeinschaftsüberschuss [KWH]" => {
+                Ok(MeterCode::ProductionOvershoot)
+            }
+            _ => Err(format!("Unknown meter code: {}", s)),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Measurement {
@@ -77,7 +97,7 @@ pub enum QoV {
     L0,
     L1,
     L2,
-    L3
+    L3,
 }
 impl QoV {
     pub fn from_str(s: &str) -> Option<Self> {
@@ -95,7 +115,7 @@ impl QoV {
 pub struct QovSample {
     timestamp: NaiveDateTime,
     value: Option<f64>,
-    qov: QoV
+    qov: QoV,
 }
 
 #[derive(Debug, Clone, Serialize)]

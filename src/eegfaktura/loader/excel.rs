@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use calamine::{Data, DataType, Error, Range, Reader, Xlsx, open_workbook};
 use chrono::{NaiveDate, NaiveDateTime};
@@ -246,28 +246,9 @@ fn parse_qov_samples(
         // setup measurement. values are added later
         let mut qov_samples = QovSamples {
             meter_point_id: point_nr,
-
             name: name,
-            direction: match energy_direction.as_str() {
-                "CONSUMPTION" => EnergyDirection::Consumption,
-                "GENERATION" => EnergyDirection::Generation,
-                _ => panic!("unknown energy direction"),
-            },
-            meter_code: match meter_code.as_str() {
-                "Gesamtverbrauch lt. Messung (bei Teilnahme gem. Erzeugung) [KWH]" => {
-                    MeterCode::TotalConsumption
-                }
-                "Anteil gemeinschaftliche Erzeugung [KWH]" => MeterCode::ShareOnProduction,
-                "Eigendeckung gemeinschaftliche Erzeugung [KWH]" => {
-                    MeterCode::ConsumptionOfProduction
-                }
-                "Gesamte gemeinschaftliche Erzeugung [KWH]" => MeterCode::TotalProduction,
-                "Gesamt/Überschusserzeugung, Gemeinschaftsüberschuss [KWH]" => {
-                    MeterCode::ProductionOvershoot
-                }
-                _ => panic!("unknown meter code"),
-            },
-
+            direction: EnergyDirection::from_str(energy_direction.as_str()).unwrap(),
+            meter_code: MeterCode::from_str(meter_code.as_str()).unwrap(),
             samples: Vec::new(),
         };
 
@@ -288,29 +269,17 @@ fn parse_qov_samples(
 
                     // if there is a value, this means there is a QoV that is NOT L0
                     // in the next column
-                    let qov: Option<QoV> = match data_range
+
+                    let qov: Option<QoV> = data_range
                         .get((row_index, col_index + 1))
-                        .unwrap()
-                        .as_string()
-                    {
-                        Some(data) => Some(QoV::from_str(&data).unwrap()),
-                        _ => {
-                            println!("{:?}", qov_samples.meter_point_id);
+                        .and_then(|cell| cell.as_string())
+                        .and_then(|data| QoV::from_str(&data));
 
-                            println!("no qov at row {} col {}", row_index, col_index);
-                            //"Error".to_string()
-                            None
-                        }
-                    };
-
-                    match qov {
-                        Some(qov) => Some(QovSample {
-                            timestamp: qov_timeline.get(timestamp_index).unwrap().timestamp,
-                            value: value,
-                            qov: qov,
-                        }),
-                        _ => None,
-                    }
+                    qov.map(|qov| QovSample {
+                        timestamp: qov_timeline.get(timestamp_index).unwrap().timestamp,
+                        value: value,
+                        qov: qov,
+                    })
                 }
                 None => None,
             };
