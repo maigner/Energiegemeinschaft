@@ -73,6 +73,41 @@ pub struct EnergyReportMeterPointStats {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub enum QoV {
+    L0,
+    L1,
+    L2,
+    L3
+}
+impl QoV {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim() {
+            "L0" => Some(QoV::L0),
+            "L1" => Some(QoV::L1),
+            "L2" => Some(QoV::L2),
+            "L3" => Some(QoV::L3),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct QovSample {
+    timestamp: NaiveDateTime,
+    value: Option<f64>,
+    qov: QoV
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct QovSamples {
+    pub meter_point_id: String,
+    pub name: String,
+    pub direction: EnergyDirection,
+    pub meter_code: MeterCode,
+    pub samples: Vec<Option<QovSample>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct EnergyReport {
     pub timeline: Vec<Timestamp>,
     pub measurements: Vec<Measurement>,
@@ -80,6 +115,7 @@ pub struct EnergyReport {
     pub missing_samples: Vec<MissingSample>,
     pub meter_points_stats: HashMap<String, EnergyReportMeterPointStats>,
     pub qov_timeline: Vec<Timestamp>,
+    pub qov_samples: Vec<QovSamples>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

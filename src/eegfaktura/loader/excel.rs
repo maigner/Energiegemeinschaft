@@ -5,7 +5,8 @@ use chrono::{NaiveDate, NaiveDateTime};
 
 // access types from parent
 use crate::eegfaktura::loader::{
-    EnergyDirection, EnergyReportMeterPointStats, Masterdata, Measurement, Member, MemberType, MeterCode, MeterPoint, MeterPointStatus, Sample, Timestamp
+    EnergyDirection, EnergyReportMeterPointStats, Masterdata, Measurement, Member, MemberType,
+    MeterCode, MeterPoint, MeterPointStatus, QoV, QovSample, QovSamples, Sample, Timestamp,
 };
 
 // use calamine to parse excel and create a generic data structure for processing
@@ -56,7 +57,10 @@ impl super::EnergyReport {
             Ok(t) => t,
             Err(error) => panic!("Problem parsing timeline: {error:?}"),
         };
-
+        let qov_samples = match parse_qov_samples(&qov_range, &qov_timeline) {
+            Ok(t) => t,
+            Err(error) => panic!("Problem parsing QoV Samples: {error:?}"),
+        };
 
         super::EnergyReport {
             timeline: timeline,
@@ -65,14 +69,15 @@ impl super::EnergyReport {
             missing_samples: Vec::new(),
             meter_points_stats: meter_points_stats,
             qov_timeline: qov_timeline,
+            qov_samples: qov_samples,
         }
     }
 }
 
-fn parse_meter_point_data(range: &Range<Data>) -> Result<HashMap<String, EnergyReportMeterPointStats>, Error> {
-
+fn parse_meter_point_data(
+    range: &Range<Data>,
+) -> Result<HashMap<String, EnergyReportMeterPointStats>, Error> {
     let mut result: HashMap<String, EnergyReportMeterPointStats> = HashMap::new();
-
 
     // get sub-range from range
     let mut timeline_range_start = range.start().unwrap();
@@ -139,7 +144,6 @@ fn parse_meter_point_data(range: &Range<Data>) -> Result<HashMap<String, EnergyR
                         //println!("Start: {}", date_active_start); // 2025-10-09
                         //println!("End: {}", date_active_end); // 2999-12-31
 
-
                         let meter_point_stats = EnergyReportMeterPointStats {
                             meter_point_id: meter_point_id.clone(),
                             energy_direction: current_energy_direction.clone(),
@@ -149,7 +153,6 @@ fn parse_meter_point_data(range: &Range<Data>) -> Result<HashMap<String, EnergyR
                             date_active_start: date_active_start,
                             date_active_end: date_active_end,
                         };
-
 
                         result.insert(meter_point_id.clone(), meter_point_stats);
                     }
@@ -215,6 +218,115 @@ fn parse_qov_timeline(range: &Range<Data>) -> Result<Vec<Timestamp>, Error> {
     }
 
     Ok(timeline)
+}
+
+//parse_qov_samples
+
+fn parse_qov_samples(
+    range: &Range<Data>,
+    qov_timeline: &Vec<Timestamp>,
+) -> Result<Vec<QovSamples>, Error> {
+    let mut meter_point_qov_samples: Vec<QovSamples> = Vec::new();
+
+    // get sub-range from range
+    let mut data_range_start = range.start().unwrap();
+    data_range_start.1 = 1; // start col index
+    let data_range_end = range.end().unwrap();
+    let data_range = range.range(data_range_start, data_range_end);
+
+    let mut col_index = 0;
+    while col_index < data_range.width() {
+        let point_nr = data_range.get((0, col_index)).unwrap().as_string().unwrap();
+        let name = data_range.get((1, col_index)).unwrap().as_string().unwrap();
+        let energy_direction = data_range.get((2, col_index)).unwrap().as_string().unwrap();
+        //let period_start = data_range.get((3, col_index)).unwrap().as_string().unwrap();
+        //let period_end = data_range.get((4, col_index)).unwrap().as_string().unwrap();
+        let meter_code = data_range.get((5, col_index)).unwrap().as_string().unwrap();
+
+        // setup measurement. values are added later
+        let mut qov_samples = QovSamples {
+            meter_point_id: point_nr,
+
+            name: name,
+            direction: match energy_direction.as_str() {
+                "CONSUMPTION" => EnergyDirection::Consumption,
+                "GENERATION" => EnergyDirection::Generation,
+                _ => panic!("unknown energy direction"),
+            },
+            meter_code: match meter_code.as_str() {
+                "Gesamtverbrauch lt. Messung (bei Teilnahme gem. Erzeugung) [KWH]" => {
+                    MeterCode::TotalConsumption
+                }
+                "Anteil gemeinschaftliche Erzeugung [KWH]" => MeterCode::ShareOnProduction,
+                "Eigendeckung gemeinschaftliche Erzeugung [KWH]" => {
+                    MeterCode::ConsumptionOfProduction
+                }
+                "Gesamte gemeinschaftliche Erzeugung [KWH]" => MeterCode::TotalProduction,
+                "Gesamt/Überschusserzeugung, Gemeinschaftsüberschuss [KWH]" => {
+                    MeterCode::ProductionOvershoot
+                }
+                _ => panic!("unknown meter code"),
+            },
+
+            samples: Vec::new(),
+        };
+
+        // row 6 is empty
+
+        // starting at row index 7, we can scroll down the column
+        let data_row_offset = 7;
+        let mut row_index = data_row_offset;
+        while row_index < data_range.height() {
+            // index into timeline to fetch dateTime
+            let timestamp_index = row_index - data_row_offset;
+
+            // convert cell content to Sample
+            let sample: Option<QovSample> = match data_range.get((row_index, col_index)) {
+                Some(v) => {
+                    // parse cell value, if any
+                    let value: Option<f64> = if v.is_empty() { None } else { v.as_f64() };
+
+                    // if there is a value, this means there is a QoV that is NOT L0
+                    // in the next column
+                    let qov: Option<QoV> = match data_range
+                        .get((row_index, col_index + 1))
+                        .unwrap()
+                        .as_string()
+                    {
+                        Some(data) => Some(QoV::from_str(&data).unwrap()),
+                        _ => {
+                            println!("{:?}", qov_samples.meter_point_id);
+
+                            println!("no qov at row {} col {}", row_index, col_index);
+                            //"Error".to_string()
+                            None
+                        }
+                    };
+
+                    match qov {
+                        Some(qov) => Some(QovSample {
+                            timestamp: qov_timeline.get(timestamp_index).unwrap().timestamp,
+                            value: value,
+                            qov: qov,
+                        }),
+                        _ => None,
+                    }
+                }
+                None => None,
+            };
+            //println!("row_index {}, value {:?}", row_index, sample);
+
+            qov_samples.samples.push(sample);
+
+            row_index += 1;
+        }
+
+        meter_point_qov_samples.push(qov_samples);
+
+        col_index += 2; // skip QoV Column, increment of 2
+    }
+
+    Ok(meter_point_qov_samples)
 }
 
 fn parse_meter_points(
