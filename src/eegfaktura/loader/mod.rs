@@ -24,12 +24,13 @@ pub enum EnergyDirection {
     Consumption,
     Generation,
 }
-impl EnergyDirection {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for EnergyDirection {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
-            "CONSUMPTION" => Some(EnergyDirection::Consumption),
-            "GENERATION" => Some(EnergyDirection::Generation),
-            _ => None,
+            "CONSUMPTION" => Ok(EnergyDirection::Consumption),
+            "GENERATION" => Ok(EnergyDirection::Generation),
+            _ => Err(format!("Unknown meter code: {}", s)),
         }
     }
 }
@@ -44,7 +45,6 @@ pub enum MeterCode {
 }
 impl FromStr for MeterCode {
     type Err = String;
-
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "Gesamtverbrauch lt. Messung (bei Teilnahme gem. Erzeugung) [KWH]" => {

@@ -494,10 +494,11 @@ impl super::Masterdata {
                 //println!("meter_point_registered {:?}", meter_point_registered);
 
                 //30: direction
-                let energy_direction = row
+                let energy_direction: EnergyDirection = row
                     .get(30)
                     .and_then(|v| v.as_string())
-                    .and_then(|s| EnergyDirection::from_str(&s))
+                    .and_then(|s| Some(EnergyDirection::from_str(&s)))
+                    .unwrap()
                     .unwrap();
 
                 //println!("energy_direction {:?}", energy_direction);
