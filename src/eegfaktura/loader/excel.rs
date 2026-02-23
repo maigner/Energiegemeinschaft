@@ -47,20 +47,20 @@ impl super::EnergyReport {
             Err(error) => panic!("Problem parse_meter_point_data Summary: {error:?}"),
         };
 
-        // the QoV Log.
+        // the QoV Log. May not exist!
         // has it's own timeline. parse it and compare to timeline from "Energiedaten"
-        let qov_range = match workbook.worksheet_range("QoV Log") {
-            Ok(r) => r,
-            Err(error) => panic!("Problem fetching Sheet QoV: {error:?}"),
-        };
-        let qov_timeline = match parse_qov_timeline(&qov_range) {
-            Ok(t) => t,
-            Err(error) => panic!("Problem parsing timeline: {error:?}"),
-        };
-        let qov_samples = match parse_qov_samples(&qov_range, &qov_timeline) {
-            Ok(t) => t,
-            Err(error) => panic!("Problem parsing QoV Samples: {error:?}"),
-        };
+        let (qov_timeline, qov_samples) = workbook
+            .worksheet_range("QoV Log")
+            .ok()
+            .and_then(|qov_range| {
+                let timeline = parse_qov_timeline(&qov_range).ok()?;
+                let samples = parse_qov_samples(&qov_range, &timeline).ok()?;
+                Some((timeline, samples))
+            })
+            .unwrap_or_else(|| {
+                println!("Sheet QoV not found or failed to parse, using empty data");
+                (vec![], vec![])
+            });
 
         super::EnergyReport {
             timeline: timeline,
@@ -69,7 +69,7 @@ impl super::EnergyReport {
             missing_samples: Vec::new(),
             meter_points_stats: meter_points_stats,
             qov_timeline: qov_timeline,
-            qov_samples: qov_samples
+            qov_samples: qov_samples,
         }
     }
 }
