@@ -99,14 +99,15 @@ pub enum QoV {
     L2,
     L3,
 }
-impl QoV {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for QoV {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
-            "L0" => Some(QoV::L0),
-            "L1" => Some(QoV::L1),
-            "L2" => Some(QoV::L2),
-            "L3" => Some(QoV::L3),
-            _ => None,
+            "L0" => Ok(QoV::L0),
+            "L1" => Ok(QoV::L1),
+            "L2" => Ok(QoV::L2),
+            "L3" => Ok(QoV::L3),
+            _ => Err(format!("Unknown meter code: {}", s)),
         }
     }
 }
@@ -143,12 +144,13 @@ pub enum MemberType {
     Private,
     Business,
 }
-impl MemberType {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for MemberType {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
-            "Privat" => Some(MemberType::Private),
-            "Business" => Some(MemberType::Business),
-            _ => None,
+            "Privat" => Ok(MemberType::Private),
+            "Business" => Ok(MemberType::Business),
+            _ => Err(format!("Unknown meter code: {}", s)),
         }
     }
 }
@@ -161,15 +163,16 @@ pub enum MeterPointStatus {
     Invalid,
     Pending,
 }
-impl MeterPointStatus {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for MeterPointStatus {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
-            "ACTIVE" => Some(MeterPointStatus::Active),
-            "INACTIVE" => Some(MeterPointStatus::Inactive),
-            "REJECTED" => Some(MeterPointStatus::Rejected),
-            "INVALID" => Some(MeterPointStatus::Invalid),
-            "PENDING" => Some(MeterPointStatus::Pending),
-            _ => None,
+            "ACTIVE" => Ok(MeterPointStatus::Active),
+            "INACTIVE" => Ok(MeterPointStatus::Inactive),
+            "REJECTED" => Ok(MeterPointStatus::Rejected),
+            "INVALID" => Ok(MeterPointStatus::Invalid),
+            "PENDING" => Ok(MeterPointStatus::Pending),
+            _ => Err(format!("Unknown meter code: {}", s)),
         }
     }
 }

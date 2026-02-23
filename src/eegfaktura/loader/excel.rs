@@ -273,7 +273,7 @@ fn parse_qov_samples(
                     let qov: Option<QoV> = data_range
                         .get((row_index, col_index + 1))
                         .and_then(|cell| cell.as_string())
-                        .and_then(|data| QoV::from_str(&data));
+                        .and_then(|data| QoV::from_str(&data).ok());
 
                     qov.map(|qov| QovSample {
                         timestamp: qov_timeline.get(timestamp_index).unwrap().timestamp,
@@ -436,7 +436,7 @@ impl super::Masterdata {
                 let member_type = row
                     .get(22)
                     .and_then(|v| v.as_string())
-                    .and_then(|s| MemberType::from_str(&s))
+                    .and_then(|s| MemberType::from_str(&s).ok())
                     .unwrap_or(MemberType::Private);
 
                 members.insert(
@@ -473,7 +473,7 @@ impl super::Masterdata {
                 let meter_point_status = row
                     .get(26)
                     .and_then(|v| v.as_string())
-                    .and_then(|s| MeterPointStatus::from_str(&s))
+                    .and_then(|s| MeterPointStatus::from_str(&s).ok())
                     .unwrap_or(MeterPointStatus::Invalid);
 
                 //println!("meter_point_status {:?}", meter_point_status);
