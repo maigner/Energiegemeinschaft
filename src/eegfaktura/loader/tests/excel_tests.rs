@@ -209,6 +209,32 @@ fn test_parse_energy_file_timeline() {
 }
 
 #[test]
+fn test_parse_energy_file_qov_timeline() {
+    let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
+    let member_list = "test-files/Energy-Report-small.xlsx";
+    let path = format!("{}/{}", base_path, member_list);
+    let energy_file = EnergyReport::new(path);
+
+    let first_date = String::from("01.10.2025 09:30:00");
+    let naive_date_time_first =
+        NaiveDateTime::parse_from_str(first_date.as_str(), "%d.%m.%Y %H:%M:%S").unwrap();
+
+    assert_eq!(
+        energy_file.qov_timeline.first().unwrap().timestamp,
+        naive_date_time_first
+    );
+
+    let last_date = String::from("31.10.2025 23:45:00");
+    let naive_date_time_last =
+        NaiveDateTime::parse_from_str(last_date.as_str(), "%d.%m.%Y %H:%M:%S").unwrap();
+
+    assert_eq!(
+        energy_file.qov_timeline.last().unwrap().timestamp,
+        naive_date_time_last
+    );
+}
+
+#[test]
 fn test_check_missing_data() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
     let member_list = "test-files/Energy-Report-small-missing-data.xlsx";

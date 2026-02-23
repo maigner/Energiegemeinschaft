@@ -46,13 +46,25 @@ impl super::EnergyReport {
             Err(error) => panic!("Problem parse_meter_point_data Summary: {error:?}"),
         };
 
+        // the QoV Log.
+        // has it's own timeline. parse it and compare to timeline from "Energiedaten"
+        let qov_range = match workbook.worksheet_range("QoV Log") {
+            Ok(r) => r,
+            Err(error) => panic!("Problem fetching Sheet QoV: {error:?}"),
+        };
+        let qov_timeline = match parse_qov_timeline(&qov_range) {
+            Ok(t) => t,
+            Err(error) => panic!("Problem parsing timeline: {error:?}"),
+        };
+
+
         super::EnergyReport {
             timeline: timeline,
             measurements: measurements,
             measurements_complete: None,
             missing_samples: Vec::new(),
             meter_points_stats: meter_points_stats,
-            //member_data: member_data,
+            qov_timeline: qov_timeline,
         }
     }
 }
@@ -161,6 +173,31 @@ fn parse_timeline(range: &Range<Data>) -> Result<Vec<Timestamp>, Error> {
     // get sub-range from range
     let mut timeline_range_start = range.start().unwrap();
     timeline_range_start.0 = 10; // start row index
+    let mut timeline_range_end = range.end().unwrap();
+    timeline_range_end.1 = 0; // single column
+
+    // slice range
+    let timeline_range = range.range(timeline_range_start, timeline_range_end);
+
+    for row in timeline_range.rows() {
+        // timestamp is stored as string in excel
+        let ts_string = row[0].as_string().unwrap();
+        let timestamp = Timestamp {
+            timestamp: NaiveDateTime::parse_from_str(ts_string.as_str(), "%d.%m.%Y %H:%M:%S")
+                .expect("Failed to parse date"),
+        };
+        timeline.push(timestamp);
+    }
+
+    Ok(timeline)
+}
+
+fn parse_qov_timeline(range: &Range<Data>) -> Result<Vec<Timestamp>, Error> {
+    let mut timeline: Vec<Timestamp> = Vec::new();
+
+    // get sub-range from range
+    let mut timeline_range_start = range.start().unwrap();
+    timeline_range_start.0 = 8; // start row index
     let mut timeline_range_end = range.end().unwrap();
     timeline_range_end.1 = 0; // single column
 

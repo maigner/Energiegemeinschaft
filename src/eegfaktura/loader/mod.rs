@@ -78,7 +78,8 @@ pub struct EnergyReport {
     pub measurements: Vec<Measurement>,
     pub measurements_complete: Option<bool>,
     pub missing_samples: Vec<MissingSample>,
-    pub meter_points_stats: HashMap<String, EnergyReportMeterPointStats>
+    pub meter_points_stats: HashMap<String, EnergyReportMeterPointStats>,
+    pub qov_timeline: Vec<Timestamp>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
