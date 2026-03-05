@@ -1,6 +1,7 @@
 <script>
   import SimpleMenu from "$lib/SimpleMenu.svelte";
-    import MasterdataOverview from "./MasterdataOverview.svelte";
+  import EnergyreportOverview from "./energyreport/EnergyreportOverview.svelte";
+  import MasterdataOverview from "./MasterdataOverview.svelte";
 </script>
 
 <SimpleMenu
@@ -12,6 +13,9 @@
   ]}
 />
 
-
-
-<MasterdataOverview />
+<div>
+  <MasterdataOverview />
+</div>
+<div class="mt-8">
+  <EnergyreportOverview />
+</div>

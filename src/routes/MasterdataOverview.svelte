@@ -58,16 +58,9 @@
     });
 </script>
 
-<SimpleMenu
-    items={[
-        {
-            href: "/",
-            display: "Start",
-        },
-    ]}
-/>
 
-<Heading tag="h3">Masterdata</Heading>
+
+<Heading tag="h3">Stammdaten</Heading>
 
 <Heading
     tag="h2"
@@ -122,5 +115,7 @@
     {/each}
 </List>
 
+<!--
 <hr class="mt-16" />
 <JsonView json={masterdataFileList} />
+-->
