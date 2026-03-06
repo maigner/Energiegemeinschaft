@@ -1,7 +1,7 @@
 <script>
     import { invoke } from "@tauri-apps/api/core";
     import { JsonView } from "@zerodevx/svelte-json-view";
-    import { List, Li, Heading, A } from "flowbite-svelte";
+    import { List, Li, Heading, A, Tooltip } from "flowbite-svelte";
     import { CheckCircleSolid, CloseCircleSolid } from "flowbite-svelte-icons";
     import { onMount } from "svelte";
     import { Spinner } from "flowbite-svelte";
@@ -21,6 +21,9 @@
                 path,
                 isLoaded: false,
                 measurements_complete: false,
+                has_invalid_values: false,
+                dirty_meterpoints: {},
+
                 errorList: [],
             }));
 
@@ -36,14 +39,37 @@
                 energyReportFileList[i].isLoaded = true;
                 energyReportFileList[i].measurements_complete =
                     measurements_complete;
+
+                try {
+                    const dirtyMeterpoints = await invoke(
+                        "load_energy_report_file_dirty_meterpoints",
+                        { path: energyReportFileList[i].path },
+                    );
+
+                    //console.log({ dirtyMeterpoints });
+                    energyReportFileList[i].dirty_meterpoints =
+                        dirtyMeterpoints;
+                } catch (error) {
+                    console.error(error);
+                }
+                try {
+                    const hasInvalidValues = await invoke(
+                        "check_energy_report_invalid_values",
+                        { path: energyReportFileList[i].path },
+                    );
+
+                    //console.log({ dirtyMeterpoints });
+                    energyReportFileList[i].has_invalid_values =
+                        hasInvalidValues;
+                } catch (error) {
+                    console.error(error);
+                }
             }
         } catch (error) {
             console.error(error);
         }
     });
 </script>
-
-
 
 <Heading tag="h3">EEGFaktura Energy Report</Heading>
 
@@ -69,13 +95,23 @@
                     size="4"
                     class="me-2 h-5 w-5 text-green-500 dark:text-green-400"
                 />
-            {:else if !energyReportFile.measurements_complete}
+            {:else if !energyReportFile.measurements_complete || energyReportFile.has_invalid_values}
+                <Tooltip>Fehlende Messdaten</Tooltip>
                 <CloseCircleSolid
                     class="me-2 h-5 w-5 text-gray-500 dark:text-gray-400"
                 />
+                {#if energyReportFile.has_invalid_values}
+                    <span>
+                        L3/L2 vorhanden._
+                    </span>
+                {/if}
+                <span>
+                    {Object.keys(energyReportFile.dirty_meterpoints).length} Daten
+                    fehlen!
+                </span>
                 <A
                     href="/energyreport/detail/{energyReportFile.path}"
-                    class="font-medium hover:underline"
+                    class="font-medium hover:underline ml-2"
                     >{energyReportFile.path.split("/").pop()}</A
                 >
             {:else}
