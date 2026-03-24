@@ -12,8 +12,8 @@
 
     let { data, bookingId, fileList = $bindable() } = $props();
 
-    let fileUploadFiles = $state([]);
 
+    let fileUploadFiles = $state(null);
 
 
     let uploadVisible = $state(false);
@@ -89,15 +89,14 @@
                     const result = await response.json();
                     console.log("Upload Result:", result);
                     if (result.success) {
-                        // append attachment data to data.bookingsAttachments
                         //console.log(result.attachment);
 
-                        data.bookingsAttachments.push({
+                        fileList.push({
                             booking_id: result.attachment.booking_id,
                             filename: result.attachment.filename,
                             attachment_id: result.attachment.id,
                         });
-                        data.bookingsAttachments = data.bookingsAttachments;
+                        fileList = fileList;
                     }
                 } catch (error) {
                     console.error("Error uploading file:", error);
@@ -108,7 +107,7 @@
         >
             <Label class="space-y-2 mb-2">
                 <span>Datei hinzufügen</span>
-                <Fileupload multiple bind:files={fileUploadFiles} />
+                <Fileupload bind:files={fileUploadFiles} />
             </Label>
         </form>
     </div>
@@ -124,3 +123,4 @@
     </Button>
     <!--<Tooltip>Beleg, etc. hochladen</Tooltip>-->
 </div>
+

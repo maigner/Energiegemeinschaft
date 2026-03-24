@@ -37,7 +37,7 @@
     /**
      * @type {string}
      */
-    let yearString = $state("2024"); //new Date().getFullYear().toString();
+    let yearString = $state("2025"); //new Date().getFullYear().toString();
 
     let year = $derived(parseInt(yearString));
 
@@ -99,10 +99,10 @@
 </div>
 
 <Tabs tabStyle="underline">
-    <TabItem title="Übersicht" open={true}>
+    <TabItem title="Übersicht">
         <Dashboard {data} {filteredBookings} {bookingsLabels} {year} />
     </TabItem>
-    <TabItem title="Buchungen">
+    <TabItem title="Buchungen" open={true}>
         <Table>
             <TableHead>
                 <TableHeadCell>Buchung</TableHeadCell>
