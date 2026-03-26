@@ -256,7 +256,7 @@ impl EnergyReport {
         let mut results: HashMap<String, Vec<QovSample>> = HashMap::new();
 
         for qov_samples in &self.qov_samples {
-            let l3_samples: Vec<QovSample> = qov_samples
+            let l2_or_l3_samples: Vec<QovSample> = qov_samples
                 .samples
                 .iter()
                 .flatten()
@@ -264,8 +264,8 @@ impl EnergyReport {
                 .cloned()
                 .collect();
 
-            if !l3_samples.is_empty() {
-                results.insert(qov_samples.meter_point_id.clone(), l3_samples);
+            if !l2_or_l3_samples.is_empty() {
+                results.insert(qov_samples.meter_point_id.clone(), l2_or_l3_samples);
             }
         }
         results
