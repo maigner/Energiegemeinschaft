@@ -13,14 +13,12 @@ pub async fn load_energy_report_file_dirty_meterpoints(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<HashMap<String, MeterpointSummary>, String> {
-    let state_clone = state.inner().clone(); // Extract Arc before spawn_blocking
 
-    //println!("missing samples");
+    let energy_reports = state.energy_reports.clone();
 
     tokio::task::spawn_blocking(move || {
-        //println!("path: {}", path);
 
-        let mut reports = state_clone.energy_reports.lock().map_err(
+        let mut reports = energy_reports.lock().map_err(
             |e: PoisonError<std::sync::MutexGuard<'_, HashMap<String, _>>>| e.to_string(),
         )?;
 
@@ -37,16 +35,9 @@ pub async fn load_energy_report_file_dirty_meterpoints(
 
         for measurement in report.measurements.iter_mut() {
             if measurement.has_missing_samples {
-                //println!("measurement has missing samples");
-
-                if result.contains_key(&measurement.meter_point_id) == false {
-                    result.insert(
-                        measurement.meter_point_id.clone(),
-                        MeterpointSummary {
-                            name: measurement.name.clone(),
-                        },
-                    );
-                }
+                result.entry(measurement.meter_point_id.clone()).or_insert_with(|| MeterpointSummary {
+                    name: measurement.name.clone(),
+                });
             }
         }
 
@@ -94,7 +85,6 @@ pub async fn check_energy_report_complete(
     .await
     .map_err(|e| e.to_string())?
 }
-
 
 #[tauri::command]
 pub async fn check_energy_report_invalid_values(
