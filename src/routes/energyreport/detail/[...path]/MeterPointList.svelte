@@ -27,8 +27,8 @@ import { VirtualList } from "flowbite-svelte";
 
 <VirtualList
     items={items}
-    minItemHeight={70}
-    height={400}
+    minItemHeight={40}
+    height={200}
     class="rounded-lg border"
 >
     {#snippet children(item, index)}

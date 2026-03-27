@@ -17,6 +17,7 @@ pub fn run() {
             commands::energy_reports::check_energy_report_complete,
             commands::energy_reports::check_energy_report_invalid_values,
             commands::energy_reports::load_energy_report_file_dirty_meterpoints,
+            commands::energy_reports::load_energy_report_file_l2_l3_meterpoints,
 
             commands::masterdata::check_masterdata_complete,
             commands::masterdata::load_masterdata_missing_subscriptions,
