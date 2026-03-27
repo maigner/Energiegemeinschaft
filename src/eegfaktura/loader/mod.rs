@@ -252,20 +252,35 @@ impl Masterdata {
 }
 
 impl EnergyReport {
-    pub fn get_qov_issues(&self) -> HashMap<String, Vec<QovSample>> {
-        let mut results: HashMap<String, Vec<QovSample>> = HashMap::new();
+    pub fn get_qov_issues(&self) -> HashMap<String, QovSamples> {
+        //let mut results: HashMap<String, Vec<QovSample>> = HashMap::new();
+
+        let mut results: HashMap<String, QovSamples> = HashMap::new();
 
         for qov_samples in &self.qov_samples {
-            let l2_or_l3_samples: Vec<QovSample> = qov_samples
+
+            let l2_or_l3_samples: Vec<Option<QovSample>> = qov_samples
                 .samples
                 .iter()
-                .flatten()
-                .filter(|sample| matches!(sample.qov, QoV::L3) || matches!(sample.qov, QoV::L2))
-                .cloned()
+                .map(|opt| {
+                    opt.as_ref() // &Option<T> → Option<&T>
+                        .filter(|s| matches!(s.qov, QoV::L2 | QoV::L3))
+                        .cloned() // Option<&QovSample> → Option<QovSample>
+                })
                 .collect();
 
             if !l2_or_l3_samples.is_empty() {
-                results.insert(qov_samples.meter_point_id.clone(), l2_or_l3_samples);
+                //results.insert(qov_samples.meter_point_id.clone(), l2_or_l3_samples);
+                results.insert(
+                    qov_samples.meter_point_id.clone(),
+                    QovSamples {
+                        meter_point_id: qov_samples.meter_point_id.clone(),
+                        name: qov_samples.name.clone(),
+                        direction: qov_samples.direction.clone(),
+                        meter_code: qov_samples.meter_code.clone(),
+                        samples: l2_or_l3_samples.clone(),
+                    },
+                );
             }
         }
         results
