@@ -253,24 +253,22 @@ impl Masterdata {
 
 impl EnergyReport {
     pub fn get_qov_issues(&self) -> HashMap<String, QovSamples> {
-        //let mut results: HashMap<String, Vec<QovSample>> = HashMap::new();
-
+        // meter_point_id => L2/L3 Samples
         let mut results: HashMap<String, QovSamples> = HashMap::new();
 
         for qov_samples in &self.qov_samples {
-
+            // get only L2 and L3 samples
             let l2_or_l3_samples: Vec<Option<QovSample>> = qov_samples
                 .samples
                 .iter()
                 .map(|opt| {
-                    opt.as_ref() // &Option<T> → Option<&T>
+                    opt.as_ref()
                         .filter(|s| matches!(s.qov, QoV::L2 | QoV::L3))
-                        .cloned() // Option<&QovSample> → Option<QovSample>
+                        .cloned()
                 })
                 .collect();
 
             if !l2_or_l3_samples.is_empty() {
-                //results.insert(qov_samples.meter_point_id.clone(), l2_or_l3_samples);
                 results.insert(
                     qov_samples.meter_point_id.clone(),
                     QovSamples {
