@@ -104,6 +104,9 @@ function summaryEmailInternal(d) {
     <p><strong>Anschrift:</strong><br>
        ${a.address.street}<br/>${a.address.number}<br>
        ${a.address.zipCode}<br/>${a.address.city}</p>
+
+    <h3>E-Mail</h3>
+    ${d.email}
     
     <h3>Bankverbindung:</h3>
     <p><strong>IBAN:</strong> ${a.iban}</p>
@@ -116,7 +119,7 @@ function summaryEmailInternal(d) {
     for (let i = 0; i < a.measurementPoints.length; i++) {
         html += `
         <li>
-            <strong>${a.measurementPoints[i].identifier}</strong>
+            ${a.measurementPoints[i].identifier}
              - ${a.measurementPoints[i].type === "CONSUMPTION" ? "Bezug" : "Einspeisung"}
         </li>`;
     }
