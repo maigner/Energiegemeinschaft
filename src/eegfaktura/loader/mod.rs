@@ -252,6 +252,17 @@ impl Masterdata {
 }
 
 impl EnergyReport {
+    /**
+     * for all meter points, get a vector of qov_samples that have status L2 and L3
+     * 
+     * L0: Energiedaten fehlen
+     * L1: Echtwert gemessen 
+     * L2: Ersatzwert belastbar (Wert wird sich mit großer Wahrscheinlichkeit nicht mehr ändern) 
+     * L3: Ersatzwert nicht belastbar (z. B. extrapolierter Wert; Wert wird sich mit großer Wahrscheinlichkeit noch ändern) 
+     * 
+     * L0 we skip, because missing samples are handled separately
+     * 
+     */
     pub fn get_qov_issues(&self) -> HashMap<String, QovSamples> {
         // meter_point_id => L2/L3 Samples
         let mut results: HashMap<String, QovSamples> = HashMap::new();
