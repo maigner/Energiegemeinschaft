@@ -385,7 +385,6 @@ fn parse_meter_points(
     Ok(measurements)
 }
 
-//TODO: implement member list somehow
 
 impl super::Masterdata {
     pub fn new(path: String) -> Self {

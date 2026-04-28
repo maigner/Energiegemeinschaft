@@ -333,13 +333,13 @@ fn test_check_l2_l3_errors() {
 
     let qov_issues = energy_file.get_qov_issues();
     let issues = qov_issues.get("AT0030000000000000000000000118026");
-    assert_eq!(issues.unwrap().len(), 198);
+    assert_eq!(issues.unwrap().samples.len(), 198);
 
     let issues = qov_issues.get("AT0030000000000000000000030086569");
-    assert_eq!(issues.unwrap().len(), 2);
+    assert_eq!(issues.unwrap().samples.len(), 2);
 
     let issues = qov_issues.get("AT0030000000000000000000030071976");
-    assert_eq!(issues.unwrap().len(), 192);
+    assert_eq!(issues.unwrap().samples.len(), 192);
 
 
 }

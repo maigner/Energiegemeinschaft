@@ -261,10 +261,11 @@ impl EnergyReport {
             let l2_or_l3_samples: Vec<Option<QovSample>> = qov_samples
                 .samples
                 .iter()
-                .map(|opt| {
+                .filter_map(|opt| {
                     opt.as_ref()
                         .filter(|s| matches!(s.qov, QoV::L2 | QoV::L3))
                         .cloned()
+                        .map(Some) // wrap matched samples back in Some
                 })
                 .collect();
 
@@ -299,6 +300,8 @@ impl EnergyReport {
                 if measurement.period_start <= timestamp.timestamp
                     && measurement.period_end >= timestamp.timestamp
                 {
+                    // we also need to skip the missing hour transitioning from winter to summer time
+
                     // then there should be a Some(sample)
                     let sample = measurement.values_over_time.get(i).unwrap();
 
@@ -306,6 +309,8 @@ impl EnergyReport {
                         self.measurements_complete = Some(false);
 
                         measurement.has_missing_samples = true;
+
+                        println!("MISSING value at {}", timestamp.timestamp);
 
                         self.missing_samples.push(MissingSample {
                             timestamp: timestamp.clone(),
@@ -340,4 +345,19 @@ impl EnergyReport {
         // still here? data complete it seems...
         self.measurements_complete = Some(true);
     }
+}
+
+// TODO: fill data structure from excel podlist
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PodList {
+    pub meter_point_activations: HashMap<String, ActivationStats>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ActivationStats {
+    pub activated: NaiveDate,
+    pub active_since: NaiveDate,
+    pub active_until: NaiveDate,
+    pub participation_factor: i8,
 }
