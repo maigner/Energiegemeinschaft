@@ -254,14 +254,14 @@ impl Masterdata {
 impl EnergyReport {
     /**
      * for all meter points, get a vector of qov_samples that have status L2 and L3
-     * 
+     *
      * L0: Energiedaten fehlen
-     * L1: Echtwert gemessen 
-     * L2: Ersatzwert belastbar (Wert wird sich mit großer Wahrscheinlichkeit nicht mehr ändern) 
-     * L3: Ersatzwert nicht belastbar (z. B. extrapolierter Wert; Wert wird sich mit großer Wahrscheinlichkeit noch ändern) 
-     * 
+     * L1: Echtwert gemessen
+     * L2: Ersatzwert belastbar (Wert wird sich mit großer Wahrscheinlichkeit nicht mehr ändern)
+     * L3: Ersatzwert nicht belastbar (z. B. extrapolierter Wert; Wert wird sich mit großer Wahrscheinlichkeit noch ändern)
+     *
      * L0 we skip, because missing samples are handled separately
-     * 
+     *
      */
     pub fn get_qov_issues(&self) -> HashMap<String, QovSamples> {
         // meter_point_id => L2/L3 Samples
@@ -296,6 +296,39 @@ impl EnergyReport {
         results
     }
 
+    pub fn get_qov_l3_issues(&self) -> HashMap<String, QovSamples> {
+        // meter_point_id => L2/L3 Samples
+        let mut results: HashMap<String, QovSamples> = HashMap::new();
+
+        for qov_samples in &self.qov_samples {
+            // get L3 samples
+            let l3_samples: Vec<Option<QovSample>> = qov_samples
+                .samples
+                .iter()
+                .filter_map(|opt| {
+                    opt.as_ref()
+                        .filter(|s| matches!(s.qov, QoV::L3))
+                        .cloned()
+                        .map(Some) // wrap matched samples back in Some
+                })
+                .collect();
+
+            if !l3_samples.is_empty() {
+                results.insert(
+                    qov_samples.meter_point_id.clone(),
+                    QovSamples {
+                        meter_point_id: qov_samples.meter_point_id.clone(),
+                        name: qov_samples.name.clone(),
+                        direction: qov_samples.direction.clone(),
+                        meter_code: qov_samples.meter_code.clone(),
+                        samples: l3_samples.clone(),
+                    },
+                );
+            }
+        }
+        results
+    }
+
     pub fn get_missing_samples(&mut self) {
         //let mut measurements = &self.measurements; // immutable borrow
 
@@ -307,9 +340,21 @@ impl EnergyReport {
             for measurement in self.measurements.iter_mut() {
                 assert!(self.timeline.len() == measurement.values_over_time.len());
 
+                // HACK: Summertime 2026
+                let summer_first_date = String::from("29.03.2026 02:00:00");
+                let summer_last_date = String::from("29.03.2026 03:00:00");
+                let naive_summer_date_time_first =
+                    NaiveDateTime::parse_from_str(summer_first_date.as_str(), "%d.%m.%Y %H:%M:%S")
+                        .unwrap();
+                let naive_summer_date_time_last =
+                    NaiveDateTime::parse_from_str(summer_last_date.as_str(), "%d.%m.%Y %H:%M:%S")
+                        .unwrap();
+
                 // need to check measurement for this timestamp?
                 if measurement.period_start <= timestamp.timestamp
                     && measurement.period_end >= timestamp.timestamp
+                    && !(timestamp.timestamp >= naive_summer_date_time_first
+                        && timestamp.timestamp < naive_summer_date_time_last)
                 {
                     // we also need to skip the missing hour transitioning from winter to summer time
 
