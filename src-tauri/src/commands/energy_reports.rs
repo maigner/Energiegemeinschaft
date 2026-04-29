@@ -1,12 +1,50 @@
 use crate::state::AppState;
-use eegfaktura_datalib::eegfaktura::loader::{EnergyReport, QovSample};
+use eegfaktura_datalib::eegfaktura::loader::{EnergyReport};
 use serde::Serialize;
-use std::{collections::HashMap, str::FromStr, sync::PoisonError};
+use std::{collections::HashMap, sync::PoisonError};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct MeterpointSummary {
     pub name: String,
 }
+
+#[tauri::command]
+pub async fn load_energy_report_file_l3_meterpoints(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<HashMap<String, MeterpointSummary>, String> {
+    let energy_reports = state.energy_reports.clone();
+
+    tokio::task::spawn_blocking(move || {
+        println!("L3 path: {}", path);
+
+        let reports_guard = energy_reports.lock().map_err(
+            |e: PoisonError<std::sync::MutexGuard<'_, HashMap<String, EnergyReport>>>| {
+                e.to_string()
+            },
+        )?;
+
+        println!("guard taken: {}", path);
+
+        let qov_issues = reports_guard
+            .get(&path)
+            .ok_or_else(|| format!("Report not found for path: {}", path))
+            .and_then(|report| Ok(report.get_qov_l3_issues()))?;
+
+        println!("issues loaded: {}", path);
+
+        let mut result: HashMap<String, MeterpointSummary> = HashMap::new();
+
+        for (key, value) in &qov_issues {            
+            result.insert(key.to_string(), MeterpointSummary { name: value.name.clone() });
+        }
+
+        Ok(result)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 
 #[tauri::command]
 pub async fn load_energy_report_file_l2_l3_meterpoints(
@@ -146,7 +184,7 @@ pub async fn check_energy_report_invalid_values(
         if let Some(existing_report) = reports_guard.get(&path) {
             //println!("Report already in hashmap, ");
 
-            if existing_report.get_qov_issues().is_empty() {
+            if existing_report.get_qov_l3_issues().is_empty() {
                 //println!("Report already checked, returning cached result");
                 return Ok(false);
             } else {

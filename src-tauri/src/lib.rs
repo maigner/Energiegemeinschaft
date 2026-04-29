@@ -13,17 +13,13 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::files::list_energy_report_files,
             commands::files::list_masterdata_files,
-    
             commands::energy_reports::check_energy_report_complete,
             commands::energy_reports::check_energy_report_invalid_values,
             commands::energy_reports::load_energy_report_file_dirty_meterpoints,
-            commands::energy_reports::load_energy_report_file_l2_l3_meterpoints,
-
+            commands::energy_reports::load_energy_report_file_l3_meterpoints,
             commands::masterdata::check_masterdata_complete,
             commands::masterdata::load_masterdata_missing_subscriptions,
             commands::masterdata::load_masterdata_missing_activations,
-            
-
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -13,7 +13,7 @@
     onMount(async () => {
         try {
             dirtyMeterpoints = await invoke(
-                "load_energy_report_file_l2_l3_meterpoints",
+                "load_energy_report_file_l3_meterpoints",
                 { path: path },
             );
 
