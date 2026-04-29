@@ -1,9 +1,11 @@
 <script>
   import SimpleMenu from "$lib/SimpleMenu.svelte";
+    import { Heading } from "flowbite-svelte";
   import EnergyreportOverview from "./energyreport/EnergyreportOverview.svelte";
   import MasterdataOverview from "./MasterdataOverview.svelte";
 </script>
 
+<!--
 <SimpleMenu
   items={[
     {
@@ -12,6 +14,9 @@
     },
   ]}
 />
+-->
+
+<Heading tag="h1">EEG Faktura Excel Freund</Heading>
 
 <div>
   <MasterdataOverview />

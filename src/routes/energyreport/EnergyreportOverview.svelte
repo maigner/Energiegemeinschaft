@@ -102,7 +102,7 @@
                 />
                 {#if energyReportFile.has_invalid_values}
                     <span>
-                        L3/L2 vorhanden._
+                        L3 vorhanden._
                     </span>
                 {/if}
                 <span>
