@@ -44,16 +44,6 @@ export async function cronHandle({ event, resolve }) {
 	if (!initialized) {
 		initialized = true;
 
-		cron.schedule('*/1 * * * *', () => {
-			console.log('Runs every 1 minutes ' + new Date().toLocaleTimeString());
-			// your job logic here
-
-		});
-
-		cron.schedule('0 0 * * *', () => {
-			console.log('Runs every day at midnight');
-		});
-
 		// every hour, call fetchAndStoreWeatherData
 		cron.schedule('31 * * * *', () => {
 			console.log('Runs every hour at min 31');

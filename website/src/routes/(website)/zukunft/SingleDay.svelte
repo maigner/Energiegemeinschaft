@@ -21,7 +21,6 @@
 
 </script>
 
-{forecastToday[0].time}
 
 <DayChart date={today} forecast={forecastToday} />
 
