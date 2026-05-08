@@ -1,7 +1,6 @@
-import { openhabDbConnection } from '$lib/server/db/db.js';
 import { getMeasurementPoints } from '$lib/server/db/energy/member.js';
+import { getItems } from '$lib/server/db/members/openhab.js';
 import { getForecast } from '$lib/server/db/weather/forecast.js';
-import { fetchAndStoreWeatherData } from '$lib/server/db/weather/openmeteo.js';
 import { error } from '@sveltejs/kit';
 
 export async function load({ params, parent }) {
@@ -27,17 +26,28 @@ export async function load({ params, parent }) {
         obj.measurementPoints = await getMeasurementPoints(obj.id);
     })
 
+    /*
     let memberId = 7;
-
     let dbCon = await openhabDbConnection(memberId);
-
     console.log({ dbCon });
-
+    */
 
     // TODO: null check
 
+    const openhabUsers = [
+        {
+            memberId: 7,
+            items: await getItems(7)
+        },
+        {
+            memberId: 3,
+            items: await getItems(3)
+        },
+    ];
+
     return {
-        forecast: await getForecast()
+        forecast: await getForecast(),
+        openhabUsers: openhabUsers
     }
 
 

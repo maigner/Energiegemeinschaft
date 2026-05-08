@@ -13,7 +13,11 @@
 
 -->
 
+
 <Clouds forecast={data.forecast} />
+
+<JsonView json={data.openhabUsers} />
+
 
 <!--
 <DayComparison
