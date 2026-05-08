@@ -1,3 +1,4 @@
+import { openhabDbConnection } from '$lib/server/db/db.js';
 import { getMeasurementPoints } from '$lib/server/db/energy/member.js';
 import { getForecast } from '$lib/server/db/weather/forecast.js';
 import { fetchAndStoreWeatherData } from '$lib/server/db/weather/openmeteo.js';
@@ -25,6 +26,12 @@ export async function load({ params, parent }) {
     communityMembers.forEach(async obj => {
         obj.measurementPoints = await getMeasurementPoints(obj.id);
     })
+
+    let memberId = 7;
+
+    let dbCon = await openhabDbConnection(memberId);
+
+    console.log({ dbCon });
 
 
     // TODO: null check

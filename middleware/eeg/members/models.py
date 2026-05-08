@@ -19,7 +19,18 @@ class Member(models.Model):
     def __str__(self):
         return f"{self.identifier}: {self.email}"
     
-    
+
+class OpenhabDb(models.Model):
+    member = models.ForeignKey(Member, on_delete=models.CASCADE)
+    host = models.CharField(max_length=255)
+    port = models.IntegerField(default=5432)
+    database = models.CharField(max_length=255)
+    user = models.CharField(max_length=255)
+    password = models.CharField(max_length=255)
+    def __str__(self):
+        return f"{self.member} -> {self.user}@{self.host}:{self.port}/{self.database}"
+
+
 class BoardApproval(models.Model):
     member = models.ForeignKey(Member, on_delete=models.CASCADE)
     date_time = models.DateTimeField(auto_now_add=True)
