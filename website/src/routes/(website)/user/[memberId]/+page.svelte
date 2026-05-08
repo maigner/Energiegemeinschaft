@@ -1,12 +1,8 @@
 <script>
     import { Heading } from "flowbite-svelte";
     import PerformanceChart from "./PerformanceChart.svelte";
-    import { JsonView } from "@zerodevx/svelte-json-view";
 
-    let { data } = $props();
-    
-    $inspect(data);
-    
+    let { data } = $props();    
 
 </script>
 
