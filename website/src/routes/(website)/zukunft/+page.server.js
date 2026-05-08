@@ -1,5 +1,6 @@
 import { getMeasurementPoints } from '$lib/server/db/energy/member.js';
 import { getForecast } from '$lib/server/db/weather/forecast.js';
+import { fetchAndStoreWeatherData } from '$lib/server/db/weather/openmeteo.js';
 import { error } from '@sveltejs/kit';
 
 export async function load({ params, parent }) {

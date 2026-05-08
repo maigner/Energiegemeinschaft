@@ -27,3 +27,4 @@ export const getForecast = async () => {
     sql.release();
     return (result?.rows.length > 0 ? result?.rows : null);
 };
+
