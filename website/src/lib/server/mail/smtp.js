@@ -103,13 +103,15 @@ export async function relayHtml(originEmail, recipientEmail, subject, html) {
     };
 
 
-    let result = { message: "OK" };
+    let result = {};
 
     try {
         let info = await transporter.sendMail(mailMessage);
         console.log("Email sent: " + info.response);
+        result = { message: "OK" };
     } catch (error) {
         console.error("Error sending email: ", error);
+        result = { message: "Error sending email", error: error };
     }
 
     return result;

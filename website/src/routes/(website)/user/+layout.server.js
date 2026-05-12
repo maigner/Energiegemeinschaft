@@ -1,6 +1,6 @@
 import { dev } from '$app/environment';
 import { getUsersByEmail } from '$lib/server/db/members/member';
-import { relay, relayDebug, relayDebut } from '$lib/server/mail/smtp';
+import { relay, relayDebug } from '$lib/server/mail/smtp';
 
 /** @type {import('./$types').LayoutServerLoad} */
 export async function load({ parent, locals }) {

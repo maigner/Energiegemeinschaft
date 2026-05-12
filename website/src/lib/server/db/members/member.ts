@@ -332,3 +332,47 @@ export const getMember = async (identifier: number) => {
 
     return result?.rows?.[0] ?? null;
 };
+
+export const getMembersWithPendingWelcome = async () => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+    SELECT
+      m.id,
+      m.identifier,
+      m.email,
+      m.name,
+      m.first_name AS "firstName",
+      m.last_name  AS "lastName",
+      m.street,
+      m.hnr,
+      m.zip,
+      m.city,
+      m.latitude,
+      m.longitude,
+      TO_CHAR(m.member_since, 'YYYY-MM-DD') AS "memberSince",
+      mp.id          AS "pointId",
+      mp.identifier  AS "pointIdentifier",
+      mp.type        AS "pointType",
+      mp.status      AS "pointStatus"
+    FROM members_member m
+    JOIN members_measurementpoint mp
+      ON mp.member_id = m.id
+    WHERE mp.welcome_message_sent_at IS NULL
+      AND mp.status = 'ACTIVE'
+    ORDER BY m.member_since DESC;
+  `);
+    sql.release();
+    return result?.rows;
+};
+
+export const setWelcomeMessageSent = async (id) => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+    UPDATE members_measurementpoint
+    SET welcome_message_sent_at = NOW()
+    WHERE id = $1
+    RETURNING id, identifier, welcome_message_sent_at
+  `, [id]);
+    sql.release();
+    return result?.rows[0];
+};
