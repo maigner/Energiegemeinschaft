@@ -6,21 +6,10 @@ import { importMemberDataFromNextcloud } from "$lib/server/nextcloud/members/mem
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ fetch, params, parent, locals }) {
 
-    const numberOfMembersStats = await getNumberOfMembersStats();
-    //const measurementPoints = await getMeasurementPoints();
-    const members = await getMembers();
-
-
-
-    await importMemberDataFromNextcloud();
-
-
-
+    const messages = await importMemberDataFromNextcloud();
 
     return {
-        numberOfMembersStats: numberOfMembersStats,
-        //measurementPoints: measurementPoints,
-        members: members
+        messages: messages
     }
 
 }

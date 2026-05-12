@@ -28,3 +28,23 @@ export const getItems = async (memberId) => {
 
     return result.rows ?? null;
 };
+
+
+export const getItemStateHistory = async (memberId, itemId, from, to) => {
+    const db = await openhabDbConnection(memberId);
+
+    // convert itemId to tablename format "item0003"
+    const format = (n) => `item${String(n).padStart(4, '0')}`;
+    const tablename = format(itemId); // "item0003"
+
+    const result = await db.query(`
+        SELECT time, value
+        FROM $1
+        where time >= $2 AND time <= $3
+        ORDER BY time ASC`,
+        [tablename, from, to]
+    );
+    db.release();
+
+    return result.rows ?? null;
+};
