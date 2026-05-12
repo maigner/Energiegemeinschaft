@@ -21,7 +21,7 @@ export const importMemberDataFromNextcloud = async () => {
         new Date(a.lastmod) > new Date(b.lastmod) ? a : b
     );
 
-    console.log({ latest });
+    //console.log({ latest });
 
     // download latest to tmp
     const tmpDir = os.tmpdir();
@@ -41,16 +41,15 @@ export const importMemberDataFromNextcloud = async () => {
     const sheet = workbook.Sheets["Mitglieder"];
     if (!sheet) throw new Error('Sheet "Mitglieder" not found');
 
-
     const rows = XLSX.utils.sheet_to_json(sheet);
-    console.log(Object.keys(rows[0])); // inspect exact header names
 
-    console.log(rows[0]);
-
+    // import member data
     const messages = await upsertMembersFromSpreadsheet(rows);
 
-    return messages;
+    // import meter point data
+    const measurementPointMessages = await upsertMeasurementPointsFromSpreadsheet(rows);
 
+    return [...messages, ...measurementPointMessages];
 };
 
 
@@ -105,7 +104,7 @@ export const upsertMembersFromSpreadsheet = async (rows) => {
 
             let message = `[${action}] ${record.identifier}: ${record.first_name} ${record.last_name} <${record.email}>`;
 
-            console.log(message);
+            //console.log(message);
 
             messages.push(message);
 
@@ -116,3 +115,52 @@ export const upsertMembersFromSpreadsheet = async (rows) => {
     return messages;
 };
 
+export const upsertMeasurementPointsFromSpreadsheet = async (rows) => {
+    const sql = await middlewareDbConnection();
+
+    let messages = [];
+
+    try {
+        for (const row of rows) {
+            const identifier = row["Zählpunkt"];
+            if (!identifier) continue;
+
+            // Look up member by identifier
+            const memberResult = await sql.query(
+                `SELECT id FROM members_member WHERE identifier = $1`,
+                [row["Mit. Nr."]]
+            );
+            if (!memberResult.rows.length) {
+                console.warn(`[SKIPPED] No member found for Mit. Nr. ${row["Mit. Nr."]}`);
+                continue;
+            }
+            const memberId = memberResult.rows[0].id;
+
+            const result = await sql.query(`
+        INSERT INTO members_measurementpoint (
+          identifier, type, status, member_id, welcome_message_sent_at
+        ) VALUES (
+          $1, $2, $3, $4, null
+        )
+        ON CONFLICT (identifier) DO UPDATE SET
+          type      = EXCLUDED.type,
+          status    = EXCLUDED.status,
+          member_id = EXCLUDED.member_id
+        RETURNING *, xmax::text::int > 0 AS updated
+      `, [
+                identifier,
+                row["Bezugsrichtung"] || null,
+                row["ZP-Status"] || null,
+                memberId,
+            ]);
+
+            const record = result.rows[0];
+            const action = record.updated ? "UPDATED" : "INSERTED";
+            const message =`[${action}] ${record.identifier} (member_id: ${record.member_id})`;
+            messages.push(message);
+        }
+    } finally {
+        sql.release();
+    }
+    return messages;
+};
