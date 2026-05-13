@@ -1,27 +1,42 @@
 <script>
     import { formatDate, formatTime } from "$lib/format";
     import { Chart } from "@flowbite-svelte-plugins/chart";
+    import { JsonView } from "@zerodevx/svelte-json-view";
     import { Card } from "flowbite-svelte";
     import { onMount } from "svelte";
 
-
-    let { date, memberId, itemName } = $props();
+    let { date, memberIdentifier, itemName } = $props();
 
     // $derive start and end timestamp for the given date
 
+    let chartData = $state([]);
 
-    onMount(() => {
+    const downsample = (data, intervalMinutes = 10) => {
+        const intervalMs = intervalMinutes * 60 * 1000;
+        let lastTime = null;
+        return data.filter((item) => {
+            const time = new Date(item.time).getTime();
+            if (lastTime === null || time - lastTime >= intervalMs) {
+                lastTime = time;
+                return true;
+            }
+            return false;
+        });
+    };
 
-        //console.log("Forecast in DayChart:", forecast);
-
+    onMount(async () => {
         // load item data for debugging
+        const res = await fetch(
+            `/api/user/data/openhab/item?date=${date.toISOString()}&memberIdentifier=${memberIdentifier}&itemName=${encodeURIComponent(itemName)}`,
+        );
+        const data = await res.json();
 
+        const reducedChartData = downsample(data, 15);
 
+        chartData = reducedChartData;
     });
 
-
-
-    let options = {
+    let options = $derived({
         chart: {
             height: "400px",
             type: "area",
@@ -68,31 +83,33 @@
         },
         series: [
             {
-                name: "Bewölkung %",
-                //data: [6500, 6418, 6456, 6526, 6356, 6456],
-                data: forecast.map((e) =>  e.cloud_cover.toFixed(1) ),
-                color: "#1A56DB",
+                name: itemName,
+                data: chartData.map((e) => ({
+                    x: new Date(e.time).getTime(), // timestamp in ms
+                    y: parseFloat(e.value.toFixed(3)),
+                })),
+
+                color: "#F59E0B", // orange
             },
         ],
         xaxis: {
-            categories: forecast.map((e) => formatTime(e.time)),
+            type: "datetime",
+            min: new Date(date).setHours(0, 0, 0, 0),
+            max: new Date(date).setHours(23, 59, 59, 999),
             labels: {
                 show: true,
+                datetimeUTC: false, // use local time
             },
-            axisBorder: {
-                show: false,
-            },
-            axisTicks: {
-                show: false,
-            },
+            axisBorder: { show: false },
+            axisTicks: { show: false },
         },
         yaxis: {
             show: false,
         },
-    };
+    });
 </script>
 
 <Card class="p-4 md:p-6" size="xl">
-{date}
+    {date}
     <Chart {options} />
 </Card>

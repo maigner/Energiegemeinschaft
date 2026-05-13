@@ -36,11 +36,11 @@ export async function load({ params, parent }) {
 
     const openhabUsers = [
         {
-            memberId: 7,
+            memberIdentifier: 7,
             items: await getItems(7)
         },
         {
-            memberId: 3,
+            memberIdentifier: 3,
             items: await getItems(3)
         },
     ];

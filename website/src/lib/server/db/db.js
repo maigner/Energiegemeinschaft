@@ -45,16 +45,16 @@ export const middlewareDbConnection = async () => await middlewareDbPool.connect
 const openhabDbPools = {};
 
 // here are the definitions of the connections to the openhab persistende databases
-export const openhabDbConnection = async (memberId) => {
+export const openhabDbConnection = async (memberIdentifier) => {
 
-    if (!openhabDbPools[memberId]) {
+    if (!openhabDbPools[memberIdentifier]) {
         // create a new connection pool for this memberId
 
-        const { host, port, database, user, password } = await getOpenhabDbConfigForMember(memberId);
+        const { host, port, database, user, password } = await getOpenhabDbConfigForMember(memberIdentifier);
 
         //console.log({ host, port, database, user, password });
 
-        openhabDbPools[memberId] = new Pool({
+        openhabDbPools[memberIdentifier] = new Pool({
             host: host,
             port: port,
             database: database,
@@ -69,6 +69,6 @@ export const openhabDbConnection = async (memberId) => {
         });
     }
 
-    return await openhabDbPools[memberId].connect();
+    return await openhabDbPools[memberIdentifier].connect();
 
 }

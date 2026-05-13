@@ -51,7 +51,7 @@ export async function GET({ url, locals }) {
 	}
 
 	// Your business logic here (e.g., database call)
-	const data = await getEnergyData(new Date(date), parseInt(memberId)); // ← your own function
+	const data = await getEnergyData(new Date(date), parseInt(memberId));
 
 	return json(data);
 }

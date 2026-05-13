@@ -1,6 +1,6 @@
 import { middlewareDbConnection, openhabDbConnection } from "$lib/server/db/db";
 
-export const getOpenhabDbConfigForMember = async (memberId) => {
+export const getOpenhabDbConfigForMember = async (memberIdentifier) => {
     const db = await middlewareDbConnection();
     //console.log({ db });
 
@@ -9,7 +9,7 @@ export const getOpenhabDbConfigForMember = async (memberId) => {
          FROM members_openhabdb o
          JOIN members_member m ON o.member_id = m.id
          WHERE m.identifier = $1`,
-        [memberId]
+        [memberIdentifier]
     );
     db.release();
 
@@ -17,8 +17,8 @@ export const getOpenhabDbConfigForMember = async (memberId) => {
 };
 
 
-export const getItems = async (memberId) => {
-    const db = await openhabDbConnection(memberId);
+export const getItems = async (memberIdentifier) => {
+    const db = await openhabDbConnection(memberIdentifier);
 
     const result = await db.query(
         `SELECT itemid, itemname
@@ -30,19 +30,23 @@ export const getItems = async (memberId) => {
 };
 
 
-export const getItemStateHistory = async (memberId, itemId, from, to) => {
-    const db = await openhabDbConnection(memberId);
+export const getItemStateHistory = async (memberIdentifier, itemId, from, to) => {
+    const db = await openhabDbConnection(memberIdentifier);
+
+    console.log({ memberIdentifier, itemId, from, to });
 
     // convert itemId to tablename format "item0003"
     const format = (n) => `item${String(n).padStart(4, '0')}`;
     const tablename = format(itemId); // "item0003"
 
+    console.log({ tablename });
+
     const result = await db.query(`
         SELECT time, value
-        FROM $1
-        where time >= $2 AND time <= $3
+        FROM ${tablename}        
+        where time >= $1 AND time <= $2
         ORDER BY time ASC`,
-        [tablename, from, to]
+        [from, to]
     );
     db.release();
 

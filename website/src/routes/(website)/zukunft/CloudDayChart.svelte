@@ -1,6 +1,7 @@
 <script>
     import { formatDate, formatTime } from "$lib/format";
     import { Chart } from "@flowbite-svelte-plugins/chart";
+    import { JsonView } from "@zerodevx/svelte-json-view";
     import { Card } from "flowbite-svelte";
 
 
@@ -81,3 +82,4 @@
 {date}
     <Chart {options} />
 </Card>
+

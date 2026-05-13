@@ -2,7 +2,7 @@
     import { formatDate } from "$lib/format";
     import { JsonView } from "@zerodevx/svelte-json-view";
     import { Heading } from "flowbite-svelte";
-    import DayChart from "./DayChart.svelte";
+    import DayChart from "./CloudDayChart.svelte";
 
 
     let { date, forecast } = $props();
