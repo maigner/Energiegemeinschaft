@@ -86,7 +86,7 @@
                 name: itemName,
                 data: chartData.map((e) => ({
                     x: new Date(e.time).getTime(), // timestamp in ms
-                    y: parseFloat(e.value.toFixed(3)),
+                    y: parseFloat(e.value.toFixed(1)),
                 })),
 
                 color: "#F59E0B", // orange

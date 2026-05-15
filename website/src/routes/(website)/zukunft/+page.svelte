@@ -38,13 +38,13 @@
 
 
 
-<Heading tag="h2">Morgen</Heading>
+<Heading tag="h2" class="mt-8">Morgen</Heading>
 <CloudDayChart
     date={tomorrow}
     forecast={data.forecast.filter((e) => e.time >= startAndEndOfDate(tomorrow).start && e.time <= startAndEndOfDate(tomorrow).end)}
 />
 
-<Heading tag="h2">Heute</Heading>
+<Heading tag="h2" class="mt-8">Heute</Heading>
 
 <CloudDayChart
     date={today}
@@ -63,7 +63,7 @@
     itemName={"Fronius_Symo_Inverter_Solar_Plant_Power"}
 />
 
-<Heading tag="h2">Gestern</Heading>
+<Heading tag="h2" class="mt-8">Gestern</Heading>
 
 <CloudDayChart
     date={yesterday}
@@ -83,7 +83,7 @@
 />
 
 
-<Heading tag="h2">Vorgestern</Heading>
+<Heading tag="h2" class="mt-8">Vorgestern</Heading>
 
 <CloudDayChart
     date={dayBeforeYesterday}

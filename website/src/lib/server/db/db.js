@@ -65,7 +65,8 @@ export const openhabDbConnection = async (memberIdentifier) => {
             connectionTimeoutMillis: 2000,
             ssl: {
                 rejectUnauthorized: false
-            }
+            },
+            options: `-c timezone=Europe/Vienna`
         });
     }
 
