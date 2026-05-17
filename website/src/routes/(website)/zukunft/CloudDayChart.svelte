@@ -5,7 +5,7 @@
     import { Card } from "flowbite-svelte";
 
 
-    let { date, forecast } = $props();
+    let { startDate, endDate, forecast } = $props();
 
     let options = {
         chart: {
@@ -25,7 +25,7 @@
         tooltip: {
             enabled: true,
             x: {
-                show: false,
+                show: true,
             },
         },
         fill: {
@@ -38,7 +38,7 @@
             },
         },
         dataLabels: {
-            enabled: true,
+            enabled: false,
         },
         stroke: {
             width: 6,
@@ -80,7 +80,7 @@
             },
         ],
         xaxis: {
-            categories: forecast.map((e) => formatTime(e.time)),
+            categories: forecast.map((e) => formatDate(e.time) + " " + formatTime(e.time)),
             labels: {
                 show: true,
             },
@@ -92,13 +92,12 @@
             },
         },
         yaxis: {
-            show: false,
+            show: true,
         },
     };
 </script>
 
 <Card class="p-4 md:p-6" size="xl">
-{date}
     <Chart {options} />
 </Card>
 

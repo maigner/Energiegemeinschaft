@@ -2,137 +2,64 @@
     import { JsonView } from "@zerodevx/svelte-json-view";
     import CloudDayChart from "./CloudDayChart.svelte";
     import { Heading } from "flowbite-svelte";
-    import OpenhabDayChart from "./OpenhabDayChart.svelte";
+    import OpenhabDayChart from "./OpenhabChart.svelte";
+    import { formatDate } from "$lib/format";
+    import OpenhabChart from "./OpenhabChart.svelte";
 
     let { data } = $props();
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - 3 * 24 * 60 * 60 * 1000); // 3 days ago
 
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setHours(0, 0, 0, 0);
+    const colours = {
+        Fronius_Symo_Inverter_Solar_Plant_Power: "#F59E0B", // orange
+        Fronius_Symo_Inverter_Grid_Power: "#3B82F6", // blue
+        Fronius_Symo_Inverter_Battery_State_of_Charge: "#10B981", // green
+    };
 
-    const dayBeforeYesterday = new Date(today);
-    dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
-    dayBeforeYesterday.setHours(0, 0, 0, 0);
+    //TODO: refactor all charts to start and end timestamps instead of date
 
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    
-    function startAndEndOfDate(date) {
-        const start = new Date(date);
-        start.setHours(0, 0, 0, 0);
-
-        const end = new Date(date);
-        end.setHours(23, 59, 59, 999);
-
-        return { start, end };
-    }
-
-
+    // refactor: instead of today, yesterday, dayBeforeYesterday, tomorrow,
+    //  just pass an end day that is now and a start day that is 4 days in the past
 </script>
 
+<Heading tag="h2" class="mt-8 text-center"
+    >{formatDate(startDate)} bis {formatDate(endDate)}</Heading
+>
 
-<Heading tag="h2" class="mt-8 text-center">Heute</Heading>
 <Heading tag="h3">Wolken</Heading>
 <CloudDayChart
-    date={today}
-    forecast={data.forecast.filter((e) => e.time >= startAndEndOfDate(today).start && e.time <= startAndEndOfDate(today).end)}
-/>
-<Heading tag="h3">Member {data.openhabUsers[0].memberIdentifier}</Heading>
-<OpenhabDayChart
-    date={today}
-    memberIdentifier={data.openhabUsers[0].memberIdentifier}
-    itemName={"Fronius_Symo_Inverter_Solar_Plant_Power"}
-/>
-<OpenhabDayChart
-    date={today}
-    memberIdentifier={data.openhabUsers[0].memberIdentifier}
-    itemName={"Fronius_Symo_Inverter_Grid_Power"}
+    {startDate}
+    {endDate}
+    forecast={data.forecast.filter(
+        (e) => e.time >= startDate.getTime() && e.time <= endDate.getTime(),
+    )}
 />
 
-
-<Heading tag="h3">Member {data.openhabUsers[1].memberIdentifier}</Heading>
-<OpenhabDayChart
-    date={today}
-    memberIdentifier={data.openhabUsers[1].memberIdentifier}
-    itemName={"Fronius_Symo_Inverter_Solar_Plant_Power"}
-/>
-<OpenhabDayChart
-    date={today}
-    memberIdentifier={data.openhabUsers[1].memberIdentifier}
-    itemName={"Fronius_Symo_Inverter_Grid_Power"}
-/>
-
-<Heading tag="h2" class="mt-8 text-center">Gestern</Heading>
-<Heading tag="h3">Wolken</Heading>
-
-<CloudDayChart
-    date={yesterday}
-    forecast={data.forecast.filter((e) => e.time >= startAndEndOfDate(yesterday).start && e.time <= startAndEndOfDate(yesterday).end)}
-/>
-<Heading tag="h3">Member {data.openhabUsers[0].memberIdentifier}</Heading>
-<OpenhabDayChart
-    date={yesterday}
-    memberIdentifier={data.openhabUsers[0].memberIdentifier}
-    itemName={"Fronius_Symo_Inverter_Solar_Plant_Power"}
-/>
-<OpenhabDayChart
-    date={yesterday}
-    memberIdentifier={data.openhabUsers[0].memberIdentifier}
-    itemName={"Fronius_Symo_Inverter_Grid_Power"}
-/>
-<Heading tag="h3">Member {data.openhabUsers[1].memberIdentifier}</Heading>
-<OpenhabDayChart
-    date={yesterday}
-    memberIdentifier={data.openhabUsers[1].memberIdentifier}
-    itemName={"Fronius_Symo_Inverter_Solar_Plant_Power"}
-/>
-<OpenhabDayChart
-    date={yesterday}
-    memberIdentifier={data.openhabUsers[1].memberIdentifier}
-    itemName={"Fronius_Symo_Inverter_Grid_Power"}
-/>
-
-
-<Heading tag="h2" class="mt-8 text-center">Vorgestern</Heading>
-<Heading tag="h3">Wolken</Heading>
-
-<CloudDayChart
-    date={dayBeforeYesterday}
-    forecast={data.forecast.filter((e) => e.time >= startAndEndOfDate(dayBeforeYesterday).start && e.time <= startAndEndOfDate(dayBeforeYesterday).end)}
-/>
-<Heading tag="h3">Member {data.openhabUsers[0].memberIdentifier}</Heading>
-
-<OpenhabDayChart
-    date={dayBeforeYesterday}
-    memberIdentifier={data.openhabUsers[0].memberIdentifier}
-    itemName={"Fronius_Symo_Inverter_Solar_Plant_Power"}
-/>
-<OpenhabDayChart
-    date={dayBeforeYesterday}
-    memberIdentifier={data.openhabUsers[0].memberIdentifier}
-    itemName={"Fronius_Symo_Inverter_Grid_Power"}
-/>
-<Heading tag="h3">Member {data.openhabUsers[1].memberIdentifier}</Heading>
-
-<OpenhabDayChart
-    date={dayBeforeYesterday}
-    memberIdentifier={data.openhabUsers[1].memberIdentifier}
-    itemName={"Fronius_Symo_Inverter_Solar_Plant_Power"}
-/>
-<OpenhabDayChart
-    date={dayBeforeYesterday}
-    memberIdentifier={data.openhabUsers[1].memberIdentifier}
-    itemName={"Fronius_Symo_Inverter_Grid_Power"}
-/>
-
-
-
-<Heading tag="h2" class="mt-8 text-center">Morgen</Heading>
-<CloudDayChart
-    date={tomorrow}
-    forecast={data.forecast.filter((e) => e.time >= startAndEndOfDate(tomorrow).start && e.time <= startAndEndOfDate(tomorrow).end)}
-/>
+{#each data.openhabUsers as user}
+    <Heading tag="h3">Member {user.memberIdentifier}</Heading>
+    <OpenhabChart
+        {startDate}
+        {endDate}
+        memberIdentifier={user.memberIdentifier}
+        itemName={"Fronius_Symo_Inverter_Solar_Plant_Power"}
+        colour={colours.Fronius_Symo_Inverter_Solar_Plant_Power}
+        ymin={0}
+    />
+    <OpenhabChart
+        {startDate}
+        {endDate}
+        memberIdentifier={user.memberIdentifier}
+        itemName={"Fronius_Symo_Inverter_Grid_Power"}
+        colour={colours.Fronius_Symo_Inverter_Grid_Power}
+    />
+    <OpenhabChart
+        {startDate}
+        {endDate}
+        memberIdentifier={user.memberIdentifier}
+        itemName={"Fronius_Symo_Inverter_Battery_State_of_Charge"}
+        colour={colours.Fronius_Symo_Inverter_Battery_State_of_Charge}
+        ymin={0}
+        ymax={100}
+    />
+{/each}

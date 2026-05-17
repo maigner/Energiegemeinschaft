@@ -16,20 +16,22 @@ export async function GET({ url, locals }) {
     }
 
     // Extract query parameters
-    const dateString = url.searchParams.get('date');
+    const startDateString = url.searchParams.get('startDate');
+    const endDateString = url.searchParams.get('endDate');
     const memberIdentifierString = url.searchParams.get('memberIdentifier'); // e.g. '123'
     const itemName = url.searchParams.get('itemName'); // e.g. 'Fronius_Symo_Inverter_Grid_Power'
 
-    console.log({ dateString, memberIdentifierString, itemName });
+    console.log({ startDateString, endDateString, memberIdentifierString, itemName });
 
-    if (!dateString || !memberIdentifierString || !itemName) {
+    if (!startDateString || !endDateString || !memberIdentifierString || !itemName) {
         return json({ error: 'Missing params' }, { status: 400 });
     }
 
-    const date = new Date(dateString);
+    const startDate = new Date(startDateString);
+    const endDate = new Date(endDateString);
     const memberIdentifier = parseInt(memberIdentifierString, 10);
 
-    console.log({ date, memberIdentifier, itemName });
+    console.log({ startDate, endDate, memberIdentifier, itemName });
 
     const availableItems = await getItems(memberIdentifier);
 
@@ -42,9 +44,10 @@ export async function GET({ url, locals }) {
     const itemId = item.itemid;
 
     const timeZone = 'Europe/Vienna';
-    const zonedDate = toZonedTime(date, timeZone);
-    const start = fromZonedTime(startOfDay(zonedDate), timeZone);
-    const end = fromZonedTime(endOfDay(zonedDate), timeZone);
+    const zonedStartDate = toZonedTime(startDate, timeZone);
+    const zonedEndDate = toZonedTime(endDate, timeZone);
+    const start = fromZonedTime(startOfDay(zonedStartDate), timeZone);
+    const end = fromZonedTime(endOfDay(zonedEndDate), timeZone);
 
     const itemData = await getItemStateHistory(memberIdentifier, itemId, start, end);
 

@@ -5,7 +5,15 @@
     import { Card } from "flowbite-svelte";
     import { onMount } from "svelte";
 
-    let { date, memberIdentifier, itemName } = $props();
+    let {
+        startDate,
+        endDate,
+        memberIdentifier,
+        itemName,
+        colour,
+        ymin = undefined,
+        ymax = undefined,
+    } = $props();
 
     // $derive start and end timestamp for the given date
 
@@ -15,8 +23,16 @@
         const intervalMs = intervalMinutes * 60 * 1000;
         let lastTime = null;
         return data.filter((item) => {
-            const time = new Date(item.time).getTime();
-            if (lastTime === null || time - lastTime >= intervalMs) {
+            const date = new Date(item.time);
+            const time = date.getTime();
+            const isFullHour =
+                date.getMinutes() === 0 && date.getSeconds() === 0;
+
+            if (
+                isFullHour ||
+                lastTime === null ||
+                time - lastTime >= intervalMs
+            ) {
                 lastTime = time;
                 return true;
             }
@@ -27,11 +43,11 @@
     onMount(async () => {
         // load item data for debugging
         const res = await fetch(
-            `/api/user/data/openhab/item?date=${date.toISOString()}&memberIdentifier=${memberIdentifier}&itemName=${encodeURIComponent(itemName)}`,
+            `/api/user/data/openhab/item?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&memberIdentifier=${memberIdentifier}&itemName=${encodeURIComponent(itemName)}`,
         );
         const data = await res.json();
 
-        const reducedChartData = downsample(data, 15);
+        const reducedChartData = downsample(data, 60);
 
         chartData = reducedChartData;
     });
@@ -54,7 +70,7 @@
         tooltip: {
             enabled: true,
             x: {
-                show: false,
+                show: true,
             },
         },
         fill: {
@@ -67,7 +83,7 @@
             },
         },
         dataLabels: {
-            enabled: true,
+            enabled: false,
         },
         stroke: {
             width: 6,
@@ -84,27 +100,29 @@
         series: [
             {
                 name: itemName,
-                data: chartData.map((e) => ({
-                    x: new Date(e.time).getTime(), // timestamp in ms
-                    y: parseFloat(e.value.toFixed(1)),
-                })),
-
-                color: "#F59E0B", // orange
+                data: chartData.map((e) => parseFloat(e.value.toFixed(1))),
+                color: colour || "#F59E0B",
             },
         ],
         xaxis: {
-            type: "datetime",
-            min: new Date(date).setHours(0, 0, 0, 0),
-            max: new Date(date).setHours(23, 59, 59, 999),
+            categories: chartData.map(
+                (e) =>
+                    formatDate(new Date(e.time)) +
+                    " " +
+                    formatTime(new Date(e.time)),
+            ),
             labels: {
                 show: true,
-                datetimeUTC: false, // use local time
+                rotate: -45,
+                rotateAlways: true,
             },
             axisBorder: { show: false },
             axisTicks: { show: false },
         },
         yaxis: {
-            show: false,
+            show: true,
+            min: ymin !== undefined ? ymin : undefined,
+            max: ymax !== undefined ? ymax : undefined,
         },
     });
 </script>
