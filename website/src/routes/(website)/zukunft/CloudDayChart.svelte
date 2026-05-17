@@ -53,6 +53,25 @@
             },
         },
         series: [
+            
+            {
+                name: "Bewölkung LOW %",
+                //data: [6500, 6418, 6456, 6526, 6356, 6456],
+                data: forecast.map((e) =>  e.cloud_cover_low.toFixed(1) ),
+                color: "#cccccc", // light grey
+            },
+            {
+                name: "Bewölkung MID %",
+                //data: [6500, 6418, 6456, 6526, 6356, 6456],
+                data: forecast.map((e) =>  e.cloud_cover_mid.toFixed(1) ),
+                color: "#999999",
+            },
+            {
+                name: "Bewölkung HIGH %",
+                //data: [6500, 6418, 6456, 6526, 6356, 6456],
+                data: forecast.map((e) =>  e.cloud_cover_high.toFixed(1) ),
+                color: "#777777",
+            },
             {
                 name: "Bewölkung %",
                 //data: [6500, 6418, 6456, 6526, 6356, 6456],

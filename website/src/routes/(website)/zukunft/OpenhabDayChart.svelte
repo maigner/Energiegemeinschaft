@@ -110,6 +110,6 @@
 </script>
 
 <Card class="p-4 md:p-6" size="xl">
-    {date}
+    {itemName}
     <Chart {options} />
 </Card>
