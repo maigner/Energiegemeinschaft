@@ -3,10 +3,13 @@
     import WeeklySumsChart from "./WeeklySumsChart.svelte";
     import DailySumsChart from "./DailySumsChart.svelte";
     import YearlySummary from "./YearlySummary.svelte";
+    import WeeklyRelativeChart from "./WeeklyRelativeChart.svelte";
     let { data } = $props();
 </script>
 
 <YearlySummary yearlySums={data.yearlySums} />
+
+<WeeklyRelativeChart bind:data />
 
 <WeeklySumsChart bind:data />
 
