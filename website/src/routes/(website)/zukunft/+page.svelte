@@ -8,8 +8,9 @@
 
     let { data } = $props();
 
-    const endDate = new Date();
-    const startDate = new Date(endDate.getTime() - 3 * 24 * 60 * 60 * 1000); // 3 days ago
+    const today = new Date();
+    const endDate = new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000); // tomorrow
+    const startDate = new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000); // 3 days ago
 
     const colours = {
         Fronius_Symo_Inverter_Solar_Plant_Power: "#F59E0B", // orange
@@ -17,7 +18,6 @@
         Fronius_Symo_Inverter_Battery_State_of_Charge: "#10B981", // green
     };
 
-    //TODO: refactor all charts to start and end timestamps instead of date
 
     // refactor: instead of today, yesterday, dayBeforeYesterday, tomorrow,
     //  just pass an end day that is now and a start day that is 4 days in the past

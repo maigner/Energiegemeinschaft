@@ -76,16 +76,16 @@ export const upsertMembersFromSpreadsheet = async (rows) => {
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false
                 )
                 ON CONFLICT (identifier) DO UPDATE SET
-                email        = EXCLUDED.email,
-                name         = EXCLUDED.name,
-                first_name   = EXCLUDED.first_name,
-                last_name    = EXCLUDED.last_name,
-                street       = EXCLUDED.street,
-                hnr          = EXCLUDED.hnr,
-                zip          = EXCLUDED.zip,
-                city         = EXCLUDED.city,
-                member_since = EXCLUDED.member_since
-                RETURNING *, xmax::text::int > 0 AS updated
+                email        = COALESCE(EXCLUDED.email, members_member.email),
+                name         = COALESCE(EXCLUDED.name, members_member.name),
+                first_name   = COALESCE(EXCLUDED.first_name, members_member.first_name),
+                last_name    = COALESCE(EXCLUDED.last_name, members_member.last_name),
+                street       = COALESCE(EXCLUDED.street, members_member.street),
+                hnr          = COALESCE(EXCLUDED.hnr, members_member.hnr),
+                zip          = COALESCE(EXCLUDED.zip, members_member.zip),
+                city         = COALESCE(EXCLUDED.city, members_member.city),
+                member_since = COALESCE(EXCLUDED.member_since, members_member.member_since)
+            RETURNING *, xmax::text::int > 0 AS updated
       `, [
                 identifier,
                 row["E-Mail"] || null,
