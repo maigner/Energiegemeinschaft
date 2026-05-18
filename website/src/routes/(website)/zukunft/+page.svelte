@@ -9,8 +9,8 @@
     let { data } = $props();
 
     const today = new Date();
-    const endDate = new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000); // tomorrow
-    const startDate = new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000); // 3 days ago
+    const endDate = today; //new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000); // tomorrow
+    const startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000); // 3 days ago
 
     const colours = {
         Fronius_Symo_Inverter_Solar_Plant_Power: "#F59E0B", // orange

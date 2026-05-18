@@ -40,25 +40,6 @@
         });
     };
 
-    const padEnd = (data, endDate) => {
-        const last = data.length
-            ? new Date(data[data.length - 1].time)
-            : new Date();
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        const padded = [...data];
-
-        let cursor = new Date(last);
-        cursor.setMinutes(0, 0, 0);
-        cursor.setHours(cursor.getHours() + 1); // start from next full hour
-
-        while (cursor <= end) {
-            padded.push({ time: cursor.toISOString(), value: null });
-            cursor = new Date(cursor.getTime() + 60 * 60 * 1000);
-        }
-        return padded;
-    };
-
     onMount(async () => {
         // load item data for debugging
         const res = await fetch(
@@ -68,7 +49,7 @@
 
         const reducedChartData = downsample(data, 60);
 
-        chartData = padEnd(reducedChartData, endDate);
+        chartData = reducedChartData;
     });
 
     let options = $derived({
@@ -120,7 +101,9 @@
             {
                 name: itemName,
                 //data: chartData.map((e) => parseFloat(e.value.toFixed(1))),
-                data: chartData.map((e) => (e.value !== null ? parseFloat(e.value.toFixed(1)) : null)),
+                data: chartData.map((e) =>
+                    e.value !== null ? parseFloat(e.value.toFixed(1)) : null,
+                ),
                 color: colour || "#F59E0B",
             },
         ],
@@ -143,6 +126,10 @@
             show: true,
             min: ymin !== undefined ? ymin : undefined,
             max: ymax !== undefined ? ymax : undefined,
+            labels: {
+                minWidth: 50,
+                maxWidth: 50,
+            },
         },
     });
 </script>
@@ -151,4 +138,3 @@
     {itemName}
     <Chart {options} />
 </Card>
-
