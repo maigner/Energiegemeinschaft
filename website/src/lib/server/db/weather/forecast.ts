@@ -17,8 +17,8 @@ export const getForecast = async () => {
             relative_humidity_2m,
             dew_point_2m
         FROM weather_weatherdata
-        WHERE time >= CURRENT_DATE - INTERVAL '3 days'
-        AND time < CURRENT_DATE + INTERVAL '14 days'
+        WHERE time >= CURRENT_DATE - INTERVAL '7 days'
+        AND time < CURRENT_DATE + INTERVAL '7 days'
         
         ORDER BY time ASC;
     `);
