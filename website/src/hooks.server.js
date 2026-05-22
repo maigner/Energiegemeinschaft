@@ -62,7 +62,7 @@ export async function cronHandle({ event, resolve }) {
 		// checkActivationReminders
 		// every hour, call checkActivationReminders
 		cron.schedule('15 * * * *', () => {
-			console.log('Runs every hour at min 59: checkActivationReminders');
+			console.log('Runs every hour at min 15: checkActivationReminders');
 			checkActivationReminders();
 		});
 

@@ -10,7 +10,7 @@ export async function sendActivationReminders() {
 
 
     let pendingActivations = await getMembersWithPendingMeasurementPointsForFirstReminder();
-    pendingActivations = pendingActivations.slice(0, 2); // Limit to 2 for testing purposes
+    //pendingActivations = pendingActivations.slice(0, 2); // Limit to 2 for testing purposes
 
     // Iterate and send emails
     for (const member of pendingActivations) {
@@ -98,7 +98,7 @@ export async function checkActivationReminders() {
 
 
     let pendingActivations = await getMembersWithPendingMeasurementPointsForSecondReminder();
-    pendingActivations = pendingActivations.slice(0, 2); // Limit to 2 for testing purposes
+    //pendingActivations = pendingActivations.slice(0, 2); // Limit to 2 for testing purposes
 
     // Iterate and send emails
     for (const member of pendingActivations) {
