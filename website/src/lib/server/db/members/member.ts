@@ -376,3 +376,117 @@ export const setWelcomeMessageSent = async (id) => {
     sql.release();
     return result?.rows[0];
 };
+
+
+export const getMembersWithInvalidMeasurementPoints = async () => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+    SELECT
+      m.id,
+      m.identifier,
+      m.email,
+      m.name,
+      m.first_name AS "firstName",
+      m.last_name  AS "lastName",
+      m.street,
+      m.hnr,
+      m.zip,
+      m.city,
+      m.latitude,
+      m.longitude,
+      TO_CHAR(m.member_since, 'YYYY-MM-DD') AS "memberSince",
+      mp.id          AS "pointId",
+      mp.identifier  AS "pointIdentifier",
+      mp.type        AS "pointType",
+      mp.status      AS "pointStatus"
+    FROM members_member m
+    JOIN members_measurementpoint mp
+      ON mp.member_id = m.id
+    WHERE mp.status = 'INVALID'
+    ORDER BY m.member_since DESC;
+    `);
+    sql.release();
+    return result?.rows;
+};
+
+
+export const getMembersWithPendingMeasurementPointsForFirstReminder = async () => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+    SELECT
+      m.id,
+      m.identifier,
+      m.email,
+      m.name,
+      m.first_name AS "firstName",
+      m.last_name  AS "lastName",
+      m.street,
+      m.hnr,
+      m.zip,
+      m.city,
+      m.latitude,
+      m.longitude,
+      m.member_since,
+      TO_CHAR(m.member_since, 'YYYY-MM-DD') AS "memberSince",
+      mp.id          AS "pointId",
+      mp.identifier  AS "pointIdentifier",
+      mp.type        AS "pointType",
+      mp.status      AS "pointStatus",
+      mp.activation_reminder_sent_at AS "activationReminderSentAt"
+    FROM members_member m
+    JOIN members_measurementpoint mp
+      ON mp.member_id = m.id
+    WHERE mp.status = 'PENDING'
+    and mp.activation_reminder_sent_at IS NULL
+    AND m.member_since < CURRENT_DATE - INTERVAL '7 days'
+    ORDER BY m.member_since DESC;
+    `);
+    sql.release();
+    return result?.rows;
+};
+
+export const setActivationReminderSent = async (id) => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        UPDATE members_measurementpoint
+        SET activation_reminder_sent_at = NOW()
+        WHERE id = $1
+        RETURNING id, identifier, activation_reminder_sent_at
+    `, [id]);
+    sql.release();
+    return result?.rows[0];
+};
+
+export const getMembersWithPendingMeasurementPointsForSecondReminder = async () => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        SELECT
+          m.id,
+          m.identifier,
+          m.email,
+          m.name,
+          m.first_name AS "firstName",
+          m.last_name  AS "lastName",
+          m.street,
+          m.hnr,
+          m.zip,
+          m.city,
+          m.latitude,
+          m.longitude,
+          m.member_since,
+          TO_CHAR(m.member_since, 'YYYY-MM-DD') AS "memberSince",
+          mp.id          AS "pointId",
+          mp.identifier  AS "pointIdentifier",
+          mp.type        AS "pointType",
+          mp.status      AS "pointStatus",
+          mp.activation_reminder_sent_at AS "activationReminderSentAt"
+        FROM members_member m
+        JOIN members_measurementpoint mp
+          ON mp.member_id = m.id
+        WHERE mp.status = 'PENDING'
+        AND mp.activation_reminder_sent_at < NOW() - INTERVAL '7 days'
+        ORDER BY mp.activation_reminder_sent_at DESC;
+    `);
+    sql.release();
+    return result?.rows;
+};

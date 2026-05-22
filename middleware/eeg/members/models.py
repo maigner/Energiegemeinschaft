@@ -56,6 +56,7 @@ class MeasurementPoint(models.Model):
     type=models.CharField(max_length=20)
     status=models.CharField(max_length=20)
     welcome_message_sent_at = models.DateTimeField(null=True, default=None)
+    activation_reminder_sent_at = models.DateTimeField(null=True, default=None)
     def __str__(self):
         return f"{self.identifier}"
     
