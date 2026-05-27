@@ -5,6 +5,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import cron from 'node-cron';
 import { fetchAndStoreWeatherData } from "$lib/server/db/weather/openmeteo";
 import { checkActivationReminders, sendActivationReminders } from "$lib/server/mail/reminders/memberReminders";
+import { dev } from "$app/environment";
 
 
 export const handle = sequence(authenticationHandle, authorizationHandle, cronHandle);
@@ -47,6 +48,7 @@ export async function cronHandle({ event, resolve }) {
 
 		// every hour, call fetchAndStoreWeatherData
 		cron.schedule('31 * * * *', () => {
+			if (dev) return;
 			console.log('Runs every hour at min 31: fetchAndStoreWeatherData');
 			fetchAndStoreWeatherData();
 		});
@@ -55,6 +57,7 @@ export async function cronHandle({ event, resolve }) {
 		//sendActivationReminders
 		// every hour, call sendActivationReminders
 		cron.schedule('59 * * * *', () => {
+			if (dev) return;
 			console.log('Runs every hour at min 59: sendActivationReminders');
 			sendActivationReminders();
 		});
@@ -62,6 +65,7 @@ export async function cronHandle({ event, resolve }) {
 		// checkActivationReminders
 		// every hour, call checkActivationReminders
 		cron.schedule('15 * * * *', () => {
+			if (dev) return;
 			console.log('Runs every hour at min 15: checkActivationReminders');
 			checkActivationReminders();
 		});
