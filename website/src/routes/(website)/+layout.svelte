@@ -10,42 +10,48 @@
 	let activeUrl = $derived(page.url.pathname);
 </script>
 
-<Navigation {data} />
+{#if activeUrl?.toString().startsWith("/wolken") == false}
+	<Navigation {data} />
+{/if}
 
 <div class="xl:max-w-6xl lg:max-w-4xl md:max-w-3xl mx-auto">
 	{@render children()}
 </div>
 
-<div class="flex justify-center">
-	<Button
-		class="mt-48"
-		onclick={() => {
-			if (browser) {
-				window.scrollTo({
-					top: 0,
-					behavior: "smooth",
-				});
-			}
-		}}>zurück nach oben</Button
-	>
-</div>
+{#if activeUrl?.toString().startsWith("/wolken") == false}
+	<Navigation {data} />
 
-{#if activeUrl !== "/impressum" && activeUrl
-		?.toString()
-		.startsWith("/board") == false}
-	<div class="text-center mt-20 text-xs text-primary-800">
-		<a href="/impressum">Impressum</a>
+	<div class="flex justify-center">
+		<Button
+			class="mt-48"
+			onclick={() => {
+				if (browser) {
+					window.scrollTo({
+						top: 0,
+						behavior: "smooth",
+					});
+				}
+			}}>zurück nach oben</Button
+		>
 	</div>
-	<Hr />
+
+	{#if activeUrl !== "/impressum" && activeUrl
+			?.toString()
+			.startsWith("/board") == false}
+		<div class="text-center mt-20 text-xs text-primary-800">
+			<a href="/impressum">Impressum</a>
+		</div>
+		<Hr />
+	{/if}
+
+	<div class="mt-16 flex flex-col items-center">
+		<div class="">Mit freundlicher Unterstützung von:</div>
+		<div class="">
+			<img
+				src="/sponsors/SPK-Salzkammergut_Special_print_PNT.jpg"
+				class="max-w-64"
+				alt="sponsors"
+			/>
+		</div>
+	</div>
 {/if}
-
-<div class="mt-16 flex flex-col items-center">
-	<div class="">Mit freundlicher Unterstützung von:</div>
-	<div class="">
-		<img
-			src="/sponsors/SPK-Salzkammergut_Special_print_PNT.jpg"
-			class="max-w-64"
-			alt="sponsors"
-		/>
-	</div>
-</div>
