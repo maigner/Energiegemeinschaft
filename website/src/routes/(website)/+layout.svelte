@@ -19,8 +19,6 @@
 </div>
 
 {#if activeUrl?.toString().startsWith("/wolken") == false}
-	<Navigation {data} />
-
 	<div class="flex justify-center">
 		<Button
 			class="mt-48"
