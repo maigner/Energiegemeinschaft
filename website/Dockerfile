@@ -1,6 +1,13 @@
 # Use a Node.js base image
 FROM node:23
 
+# Set timezone to Europe/Vienna (Salzburg)
+RUN apt-get update && apt-get install -y tzdata && \
+    ln -fs /usr/share/zoneinfo/Europe/Vienna /etc/localtime && \
+    echo "Europe/Vienna" > /etc/timezone && \
+    dpkg-reconfigure -f noninteractive tzdata
+ENV TZ=Europe/Vienna
+
 # Set working directory
 WORKDIR /app
 

@@ -54,8 +54,9 @@ export const getCloudForecast = async () => {
     return (result?.rows.length > 0 ? result?.rows : null);
 };
 
-function getNoonTimeWindow(timestamp: Date): { start: Date; end: Date } {
-    const date = new Date(timestamp);
+function getNoonTimeWindow(): { start: Date; end: Date } {
+
+    const date = new Date();
 
     // Set to noon today
     date.setHours(12, 0, 0, 0);
@@ -78,11 +79,13 @@ function getNoonTimeWindow(timestamp: Date): { start: Date; end: Date } {
 
 export const getCloudForecastNextSunshineWindow = async () => {
 
-    const now = new Date();
-    console.log({ now });
-    const { start, end } = getNoonTimeWindow(now);
-    console.log({ start });
-    console.log({ end });
+
+    const { start, end } = getNoonTimeWindow();
+    console.log('Noon window (local):', {
+        start: start.toLocaleString(),
+        end: end.toLocaleString()
+    });
+    console.log('Noon window (UTC):', { start, end });
 
 
     const sql = await middlewareDbConnection();
