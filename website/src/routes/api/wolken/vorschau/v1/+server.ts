@@ -20,7 +20,7 @@ export async function GET(event) {
 
 
     return json(
-        averageCloudCover
+        { wolken: { vorschau: averageCloudCover } }
     );
 
 }
