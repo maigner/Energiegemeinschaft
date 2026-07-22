@@ -5,6 +5,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import cron from 'node-cron';
 import { fetchAndStoreWeatherData } from "$lib/server/db/weather/openmeteo";
 import { checkActivationReminders, sendActivationReminders } from "$lib/server/mail/reminders/memberReminders";
+import { refreshMaterializedViewCrossoverTimes } from "$lib/server/db/energy/overview";
 import { dev } from "$app/environment";
 
 
@@ -68,6 +69,14 @@ export async function cronHandle({ event, resolve }) {
 			if (dev) return;
 			console.log('Runs once a week: checkActivationReminders');
 			checkActivationReminders();
+		});
+
+		// refreshMaterializedViewCrossoverTimes
+		// once a month, refresh the materialized view
+		cron.schedule('0 0 1 * *', () => {
+			if (dev) return;
+			console.log('Runs once a month: refreshMaterializedViewCrossoverTimes');
+			refreshMaterializedViewCrossoverTimes();
 		});
 
 	}

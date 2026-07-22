@@ -67,3 +67,13 @@ export const getDailySums = async (numberOfDays: number) => {
     sql.release();
     return result?.rows.length > 0 ? result.rows : null;
 };
+
+export const refreshMaterializedViewCrossoverTimes = async () => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+    REFRESH MATERIALIZED VIEW energy_community_weekly_crossover_times
+    `);
+    sql.release();
+    
+    return result?.rows.length > 0 ? result.rows : null;
+};
