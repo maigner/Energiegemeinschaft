@@ -145,6 +145,50 @@ fn test_differing_start_dates_are_flagged() {
 }
 
 #[test]
+fn test_mismatch_carries_owning_member() {
+    // Build masterdata with a named member owning the meter point.
+    let mut meter_points = HashMap::new();
+    meter_points.insert(
+        "AT1".to_string(),
+        MeterPoint {
+            id: "AT1".to_string(),
+            status: MeterPointStatus::Active,
+            registered: d("2024-01-01"),
+            energy_direction: EnergyDirection::Consumption,
+            activated: Some(d("2024-09-24")),
+            deactivated: None,
+            subscription_name: None,
+        },
+    );
+    let mut members = HashMap::new();
+    members.insert(
+        "042".to_string(),
+        Member {
+            member_number: "042".to_string(),
+            first_name: Some("Markus".to_string()),
+            last_name: Some("Hilpert".to_string()),
+            company_name: None,
+            email: "x@example.com".to_string(),
+            member_type: MemberType::Private,
+            meter_points,
+        },
+    );
+    let md = Masterdata {
+        members,
+        file_complete: None,
+        missing_subscriptions: vec![],
+        missing_activations: vec![],
+    };
+    let pod = podlist_with(vec![("AT1", d("2024-06-24"), d(OPEN))]);
+
+    let checks = ActivationConsistencyChecks::run(&md, &pod, None);
+
+    let m = &checks.mismatches[0];
+    assert_eq!(m.member_number.as_deref(), Some("042"));
+    assert_eq!(m.member_name.as_deref(), Some("Markus Hilpert"));
+}
+
+#[test]
 fn test_missing_masterdata_date_is_not_a_conflict() {
     // Present in both, but masterdata has no start date (pending point). Only
     // concrete dates are compared, so a single present date never conflicts.
@@ -348,6 +392,8 @@ fn test_activation_consistency_over_fixtures() {
     let first = &checks.mismatches[0];
     assert_eq!(first.meter_point_id, "AT0030000000000000000000000010001");
     assert_eq!(first.status, Some(MeterPointStatus::Active));
+    assert_eq!(first.member_name.as_deref(), Some("Sams GmbH"));
+    assert!(first.member_number.is_some());
     assert_eq!(first.masterdata_activated, Some(d("2024-09-24")));
     assert_eq!(first.podlist_activated, Some(d("2024-06-24")));
     assert!(!first.start_dates_agree);

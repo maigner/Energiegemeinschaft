@@ -249,6 +249,10 @@ fn test_ownership_over_fixture() {
     let t = &checks.transfers[0];
     assert_eq!(t.meter_point_id, "AT0030000000000000000000030053293");
     assert_eq!(t.owners.len(), 2);
+    // every owner carries a display name
+    for o in &t.owners {
+        assert!(!o.member_name.is_empty(), "owner {} has no name", o.member_number);
+    }
     // the podlist carries the current owner's activation date, so it is clean
     assert!(t.is_valid, "problems: {:?} stale: {:?}", t.problems, t.stale_sources);
     assert!(t.stale_sources.is_empty());

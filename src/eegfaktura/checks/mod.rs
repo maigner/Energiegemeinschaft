@@ -7,21 +7,40 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use chrono::{Datelike, NaiveDate};
+use chrono::{Datelike, NaiveDate, NaiveDateTime};
 use serde::Serialize;
 
 use crate::eegfaktura::loader::{
-    EnergyReport, Masterdata, MeterPoint, MeterPointStatus, PodList, QovSamples,
+    EnergyReport, Masterdata, Member, MeterPoint, MeterPointStatus, PodList, QovSamples,
 };
 
 #[cfg(test)]
 mod tests;
 
-/// A meter point referenced by a check result.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct MeterPointRef {
+/// A single L3 (unreliable / extrapolated) sample and when it occurred.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct L3Occurrence {
+    pub timestamp: NaiveDateTime,
+    pub value: Option<f64>,
+}
+
+/// A meter point that carries L3 values, together with the timestamps at which
+/// those values occur.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct L3MeterPoint {
     pub meter_point_id: String,
     pub name: String,
+    /// Every L3 sample, in chronological order.
+    pub occurrences: Vec<L3Occurrence>,
+}
+
+/// A meter point with missing samples, together with the timestamps of the gaps.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct MissingSamplesMeterPoint {
+    pub meter_point_id: String,
+    pub name: String,
+    /// Timestamps of the missing samples, chronological and de-duplicated.
+    pub occurrences: Vec<NaiveDateTime>,
 }
 
 /// Consolidated result of all logical checks on an [`EnergyReport`].
@@ -31,11 +50,13 @@ pub struct EnergyReportChecks {
     /// window is present.
     pub measurements_complete: bool,
     /// Meter points that have at least one missing sample in their active
-    /// window (mirrors the client's "dirty meter points").
-    pub meter_points_with_missing_samples: Vec<MeterPointRef>,
-    /// Meter points that contain L3 (unreliable / extrapolated) values. L2
-    /// substitute values are considered reliable and are not flagged.
-    pub meter_points_with_l3_values: Vec<MeterPointRef>,
+    /// window, with the timestamps of the gaps (mirrors the client's "dirty
+    /// meter points").
+    pub meter_points_with_missing_samples: Vec<MissingSamplesMeterPoint>,
+    /// Meter points that contain L3 (unreliable / extrapolated) values, with the
+    /// timestamps at which they occur. L2 substitute values are considered
+    /// reliable and are not flagged.
+    pub meter_points_with_l3_values: Vec<L3MeterPoint>,
 }
 
 impl EnergyReportChecks {
@@ -48,20 +69,21 @@ impl EnergyReportChecks {
         }
         let measurements_complete = report.measurements_complete.unwrap_or(false);
 
-        // Dedupe measurements down to the meter points that have gaps.
-        let mut missing: BTreeMap<String, String> = BTreeMap::new();
-        for measurement in &report.measurements {
-            if measurement.has_missing_samples {
-                missing
-                    .entry(measurement.meter_point_id.clone())
-                    .or_insert_with(|| measurement.name.clone());
-            }
+        // Collect the timestamps of every missing sample, grouped by meter point.
+        // A meter point can have several measurements (columns), so the same
+        // timestamp may show up more than once — de-duplicate per meter point.
+        let mut missing: BTreeMap<String, (String, Vec<NaiveDateTime>)> = BTreeMap::new();
+        for ms in &report.missing_samples {
+            let entry = missing
+                .entry(ms.measurement.meter_point_id.clone())
+                .or_insert_with(|| (ms.measurement.name.clone(), Vec::new()));
+            entry.1.push(ms.timestamp.timestamp);
         }
 
         EnergyReportChecks {
             measurements_complete,
-            meter_points_with_missing_samples: dedup_map_to_refs(missing),
-            meter_points_with_l3_values: qov_map_to_refs(report.get_qov_l3_issues()),
+            meter_points_with_missing_samples: missing_samples_meter_points(missing),
+            meter_points_with_l3_values: l3_meter_points(report.get_qov_l3_issues()),
         }
     }
 
@@ -120,6 +142,12 @@ pub struct ActivationMismatch {
     pub meter_point_id: String,
     /// Status from masterdata; `None` when the point is not in the masterdata.
     pub status: Option<MeterPointStatus>,
+    /// Member number of the owning member in masterdata; `None` when the point
+    /// is not in the masterdata.
+    pub member_number: Option<String>,
+    /// Display name of the owning member in masterdata; `None` when the point is
+    /// not in the masterdata.
+    pub member_name: Option<String>,
 
     /// Activation (start) date per source.
     pub masterdata_activated: Option<NaiveDate>,
@@ -172,17 +200,17 @@ impl ActivationConsistencyChecks {
         // id can appear under more than one member (e.g. after an ownership
         // change), so pick a deterministic winner instead of relying on hash
         // map iteration order.
-        let mut masterdata_points: HashMap<&str, &MeterPoint> = HashMap::new();
+        let mut masterdata_points: HashMap<&str, (&Member, &MeterPoint)> = HashMap::new();
         for member in masterdata.members.values() {
             for meter_point in member.meter_points.values() {
                 masterdata_points
                     .entry(meter_point.id.as_str())
                     .and_modify(|existing| {
-                        if meter_point_rank(meter_point) > meter_point_rank(existing) {
-                            *existing = meter_point;
+                        if meter_point_rank(meter_point) > meter_point_rank(existing.1) {
+                            *existing = (member, meter_point);
                         }
                     })
-                    .or_insert(meter_point);
+                    .or_insert((member, meter_point));
             }
         }
         let energy_stats = energy_report.map(|r| &r.meter_points_stats);
@@ -200,7 +228,9 @@ impl ActivationConsistencyChecks {
         let mut missing_from_masterdata: Vec<String> = Vec::new();
 
         for id in all_ids {
-            let md = masterdata_points.get(id).copied();
+            let md_entry = masterdata_points.get(id).copied();
+            let md = md_entry.map(|(_, mp)| mp);
+            let member = md_entry.map(|(m, _)| m);
             let pod = podlist.meter_point_activations.get(id);
             let en = energy_stats.and_then(|s| s.get(id));
 
@@ -245,6 +275,8 @@ impl ActivationConsistencyChecks {
                 mismatches.push(ActivationMismatch {
                     meter_point_id: id.to_string(),
                     status: md.map(|m| m.status),
+                    member_number: member.map(|m| m.member_number.clone()),
+                    member_name: member.map(member_display_name),
                     masterdata_activated,
                     podlist_activated,
                     energy_active_start,
@@ -280,6 +312,7 @@ impl ActivationConsistencyChecks {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct OwnerRecord {
     pub member_number: String,
+    pub member_name: String,
     pub status: MeterPointStatus,
     pub activated: Option<NaiveDate>,
     pub deactivated: Option<NaiveDate>,
@@ -335,13 +368,13 @@ impl OwnershipChecks {
         energy_report: Option<&EnergyReport>,
     ) -> Self {
         // Collect every (member, meter point) record grouped by meter point id.
-        let mut by_id: HashMap<&str, Vec<(&str, &MeterPoint)>> = HashMap::new();
+        let mut by_id: HashMap<&str, Vec<(&Member, &MeterPoint)>> = HashMap::new();
         for member in masterdata.members.values() {
             for meter_point in member.meter_points.values() {
                 by_id
                     .entry(meter_point.id.as_str())
                     .or_default()
-                    .push((member.member_number.as_str(), meter_point));
+                    .push((member, meter_point));
             }
         }
         let energy_stats = energy_report.map(|r| &r.meter_points_stats);
@@ -357,7 +390,7 @@ impl OwnershipChecks {
             records.sort_by(|a, b| {
                 a.1.activated
                     .cmp(&b.1.activated)
-                    .then_with(|| a.0.cmp(b.0))
+                    .then_with(|| a.0.member_number.cmp(&b.0.member_number))
             });
 
             let mut problems: Vec<String> = Vec::new();
@@ -384,7 +417,7 @@ impl OwnershipChecks {
                 .filter(|(_, mp)| mp.status == MeterPointStatus::Active)
                 .max_by_key(|(_, mp)| mp.activated)
                 .or_else(|| records.iter().max_by_key(|(_, mp)| mp.activated));
-            let current_member = current.map(|(mn, _)| *mn);
+            let current_member = current.map(|(m, _)| m.member_number.as_str());
             let current_activation = current.and_then(|(_, mp)| mp.activated);
 
             // A source is stale if its activation date predates the current
@@ -412,8 +445,9 @@ impl OwnershipChecks {
 
             let owners: Vec<OwnerRecord> = records
                 .iter()
-                .map(|(member_number, mp)| OwnerRecord {
-                    member_number: member_number.to_string(),
+                .map(|(member, mp)| OwnerRecord {
+                    member_number: member.member_number.clone(),
+                    member_name: member_display_name(member),
                     status: mp.status,
                     activated: mp.activated,
                     deactivated: mp.deactivated,
@@ -441,16 +475,16 @@ impl OwnershipChecks {
     }
 }
 
-/// Which former owner (not the current one) had an active period covering
-/// `date`, if any.
+/// The display name of the former owner (not the current one) whose active
+/// period covers `date`, if any.
 fn former_owner_at(
-    records: &[(&str, &MeterPoint)],
+    records: &[(&Member, &MeterPoint)],
     current_member: Option<&str>,
     date: NaiveDate,
 ) -> Option<String> {
     records
         .iter()
-        .filter(|(mn, _)| Some(*mn) != current_member)
+        .filter(|(member, _)| Some(member.member_number.as_str()) != current_member)
         .find(|(_, mp)| {
             let start = mp.activated.unwrap_or(NaiveDate::MIN);
             let end = mp
@@ -459,14 +493,14 @@ fn former_owner_at(
                 .unwrap_or(NaiveDate::MAX);
             start <= date && date <= end
         })
-        .map(|(mn, _)| mn.to_string())
+        .map(|(member, _)| member_display_name(member))
 }
 
 /// Do any two owners' active periods overlap? Each period runs from `activated`
 /// (open start if absent) to `deactivated` (open end if absent or an open-ended
 /// sentinel). Touching endpoints (deactivate on the day the next activates) do
 /// not count as an overlap.
-fn owners_overlap(records: &[(&str, &MeterPoint)]) -> bool {
+fn owners_overlap(records: &[(&Member, &MeterPoint)]) -> bool {
     let intervals: Vec<(NaiveDate, NaiveDate)> = records
         .iter()
         .map(|(_, mp)| {
@@ -508,6 +542,28 @@ fn meter_point_rank(
     )
 }
 
+/// A human-readable name for a member: "first last", falling back to the
+/// company name, then to the member number.
+fn member_display_name(member: &Member) -> String {
+    let full = [member.first_name.as_deref(), member.last_name.as_deref()]
+        .into_iter()
+        .flatten()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    if !full.is_empty() {
+        return full;
+    }
+    if let Some(company) = member.company_name.as_deref() {
+        let company = company.trim();
+        if !company.is_empty() {
+            return company.to_string();
+        }
+    }
+    member.member_number.clone()
+}
+
 /// An end date at or beyond year 2999 is an open-ended sentinel (both
 /// 2999-12-31 and 9999-12-31 are used in practice).
 fn is_open_ended(date: NaiveDate) -> bool {
@@ -531,23 +587,42 @@ fn ends_agree(dates: &[Option<NaiveDate>]) -> bool {
     present.windows(2).all(|w| w[0] == w[1])
 }
 
-fn dedup_map_to_refs(map: BTreeMap<String, String>) -> Vec<MeterPointRef> {
+fn missing_samples_meter_points(
+    map: BTreeMap<String, (String, Vec<NaiveDateTime>)>,
+) -> Vec<MissingSamplesMeterPoint> {
     map.into_iter()
-        .map(|(meter_point_id, name)| MeterPointRef {
-            meter_point_id,
-            name,
+        .map(|(meter_point_id, (name, mut occurrences))| {
+            occurrences.sort();
+            occurrences.dedup();
+            MissingSamplesMeterPoint {
+                meter_point_id,
+                name,
+                occurrences,
+            }
         })
         .collect()
 }
 
-fn qov_map_to_refs(map: HashMap<String, QovSamples>) -> Vec<MeterPointRef> {
-    let mut refs: Vec<MeterPointRef> = map
+fn l3_meter_points(map: HashMap<String, QovSamples>) -> Vec<L3MeterPoint> {
+    let mut result: Vec<L3MeterPoint> = map
         .into_iter()
-        .map(|(meter_point_id, samples)| MeterPointRef {
-            meter_point_id,
-            name: samples.name,
+        .map(|(meter_point_id, samples)| {
+            let occurrences: Vec<L3Occurrence> = samples
+                .samples
+                .into_iter()
+                .flatten()
+                .map(|sample| L3Occurrence {
+                    timestamp: sample.timestamp,
+                    value: sample.value,
+                })
+                .collect();
+            L3MeterPoint {
+                meter_point_id,
+                name: samples.name,
+                occurrences,
+            }
         })
         .collect();
-    refs.sort_by(|a, b| a.meter_point_id.cmp(&b.meter_point_id));
-    refs
+    result.sort_by(|a, b| a.meter_point_id.cmp(&b.meter_point_id));
+    result
 }

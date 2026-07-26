@@ -114,9 +114,9 @@ impl FromStr for QoV {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct QovSample {
-    timestamp: NaiveDateTime,
-    value: Option<f64>,
-    qov: QoV,
+    pub timestamp: NaiveDateTime,
+    pub value: Option<f64>,
+    pub qov: QoV,
 }
 
 #[derive(Debug, Clone, Serialize)]
