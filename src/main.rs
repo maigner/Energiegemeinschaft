@@ -1,6 +1,6 @@
 use eegfaktura_datalib::eegfaktura::checks::{
-    ActivationConsistencyChecks, EnergyReportChecks, MasterdataChecks, MeterPointRef,
-    OwnershipChecks,
+    ActivationConsistencyChecks, EnergyReportChecks, L3MeterPoint, MasterdataChecks,
+    MissingSamplesMeterPoint, OwnershipChecks,
 };
 use eegfaktura_datalib::eegfaktura::loader::{EnergyReport, Masterdata, PodList};
 use std::{
@@ -139,8 +139,9 @@ fn print_ownership_section(checks: &OwnershipChecks) {
         println!("    {} [{}]", t.meter_point_id, verdict);
         for o in &t.owners {
             println!(
-                "      member {}\t{:?}\tactivated={}\tdeactivated={}",
+                "      member {} ({})\t{:?}\tactivated={}\tdeactivated={}",
                 o.member_number,
+                o.member_name,
                 o.status,
                 fmt_date(o.activated),
                 fmt_date(o.deactivated),
@@ -155,14 +156,58 @@ fn print_energy_section(checks: &EnergyReportChecks) {
         "  measurements complete: {}",
         yes_no(checks.measurements_complete)
     );
-    print_refs(
+    print_missing_samples(
         "meter points with missing samples",
         &checks.meter_points_with_missing_samples,
     );
-    print_refs(
+    print_l3(
         "meter points with L3 (unreliable) values",
         &checks.meter_points_with_l3_values,
     );
+}
+
+fn print_missing_samples(label: &str, mps: &[MissingSamplesMeterPoint]) {
+    println!("  {} ({}):", label, mps.len());
+    for mp in mps {
+        // distinct days on which values are missing (occurrences are chronological)
+        let mut days: Vec<String> = Vec::new();
+        for ts in &mp.occurrences {
+            let day = ts.date().to_string();
+            if days.last().map(|last| last != &day).unwrap_or(true) {
+                days.push(day);
+            }
+        }
+        println!(
+            "    {}\t{}\t{} fehlende Werte an {} Tagen: {}",
+            mp.meter_point_id,
+            mp.name,
+            mp.occurrences.len(),
+            days.len(),
+            days.join(", "),
+        );
+    }
+}
+
+fn print_l3(label: &str, l3: &[L3MeterPoint]) {
+    println!("  {} ({}):", label, l3.len());
+    for mp in l3 {
+        // distinct dates on which L3 values occur (occurrences are chronological)
+        let mut dates: Vec<String> = Vec::new();
+        for o in &mp.occurrences {
+            let day = o.timestamp.date().to_string();
+            if dates.last().map(|last| last != &day).unwrap_or(true) {
+                dates.push(day);
+            }
+        }
+        println!(
+            "    {}\t{}\t{} L3-Werte an {} Tagen: {}",
+            mp.meter_point_id,
+            mp.name,
+            mp.occurrences.len(),
+            dates.len(),
+            dates.join(", "),
+        );
+    }
 }
 
 fn print_activation_section(checks: &ActivationConsistencyChecks) {
@@ -173,11 +218,13 @@ fn print_activation_section(checks: &ActivationConsistencyChecks) {
             .status
             .map(|s| format!("{:?}", s))
             .unwrap_or_else(|| "-".to_string());
+        let owner = m.member_name.as_deref().unwrap_or("-");
         if !m.start_dates_agree {
             println!(
-                "    [start] {} ({})\tmd={}\tpod={}\tenergy={}",
+                "    [start] {} ({}, {})\tmd={}\tpod={}\tenergy={}",
                 m.meter_point_id,
                 status,
+                owner,
                 fmt_date(m.masterdata_activated),
                 fmt_date(m.podlist_activated),
                 fmt_date(m.energy_active_start),
@@ -185,9 +232,10 @@ fn print_activation_section(checks: &ActivationConsistencyChecks) {
         }
         if !m.end_dates_agree {
             println!(
-                "    [end]   {} ({})\tmd={}\tpod={}\tenergy={}",
+                "    [end]   {} ({}, {})\tmd={}\tpod={}\tenergy={}",
                 m.meter_point_id,
                 status,
+                owner,
                 fmt_date(m.masterdata_deactivated),
                 fmt_date(m.podlist_active_until),
                 fmt_date(m.energy_active_end),
@@ -256,13 +304,6 @@ fn yes_no(b: bool) -> &'static str {
         "yes"
     } else {
         "no"
-    }
-}
-
-fn print_refs(label: &str, refs: &[MeterPointRef]) {
-    println!("  {} ({}):", label, refs.len());
-    for r in refs {
-        println!("    {}\t{}", r.meter_point_id, r.name);
     }
 }
 
