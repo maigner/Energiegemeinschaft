@@ -1,88 +1,55 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
-use glob::Pattern;
+/// All files in `dir` whose name matches `matches`, newest (by modification
+/// time) first.
+fn matching_files(dir: &Path, matches: impl Fn(&str) -> bool) -> Vec<PathBuf> {
+    let mut files: Vec<PathBuf> = match fs::read_dir(dir) {
+        Ok(entries) => entries
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.file_name()
+                    .and_then(|n| n.to_str())
+                    .map(&matches)
+                    .unwrap_or(false)
+            })
+            .collect(),
+        Err(_) => Vec::new(),
+    };
 
-
-fn list_xlsx_files() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
-    // Get the Downloads folder path
-    let downloads = dirs::download_dir().ok_or("Could not find Downloads directory")?;
-
-    // Read directory and filter for .xlsx files
-    let xlsx_files: Vec<PathBuf> = fs::read_dir(downloads)?
-        .filter_map(|entry| entry.ok())
-        .map(|entry| entry.path())
-        .filter(|path| {
-            path.extension()
-                .and_then(|ext| ext.to_str())
-                .map(|ext| ext.eq_ignore_ascii_case("xlsx"))
-                .unwrap_or(false)
-        })
-        .collect();
-
-    Ok(xlsx_files)
+    // newest first
+    files.sort_by_cached_key(|path| {
+        std::cmp::Reverse(fs::metadata(path).and_then(|m| m.modified()).ok())
+    });
+    files
 }
 
-#[tauri::command]
-pub fn list_energy_report_files() -> Result<Vec<PathBuf>, String> {
-    match list_xlsx_files() {
-        Ok(list) => {
-            let pattern = Pattern::new("RC*-Energy-Report*").unwrap();
-            let mut energy_reports: Vec<PathBuf> = list
-                .into_iter()
-                .filter(|path| {
-                    path.file_name()
-                        .and_then(|name| name.to_str())
-                        .map(|name| pattern.matches(name))
-                        .unwrap_or(false)
-                })
-                .collect();
-
-            // sort by modification date
-            energy_reports.sort_by_cached_key(|path| {
-                fs::metadata(path)
-                    .and_then(|m| m.modified())
-                    .ok()
-                    .map(|t| std::cmp::Reverse(t)) // Reverse for descending order
-            });
-
-            // last 10 only
-            energy_reports.truncate(10);
-
-            Ok(energy_reports)
-        }
-        Err(e) => Err(e.to_string()),
-    }
+/// The newest matching file, if any.
+pub fn latest_matching(dir: &Path, matches: impl Fn(&str) -> bool) -> Option<PathBuf> {
+    matching_files(dir, matches).into_iter().next()
 }
 
+/// The newest `n` matching files.
+pub fn latest_n_matching(dir: &Path, matches: impl Fn(&str) -> bool, n: usize) -> Vec<PathBuf> {
+    let mut files = matching_files(dir, matches);
+    files.truncate(n);
+    files
+}
 
-#[tauri::command]
-pub fn list_masterdata_files() -> Result<Vec<PathBuf>, String> {
-    match list_xlsx_files() {
-        Ok(list) => {
-            let pattern = Pattern::new("RC*-EEG-Masterdata-*").unwrap();
-            let mut file_list: Vec<PathBuf> = list
-                .into_iter()
-                .filter(|path| {
-                    path.file_name()
-                        .and_then(|name| name.to_str())
-                        .map(|name| pattern.matches(name))
-                        .unwrap_or(false)
-                })
-                .collect();
+/// `...EEG-Masterdata-<date>.xlsx` (optional prefix such as `RC101533-`).
+pub fn is_masterdata_name(name: &str) -> bool {
+    name.contains("EEG-Masterdata-") && name.ends_with(".xlsx")
+}
 
-            // sort by modification date
-            file_list.sort_by_cached_key(|path| {
-                fs::metadata(path)
-                    .and_then(|m| m.modified())
-                    .ok()
-                    .map(|t| std::cmp::Reverse(t)) // Reverse for descending order
-            });
+/// `...ZP_PODLIST.xlsx` (optional prefix).
+pub fn is_podlist_name(name: &str) -> bool {
+    name.ends_with("ZP_PODLIST.xlsx")
+}
 
-            // last 10 only
-            file_list.truncate(10);
-
-            Ok(file_list)
-        }
-        Err(e) => Err(e.to_string()),
-    }
+/// `...Energy-Report-*.xlsx` (optional prefix).
+pub fn is_energy_report_name(name: &str) -> bool {
+    name.contains("Energy-Report-") && name.ends_with(".xlsx")
 }
