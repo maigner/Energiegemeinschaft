@@ -68,6 +68,19 @@ export const getDailySums = async (numberOfDays: number) => {
     return result?.rows.length > 0 ? result.rows : null;
 };
 
+// the view holds one row per calendar week, so the current week yields a single entry
+export const getCurrentWeekCrossoverTime = async () => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+    SELECT *
+    FROM energy_community_weekly_crossover_times
+    WHERE week_number = EXTRACT(WEEK FROM CURRENT_DATE)::int
+    `);
+    sql.release();
+
+    return result?.rows.length > 0 ? result.rows[0] : null;
+};
+
 export const refreshMaterializedViewCrossoverTimes = async () => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`
