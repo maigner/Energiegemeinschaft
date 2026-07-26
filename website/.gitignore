@@ -21,3 +21,7 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# generiert von Batteriemanagement/openhab/setup/build-dist.sh
+static/ibm/ibm-openhab.tar.gz
+static/ibm/ibm-openhab.tar.gz.sha256

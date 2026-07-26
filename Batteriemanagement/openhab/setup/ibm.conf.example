@@ -1,0 +1,75 @@
+# ============================================================================
+# Konfiguration fuer das ISCHLSTROM Batteriemanagement (IBM)
+#
+# Normalerweise nicht von Hand anlegen - der Assistent erzeugt diese Datei:
+#   sudo ./00-wizard.sh
+#
+# Diese Vorlage dient als Referenz und fuer unbeaufsichtigte Installationen.
+#   cp ibm.conf.example ibm.conf
+# ============================================================================
+
+# --- Anlage (MUSS angepasst werden) -----------------------------------------
+
+# Wechselrichter-Typ. Entspricht einem Verzeichnis unter ../inverters/
+INVERTER_TYPE="fronius"
+
+# UID des Wechselrichter-Things.
+# Main UI -> Settings -> Things -> <Wechselrichter>
+INVERTER_THING_UID="fronius:powerinverter:0cb68e8e38:273b6c06b4"
+
+# Item mit dem Batterie-Ladestand (verknuepft mit dem soc-Channel).
+# Wird NICHT vom Setup angelegt, sondern beim Verknuepfen des Channels
+# in der Main UI erzeugt.
+SOC_ITEM="Fronius_Symo_Inverter_Battery_State_of_Charge"
+
+# --- ischlstrom API ---------------------------------------------------------
+
+IBM_API_BASE="https://ischlstrom.org"
+
+# --- Zeitplaene (Quartz-Cron, 6 Felder: sek min std tag monat wochentag) -----
+
+# Batteriesteuerung. Die Schedules gelten jeweils 5 Minuten, daher muss die
+# Regel mindestens alle 5 Minuten laufen.
+CRON_BATTERY="0 */5 * * * ?"
+
+# Wolkenvorschau. Die Website aktualisiert die Wetterdaten stuendlich um :31.
+CRON_CLOUD="0 40 * * * ?"
+
+# Crossover-Zeiten. Die Materialized View wird nur monatlich aktualisiert,
+# taeglich abholen genuegt daher voellig.
+CRON_CROSSOVER="0 5 4 * * ?"
+
+# Initialisierung der Konfigurations-Items (setzt nur NULL/UNDEF-Werte).
+CRON_INIT="0 */10 * * * ?"
+
+# --- Startwerte der Konfigurations-Items ------------------------------------
+
+# Ladestand, unterhalb dessen nicht mehr entladen wird (Prozent)
+DEFAULT_MIN_BATTERY_CHARGE=20
+
+# Entladeleistung in Watt
+DEFAULT_MIN_DISCHARGE_W=1000
+DEFAULT_MAX_DISCHARGE_W=3000
+
+# Ladesperre am Vormittag: bei wenig Bewoelkung nicht aus dem Netz laden,
+# weil die eigene PV-Anlage den Speicher ohnehin fuellen wird.
+DEFAULT_LADESPERRE_AKTIV=ON
+DEFAULT_LADESPERRE_START=7       # Stunde 0-23
+DEFAULT_LADESPERRE_ENDE=11       # Stunde 0-23
+DEFAULT_WOLKEN_SCHWELLE=75       # unter diesem Bewoelkungsgrad wird gesperrt
+
+# Forcierte Entladung in der Nacht. Fenster darf ueber Mitternacht gehen.
+DEFAULT_ENTLADUNG_AKTIV=ON
+DEFAULT_ENTLADUNG_START=21       # Stunde 0-23
+DEFAULT_ENTLADUNG_ENDE=7         # Stunde 0-23
+
+# --- Optionen ---------------------------------------------------------------
+
+# Addons ueber addons.cfg installieren.
+# ACHTUNG: siehe Warnung in README.md - auf 0 setzen, wenn die Addons bereits
+# ueber die Main UI installiert wurden.
+INSTALL_ADDONS=1
+
+# Persistence (mapdb) einrichten, damit die Einstellungen einen Neustart
+# ueberleben.
+INSTALL_PERSISTENCE=1

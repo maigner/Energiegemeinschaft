@@ -1,0 +1,202 @@
+// ============================================================================
+// IBM - Batteriesteuerung Fronius
+//
+//   Teil A: Batterieladen sperren bei geringer Bewoelkung (Vormittag)
+//   Teil B: Forcierte Batterieentladung (Nacht), abhaengig von Toggle,
+//           Ladestand und Wolkenvorschau
+//
+// Dieses Skript ist die Vorlage fuer alle Anlagen und wird pro Kunde NICHT
+// veraendert. Alles Anlagenspezifische kommt aus Items - siehe Abschnitt
+// "Konfiguration". Fehlt ein Item oder steht es auf NULL, greift der jeweils
+// hier hinterlegte Rueckfallwert, das Skript laeuft also auch unvollstaendig
+// eingerichtet weiter.
+//
+// Vom Setup ersetzt: Thing-UID und der Itemname des Ladestands.
+// ============================================================================
+
+var fa = actions.thingActions('fronius', 'fronius:powerinverter:0cb68e8e38:273b6c06b4');
+
+// --- Rueckfallwerte, falls das zugehoerige Item fehlt oder ungueltig ist ----
+var FALLBACK_CHARGE_LOCK_ACTIVE = true;
+var FALLBACK_CHARGE_LOCK_START_HOUR = 7;
+var FALLBACK_CHARGE_LOCK_END_HOUR = 11;
+var FALLBACK_CLOUD_THRESHOLD = 75;
+
+var FALLBACK_DISCHARGE_ACTIVE = true;
+var FALLBACK_DISCHARGE_START_HOUR = 21;
+var FALLBACK_DISCHARGE_END_HOUR = 7;
+
+var FALLBACK_MIN_DISCHARGE_W = 1000;
+var FALLBACK_MAX_DISCHARGE_W = 3000;
+
+// --- Hilfsfunktionen zum Lesen der Konfiguration ----------------------------
+
+function readItem(name) {
+  try {
+    var item = items.getItem(name);
+    return (item === null || item === undefined) ? null : item;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Zahl aus einem Item, mit Bereichspruefung und Rueckfallwert.
+function num(name, fallback, min, max) {
+  var item = readItem(name);
+  if (item === null) {
+    console.log('[IBM][Konfig] Item fehlt: ' + name + ' - verwende ' + fallback);
+    return fallback;
+  }
+  var value = parseFloat(item.numericState);
+  if (isNaN(value) || value < min || value > max) {
+    console.log('[IBM][Konfig] ' + name + '=' + value + ' ungueltig (erlaubt ' + min + '-' + max + ') - verwende ' + fallback);
+    return fallback;
+  }
+  return value;
+}
+
+// Ganze Stunde 0-23.
+function hour(name, fallback) {
+  return Math.floor(num(name, fallback, 0, 23));
+}
+
+// Schalter, mit Rueckfallwert bei NULL/UNDEF.
+function onOff(name, fallback) {
+  var item = readItem(name);
+  if (item === null) {
+    console.log('[IBM][Konfig] Item fehlt: ' + name + ' - verwende ' + (fallback ? 'ON' : 'OFF'));
+    return fallback;
+  }
+  var state = String(item.state);
+  if (state === 'ON') return true;
+  if (state === 'OFF') return false;
+  console.log('[IBM][Konfig] ' + name + '=' + state + ' - verwende ' + (fallback ? 'ON' : 'OFF'));
+  return fallback;
+}
+
+// --- Konfiguration ----------------------------------------------------------
+
+var CHARGE_LOCK_ACTIVE     = onOff('IBM_LADESPERRE_AKTIV', FALLBACK_CHARGE_LOCK_ACTIVE);
+var CHARGE_LOCK_START_HOUR = hour('IBM_LADESPERRE_START', FALLBACK_CHARGE_LOCK_START_HOUR);
+var CHARGE_LOCK_END_HOUR   = hour('IBM_LADESPERRE_ENDE', FALLBACK_CHARGE_LOCK_END_HOUR);
+var CLOUD_THRESHOLD        = num('IBM_LADESPERRE_WOLKEN_SCHWELLE', FALLBACK_CLOUD_THRESHOLD, 0, 100);
+
+var DISCHARGE_ACTIVE       = onOff('IBM_ENTLADUNG_AKTIV', FALLBACK_DISCHARGE_ACTIVE);
+var DISCHARGE_START_HOUR   = hour('IBM_ENTLADUNG_START', FALLBACK_DISCHARGE_START_HOUR);
+var DISCHARGE_END_HOUR     = hour('IBM_ENTLADUNG_ENDE', FALLBACK_DISCHARGE_END_HOUR);
+
+// --- Skript-Logik -----------------------------------------------------------
+var now = time.ZonedDateTime.now();
+var currentHour = now.hour();
+
+// Prueft, ob die aktuelle Stunde im Fenster liegt. Fenster duerfen ueber
+// Mitternacht gehen (start > ende), z. B. 21:00-07:00.
+function inWindow(startHour, endHour) {
+  if (startHour === endHour) return false;
+  if (startHour < endHour) return currentHour >= startHour && currentHour < endHour;
+  return currentHour >= startHour || currentHour < endHour;
+}
+
+// ----------------------------------------------------------------------------
+// Gemeinsamer Schritt: Toggle-abhaengiger Reset
+// ----------------------------------------------------------------------------
+var toggleOn = onOff('Schalte_ISCHLSTROM_Empfehlung_einaus', false);
+
+if (toggleOn) {
+  fa.resetBatteryControl();
+  console.log('[IBM] Toggle=ON - Battery control reset');
+} else {
+  console.log('[IBM] Toggle=OFF - Tue nichts');
+  return;
+}
+
+// ----------------------------------------------------------------------------
+// Teil A: Ladesperre bei geringer Bewoelkung
+// ----------------------------------------------------------------------------
+function handleChargeLock() {
+  var clouds = parseFloat(items.getItem('Ischlstrom_Wolkenvorschau').numericState);
+  if (isNaN(clouds) || clouds < 0 || clouds > 100) {
+    console.log('[IBM][Ladesperre] Wolkenvorschau invalid (' + clouds + '%) - abort');
+    return;
+  }
+  if (clouds >= CLOUD_THRESHOLD) {
+    console.log('[IBM][Ladesperre] Wolkenvorschau=' + clouds + '% - Laden wird nicht gesperrt');
+    return;
+  }
+
+  // Laden sperren
+  var from = now;
+  var until = now.plusMinutes(5);
+  var ok = fa.addPreventBatteryChargingSchedule(from, until);
+
+  console.log('[IBM][Ladesperre] Wolkenvorschau=' + clouds + '% (<' + CLOUD_THRESHOLD + '%) - Laden gesperrt | Schedule applied: ' + ok);
+  console.log('[IBM][Ladesperre] From:  ' + from);
+  console.log('[IBM][Ladesperre] Until: ' + until);
+}
+
+// ----------------------------------------------------------------------------
+// Teil B: Forcierte Entladung
+// ----------------------------------------------------------------------------
+function handleForcedDischarge() {
+
+  var soc = parseFloat(items.getItem('Fronius_Symo_Inverter_Battery_State_of_Charge').numericState);
+  var minSoc = parseFloat(items.getItem('IBM_MIN_BATTERY_CHARGE').numericState);
+
+  if (isNaN(minSoc) || minSoc <= 5 || minSoc > 90) {
+    console.log('[IBM][Entladung] Battery min Level (' + minSoc + '%) - invalid value');
+    return;
+  }
+  if (isNaN(soc) || soc <= minSoc) {
+    console.log('[IBM][Entladung] Battery too low (' + soc + '%) - skipping discharge schedule');
+    return;
+  }
+
+  var dischargeMinW = parseFloat(items.getItem('Minimale_Entladeleistung_Batterieeinspeisung').numericState);
+  var dischargeMaxW = parseFloat(items.getItem('Maximale_Entladeleistung_Batterieeinspeisung').numericState);
+
+  if (isNaN(dischargeMinW) || dischargeMinW <= 0) {
+    console.log('[IBM][Entladung] Minimale Entladeleistung invalid (' + dischargeMinW + 'W) - using default ' + FALLBACK_MIN_DISCHARGE_W + 'W');
+    dischargeMinW = FALLBACK_MIN_DISCHARGE_W;
+  }
+  if (isNaN(dischargeMaxW) || dischargeMaxW <= 0) {
+    console.log('[IBM][Entladung] Maximale Entladeleistung invalid (' + dischargeMaxW + 'W) - using default ' + FALLBACK_MAX_DISCHARGE_W + 'W');
+    dischargeMaxW = FALLBACK_MAX_DISCHARGE_W;
+  }
+  if (dischargeMinW >= dischargeMaxW) {
+    console.log('[IBM][Entladung] minW >= maxW (' + dischargeMinW + ' >= ' + dischargeMaxW + ') - using defaults');
+    dischargeMinW = FALLBACK_MIN_DISCHARGE_W;
+    dischargeMaxW = FALLBACK_MAX_DISCHARGE_W;
+  }
+  console.log('[IBM][Entladung] Entladeleistung: min=' + dischargeMinW + 'W, max=' + dischargeMaxW + 'W');
+
+  var clouds = parseFloat(items.getItem('Ischlstrom_Wolkenvorschau').numericState);
+  if (isNaN(clouds) || clouds < 0 || clouds > 100) {
+    console.log('[IBM][Entladung] Wolkenvorschau (' + clouds + '%) - invalid value, using maxW');
+    clouds = 0;
+  }
+
+  // 0% Wolken -> maxW, 100% Wolken -> minW (linear interpoliert)
+  var dischargeW = Math.round(dischargeMaxW - (clouds / 100) * (dischargeMaxW - dischargeMinW));
+  console.log('[IBM][Entladung] Wolkenvorschau=' + clouds + '% -> dischargeW=' + dischargeW + 'W');
+
+  var from = now;
+  var until = now.plusMinutes(5);
+  var ok = fa.addForcedBatteryDischargingSchedule(from, until, Quantity(dischargeW + 'W'));
+
+  console.log('[IBM][Entladung] SoC=' + soc + '% | Schedule applied: ' + ok);
+  console.log('[IBM][Entladung] From:  ' + from);
+  console.log('[IBM][Entladung] Until: ' + until);
+}
+
+// ----------------------------------------------------------------------------
+// Zeitfenster-Weiche: entscheidet, welcher Teil ausgefuehrt wird
+// ----------------------------------------------------------------------------
+if (CHARGE_LOCK_ACTIVE && inWindow(CHARGE_LOCK_START_HOUR, CHARGE_LOCK_END_HOUR)) {
+  console.log('[IBM] Zeitfenster Vormittag (' + currentHour + ':xx, ' + CHARGE_LOCK_START_HOUR + '-' + CHARGE_LOCK_END_HOUR + ') - pruefe Ladesperre');
+  handleChargeLock();
+} else if (DISCHARGE_ACTIVE && inWindow(DISCHARGE_START_HOUR, DISCHARGE_END_HOUR)) {
+  console.log('[IBM] Zeitfenster Nacht (' + currentHour + ':xx, ' + DISCHARGE_START_HOUR + '-' + DISCHARGE_END_HOUR + ') - pruefe forcierte Entladung');
+  handleForcedDischarge();
+} else {
+  console.log('[IBM] Ausserhalb beider Zeitfenster (' + currentHour + ':xx) - keine Aktion');
+}

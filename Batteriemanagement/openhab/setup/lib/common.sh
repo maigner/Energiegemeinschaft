@@ -1,0 +1,239 @@
+#!/usr/bin/env bash
+# ============================================================================
+# Gemeinsame Helfer fuer die IBM-Setup-Skripte.
+# Wird von den nummerierten Skripten per `. lib/common.sh` eingebunden.
+# ============================================================================
+
+# openHAB-Pfade einer paketbasierten Installation (openHABian).
+# Ueber Umgebungsvariablen ueberschreibbar.
+OPENHAB_CONF="${OPENHAB_CONF:-/etc/openhab}"
+OPENHAB_USERDATA="${OPENHAB_USERDATA:-/var/lib/openhab}"
+OPENHAB_LOGDIR="${OPENHAB_LOGDIR:-/var/log/openhab}"
+OPENHAB_USER="${OPENHAB_USER:-openhab}"
+OPENHAB_GROUP="${OPENHAB_GROUP:-openhab}"
+
+# Verzeichnis, in dem die Setup-Skripte liegen
+IBM_SETUP_DIR="${IBM_SETUP_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
+# Verzeichnis mit den openHAB-Skripten (eine Ebene ueber setup/)
+IBM_SCRIPT_DIR="${IBM_SCRIPT_DIR:-$(cd "$IBM_SETUP_DIR/.." && pwd)}"
+
+# Verzeichnis mit den Wechselrichter-Profilen
+IBM_INVERTER_DIR="${IBM_INVERTER_DIR:-$IBM_SCRIPT_DIR/inverters}"
+
+IBM_CONF="${IBM_CONF:-$IBM_SETUP_DIR/ibm.conf}"
+
+log()  { echo "[IBM] $*"; }
+warn() { echo "[IBM] WARNUNG: $*" >&2; }
+die()  { echo "[IBM] FEHLER: $*" >&2; exit 1; }
+
+require_root() {
+  [ "$(id -u)" -eq 0 ] || die "Bitte mit sudo ausfuehren: sudo $0"
+}
+
+require_openhab() {
+  [ -d "$OPENHAB_CONF" ] || die "$OPENHAB_CONF nicht gefunden - ist openHAB installiert?"
+}
+
+# ---------------------------------------------------------------------------
+# Eingaben
+#
+# Liest bevorzugt von /dev/tty, damit die Abfragen auch dann funktionieren,
+# wenn das Skript ueber eine Pipe gestartet wurde (curl ... | sudo bash).
+# ---------------------------------------------------------------------------
+has_tty() { [ -r /dev/tty ]; }
+
+# ask VARNAME "Frage" ["Vorgabe"]
+ask() {
+  local __var="$1" __question="$2" __default="${3:-}" __input="" __prompt
+
+  if [ -n "$__default" ]; then
+    __prompt="[IBM] ${__question} [${__default}]: "
+  else
+    __prompt="[IBM] ${__question}: "
+  fi
+
+  if [ "${IBM_ASSUME_YES:-0}" = "1" ]; then
+    printf -v "$__var" '%s' "$__default"
+    log "${__question} -> ${__default} (IBM_ASSUME_YES=1)"
+    return 0
+  fi
+
+  if has_tty; then
+    read -r -p "$__prompt" __input < /dev/tty || true
+  else
+    read -r -p "$__prompt" __input || true
+  fi
+
+  [ -z "$__input" ] && __input="$__default"
+  printf -v "$__var" '%s' "$__input"
+}
+
+# Rueckfrage vor heiklen Schritten. Mit IBM_ASSUME_YES=1 uebersprungen.
+confirm() {
+  local prompt="$1" answer=""
+  if [ "${IBM_ASSUME_YES:-0}" = "1" ]; then
+    log "$prompt -> automatisch bestaetigt (IBM_ASSUME_YES=1)"
+    return 0
+  fi
+  if has_tty; then
+    read -r -p "[IBM] $prompt [j/N] " answer < /dev/tty || true
+  else
+    read -r -p "[IBM] $prompt [j/N] " answer || true
+  fi
+  case "$answer" in
+    [jJ]|[jJ][aA]|[yY]|[yY][eE][sS]) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# Konfiguration und Wechselrichter-Profil
+# ---------------------------------------------------------------------------
+
+# Liste der verfuegbaren Wechselrichter-Profile (Verzeichnisnamen).
+list_inverters() {
+  local d
+  for d in "$IBM_INVERTER_DIR"/*/; do
+    [ -f "${d}profile.sh" ] || continue
+    basename "$d"
+  done
+}
+
+# Laedt inverters/<typ>/profile.sh und prueft die Pflichtfelder.
+load_profile() {
+  local type="${1:-${INVERTER_TYPE:-fronius}}"
+  local profile="$IBM_INVERTER_DIR/$type/profile.sh"
+
+  [ -f "$profile" ] || die "Unbekannter Wechselrichter-Typ '$type'. Verfuegbar: $(list_inverters | tr '\n' ' ')"
+
+  # shellcheck disable=SC1090
+  . "$profile"
+  INVERTER_TYPE="$type"
+
+  : "${INVERTER_BINDING:?INVERTER_BINDING fehlt in $profile}"
+  : "${INVERTER_THING_PREFIX:?INVERTER_THING_PREFIX fehlt in $profile}"
+  : "${INVERTER_CONTROL_SCRIPT:?INVERTER_CONTROL_SCRIPT fehlt in $profile}"
+  : "${INVERTER_SOC_PLACEHOLDER:?INVERTER_SOC_PLACEHOLDER fehlt in $profile}"
+  INVERTER_LABEL="${INVERTER_LABEL:-$type}"
+  INVERTER_SOC_CHANNEL="${INVERTER_SOC_CHANNEL:-soc}"
+  INVERTER_NOTES="${INVERTER_NOTES:-}"
+
+  log "Wechselrichter-Profil geladen: $INVERTER_LABEL ($type)"
+}
+
+# Konfiguration laden, Pflichtfelder pruefen, Profil einbinden.
+load_config() {
+  [ -f "$IBM_CONF" ] || die "ibm.conf fehlt. Assistent starten mit: sudo $IBM_SETUP_DIR/00-wizard.sh"
+  # shellcheck disable=SC1090
+  . "$IBM_CONF"
+  log "Konfiguration geladen: $IBM_CONF"
+
+  : "${INVERTER_THING_UID:?INVERTER_THING_UID fehlt in ibm.conf}"
+  : "${SOC_ITEM:?SOC_ITEM fehlt in ibm.conf}"
+  : "${IBM_API_BASE:?IBM_API_BASE fehlt in ibm.conf}"
+
+  # Defaults, falls eine aeltere ibm.conf noch nicht alles kennt
+  INVERTER_TYPE="${INVERTER_TYPE:-fronius}"
+  CRON_BATTERY="${CRON_BATTERY:-0 */5 * * * ?}"
+  CRON_CLOUD="${CRON_CLOUD:-0 40 * * * ?}"
+  CRON_CROSSOVER="${CRON_CROSSOVER:-0 5 4 * * ?}"
+  CRON_INIT="${CRON_INIT:-0 */10 * * * ?}"
+  DEFAULT_MIN_BATTERY_CHARGE="${DEFAULT_MIN_BATTERY_CHARGE:-20}"
+  DEFAULT_MIN_DISCHARGE_W="${DEFAULT_MIN_DISCHARGE_W:-1000}"
+  DEFAULT_MAX_DISCHARGE_W="${DEFAULT_MAX_DISCHARGE_W:-3000}"
+  DEFAULT_LADESPERRE_AKTIV="${DEFAULT_LADESPERRE_AKTIV:-ON}"
+  DEFAULT_LADESPERRE_START="${DEFAULT_LADESPERRE_START:-7}"
+  DEFAULT_LADESPERRE_ENDE="${DEFAULT_LADESPERRE_ENDE:-11}"
+  DEFAULT_WOLKEN_SCHWELLE="${DEFAULT_WOLKEN_SCHWELLE:-75}"
+  DEFAULT_ENTLADUNG_AKTIV="${DEFAULT_ENTLADUNG_AKTIV:-ON}"
+  DEFAULT_ENTLADUNG_START="${DEFAULT_ENTLADUNG_START:-21}"
+  DEFAULT_ENTLADUNG_ENDE="${DEFAULT_ENTLADUNG_ENDE:-7}"
+  INSTALL_ADDONS="${INSTALL_ADDONS:-1}"
+  INSTALL_PERSISTENCE="${INSTALL_PERSISTENCE:-1}"
+
+  load_profile "$INVERTER_TYPE"
+}
+
+# ---------------------------------------------------------------------------
+# Erkennung in der openHAB-JSONDB (Best effort - der Assistent laesst die
+# Werte immer bestaetigen oder ueberschreiben)
+# ---------------------------------------------------------------------------
+
+# Kandidaten fuer die Thing-UID des Wechselrichters.
+detect_thing_uids() {
+  local db="$OPENHAB_USERDATA/jsondb/org.openhab.core.thing.Thing.json"
+  [ -f "$db" ] || return 0
+  # Thing-UIDs haben 3 oder 4 Segmente; alles Laengere ist eine Channel-UID.
+  grep -o "\"${INVERTER_THING_PREFIX}:[^\"]*\"" "$db" 2>/dev/null \
+    | tr -d '"' \
+    | awk -F: 'NF>=3 && NF<=4' \
+    | sort -u
+}
+
+# Kandidaten fuer das SoC-Item. Zuerst ueber die Channel-Verknuepfung,
+# ersatzweise ueber Itemnamen, die nach Ladestand aussehen.
+detect_soc_items() {
+  local thing_uid="${1:-}"
+  local linkdb="$OPENHAB_USERDATA/jsondb/org.openhab.core.thing.link.ItemChannelLink.json"
+  local itemdb="$OPENHAB_USERDATA/jsondb/org.openhab.core.items.Item.json"
+  local found=""
+
+  # In der JSONDB heissen die Link-Schluessel "<Item> -> <channelUID>".
+  if [ -n "$thing_uid" ] && [ -f "$linkdb" ]; then
+    found="$(grep -o "\"[^\"]* -> ${thing_uid}:${INVERTER_SOC_CHANNEL}\"" "$linkdb" 2>/dev/null \
+             | sed -e 's/^"//' -e 's/ ->.*//' | sort -u)"
+  fi
+
+  if [ -z "$found" ] && [ -f "$itemdb" ]; then
+    found="$(grep -o '"[A-Za-z0-9_]*"' "$itemdb" 2>/dev/null \
+             | tr -d '"' \
+             | grep -Ei 'soc|state_of_charge|ladestand' \
+             | sort -u)"
+  fi
+
+  printf '%s' "$found"
+}
+
+# ---------------------------------------------------------------------------
+# Dateien
+# ---------------------------------------------------------------------------
+
+# Datei aus stdin schreiben - idempotent, mit Backup und korrekten Rechten.
+# Verwendung:  irgendwas | install_file /pfad/zur/datei
+install_file() {
+  local target="$1"
+  local tmp
+  tmp="$(mktemp)"
+  cat > "$tmp"
+
+  if [ -f "$target" ] && cmp -s "$tmp" "$target"; then
+    log "unveraendert: $target"
+    rm -f "$tmp"
+    return 0
+  fi
+
+  if [ -f "$target" ]; then
+    local backup="$target.bak-$(date +%Y%m%d%H%M%S)"
+    cp -a "$target" "$backup"
+    log "Backup angelegt: $backup"
+  fi
+
+  mkdir -p "$(dirname "$target")"
+  cat "$tmp" > "$target"
+  rm -f "$tmp"
+  chown "$OPENHAB_USER:$OPENHAB_GROUP" "$target" 2>/dev/null || \
+    warn "chown auf $OPENHAB_USER:$OPENHAB_GROUP fehlgeschlagen: $target"
+  chmod 0644 "$target"
+  log "geschrieben: $target"
+}
+
+openhab_restart() {
+  if command -v systemctl >/dev/null 2>&1; then
+    log "openHAB wird neu gestartet ..."
+    systemctl restart openhab.service && log "openHAB neu gestartet." \
+      || warn "Neustart fehlgeschlagen - bitte manuell: sudo systemctl restart openhab.service"
+  else
+    warn "systemctl nicht gefunden - bitte openHAB manuell neu starten."
+  fi
+}
