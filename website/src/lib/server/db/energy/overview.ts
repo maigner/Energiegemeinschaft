@@ -72,7 +72,12 @@ export const getDailySums = async (numberOfDays: number) => {
 export const getCurrentWeekCrossoverTime = async () => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`
-    SELECT *
+    SELECT week_number,
+           avg_morning_crossover::time AS avg_morning_crossover,
+           avg_evening_crossover::time AS avg_evening_crossover,
+           morning_hour,
+           evening_hour,
+           days_averaged
     FROM energy_community_weekly_crossover_times
     WHERE week_number = EXTRACT(WEEK FROM CURRENT_DATE)::int
     `);
