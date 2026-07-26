@@ -403,7 +403,6 @@ impl EnergyReport {
     }
 }
 
-// TODO: fill data structure from excel podlist
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PodList {

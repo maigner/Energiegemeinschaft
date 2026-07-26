@@ -5,8 +5,9 @@ use chrono::{NaiveDate, NaiveDateTime};
 
 // access types from parent
 use crate::eegfaktura::loader::{
-    EnergyDirection, EnergyReportMeterPointStats, Masterdata, Measurement, Member, MemberType,
-    MeterCode, MeterPoint, MeterPointStatus, QoV, QovSample, QovSamples, Sample, Timestamp,
+    ActivationStats, EnergyDirection, EnergyReportMeterPointStats, Masterdata, Measurement, Member,
+    MemberType, MeterCode, MeterPoint, MeterPointStatus, PodList, QoV, QovSample, QovSamples,
+    Sample, Timestamp,
 };
 
 // use calamine to parse excel and create a generic data structure for processing
@@ -555,6 +556,84 @@ impl super::Masterdata {
             file_complete: None,
             missing_activations: Vec::new(),
             missing_subscriptions: Vec::new(),
+        }
+    }
+}
+
+// Parse the ZP_PODLIST export (single sheet "ZP-List").
+//
+// Layout (header in row 0, data from row 1):
+//   [0] Nr.               (row counter, ignored)
+//   [1] Zählpunktname     (meter point id -> map key)
+//   [2] ConsentID         (ignored)
+//   [3] Bezugsrichtung    (CONSUMPTION / GENERATION, not kept in ActivationStats)
+//   [4] Teilnahme-faktor  (participation factor, 0..=100)
+//   [5] statische Aufteilung (ignored)
+//   [6] aktiviert         (Excel serial date)
+//   [7] aktiv seit        (Excel serial date)
+//   [8] aktiv bis         (Excel serial date, sentinel 9999-12-31 = "open")
+//
+// NOTE: a meter point may appear on more than one row (e.g. as both a
+// consumption and a generation point). Because the key is the meter point id,
+// later rows overwrite earlier ones in the returned map.
+impl super::PodList {
+    pub fn new(path: String) -> Self {
+        let mut workbook: Xlsx<_> = match open_workbook(&path) {
+            Ok(wb) => wb,
+            Err(error) => panic!("Problem opening the workbook: {error:?}"),
+        };
+
+        let range = match workbook.worksheet_range("ZP-List") {
+            Ok(r) => r,
+            Err(error) => panic!("Problem fetching Sheet ZP-List: {error:?}"),
+        };
+
+        let mut meter_point_activations: HashMap<String, ActivationStats> = HashMap::new();
+
+        for row in range.rows().skip(1) {
+            // skip blank rows (no meter point id in column 1)
+            let meter_point_id = match row.get(1) {
+                Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
+                _ => None,
+            };
+            let meter_point_id = match meter_point_id {
+                Some(id) => id,
+                None => continue,
+            };
+
+            let participation_factor = row
+                .get(4)
+                .and_then(|v| v.as_f64())
+                .map(|f| f as i8)
+                .unwrap_or(0);
+
+            // dates are stored as Excel serial numbers (numFmt 14), not text
+            let activated = row
+                .get(6)
+                .and_then(|v| v.as_date())
+                .expect("Failed to parse 'aktiviert' date");
+            let active_since = row
+                .get(7)
+                .and_then(|v| v.as_date())
+                .expect("Failed to parse 'aktiv seit' date");
+            let active_until = row
+                .get(8)
+                .and_then(|v| v.as_date())
+                .expect("Failed to parse 'aktiv bis' date");
+
+            meter_point_activations.insert(
+                meter_point_id,
+                ActivationStats {
+                    activated,
+                    active_since,
+                    active_until,
+                    participation_factor,
+                },
+            );
+        }
+
+        PodList {
+            meter_point_activations,
         }
     }
 }
