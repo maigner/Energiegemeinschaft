@@ -1,15 +1,14 @@
-use eegfaktura_datalib::eegfaktura::loader::EnergyReport;
+use eegfaktura_datalib::eegfaktura::checks::{
+    EnergyReportChecks, MasterdataChecks, MeterPointRef,
+};
+use eegfaktura_datalib::eegfaktura::loader::{EnergyReport, Masterdata};
 use std::{env, process::exit};
-
 
 fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        println!("usage: eegfaktura-checker [command] [args]");
-        println!(" commands:");
-        println!("  csc: check samples complete");
-
+        print_usage();
         exit(0);
     }
 
@@ -17,20 +16,118 @@ fn main() {
 
     match command.as_str() {
         "csc" => {
-            if args.len() < 3 {
-                println!("usage: eegfaktura-checker csc [path to Energy Report.xlsx]");
-                exit(0);
-            }
-            check_samples_complete(args.get(2).unwrap())
+            let path = require_path(&args, "csc [path to Energy Report.xlsx]");
+            check_samples_complete(&path);
+        }
+        "energy" => {
+            let path = require_path(&args, "energy [path to Energy Report.xlsx]");
+            check_energy_report(&path);
+        }
+        "masterdata" => {
+            let path = require_path(&args, "masterdata [path to EEG Masterdata.xlsx]");
+            check_masterdata(&path);
         }
         _ => {
-            println!("Unknown command");
+            println!("Unknown command: {}", command);
+            print_usage();
             exit(0);
         }
     }
 }
 
-fn check_samples_complete(path: &String) {
+fn print_usage() {
+    println!("usage: eegfaktura-checker [command] [args]");
+    println!(" commands:");
+    println!("  energy [path]      run all logical checks on an Energy Report");
+    println!("  masterdata [path]  run all logical checks on a Masterdata file");
+    println!("  csc [path]         list every missing sample in an Energy Report");
+    println!();
+    println!(" exit code is 1 when a check finds an issue, 0 when clean.");
+}
+
+fn require_path(args: &[String], usage: &str) -> String {
+    match args.get(2) {
+        Some(p) => p.clone(),
+        None => {
+            println!("usage: eegfaktura-checker {}", usage);
+            exit(0);
+        }
+    }
+}
+
+/// Run all logical energy-report checks and print a summary. Exits 1 on issues.
+fn check_energy_report(path: &str) {
+    let mut report = EnergyReport::new(path.to_string());
+    let checks = EnergyReportChecks::run(&mut report);
+
+    println!("Energy Report checks: {}", path);
+    println!(
+        "  measurements complete: {}",
+        yes_no(checks.measurements_complete)
+    );
+    print_refs(
+        "meter points with missing samples",
+        &checks.meter_points_with_missing_samples,
+    );
+    print_refs(
+        "meter points with L3 (unreliable) values",
+        &checks.meter_points_with_l3_values,
+    );
+
+    if checks.has_issues() {
+        println!("\nRESULT: issues found");
+        exit(1);
+    }
+    println!("\nRESULT: ok");
+}
+
+/// Run all logical masterdata checks and print a summary. Exits 1 on issues.
+fn check_masterdata(path: &str) {
+    let mut masterdata = Masterdata::new(path.to_string());
+    let checks = MasterdataChecks::run(&mut masterdata);
+
+    println!("Masterdata checks: {}", path);
+    println!("  file complete: {}", yes_no(checks.file_complete));
+    print_ids(
+        "meter points missing a subscription",
+        &checks.missing_subscriptions,
+    );
+    print_ids(
+        "active meter points missing an activation date",
+        &checks.missing_activations,
+    );
+
+    if checks.has_issues() {
+        println!("\nRESULT: issues found");
+        exit(1);
+    }
+    println!("\nRESULT: ok");
+}
+
+fn yes_no(b: bool) -> &'static str {
+    if b {
+        "yes"
+    } else {
+        "no"
+    }
+}
+
+fn print_refs(label: &str, refs: &[MeterPointRef]) {
+    println!("  {} ({}):", label, refs.len());
+    for r in refs {
+        println!("    {}\t{}", r.meter_point_id, r.name);
+    }
+}
+
+fn print_ids(label: &str, ids: &[String]) {
+    println!("  {} ({}):", label, ids.len());
+    for id in ids {
+        println!("    {}", id);
+    }
+}
+
+/// Detailed listing: every individual missing sample (timestamp granularity).
+fn check_samples_complete(path: &str) {
     let energy_report = EnergyReport::new(path.to_string());
     let measurements = energy_report.measurements; // immutable borrow
     let timeline = energy_report.timeline;
