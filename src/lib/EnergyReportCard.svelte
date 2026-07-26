@@ -8,6 +8,18 @@
   let energy = $derived(report.energy);
   let activation = $derived(report.activation);
 
+  // distinct days (YYYY-MM-DD) from a chronological list of ISO timestamps
+  const distinctDays = (timestamps) => {
+    const days = [];
+    for (const ts of timestamps) {
+      const day = ts.slice(0, 10); // "YYYY-MM-DDTHH:MM:SS" -> date
+      if (days[days.length - 1] !== day) days.push(day);
+    }
+    return days;
+  };
+  const l3Dates = (mp) => distinctDays(mp.occurrences.map((o) => o.timestamp));
+  const missingDays = (mp) => distinctDays(mp.occurrences);
+
   let missingSamples = $derived(energy ? energy.meter_points_with_missing_samples : []);
   let l3 = $derived(energy ? energy.meter_points_with_l3_values : []);
   let mismatches = $derived(activation ? activation.mismatches : []);
@@ -67,9 +79,17 @@
           <h4 class="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
             Zählpunkte mit fehlenden Werten ({missingSamples.length})
           </h4>
-          <ul class="space-y-0.5 text-sm text-gray-600 dark:text-gray-400">
+          <ul class="space-y-1.5 text-sm text-gray-600 dark:text-gray-400">
             {#each missingSamples as mp}
-              <li><span class="font-mono text-xs">{mp.meter_point_id}</span> — {mp.name}</li>
+              <li>
+                <div>
+                  <span class="font-mono text-xs">{mp.meter_point_id}</span> — {mp.name}
+                  <span class="text-gray-400">({mp.occurrences.length} fehlende Werte)</span>
+                </div>
+                <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  Tage: {missingDays(mp).join(", ")}
+                </div>
+              </li>
             {/each}
           </ul>
         </div>
@@ -80,9 +100,17 @@
           <h4 class="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
             Zählpunkte mit L3-Werten (unzuverlässig) ({l3.length})
           </h4>
-          <ul class="space-y-0.5 text-sm text-gray-600 dark:text-gray-400">
+          <ul class="space-y-1.5 text-sm text-gray-600 dark:text-gray-400">
             {#each l3 as mp}
-              <li><span class="font-mono text-xs">{mp.meter_point_id}</span> — {mp.name}</li>
+              <li>
+                <div>
+                  <span class="font-mono text-xs">{mp.meter_point_id}</span> — {mp.name}
+                  <span class="text-gray-400">({mp.occurrences.length} L3-Werte)</span>
+                </div>
+                <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  Tage: {l3Dates(mp).join(", ")}
+                </div>
+              </li>
             {/each}
           </ul>
         </div>
@@ -99,6 +127,7 @@
                 <thead class="text-xs text-gray-500 dark:text-gray-400">
                   <tr>
                     <th class="py-1 pr-3">Zählpunkt</th>
+                    <th class="py-1 pr-3">Mitglied</th>
                     <th class="py-1 pr-3">Status</th>
                     <th class="py-1 pr-3">Feld</th>
                     <th class="py-1 pr-3">Stammdaten</th>
@@ -111,6 +140,7 @@
                     {#if !m.start_dates_agree}
                       <tr class="border-t border-gray-100 dark:border-gray-700">
                         <td class="py-1 pr-3 font-mono text-xs">{m.meter_point_id}</td>
+                        <td class="py-1 pr-3">{m.member_name ?? "—"}</td>
                         <td class="py-1 pr-3">{m.status ?? "—"}</td>
                         <td class="py-1 pr-3">Start</td>
                         <td class="py-1 pr-3">{fmt(m.masterdata_activated)}</td>
@@ -121,6 +151,7 @@
                     {#if !m.end_dates_agree}
                       <tr class="border-t border-gray-100 dark:border-gray-700">
                         <td class="py-1 pr-3 font-mono text-xs">{m.meter_point_id}</td>
+                        <td class="py-1 pr-3">{m.member_name ?? "—"}</td>
                         <td class="py-1 pr-3">{m.status ?? "—"}</td>
                         <td class="py-1 pr-3">Ende</td>
                         <td class="py-1 pr-3">{fmt(m.masterdata_deactivated)}</td>

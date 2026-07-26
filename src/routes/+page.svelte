@@ -213,6 +213,7 @@
                 <thead class="text-gray-400">
                   <tr>
                     <th class="pr-3 font-medium">Mitglied</th>
+                    <th class="pr-3 font-medium">Name</th>
                     <th class="pr-3 font-medium">Status</th>
                     <th class="pr-3 font-medium">aktiviert</th>
                     <th class="pr-3 font-medium">deaktiviert</th>
@@ -222,6 +223,7 @@
                   {#each t.owners as o}
                     <tr>
                       <td class="pr-3">{o.member_number}</td>
+                      <td class="pr-3">{o.member_name}</td>
                       <td class="pr-3">{o.status}</td>
                       <td class="pr-3">{o.activated ?? "—"}</td>
                       <td class="pr-3">{o.deactivated ?? "—"}</td>
