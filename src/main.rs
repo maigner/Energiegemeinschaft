@@ -1,7 +1,7 @@
 use eegfaktura_datalib::eegfaktura::checks::{
-    EnergyReportChecks, MasterdataChecks, MeterPointRef,
+    ActivationConsistencyChecks, EnergyReportChecks, MasterdataChecks, MeterPointRef,
 };
-use eegfaktura_datalib::eegfaktura::loader::{EnergyReport, Masterdata};
+use eegfaktura_datalib::eegfaktura::loader::{EnergyReport, Masterdata, PodList};
 use std::{env, process::exit};
 
 fn main() {
@@ -27,6 +27,15 @@ fn main() {
             let path = require_path(&args, "masterdata [path to EEG Masterdata.xlsx]");
             check_masterdata(&path);
         }
+        "activation" => {
+            if args.len() < 4 {
+                println!(
+                    "usage: eegfaktura-checker activation [masterdata.xlsx] [podlist.xlsx]"
+                );
+                exit(0);
+            }
+            check_activation_consistency(&args[2], &args[3]);
+        }
         _ => {
             println!("Unknown command: {}", command);
             print_usage();
@@ -40,6 +49,8 @@ fn print_usage() {
     println!(" commands:");
     println!("  energy [path]      run all logical checks on an Energy Report");
     println!("  masterdata [path]  run all logical checks on a Masterdata file");
+    println!("  activation [masterdata.xlsx] [podlist.xlsx]");
+    println!("                     cross-check activation dates between masterdata and podlist");
     println!("  csc [path]         list every missing sample in an Energy Report");
     println!();
     println!(" exit code is 1 when a check finds an issue, 0 when clean.");
@@ -95,6 +106,44 @@ fn check_masterdata(path: &str) {
     print_ids(
         "active meter points missing an activation date",
         &checks.missing_activations,
+    );
+
+    if checks.has_issues() {
+        println!("\nRESULT: issues found");
+        exit(1);
+    }
+    println!("\nRESULT: ok");
+}
+
+/// Cross-check activation dates between a masterdata file and a podlist.
+/// Exits 1 on any inconsistency.
+fn check_activation_consistency(masterdata_path: &str, podlist_path: &str) {
+    let masterdata = Masterdata::new(masterdata_path.to_string());
+    let podlist = PodList::new(podlist_path.to_string());
+    let checks = ActivationConsistencyChecks::run(&masterdata, &podlist);
+
+    println!("Activation consistency checks:");
+    println!("  masterdata: {}", masterdata_path);
+    println!("  podlist:    {}", podlist_path);
+
+    println!("  activation date mismatches ({}):", checks.mismatches.len());
+    for m in &checks.mismatches {
+        let masterdata_date = m
+            .masterdata_activated
+            .map(|d| d.to_string())
+            .unwrap_or_else(|| "none".to_string());
+        println!(
+            "    {}\t{:?}\tmasterdata={}\tpodlist={}",
+            m.meter_point_id, m.status, masterdata_date, m.podlist_activated
+        );
+    }
+    print_ids(
+        "ACTIVE meter points missing from podlist",
+        &checks.active_missing_from_podlist,
+    );
+    print_ids(
+        "podlist meter points missing from masterdata",
+        &checks.missing_from_masterdata,
     );
 
     if checks.has_issues() {
