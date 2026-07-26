@@ -155,7 +155,7 @@ impl FromStr for MemberType {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum MeterPointStatus {
     Active,
     Inactive,

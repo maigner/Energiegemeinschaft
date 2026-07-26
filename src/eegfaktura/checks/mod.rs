@@ -5,11 +5,14 @@
 //! that return structured, serializable results. Both the desktop client and
 //! the `eegfaktura-checker` CLI can share this logic instead of re-deriving it.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
+use chrono::NaiveDate;
 use serde::Serialize;
 
-use crate::eegfaktura::loader::{EnergyReport, Masterdata, QovSamples};
+use crate::eegfaktura::loader::{
+    EnergyReport, Masterdata, MeterPointStatus, PodList, QovSamples,
+};
 
 #[cfg(test)]
 mod tests;
@@ -106,6 +109,92 @@ impl MasterdataChecks {
     /// activations.
     pub fn has_issues(&self) -> bool {
         !self.file_complete
+    }
+}
+
+/// A meter point whose masterdata activation date disagrees with the podlist.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ActivationMismatch {
+    pub meter_point_id: String,
+    /// Status as recorded in the masterdata file.
+    pub status: MeterPointStatus,
+    /// Activation date from masterdata (`None` when the file has none).
+    pub masterdata_activated: Option<NaiveDate>,
+    /// Activation date from the podlist (always present there).
+    pub podlist_activated: NaiveDate,
+}
+
+/// Cross-source consistency of meter point activation dates between the
+/// masterdata file and the podlist.
+///
+/// The activation date a meter point carries in the masterdata must match the
+/// `aktiviert` date in the podlist. Only ACTIVE meter points are expected to
+/// appear in the podlist; other statuses (inactive, pending, rejected,
+/// invalid) legitimately may not, so their absence is not reported.
+#[derive(Debug, Clone, Serialize)]
+pub struct ActivationConsistencyChecks {
+    /// Meter points present in both sources whose activation dates differ.
+    pub mismatches: Vec<ActivationMismatch>,
+    /// ACTIVE meter points from masterdata that are absent from the podlist.
+    pub active_missing_from_podlist: Vec<String>,
+    /// Meter points listed in the podlist but absent from masterdata.
+    pub missing_from_masterdata: Vec<String>,
+}
+
+impl ActivationConsistencyChecks {
+    pub fn run(masterdata: &Masterdata, podlist: &PodList) -> Self {
+        let mut mismatches: Vec<ActivationMismatch> = Vec::new();
+        let mut active_missing_from_podlist: Vec<String> = Vec::new();
+        let mut masterdata_ids: HashSet<&str> = HashSet::new();
+
+        for member in masterdata.members.values() {
+            for meter_point in member.meter_points.values() {
+                masterdata_ids.insert(meter_point.id.as_str());
+
+                match podlist.meter_point_activations.get(&meter_point.id) {
+                    Some(stats) => {
+                        if meter_point.activated != Some(stats.activated) {
+                            mismatches.push(ActivationMismatch {
+                                meter_point_id: meter_point.id.clone(),
+                                status: meter_point.status,
+                                masterdata_activated: meter_point.activated,
+                                podlist_activated: stats.activated,
+                            });
+                        }
+                    }
+                    None => {
+                        // Only ACTIVE points are required to be in the podlist.
+                        if meter_point.status == MeterPointStatus::Active {
+                            active_missing_from_podlist.push(meter_point.id.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut missing_from_masterdata: Vec<String> = podlist
+            .meter_point_activations
+            .keys()
+            .filter(|id| !masterdata_ids.contains(id.as_str()))
+            .cloned()
+            .collect();
+
+        mismatches.sort_by(|a, b| a.meter_point_id.cmp(&b.meter_point_id));
+        active_missing_from_podlist.sort();
+        missing_from_masterdata.sort();
+
+        ActivationConsistencyChecks {
+            mismatches,
+            active_missing_from_podlist,
+            missing_from_masterdata,
+        }
+    }
+
+    /// `true` if any activation inconsistency was found.
+    pub fn has_issues(&self) -> bool {
+        !self.mismatches.is_empty()
+            || !self.active_missing_from_podlist.is_empty()
+            || !self.missing_from_masterdata.is_empty()
     }
 }
 
