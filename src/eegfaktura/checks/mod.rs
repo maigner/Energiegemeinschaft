@@ -7,11 +7,11 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use serde::Serialize;
 
 use crate::eegfaktura::loader::{
-    EnergyReport, Masterdata, MeterPointStatus, PodList, QovSamples,
+    EnergyReport, Masterdata, MeterPoint, MeterPointStatus, PodList, QovSamples,
 };
 
 #[cfg(test)]
@@ -112,28 +112,49 @@ impl MasterdataChecks {
     }
 }
 
-/// A meter point whose masterdata activation date disagrees with the podlist.
+/// A meter point whose activation window disagrees across the sources it
+/// appears in. Every field carries the value from its source (`None` when the
+/// meter point is absent from that source, or the source has no such date).
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ActivationMismatch {
     pub meter_point_id: String,
-    /// Status as recorded in the masterdata file.
-    pub status: MeterPointStatus,
-    /// Activation date from masterdata (`None` when the file has none).
+    /// Status from masterdata; `None` when the point is not in the masterdata.
+    pub status: Option<MeterPointStatus>,
+
+    /// Activation (start) date per source.
     pub masterdata_activated: Option<NaiveDate>,
-    /// Activation date from the podlist (always present there).
-    pub podlist_activated: NaiveDate,
+    pub podlist_activated: Option<NaiveDate>,
+    pub energy_active_start: Option<NaiveDate>,
+
+    /// Deactivation (end) date per source. Open-ended windows (year >= 2999,
+    /// e.g. the 2999-12-31 / 9999-12-31 sentinels) are treated as equal.
+    pub masterdata_deactivated: Option<NaiveDate>,
+    pub podlist_active_until: Option<NaiveDate>,
+    pub energy_active_end: Option<NaiveDate>,
+
+    /// `false` when the concrete start dates from different sources disagree.
+    pub start_dates_agree: bool,
+    /// `false` when the (sentinel-normalized) end dates from different sources
+    /// disagree.
+    pub end_dates_agree: bool,
 }
 
-/// Cross-source consistency of meter point activation dates between the
-/// masterdata file and the podlist.
+/// Cross-source consistency of meter point activation windows between the
+/// masterdata file, the podlist and (optionally) an energy report.
 ///
-/// The activation date a meter point carries in the masterdata must match the
-/// `aktiviert` date in the podlist. Only ACTIVE meter points are expected to
-/// appear in the podlist; other statuses (inactive, pending, rejected,
-/// invalid) legitimately may not, so their absence is not reported.
+/// The start date a meter point carries in the masterdata (`aktiviert`) must
+/// match the podlist `aktiviert` and the energy report's active-from date;
+/// likewise for the end date (`deaktiviert` / `aktiv bis` / active-until).
+/// Only concrete dates are compared — a source that has no date for a point
+/// (e.g. masterdata has no `aktiviert` for a pending point) is not counted as a
+/// disagreement. Open-ended end dates are normalized so the differing sentinels
+/// (2999-12-31 vs 9999-12-31) do not register as conflicts.
+///
+/// Only ACTIVE meter points are expected to appear in the podlist; other
+/// statuses legitimately may not, so their absence is not reported.
 #[derive(Debug, Clone, Serialize)]
 pub struct ActivationConsistencyChecks {
-    /// Meter points present in both sources whose activation dates differ.
+    /// Meter points present in >= 2 sources whose start or end dates disagree.
     pub mismatches: Vec<ActivationMismatch>,
     /// ACTIVE meter points from masterdata that are absent from the podlist.
     pub active_missing_from_podlist: Vec<String>,
@@ -142,42 +163,99 @@ pub struct ActivationConsistencyChecks {
 }
 
 impl ActivationConsistencyChecks {
-    pub fn run(masterdata: &Masterdata, podlist: &PodList) -> Self {
-        let mut mismatches: Vec<ActivationMismatch> = Vec::new();
-        let mut active_missing_from_podlist: Vec<String> = Vec::new();
-        let mut masterdata_ids: HashSet<&str> = HashSet::new();
-
+    pub fn run(
+        masterdata: &Masterdata,
+        podlist: &PodList,
+        energy_report: Option<&EnergyReport>,
+    ) -> Self {
+        // Flatten masterdata meter points into id -> meter point. A meter point
+        // id can appear under more than one member (e.g. after an ownership
+        // change), so pick a deterministic winner instead of relying on hash
+        // map iteration order.
+        let mut masterdata_points: HashMap<&str, &MeterPoint> = HashMap::new();
         for member in masterdata.members.values() {
             for meter_point in member.meter_points.values() {
-                masterdata_ids.insert(meter_point.id.as_str());
-
-                match podlist.meter_point_activations.get(&meter_point.id) {
-                    Some(stats) => {
-                        if meter_point.activated != Some(stats.activated) {
-                            mismatches.push(ActivationMismatch {
-                                meter_point_id: meter_point.id.clone(),
-                                status: meter_point.status,
-                                masterdata_activated: meter_point.activated,
-                                podlist_activated: stats.activated,
-                            });
+                masterdata_points
+                    .entry(meter_point.id.as_str())
+                    .and_modify(|existing| {
+                        if meter_point_rank(meter_point) > meter_point_rank(existing) {
+                            *existing = meter_point;
                         }
-                    }
-                    None => {
-                        // Only ACTIVE points are required to be in the podlist.
-                        if meter_point.status == MeterPointStatus::Active {
-                            active_missing_from_podlist.push(meter_point.id.clone());
-                        }
-                    }
-                }
+                    })
+                    .or_insert(meter_point);
             }
         }
+        let energy_stats = energy_report.map(|r| &r.meter_points_stats);
 
-        let mut missing_from_masterdata: Vec<String> = podlist
-            .meter_point_activations
-            .keys()
-            .filter(|id| !masterdata_ids.contains(id.as_str()))
-            .cloned()
-            .collect();
+        // Union of all meter point ids across the provided sources.
+        let mut all_ids: HashSet<&str> = HashSet::new();
+        all_ids.extend(masterdata_points.keys().copied());
+        all_ids.extend(podlist.meter_point_activations.keys().map(String::as_str));
+        if let Some(stats) = energy_stats {
+            all_ids.extend(stats.keys().map(String::as_str));
+        }
+
+        let mut mismatches: Vec<ActivationMismatch> = Vec::new();
+        let mut active_missing_from_podlist: Vec<String> = Vec::new();
+        let mut missing_from_masterdata: Vec<String> = Vec::new();
+
+        for id in all_ids {
+            let md = masterdata_points.get(id).copied();
+            let pod = podlist.meter_point_activations.get(id);
+            let en = energy_stats.and_then(|s| s.get(id));
+
+            // presence checks (masterdata <-> podlist)
+            match (md, pod) {
+                (Some(mp), None) if mp.status == MeterPointStatus::Active => {
+                    active_missing_from_podlist.push(id.to_string());
+                }
+                (None, Some(_)) => {
+                    missing_from_masterdata.push(id.to_string());
+                }
+                _ => {}
+            }
+
+            // date consistency across every source that has this point
+            let masterdata_activated = md.and_then(|m| m.activated);
+            let podlist_activated = pod.map(|s| s.activated);
+            let energy_active_start = en.map(|s| s.date_active_start);
+
+            let masterdata_deactivated = md.and_then(|m| m.deactivated);
+            let podlist_active_until = pod.map(|s| s.active_until);
+            let energy_active_end = en.map(|s| s.date_active_end);
+
+            let source_count =
+                md.is_some() as u8 + pod.is_some() as u8 + en.is_some() as u8;
+            if source_count < 2 {
+                continue; // nothing to cross-check
+            }
+
+            let start_dates_agree = starts_agree(&[
+                masterdata_activated,
+                podlist_activated,
+                energy_active_start,
+            ]);
+            let end_dates_agree = ends_agree(&[
+                masterdata_deactivated,
+                podlist_active_until,
+                energy_active_end,
+            ]);
+
+            if !start_dates_agree || !end_dates_agree {
+                mismatches.push(ActivationMismatch {
+                    meter_point_id: id.to_string(),
+                    status: md.map(|m| m.status),
+                    masterdata_activated,
+                    podlist_activated,
+                    energy_active_start,
+                    masterdata_deactivated,
+                    podlist_active_until,
+                    energy_active_end,
+                    start_dates_agree,
+                    end_dates_agree,
+                });
+            }
+        }
 
         mismatches.sort_by(|a, b| a.meter_point_id.cmp(&b.meter_point_id));
         active_missing_from_podlist.sort();
@@ -196,6 +274,261 @@ impl ActivationConsistencyChecks {
             || !self.active_missing_from_podlist.is_empty()
             || !self.missing_from_masterdata.is_empty()
     }
+}
+
+/// One owner's record of a meter point (a single masterdata row).
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct OwnerRecord {
+    pub member_number: String,
+    pub status: MeterPointStatus,
+    pub activated: Option<NaiveDate>,
+    pub deactivated: Option<NaiveDate>,
+}
+
+/// An external source (podlist or energy report) that still carries a former
+/// owner's activation date for a transferred meter point.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct StaleSource {
+    /// Which source is stale, e.g. "podlist" or "energy report".
+    pub source: String,
+    /// The activation date that source carries.
+    pub activation_date: NaiveDate,
+    /// The former owner whose active period covers that date, if identifiable.
+    pub former_owner: Option<String>,
+}
+
+/// A meter point that appears under more than one member — i.e. its ownership
+/// changed over time.
+#[derive(Debug, Clone, Serialize)]
+pub struct MeterPointOwnership {
+    pub meter_point_id: String,
+    /// All owners, ordered by activation date (earliest first).
+    pub owners: Vec<OwnerRecord>,
+    /// `true` for a clean transfer (each owner deactivated before the next was
+    /// activated, at most one currently active) with no stale external sources.
+    pub is_valid: bool,
+    /// Human-readable descriptions of what makes the transfer invalid; empty
+    /// when `is_valid`.
+    pub problems: Vec<String>,
+    /// External sources still pointing at a former owner after the transfer.
+    pub stale_sources: Vec<StaleSource>,
+}
+
+/// Ownership-change consistency across the masterdata, podlist and energy report.
+///
+/// A meter point can legitimately change owner: it is deactivated for the old
+/// owner and later activated for the new one. Such a meter point appears under
+/// several members. A transfer is clean when the owners' active periods do not
+/// overlap, only one owner is currently active, and every external source
+/// (podlist, energy report) carries the current owner's activation date rather
+/// than a former owner's.
+#[derive(Debug, Clone, Serialize)]
+pub struct OwnershipChecks {
+    /// Meter points that appear under more than one member.
+    pub transfers: Vec<MeterPointOwnership>,
+}
+
+impl OwnershipChecks {
+    pub fn run(
+        masterdata: &Masterdata,
+        podlist: &PodList,
+        energy_report: Option<&EnergyReport>,
+    ) -> Self {
+        // Collect every (member, meter point) record grouped by meter point id.
+        let mut by_id: HashMap<&str, Vec<(&str, &MeterPoint)>> = HashMap::new();
+        for member in masterdata.members.values() {
+            for meter_point in member.meter_points.values() {
+                by_id
+                    .entry(meter_point.id.as_str())
+                    .or_default()
+                    .push((member.member_number.as_str(), meter_point));
+            }
+        }
+        let energy_stats = energy_report.map(|r| &r.meter_points_stats);
+
+        let mut transfers: Vec<MeterPointOwnership> = Vec::new();
+        for (id, mut records) in by_id {
+            if records.len() < 2 {
+                continue; // single owner, not a transfer
+            }
+
+            // order by activation date (points without one sort first), then by
+            // member number for a stable result
+            records.sort_by(|a, b| {
+                a.1.activated
+                    .cmp(&b.1.activated)
+                    .then_with(|| a.0.cmp(b.0))
+            });
+
+            let mut problems: Vec<String> = Vec::new();
+
+            let active_count = records
+                .iter()
+                .filter(|(_, mp)| mp.status == MeterPointStatus::Active)
+                .count();
+            if active_count > 1 {
+                problems.push(format!("{} owners are simultaneously ACTIVE", active_count));
+            }
+
+            if owners_overlap(&records) {
+                problems.push(
+                    "owner active periods overlap (old owner not deactivated before the next was activated)"
+                        .to_string(),
+                );
+            }
+
+            // The current owner is the active one (latest activation if several),
+            // else simply the latest-activated record.
+            let current = records
+                .iter()
+                .filter(|(_, mp)| mp.status == MeterPointStatus::Active)
+                .max_by_key(|(_, mp)| mp.activated)
+                .or_else(|| records.iter().max_by_key(|(_, mp)| mp.activated));
+            let current_member = current.map(|(mn, _)| *mn);
+            let current_activation = current.and_then(|(_, mp)| mp.activated);
+
+            // A source is stale if its activation date predates the current
+            // owner's activation, i.e. it still reflects a former owner.
+            let mut stale_sources: Vec<StaleSource> = Vec::new();
+            if let Some(current_start) = current_activation {
+                let podlist_date = podlist.meter_point_activations.get(id).map(|s| s.activated);
+                let energy_date = energy_stats
+                    .and_then(|s| s.get(id))
+                    .map(|s| s.date_active_start);
+
+                for (source, date) in [("podlist", podlist_date), ("energy report", energy_date)]
+                {
+                    if let Some(date) = date {
+                        if date < current_start {
+                            stale_sources.push(StaleSource {
+                                source: source.to_string(),
+                                activation_date: date,
+                                former_owner: former_owner_at(&records, current_member, date),
+                            });
+                        }
+                    }
+                }
+            }
+
+            let owners: Vec<OwnerRecord> = records
+                .iter()
+                .map(|(member_number, mp)| OwnerRecord {
+                    member_number: member_number.to_string(),
+                    status: mp.status,
+                    activated: mp.activated,
+                    deactivated: mp.deactivated,
+                })
+                .collect();
+
+            let is_valid = problems.is_empty() && stale_sources.is_empty();
+            transfers.push(MeterPointOwnership {
+                meter_point_id: id.to_string(),
+                owners,
+                is_valid,
+                problems,
+                stale_sources,
+            });
+        }
+
+        transfers.sort_by(|a, b| a.meter_point_id.cmp(&b.meter_point_id));
+        OwnershipChecks { transfers }
+    }
+
+    /// `true` if any ownership transfer is invalid. Clean transfers are normal
+    /// and do not count as an issue.
+    pub fn has_issues(&self) -> bool {
+        self.transfers.iter().any(|t| !t.is_valid)
+    }
+}
+
+/// Which former owner (not the current one) had an active period covering
+/// `date`, if any.
+fn former_owner_at(
+    records: &[(&str, &MeterPoint)],
+    current_member: Option<&str>,
+    date: NaiveDate,
+) -> Option<String> {
+    records
+        .iter()
+        .filter(|(mn, _)| Some(*mn) != current_member)
+        .find(|(_, mp)| {
+            let start = mp.activated.unwrap_or(NaiveDate::MIN);
+            let end = mp
+                .deactivated
+                .filter(|d| !is_open_ended(*d))
+                .unwrap_or(NaiveDate::MAX);
+            start <= date && date <= end
+        })
+        .map(|(mn, _)| mn.to_string())
+}
+
+/// Do any two owners' active periods overlap? Each period runs from `activated`
+/// (open start if absent) to `deactivated` (open end if absent or an open-ended
+/// sentinel). Touching endpoints (deactivate on the day the next activates) do
+/// not count as an overlap.
+fn owners_overlap(records: &[(&str, &MeterPoint)]) -> bool {
+    let intervals: Vec<(NaiveDate, NaiveDate)> = records
+        .iter()
+        .map(|(_, mp)| {
+            let start = mp.activated.unwrap_or(NaiveDate::MIN);
+            let end = match mp.deactivated {
+                Some(d) if !is_open_ended(d) => d,
+                _ => NaiveDate::MAX,
+            };
+            (start, end)
+        })
+        .collect();
+
+    for i in 0..intervals.len() {
+        for j in (i + 1)..intervals.len() {
+            let (a_start, a_end) = intervals[i];
+            let (b_start, b_end) = intervals[j];
+            if a_start < b_end && b_start < a_end {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Preference order when a meter point id appears under multiple masterdata
+/// members: the ACTIVE record wins, then one that has an activation date, then
+/// the most recent activation / deactivation / registration. This is a total,
+/// deterministic order so the flattened result never depends on hash map
+/// iteration order.
+fn meter_point_rank(
+    mp: &MeterPoint,
+) -> (bool, bool, Option<NaiveDate>, Option<NaiveDate>, NaiveDate) {
+    (
+        mp.status == MeterPointStatus::Active,
+        mp.activated.is_some(),
+        mp.activated,
+        mp.deactivated,
+        mp.registered,
+    )
+}
+
+/// An end date at or beyond year 2999 is an open-ended sentinel (both
+/// 2999-12-31 and 9999-12-31 are used in practice).
+fn is_open_ended(date: NaiveDate) -> bool {
+    date.year() >= 2999
+}
+
+/// Concrete start dates present across sources must all be equal.
+fn starts_agree(dates: &[Option<NaiveDate>]) -> bool {
+    let present: Vec<NaiveDate> = dates.iter().flatten().copied().collect();
+    present.windows(2).all(|w| w[0] == w[1])
+}
+
+/// End dates present across sources must all be equal after normalizing
+/// open-ended sentinels to a single value.
+fn ends_agree(dates: &[Option<NaiveDate>]) -> bool {
+    let present: Vec<Option<NaiveDate>> = dates
+        .iter()
+        .flatten()
+        .map(|&d| if is_open_ended(d) { None } else { Some(d) })
+        .collect();
+    present.windows(2).all(|w| w[0] == w[1])
 }
 
 fn dedup_map_to_refs(map: BTreeMap<String, String>) -> Vec<MeterPointRef> {
