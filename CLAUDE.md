@@ -56,7 +56,11 @@ The database uses `django.db.backends.postgresql` with `OPTIONS.service = "eeg-m
 
 ## notebooks/
 
-Analysis and back-office notebooks (run with the repo-root `.venv`). Notable areas: `finance/` (SEPA XML for direct debits/credits — `XML Lastschriften`, `XML Gutschriften`, George bank CSV import, tax/annual-close), `energyData/` (EEG-Faktura energy report loader), `weather/` (Open-Meteo import), `eegfaktura/` (EEG-Faktura API). Data files under these directories are gitignored.
+Analysis and back-office notebooks (run with the repo-root `.venv`). Notable areas: `finance/` (SEPA XML for direct debits/credits — `XML Lastschriften`, `XML Gutschriften`, George bank CSV import, tax/annual-close), `energyData/` (EEG-Faktura energy report loader), `weather/` (Open-Meteo import), `eegfaktura/` (EEG-Faktura API), `forecast/` (energy forecast — see below). Data files under these directories are gitignored.
+
+`weather/backfill_openmeteo.py` is the canonical loader for `weather_weatherdata` (archive API for the past, forecast API for the rest, `--check` reports coverage gaps); the notebooks next to it only write the original eleven columns and are superseded.
+
+`forecast/` predicts the community 15-min series for the days the EEG-Faktura export does not cover yet. `eeg_forecast.py` holds the logic (also runnable as a CLI), `Energieprognose.ipynb` drives it, `forecast/README.md` explains the model. Two things to know when touching measurement data anywhere: some exports are only partially delivered (rows present, most points all-zero — `MIN_REPORTING_SHARE` detects that), and `Anteil gemeinschaftliche Erzeugung` equals the total community generation, while `Eigendeckung` is what members actually consumed.
 
 ## Notes
 
