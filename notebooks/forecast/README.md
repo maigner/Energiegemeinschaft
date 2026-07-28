@@ -12,8 +12,15 @@ EEG-Faktura-Export noch nicht abdeckt — heute und die nächsten ein bis zwei W
 ```bash
 cd notebooks/forecast
 ../../.venv/bin/python eeg_forecast.py --refresh --days 14            # Prognose als CSV + Tagestabelle
+../../.venv/bin/python eeg_forecast.py --refresh --days 30 --store    # dasselbe, zusätzlich in die DB
 ../../.venv/bin/python eeg_forecast.py --backtest --folds 6           # Gütebewertung
+../../.venv/bin/python eeg_forecast.py --evaluate                     # gespeicherte Prognosen vs. Messdaten
 ```
+
+**Nach jedem EEG-Faktura-Import:** erst das Import-Notebook laufen lassen (es
+aktualisiert auch `daily_metering_quality`), dann
+`eeg_forecast.py --refresh --days 30 --store`. Die Website zeigt automatisch den
+neuesten gespeicherten Lauf unter `/vorhersage`.
 
 Im Notebook:
 
@@ -129,6 +136,32 @@ naive Referenz beim Verbrauch sogar besser (11,5 % vs. 15,8 %).
 
 Backtest nach jedem Import neu laufen lassen — die Zahlen hängen davon ab, welche Jahreszeit die
 Folds abdecken.
+
+## Speicherung und Soll-Ist-Vergleich
+
+`--store` schreibt einen Lauf in `metering_energyforecastrun` (Metadaten: Zeitpunkt,
+Datenstand, Horizont, Hyperparameter, Niveaukorrekturen) und die 15-Minuten-Werte in
+`metering_energyforecast`. **Läufe werden nie überschrieben** — nur so lässt sich später
+nachvollziehen, was die Prognose gesagt hat, bevor die echten Daten da waren.
+
+Sobald der EEG-Faktura-Export die betreffenden Tage nachliefert, stellt die View
+`energy_forecast_vs_actual` beides gegenüber (siehe `middleware/README.md`). Unvollständig
+gelieferte Tage sind dort über `actual_is_complete` ausgeschlossen — sie sähen sonst wie ein
+riesiger Prognosefehler aus. In Python:
+
+```python
+evaluation = ef.load_evaluation()          # je Lauf und Tag: Prognose, Messwert, Abweichung
+ef.evaluation_summary(evaluation)          # MAE / nMAE / Bias je Zielgröße
+```
+
+`--hindcast N` rechnet zusätzlich N Läufe für bereits vergangene Zeiträume nach (trainiert nur
+mit Daten vor dem jeweiligen Stichtag). Damit hat der Vergleich sofort Inhalt, ohne einen Monat
+zu warten. Diese Läufe bekommen die `model_version` `gbt-1.0-hindcast`, weil sie das tatsächlich
+eingetretene Wetter verwenden statt der damaligen Wettervorhersage — sie fallen etwas zu gut aus
+und sind auf der Website entsprechend gekennzeichnet.
+
+Erster Vergleich (3 Hindcast-Läufe, 42 Tage): Verbrauch 9,1 % nMAE, Erzeugung 12,5 %,
+Eigendeckung 18,0 % — passend zu den Backtest-Zahlen oben.
 
 ## Grenzen und mögliche Verbesserungen
 

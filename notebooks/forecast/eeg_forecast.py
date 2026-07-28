@@ -753,6 +753,178 @@ def daily_summary(forecast_frame: pd.DataFrame) -> pd.DataFrame:
 
 
 # --------------------------------------------------------------------------
+# storing forecasts in the database
+# --------------------------------------------------------------------------
+
+MODEL_VERSION = "gbt-1.0"
+
+# forecast column -> database column
+STORED_COLUMNS = {
+    "consumption_kwh": "consumption_kwh",
+    "consumption_kwh_q10": "consumption_kwh_p10",
+    "consumption_kwh_q90": "consumption_kwh_p90",
+    "generation_kwh": "generation_kwh",
+    "generation_kwh_q10": "generation_kwh_p10",
+    "generation_kwh_q90": "generation_kwh_p90",
+    "self_coverage_kwh": "self_coverage_kwh",
+    "self_coverage_kwh_q10": "self_coverage_kwh_p10",
+    "self_coverage_kwh_q90": "self_coverage_kwh_p90",
+    "surplus_kwh": "surplus_kwh",
+    "surplus_kwh_q10": "surplus_kwh_p10",
+    "surplus_kwh_q90": "surplus_kwh_p90",
+    "n_cons": "n_consumption_points",
+    "n_gen": "n_generation_points",
+}
+
+
+def store_forecast(frame: pd.DataFrame, forecast_frame: pd.DataFrame, models: dict,
+                   model_version: str = MODEL_VERSION,
+                   data_until: pd.Timestamp | None = None) -> int:
+    """Write a forecast run to metering_energyforecastrun / metering_energyforecast.
+
+    Every run is stored on its own and never overwritten -- that is what makes
+    the later comparison against the real measurements possible (view
+    `energy_forecast_vs_actual`).  Returns the new run id.
+    """
+    from psycopg.types.json import Json
+
+    missing = [c for c in STORED_COLUMNS if c not in forecast_frame.columns]
+    if missing:
+        raise ValueError(f"forecast is missing columns: {missing}")
+
+    parameters = {
+        "half_life_days": HALF_LIFE_DAYS,
+        "calibration_days": CALIBRATION_DAYS,
+        "n_features": len(feature_columns(frame)),
+        "scale": {key: round(entry.get("scale", 1.0), 4) for key, entry in models.items()},
+        "n_train": {key: entry.get("n_train") for key, entry in models.items()},
+    }
+
+    index = forecast_frame.index
+    rows = [
+        (
+            timestamp.to_pydatetime(),
+            *[None if pd.isna(value) else float(value)
+              for value in forecast_frame.loc[timestamp, list(STORED_COLUMNS)]],
+        )
+        for timestamp in index
+    ]
+
+    with _connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO metering_energyforecastrun
+                    (created_at, model_version, data_until, horizon_start, horizon_end,
+                     training_intervals, parameters)
+                VALUES (now(), %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (
+                    model_version,
+                    (data_until if data_until is not None else last_complete_day(frame)).date(),
+                    index.min().to_pydatetime(),
+                    index.max().to_pydatetime(),
+                    int(frame.complete.sum()),
+                    Json(parameters),
+                ),
+            )
+            run_id = cur.fetchone()[0]
+
+            columns = ", ".join(STORED_COLUMNS.values())
+            placeholders = ", ".join(["%s"] * (len(STORED_COLUMNS) + 2))
+            cur.executemany(
+                f"INSERT INTO metering_energyforecast (run_id, timestamp, {columns}) "
+                f"VALUES ({placeholders})",
+                [(run_id, *row) for row in rows],
+            )
+        conn.commit()
+
+    print(f"Prognoselauf {run_id} gespeichert: {len(rows)} Intervalle "
+          f"({index.min().tz_convert(TZ).date()} bis {index.max().tz_convert(TZ).date()})")
+    return run_id
+
+
+HINDCAST_VERSION = f"{MODEL_VERSION}-hindcast"
+
+
+def store_hindcast_runs(frame: pd.DataFrame, n_runs: int = 3, horizon_days: int = 14) -> list[int]:
+    """Prognoseläufe für bereits vergangene Zeiträume nachrechnen und speichern.
+
+    Trainiert wird ausschließlich mit Daten vor dem jeweiligen Stichtag, die
+    Läufe sind also echte Out-of-sample-Prognosen. Ein Unterschied zum
+    Echtbetrieb bleibt: das Wetter ist hier das tatsächlich eingetretene und
+    nicht die damalige Vorhersage. Deshalb bekommen diese Läufe eine eigene
+    `model_version` -- sie fallen im Vergleich etwas zu gut aus.
+    """
+    last_day = last_complete_day(frame)
+    run_ids = []
+    for step in range(n_runs, 0, -1):
+        cutoff_day = last_day - pd.Timedelta(days=horizon_days * step)
+        cutoff = cutoff_day.tz_localize(TZ).tz_convert("UTC")
+        models = train(frame, until=cutoff)
+
+        start = (cutoff_day + pd.Timedelta(days=1)).tz_localize(TZ)
+        index = frame.index[(frame.index >= start.tz_convert("UTC"))
+                            & (frame.index < start.tz_convert("UTC") + pd.Timedelta(days=horizon_days))]
+        # nur die Zählpunktentwicklung verwenden, die damals bekannt war
+        counts = project_point_counts(frame[frame.index < cutoff], index)
+        result = forecast(frame, models, start=start, days=horizon_days, point_counts=counts)
+        run_ids.append(store_forecast(frame, result, models,
+                                      model_version=HINDCAST_VERSION, data_until=cutoff_day))
+    return run_ids
+
+
+def load_evaluation(run_id: int | None = None, only_complete: bool = True,
+                    only_full_days: bool = True) -> pd.DataFrame:
+    """Read `energy_forecast_vs_actual`: forecast vs. measurement, per run and day.
+
+    `only_complete` keeps the days whose EEG-Faktura delivery is complete --
+    partially delivered days would look like a huge forecast error.
+    `only_full_days` drops the partial days at the edges of a horizon.
+    """
+    conditions = ["consumption_actual IS NOT NULL"]
+    if only_complete:
+        conditions.append("actual_is_complete")
+    if only_full_days:
+        conditions.append("intervals = 96")
+    if run_id is not None:
+        conditions.append(f"run_id = {int(run_id)}")
+
+    query = f"""
+        SELECT * FROM energy_forecast_vs_actual
+        WHERE {' AND '.join(conditions)}
+        ORDER BY run_id, day
+    """
+    frame = _query(query)
+    for key in ("consumption", "generation", "self_coverage", "surplus"):
+        forecast, actual = f"{key}_forecast", f"{key}_actual"
+        if forecast in frame.columns:
+            frame[forecast] = frame[forecast].astype(float)
+            frame[actual] = frame[actual].astype(float)
+            frame[f"{key}_error"] = frame[forecast] - frame[actual]
+            frame[f"{key}_error_pct"] = 100 * frame[f"{key}_error"] / frame[actual].replace(0, np.nan)
+    return frame
+
+
+def evaluation_summary(evaluation: pd.DataFrame) -> pd.DataFrame:
+    """Mean absolute error per target over all evaluated days."""
+    rows = []
+    for key in ("consumption", "generation", "self_coverage", "surplus"):
+        if f"{key}_forecast" not in evaluation.columns:
+            continue
+        actual, forecast = evaluation[f"{key}_actual"], evaluation[f"{key}_forecast"]
+        rows.append({
+            "target": key,
+            "days": int(actual.notna().sum()),
+            "mae_kwh": float((forecast - actual).abs().mean()),
+            "nmae_pct": float(100 * (forecast - actual).abs().mean() / actual.mean()),
+            "bias_kwh": float((forecast - actual).mean()),
+        })
+    return pd.DataFrame(rows).round(2)
+
+
+# --------------------------------------------------------------------------
 # evaluation
 # --------------------------------------------------------------------------
 
@@ -891,7 +1063,31 @@ def main() -> None:
     parser.add_argument("--backtest", action="store_true", help="run the rolling origin evaluation")
     parser.add_argument("--folds", type=int, default=6)
     parser.add_argument("--out", default=str(CACHE_DIR / "forecast.csv"))
+    parser.add_argument("--store", action="store_true",
+                        help="Prognoselauf in die DB schreiben (Website + späterer Vergleich)")
+    parser.add_argument("--evaluate", action="store_true",
+                        help="gespeicherte Prognosen gegen die inzwischen eingetroffenen Messdaten halten")
+    parser.add_argument("--hindcast", type=int, default=0, metavar="N",
+                        help="zusätzlich N Läufe für bereits vergangene Zeiträume nachrechnen und speichern")
     args = parser.parse_args()
+
+    if args.hindcast:
+        frame = build_frame(refresh=args.refresh)
+        store_hindcast_runs(frame, n_runs=args.hindcast, horizon_days=min(args.days, 14))
+
+    if args.evaluate:
+        evaluation = load_evaluation()
+        if evaluation.empty:
+            print("noch keine gespeicherte Prognose, für die es schon Messdaten gibt")
+        else:
+            columns = ["run_id", "day", "days_ahead", "consumption_forecast", "consumption_actual",
+                       "generation_forecast", "generation_actual",
+                       "self_coverage_forecast", "self_coverage_actual"]
+            print(evaluation[columns].round(1).to_string(index=False))
+            print()
+            print(evaluation_summary(evaluation).to_string(index=False))
+        if not args.store:
+            return
 
     frame = build_frame(refresh=args.refresh)
     print(f"data until {last_complete_day(frame).date()} (complete days), "
@@ -911,6 +1107,9 @@ def main() -> None:
                            "coverage_pct", "n_cons", "n_gen") if c in summary.columns]
     print(summary[columns].to_string())
     print(f"\n15 min forecast written to {args.out}")
+
+    if args.store:
+        store_forecast(frame, result, models)
 
 
 if __name__ == "__main__":
