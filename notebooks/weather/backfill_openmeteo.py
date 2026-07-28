@@ -192,28 +192,45 @@ def main() -> None:
         report_coverage()
         return
 
-    start = date.fromisoformat(args.start)
+    backfill(
+        start=date.fromisoformat(args.start),
+        end=date.fromisoformat(args.end) if args.end else None,
+        forecast_days=1 if args.no_forecast else args.forecast_days,
+        chunk_days=args.chunk_days,
+    )
+    report_coverage()
+
+
+def backfill(start: date = DEFAULT_START, end: date | None = None,
+             forecast_days: int = 16, chunk_days: int = 180) -> int:
+    """Zeitraum nachladen; gibt die Anzahl geschriebener Stunden zurück.
+
+    Auch aus Notebooks heraus verwendbar:
+
+        import backfill_openmeteo as weather
+        weather.backfill()
+        weather.report_coverage()
+    """
     today = date.today()
-    end = date.fromisoformat(args.end) if args.end else today
+    end = end or today
     # das ERA5-Archiv hinkt rund fünf Tage nach
     archive_end = min(end, today - timedelta(days=6))
 
     written = 0
     chunk_start = start
     while chunk_start <= archive_end:
-        chunk_end = min(chunk_start + timedelta(days=args.chunk_days - 1), archive_end)
+        chunk_end = min(chunk_start + timedelta(days=chunk_days - 1), archive_end)
         rows = fetch_archive(chunk_start, chunk_end)
         written += upsert(rows, f"Archiv {chunk_start}..{chunk_end}")[0]
         chunk_start = chunk_end + timedelta(days=1)
 
     # letzte Tage + Vorhersage aus der Forecast-API
     past_days = max((today - archive_end).days + 1, 2) if end >= archive_end else 2
-    forecast_days = 1 if args.no_forecast else args.forecast_days
     rows = fetch_recent(past_days, forecast_days)
     written += upsert(rows, f"Forecast-API (letzte {past_days} Tage + {forecast_days} Tage voraus)")[0]
 
     print(f"\ngesamt {written} Stunden geschrieben")
-    report_coverage()
+    return written
 
 
 if __name__ == "__main__":

@@ -41,11 +41,11 @@
             generation: 100 * error("generation"),
             from: data.accuracy[0].day,
             to: data.accuracy[data.accuracy.length - 1].day,
-            // nachträglich gerechnete Läufe kennen das Wetter, das wirklich
-            // eingetreten ist -- sie fallen deshalb etwas zu gut aus
-            hasHindcast: data.accuracy.some((e) =>
-                String(e.model_version).includes("hindcast"),
-            ),
+            // Tage, die beim Rechnen schon vorbei waren, kennen das Wetter, das
+            // wirklich eingetreten ist -- sie fallen deshalb etwas zu gut aus
+            measuredWeatherDays: data.accuracy.filter(
+                (e) => e.used_measured_weather,
+            ).length,
         };
     })();
 </script>
@@ -130,9 +130,10 @@
     {#if data.accuracy?.length}
         <Heading tag="h4" class="mt-12 text-center">Wie gut war die Prognose?</Heading>
         <P class="mx-auto mt-4 max-w-3xl text-center">
-            Für diese Tage sind die echten Messwerte inzwischen eingetroffen —
-            hier steht, was vorher prognostiziert wurde, neben dem, was
-            tatsächlich gemessen wurde.
+            Für diese Tage steht das Ergebnis endgültig fest — hier steht, was
+            vorher prognostiziert wurde, neben dem, was tatsächlich gemessen
+            wurde. Die letzten Monate fehlen bewusst: die Messdaten werden noch
+            monatelang nachkorrigiert und wären kein fairer Maßstab.
         </P>
         {#if accuracySummary}
             <div class="mt-4 flex justify-center gap-3">
@@ -148,12 +149,13 @@
         <div class="mt-4">
             <AccuracyChart accuracy={data.accuracy} />
         </div>
-        {#if accuracySummary?.hasHindcast}
+        {#if accuracySummary?.measuredWeatherDays}
             <P class="mx-auto mt-3 max-w-3xl text-center text-sm text-gray-500 dark:text-gray-400">
-                Ein Teil dieser Tage wurde nachträglich durchgerechnet: das
-                Modell hat dabei zwar nur Messdaten von vor dem jeweiligen Tag
-                gesehen, aber das tatsächlich eingetretene Wetter statt einer
-                Wettervorhersage. Diese Tage fallen daher etwas zu gut aus.
+                Bei {accuracySummary.measuredWeatherDays} dieser {accuracySummary.days}
+                Tage lag der Tag zum Zeitpunkt der Berechnung schon zurück — die
+                Messdaten dazu fehlten zwar noch, das Wetter war aber bereits
+                bekannt. Diese Tage fallen etwas besser aus als eine echte
+                Vorausschau.
             </P>
         {/if}
     {/if}

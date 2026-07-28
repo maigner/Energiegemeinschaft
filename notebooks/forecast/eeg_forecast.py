@@ -122,6 +122,16 @@ TARGETS_BY_KEY = {t.key: t for t in TARGETS + EXTRA_TARGETS}
 # a day counts as delivered if at least this share of the present consumption
 # points has a non-zero daily sum
 MIN_REPORTING_SHARE = 0.85
+
+# The EEG-Faktura data keeps changing for months: the last ~2 months are either
+# incomplete or plainly wrong, only data older than 3-4 months can be treated as
+# final.  `MIN_REPORTING_SHARE` catches the obviously incomplete deliveries, but
+# not the values that look complete and are corrected later -- so everything
+# that measures forecast quality (backtest, stored-forecast evaluation, the
+# accuracy section of the website) is restricted to days that have had time to
+# settle.  Training deliberately still uses the recent days: they are the only
+# ones that carry the current level.
+DATA_MATURITY_DAYS = 120
 # ignore the very early period where per-point averages are dominated by a
 # handful of households
 MIN_POINTS = 30
@@ -249,6 +259,17 @@ def build_panel(refresh: bool = False) -> pd.DataFrame:
         panel[f"{target.key}_pp"] = np.where(denom > 0, total / denom, np.nan)
 
     return panel
+
+
+def mature_until(reference: pd.Timestamp | None = None,
+                 maturity_days: int = DATA_MATURITY_DAYS) -> pd.Timestamp:
+    """Last day whose measurements can be treated as final.
+
+    Anything newer may still be corrected by a later EEG-Faktura export and is
+    therefore not a valid yardstick for forecast quality.
+    """
+    reference = reference or pd.Timestamp.now(tz=TZ).normalize().tz_localize(None)
+    return reference - pd.Timedelta(days=maturity_days)
 
 
 def last_complete_day(panel: pd.DataFrame) -> pd.Timestamp:
@@ -856,8 +877,12 @@ def store_hindcast_runs(frame: pd.DataFrame, n_runs: int = 3, horizon_days: int 
     Echtbetrieb bleibt: das Wetter ist hier das tatsächlich eingetretene und
     nicht die damalige Vorhersage. Deshalb bekommen diese Läufe eine eigene
     `model_version` -- sie fallen im Vergleich etwas zu gut aus.
+
+    Verankert wird am letzten gesicherten Tag (`mature_until()`), nicht am letzten
+    vollständig gelieferten: gegen Messwerte, die noch korrigiert werden, lässt
+    sich nichts sinnvoll vergleichen.
     """
-    last_day = last_complete_day(frame)
+    last_day = min(last_complete_day(frame), mature_until())
     run_ids = []
     for step in range(n_runs, 0, -1):
         cutoff_day = last_day - pd.Timedelta(days=horizon_days * step)
@@ -876,18 +901,23 @@ def store_hindcast_runs(frame: pd.DataFrame, n_runs: int = 3, horizon_days: int 
 
 
 def load_evaluation(run_id: int | None = None, only_complete: bool = True,
-                    only_full_days: bool = True) -> pd.DataFrame:
+                    only_full_days: bool = True, only_mature: bool = True) -> pd.DataFrame:
     """Read `energy_forecast_vs_actual`: forecast vs. measurement, per run and day.
 
     `only_complete` keeps the days whose EEG-Faktura delivery is complete --
     partially delivered days would look like a huge forecast error.
     `only_full_days` drops the partial days at the edges of a horizon.
+    `only_mature` keeps only days whose measurements are final (see
+    `DATA_MATURITY_DAYS`); without it the comparison is against numbers that are
+    still being corrected.
     """
     conditions = ["consumption_actual IS NOT NULL"]
     if only_complete:
         conditions.append("actual_is_complete")
     if only_full_days:
         conditions.append("intervals = 96")
+    if only_mature:
+        conditions.append("actual_is_mature")
     if run_id is not None:
         conditions.append(f"run_id = {int(run_id)}")
 
@@ -965,19 +995,28 @@ def backtest(
     horizon_days: int = 14,
     keys=None,
     verbose: bool = True,
+    maturity_days: int = DATA_MATURITY_DAYS,
     **train_kwargs,
 ) -> pd.DataFrame:
     """Rolling origin evaluation: train on the past, predict `horizon_days` ahead.
 
-    Evaluated on complete days only, on the per-point series (scaling by the
-    point count is a separate, deterministic step) and on daily totals.
+    Evaluated on the per-point series (scaling by the point count is a separate,
+    deterministic step) and on daily totals.
+
+    The test windows end at `mature_until()`, not at the newest complete day:
+    the last months of the EEG-Faktura data are still being corrected and would
+    be measured as a forecast error that is really a data error.  That costs the
+    most recent folds -- with `maturity_days=0` the old behaviour is back.
     """
     keys = keys or [t.key for t in TARGETS]
     complete_days = pd.Series(
         frame.complete.to_numpy(), index=pd.to_datetime(frame.index.tz_convert(TZ).date)
     ).groupby(level=0).max()
     days = complete_days[complete_days].index
-    last_day = days.max()
+    last_day = min(days.max(), mature_until(maturity_days=maturity_days))
+    if verbose:
+        print(f"Auswertung nur auf gesicherten Daten bis {last_day.date()} "
+              f"(alles danach kann sich noch ändern)")
 
     rows = []
     for fold in range(folds, 0, -1):

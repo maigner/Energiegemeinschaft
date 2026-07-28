@@ -77,11 +77,15 @@ export const getForecastDays = async (runId: number, days: number = 10) => {
 };
 
 /**
- * Prognose gegen tatsächlich gemessene Werte, sobald der EEG-Faktura-Export sie
- * geliefert hat. Je Tag zählt der Lauf, der ihm am nächsten lag.
+ * Prognose gegen tatsächlich gemessene Werte. Je Tag zählt der Lauf, der ihm am
+ * nächsten lag.
  *
- * Unvollständig gelieferte Tage sind über `actual_is_complete` in der View
- * bereits ausgeschlossen -- sie sähen sonst wie ein riesiger Prognosefehler aus.
+ * Zwei Filter aus der View sind hier entscheidend:
+ * `actual_is_complete` wirft unvollständig gelieferte Tage raus, und
+ * `actual_is_mature` beschränkt auf Tage, deren Messwerte endgültig sind. Die
+ * EEG-Faktura-Daten werden monatelang nachkorrigiert -- die letzten rund zwei
+ * Monate sind kein Maßstab für die Prognosegüte, der Fehler wäre in Wahrheit
+ * ein Datenfehler.
  */
 export const getForecastAccuracy = async (limit: number = 30) => {
     const sql = await middlewareDbConnection();
@@ -89,6 +93,7 @@ export const getForecastAccuracy = async (limit: number = 30) => {
         SELECT * FROM (
             SELECT DISTINCT ON (day)
                 day, days_ahead, run_id, run_created_at, data_until, model_version,
+                used_measured_weather,
                 consumption_forecast::float AS consumption_forecast,
                 consumption_actual::float AS consumption_actual,
                 generation_forecast::float AS generation_forecast,
@@ -97,6 +102,7 @@ export const getForecastAccuracy = async (limit: number = 30) => {
                 self_coverage_actual::float AS self_coverage_actual
             FROM energy_forecast_vs_actual
             WHERE actual_is_complete
+              AND actual_is_mature
               AND intervals = 96
               AND consumption_actual IS NOT NULL
               AND days_ahead > 0

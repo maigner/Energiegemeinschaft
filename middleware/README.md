@@ -144,11 +144,24 @@ SELECT f.run_id,
        f.surplus_forecast,
        a.surplus_actual,
        a.reporting_share,
-       COALESCE(a.is_complete, false) AS actual_is_complete
+       COALESCE(a.is_complete, false) AS actual_is_complete,
+       -- Tage, die beim Rechnen schon vorbei waren, verwenden das tatsächlich
+       -- eingetretene Wetter statt einer Wettervorhersage. Sie fallen deshalb
+       -- besser aus als eine echte Vorausschau.
+       (f.day <= (r.created_at AT TIME ZONE 'Europe/Vienna')::date) AS used_measured_weather,
+       -- Die EEG-Faktura-Daten werden monatelang nachkorrigiert: die letzten
+       -- rund zwei Monate sind unvollständig oder schlicht falsch, erst ab drei
+       -- bis vier Monaten gelten sie als endgültig. Alles Jüngere taugt nicht
+       -- als Maßstab für die Prognosegüte.
+       (f.day <= (now() AT TIME ZONE 'Europe/Vienna')::date - INTERVAL '120 days') AS actual_is_mature
 FROM forecast_daily f
 JOIN metering_energyforecastrun r ON r.id = f.run_id
 LEFT JOIN actual_daily a ON a.day = f.day;
 ```
+
+Zwei Flags sind beim Auswerten entscheidend: `actual_is_complete` (Lieferung vollständig) und
+`actual_is_mature` (Messwerte endgültig — die EEG-Faktura-Daten werden noch monatelang
+nachkorrigiert). Ohne beide misst man Datenfehler und nennt sie Prognosefehler.
 
 Auswertung, z. B. Fehler nach Prognosehorizont:
 
@@ -157,7 +170,8 @@ SELECT days_ahead,
        avg(abs(consumption_forecast - consumption_actual)) AS mae_kwh,
        count(*) AS tage
 FROM energy_forecast_vs_actual
-WHERE actual_is_complete AND intervals = 96 AND consumption_actual IS NOT NULL
+WHERE actual_is_complete AND actual_is_mature AND intervals = 96
+  AND consumption_actual IS NOT NULL
 GROUP BY 1 ORDER BY 1;
 ```
 

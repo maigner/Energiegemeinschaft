@@ -107,35 +107,54 @@ schlechter als eine naive Wochenprofil-Referenz.
 
 ## Güte
 
-`ef.backtest()` trainiert rollierend nur auf der Vergangenheit und prognostiziert die folgenden
-14 Tage — genau die Situation im Echtbetrieb. Referenz ist ein naives Wochenprofil (Mittelwert je
-Wochentag × Viertelstunde aus den letzten 28 vollständigen Tagen).
+### Nur gesicherte Daten sind ein Maßstab
 
-Normierter mittlerer absoluter Fehler (nMAE = MAE / Mittelwert), Mittel über 6 Folds,
-Horizont 14 Tage (Stand 2026-07-28, Folds von April bis Juli 2026):
+Die EEG-Faktura-Daten ändern sich noch monatelang: **die letzten rund zwei Monate sind
+unvollständig oder schlicht falsch, erst ab drei bis vier Monaten gelten sie als endgültig.**
+Die Vollständigkeitsprüfung (`MIN_REPORTING_SHARE`) erwischt nur die offensichtlich lückenhaften
+Lieferungen, nicht die Werte, die vollständig aussehen und später korrigiert werden.
+
+Alles, was Prognosegüte misst, ist deshalb auf Tage vor `ef.mature_until()` beschränkt
+(`DATA_MATURITY_DAYS = 120`): der Backtest, `load_evaluation()` und der Abschnitt
+„Wie gut war die Prognose?" auf der Website. Sonst misst man Datenfehler und nennt sie
+Prognosefehler — der Unterschied ist erheblich, siehe „Praxiswerte" unten.
+
+**Das Training verwendet die jungen Daten weiterhin**, denn nur sie tragen das aktuelle Niveau.
+Das ist eine bewusste Abwägung, keine Nachlässigkeit — siehe „Grenzen".
+
+### Backtest
+
+`ef.backtest()` trainiert rollierend nur auf der Vergangenheit und prognostiziert die folgenden
+Tage — genau die Situation im Echtbetrieb. Referenz ist ein naives Wochenprofil (Mittelwert je
+Wochentag × Viertelstunde aus den letzten 28 vollständigen Tagen). Normierter mittlerer absoluter
+Fehler (nMAE = MAE / Mittelwert), Stand 2026-07-28:
+
+**6 Folds, Horizont 14 Tage** (Testfenster Januar–März 2026):
 
 | Zielgröße | 15 min Modell | 15 min Referenz | Tagessumme Modell | Tagessumme Referenz |
 |---|---|---|---|---|
-| Verbrauch | 13 % | 26 % | **6,5 %** | 22 % |
-| Erzeugung | 23 % | 57 % | **14 %** | 49 % |
-| Eigendeckung | 26 % | 38 % | **14 %** | 27 % |
+| Verbrauch | 11,4 % | 25,7 % | **7,1 %** | 23,4 % |
+| Erzeugung | 55,3 % | 101,2 % | **47,1 %** | 95,3 % |
+| Eigendeckung | 62,2 % | 97,9 % | **54,2 %** | 92,0 % |
 
-Im Echtbetrieb liegt der erste Prognosetag schon drei Wochen hinter dem letzten vollständigen Tag.
-Mit Horizont 35 Tagen (4 Folds, Februar bis Juni 2026) sieht es so aus:
+**4 Folds, Horizont 35 Tage** (Testfenster November 2025–Februar 2026) — realistischer, weil der
+erste Prognosetag im Echtbetrieb schon Wochen hinter dem letzten gesicherten Tag liegt:
 
 | Zielgröße | Tagessumme Modell | Tagessumme Referenz |
 |---|---|---|
-| Verbrauch | 9,5 % | 29 % |
-| Erzeugung | 16 % | 63 % |
-| Eigendeckung | 19 % | 44 % |
+| Verbrauch | **6,9 %** | 28,0 % |
+| Erzeugung | **37,5 %** | 119,6 % |
+| Eigendeckung | **46,7 %** | 107,6 % |
 
-Die Erzeugung ist der große Gewinn: sie hängt fast vollständig am Wetter, das ein Wochenprofil gar
-nicht kennen kann. Beim Verbrauch ist der Vorsprung im Jahresverlauf groß (die Referenz kommt bei
-Temperaturwechseln nicht mit), in einer stabilen Sommerphase dagegen klein — im Juni-Fold war die
-naive Referenz beim Verbrauch sogar besser (11,5 % vs. 15,8 %).
+**Die Erzeugungsprozente nicht mit früheren Sommerzahlen vergleichen.** Durch die Reifegrenze
+liegen die Testfenster jetzt im Winter, und da ist die gemeinschaftliche Erzeugung winzig — im
+Dezember rund 200 kWh am Tag gegenüber 7.000 kWh im Juni. Ein absolut kleiner Fehler ergibt dann
+einen riesigen Prozentwert; die naive Referenz liegt im selben Fenster bei über 100 %. In
+absoluten Zahlen (Soll-Ist-Vergleich Februar/März 2026): Erzeugung 297 kWh Fehler am Tag,
+Verbrauch 407 kWh.
 
-Backtest nach jedem Import neu laufen lassen — die Zahlen hängen davon ab, welche Jahreszeit die
-Folds abdecken.
+Backtest nach jedem Import neu laufen lassen — und beim Vergleich immer mitdenken, welche
+Jahreszeit die Folds gerade abdecken.
 
 ## Speicherung und Soll-Ist-Vergleich
 
@@ -160,15 +179,45 @@ zu warten. Diese Läufe bekommen die `model_version` `gbt-1.0-hindcast`, weil si
 eingetretene Wetter verwenden statt der damaligen Wettervorhersage — sie fallen etwas zu gut aus
 und sind auf der Website entsprechend gekennzeichnet.
 
-Erster Vergleich (3 Hindcast-Läufe, 42 Tage): Verbrauch 9,1 % nMAE, Erzeugung 12,5 %,
-Eigendeckung 18,0 % — passend zu den Backtest-Zahlen oben.
+### Praxiswerte
+
+Gespeicherte Läufe gegen endgültige Messwerte, 55 Tage im Februar/März 2026, Horizont 1–14 Tage:
+
+| Zielgröße | MAE | nMAE | Bias |
+|---|---|---|---|
+| Verbrauch | 407 kWh | **6,8 %** | −23 kWh |
+| Erzeugung | 297 kWh | 24,5 % | −69 kWh |
+| Eigendeckung | 202 kWh | 27,3 % | −139 kWh |
+
+Der Verbrauch trifft gut und praktisch ohne systematische Verzerrung. Die Erzeugungsprozente sind
+wieder der Winter-Effekt aus dem vorigen Abschnitt.
+
+**Warum diese Zahlen nicht früher da waren:** ein erster Vergleich gegen die *jüngsten* Messwerte
+hatte für den Verbrauch 18 % Abweichung ergeben, mit einem scheinbar klaren Muster — ab Tag 13
+lag die Prognose systematisch rund 1.000 kWh zu hoch. Die Erklärung schien der Ferieneffekt Ende
+Juli zu sein. Gegen gesicherte Daten gemessen bleibt davon nichts übrig: dort sind es 6,8 % ohne
+nennenswerten Bias. Die vermeintliche Prognoseabweichung war zum Großteil der noch nicht
+korrigierte Datenstand. Ob es einen Ferieneffekt gibt, lässt sich erst im Herbst beurteilen, wenn
+der Juli 2026 als gesichert gilt.
+
+Achtung beim Nachrechnen: nMAE (MAE geteilt durch den Mittelwert) und MAPE (Mittel der
+Tagesfehler in Prozent) fallen weit auseinander. An Tagen mit sehr wenig Gemeinschaftserzeugung
+— im Juli 2026 gab es Tage mit 150 kWh — explodiert MAPE und behauptet 50 % Fehler, wo nMAE 11 %
+sagt. `evaluation_summary()` rechnet nMAE.
 
 ## Grenzen und mögliche Verbesserungen
 
 * **Wettervorhersage-Fehler** wachsen mit dem Horizont; ab etwa Tag 7 ist die Erzeugungsprognose
   eher „Klimatologie mit Trend" als echte Vorhersage. Das Prognoseband (q10/q90) berücksichtigt
   nur die Streuung des Modells, nicht die Unsicherheit der Wettervorhersage selbst.
-* **Urlaubs- und Ferieneffekte** (Tourismusregion, Betriebsurlaube) sind nicht modelliert.
+* **Urlaubs- und Ferieneffekte** (Tourismusregion, Betriebsurlaube) sind nicht modelliert. Ob sie
+  überhaupt ins Gewicht fallen, lässt sich erst sagen, wenn ein Sommer als gesichert gilt.
+* **Trainiert wird auch auf den jungen, noch nicht endgültigen Daten** — bewusst, weil nur sie das
+  aktuelle Niveau tragen. Besonders betrifft das die Niveaukorrektur, die auf den letzten 28
+  vollständigen Tagen geschätzt wird, also mitten im unsicheren Bereich. Alternativen wären, die
+  Korrektur auf gesicherte Tage zu stützen (aktueller, aber veraltetes Niveau) oder ganz ohne
+  junge Daten zu trainieren (sauber, aber blind für den aktuellen Stand). Solange die
+  Praxiswerte auf gesicherten Daten gut aussehen, bleibt es bei der jetzigen Abwägung.
 * **Kein Lastprofil-Feature aus der jüngsten Historie.** Ein um ~45 Tage verzögertes Wochenprofil
   als zusätzliches Feature würde den Verbrauch vermutlich weiter verbessern.
 * **Zählpunktzahl** wird linear fortgeschrieben. Bei einem Aufnahmestopp oder einer großen
