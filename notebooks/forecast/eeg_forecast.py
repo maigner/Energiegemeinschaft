@@ -6,11 +6,11 @@ one to two weeks.
 
 Why a purely exogenous model
 ----------------------------
-The measurement data in `metering_measurement` is loaded from the monthly
-EEG-Faktura energy report, so the newest complete day is usually three to five
-weeks in the past.  A classic autoregressive load forecast (lags of the last
-hours/days) is therefore useless here: at prediction time there is no recent
-history at all.  The model instead learns a mapping
+The model was built when the newest complete day in `metering_measurement` was
+usually three to five weeks in the past (monthly EEG-Faktura exports), which
+ruled out autoregressive load forecasts (lags of the last hours/days).  The
+new data supply (July 2026) is much fresher, but the exogenous approach is
+kept: it works regardless of the import cadence.  The model learns a mapping
 
     (calendar features, solar geometry, weather) -> energy per measurement point
 
@@ -28,10 +28,12 @@ prediction is scaled back up with the projected number of points.
 
 Data quality
 ------------
-Some exports are only partially delivered: the rows exist for every point, but a
-large share of the points is all-zero for those days (e.g. 2026-01-01..06 and
-everything after 2026-07-06).  Such days are detected via the share of points
-with a non-zero daily sum and excluded from training and evaluation.
+Some deliveries are only partial: the rows exist for every point, but a large
+share of the points is all-zero for those days (e.g. 2026-01-01..06).  Such
+days are detected via the share of points with a non-zero daily sum and
+excluded from training and evaluation.  Since the switch to the new data
+supply (July 2026) delivered days are trusted as-is -- there is no longer a
+"maturity" waiting period before a day may be used as a quality yardstick.
 
 Usage
 -----
@@ -122,16 +124,6 @@ TARGETS_BY_KEY = {t.key: t for t in TARGETS + EXTRA_TARGETS}
 # a day counts as delivered if at least this share of the present consumption
 # points has a non-zero daily sum
 MIN_REPORTING_SHARE = 0.85
-
-# The EEG-Faktura data keeps changing for months: the last ~2 months are either
-# incomplete or plainly wrong, only data older than 3-4 months can be treated as
-# final.  `MIN_REPORTING_SHARE` catches the obviously incomplete deliveries, but
-# not the values that look complete and are corrected later -- so everything
-# that measures forecast quality (backtest, stored-forecast evaluation, the
-# accuracy section of the website) is restricted to days that have had time to
-# settle.  Training deliberately still uses the recent days: they are the only
-# ones that carry the current level.
-DATA_MATURITY_DAYS = 120
 # ignore the very early period where per-point averages are dominated by a
 # handful of households
 MIN_POINTS = 30
@@ -259,17 +251,6 @@ def build_panel(refresh: bool = False) -> pd.DataFrame:
         panel[f"{target.key}_pp"] = np.where(denom > 0, total / denom, np.nan)
 
     return panel
-
-
-def mature_until(reference: pd.Timestamp | None = None,
-                 maturity_days: int = DATA_MATURITY_DAYS) -> pd.Timestamp:
-    """Last day whose measurements can be treated as final.
-
-    Anything newer may still be corrected by a later EEG-Faktura export and is
-    therefore not a valid yardstick for forecast quality.
-    """
-    reference = reference or pd.Timestamp.now(tz=TZ).normalize().tz_localize(None)
-    return reference - pd.Timedelta(days=maturity_days)
 
 
 def last_complete_day(panel: pd.DataFrame) -> pd.Timestamp:
@@ -475,6 +456,41 @@ def austrian_holidays(years) -> set[date]:
     return holidays
 
 
+def school_holidays(years) -> set[date]:
+    """Schulferien in Oberösterreich (Bad Ischl), näherungsweise.
+
+    Sommer: neun Wochen ab dem ersten Montag nach dem 4. Juli.  Dazu
+    Weihnachts-, Semester- (dritter Februar-Montag), Oster- und Herbstferien.
+    Als Modellfeature reicht die Näherung -- entscheidend ist der Sommer, in dem
+    die Tourismusregion anders verbraucht als im Schulbetrieb.
+    """
+    days: set[date] = set()
+
+    def add_range(first: date, last: date) -> None:
+        current = first
+        while current <= last:
+            days.add(current)
+            current += timedelta(days=1)
+
+    for year in years:
+        summer_start = date(year, 7, 5)
+        summer_start += timedelta(days=(7 - summer_start.weekday()) % 7)
+        add_range(summer_start, summer_start + timedelta(days=62))
+
+        add_range(date(year, 12, 24), date(year, 12, 31))
+        add_range(date(year, 1, 1), date(year, 1, 6))
+
+        semester_start = date(year, 2, 1)
+        semester_start += timedelta(days=(7 - semester_start.weekday()) % 7 + 14)
+        add_range(semester_start, semester_start + timedelta(days=6))
+
+        easter = _easter(year)
+        add_range(easter - timedelta(days=9), easter + timedelta(days=1))
+
+        add_range(date(year, 10, 27), date(year, 10, 31))
+    return days
+
+
 def build_features(index: pd.DatetimeIndex, weather: pd.DataFrame) -> pd.DataFrame:
     """Calendar + solar + weather features for a 15 min UTC index."""
     local = index.tz_convert(TZ)
@@ -495,6 +511,10 @@ def build_features(index: pd.DatetimeIndex, weather: pd.DataFrame) -> pd.DataFra
     is_holiday = np.array([d in holidays for d in local.date])
     features["is_holiday"] = is_holiday.astype(int)
     features["is_off_day"] = ((local.dayofweek >= 5) | is_holiday).astype(int)
+    # Tourismusregion: in den Schulferien (v. a. im Sommer) verbraucht die
+    # Gemeinschaft anders als im Schulbetrieb -- siehe Soll-Ist-Vergleich Juli 2026
+    vacations = school_holidays(range(local.year.min(), local.year.max() + 2))
+    features["is_school_holiday"] = np.array([d in vacations for d in local.date]).astype(int)
 
     year_angle = 2 * np.pi * local.dayofyear / 365.25
     features["doy_sin"] = np.sin(year_angle)
@@ -582,8 +602,13 @@ def feature_columns(frame: pd.DataFrame) -> list[str]:
 # level is re-calibrated on the most recent complete weeks.  Shorter half-lives
 # than ~120 days sharpen the level further but stop covering the same season one
 # year back, which is why the seasonal information is kept.
+#
+# 14 calibration days instead of 28: with the fresh data supply the window is
+# genuinely current, and the shorter window follows level changes (e.g. the
+# summer-vacation dip) faster.  On the 2026 folds it roughly halved the bias at
+# both the 14 and 35 day horizon without hurting the nMAE.
 HALF_LIFE_DAYS = 120
-CALIBRATION_DAYS = 28
+CALIBRATION_DAYS = 14
 CALIBRATION_LIMITS = (0.6, 1.6)
 
 
@@ -777,7 +802,7 @@ def daily_summary(forecast_frame: pd.DataFrame) -> pd.DataFrame:
 # storing forecasts in the database
 # --------------------------------------------------------------------------
 
-MODEL_VERSION = "gbt-1.0"
+MODEL_VERSION = "gbt-1.1"
 
 # forecast column -> database column
 STORED_COLUMNS = {
@@ -877,12 +902,8 @@ def store_hindcast_runs(frame: pd.DataFrame, n_runs: int = 3, horizon_days: int 
     Echtbetrieb bleibt: das Wetter ist hier das tatsächlich eingetretene und
     nicht die damalige Vorhersage. Deshalb bekommen diese Läufe eine eigene
     `model_version` -- sie fallen im Vergleich etwas zu gut aus.
-
-    Verankert wird am letzten gesicherten Tag (`mature_until()`), nicht am letzten
-    vollständig gelieferten: gegen Messwerte, die noch korrigiert werden, lässt
-    sich nichts sinnvoll vergleichen.
     """
-    last_day = min(last_complete_day(frame), mature_until())
+    last_day = last_complete_day(frame)
     run_ids = []
     for step in range(n_runs, 0, -1):
         cutoff_day = last_day - pd.Timedelta(days=horizon_days * step)
@@ -901,23 +922,18 @@ def store_hindcast_runs(frame: pd.DataFrame, n_runs: int = 3, horizon_days: int 
 
 
 def load_evaluation(run_id: int | None = None, only_complete: bool = True,
-                    only_full_days: bool = True, only_mature: bool = True) -> pd.DataFrame:
+                    only_full_days: bool = True) -> pd.DataFrame:
     """Read `energy_forecast_vs_actual`: forecast vs. measurement, per run and day.
 
-    `only_complete` keeps the days whose EEG-Faktura delivery is complete --
-    partially delivered days would look like a huge forecast error.
+    `only_complete` keeps the days whose delivery is complete -- partially
+    delivered days would look like a huge forecast error.
     `only_full_days` drops the partial days at the edges of a horizon.
-    `only_mature` keeps only days whose measurements are final (see
-    `DATA_MATURITY_DAYS`); without it the comparison is against numbers that are
-    still being corrected.
     """
     conditions = ["consumption_actual IS NOT NULL"]
     if only_complete:
         conditions.append("actual_is_complete")
     if only_full_days:
         conditions.append("intervals = 96")
-    if only_mature:
-        conditions.append("actual_is_mature")
     if run_id is not None:
         conditions.append(f"run_id = {int(run_id)}")
 
@@ -995,28 +1011,22 @@ def backtest(
     horizon_days: int = 14,
     keys=None,
     verbose: bool = True,
-    maturity_days: int = DATA_MATURITY_DAYS,
     **train_kwargs,
 ) -> pd.DataFrame:
     """Rolling origin evaluation: train on the past, predict `horizon_days` ahead.
 
     Evaluated on the per-point series (scaling by the point count is a separate,
-    deterministic step) and on daily totals.
-
-    The test windows end at `mature_until()`, not at the newest complete day:
-    the last months of the EEG-Faktura data are still being corrected and would
-    be measured as a forecast error that is really a data error.  That costs the
-    most recent folds -- with `maturity_days=0` the old behaviour is back.
+    deterministic step) and on daily totals.  Test windows run up to the newest
+    complete day -- delivered days are trusted as-is.
     """
     keys = keys or [t.key for t in TARGETS]
     complete_days = pd.Series(
         frame.complete.to_numpy(), index=pd.to_datetime(frame.index.tz_convert(TZ).date)
     ).groupby(level=0).max()
     days = complete_days[complete_days].index
-    last_day = min(days.max(), mature_until(maturity_days=maturity_days))
+    last_day = days.max()
     if verbose:
-        print(f"Auswertung nur auf gesicherten Daten bis {last_day.date()} "
-              f"(alles danach kann sich noch ändern)")
+        print(f"Auswertung auf vollständig gelieferten Tagen bis {last_day.date()}")
 
     rows = []
     for fold in range(folds, 0, -1):

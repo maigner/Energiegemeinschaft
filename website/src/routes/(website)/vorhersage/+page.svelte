@@ -130,10 +130,9 @@
     {#if data.accuracy?.length}
         <Heading tag="h4" class="mt-12 text-center">Wie gut war die Prognose?</Heading>
         <P class="mx-auto mt-4 max-w-3xl text-center">
-            Für diese Tage steht das Ergebnis endgültig fest — hier steht, was
+            Für diese Tage liegen inzwischen Messwerte vor — hier steht, was
             vorher prognostiziert wurde, neben dem, was tatsächlich gemessen
-            wurde. Die letzten Monate fehlen bewusst: die Messdaten werden noch
-            monatelang nachkorrigiert und wären kein fairer Maßstab.
+            wurde.
         </P>
         {#if accuracySummary}
             <div class="mt-4 flex justify-center gap-3">

@@ -149,19 +149,19 @@ SELECT f.run_id,
        -- eingetretene Wetter statt einer Wettervorhersage. Sie fallen deshalb
        -- besser aus als eine echte Vorausschau.
        (f.day <= (r.created_at AT TIME ZONE 'Europe/Vienna')::date) AS used_measured_weather,
-       -- Die EEG-Faktura-Daten werden monatelang nachkorrigiert: die letzten
-       -- rund zwei Monate sind unvollständig oder schlicht falsch, erst ab drei
-       -- bis vier Monaten gelten sie als endgültig. Alles Jüngere taugt nicht
-       -- als Maßstab für die Prognosegüte.
-       (f.day <= (now() AT TIME ZONE 'Europe/Vienna')::date - INTERVAL '120 days') AS actual_is_mature
+       -- Seit der neuen Datenanbindung (Juli 2026) gelten gelieferte Messwerte
+       -- als verlässlich; eine Wartefrist gibt es nicht mehr. Die Spalte bleibt
+       -- aus Kompatibilität mit älteren Abfragen bestehen und ist immer true.
+       true AS actual_is_mature
 FROM forecast_daily f
 JOIN metering_energyforecastrun r ON r.id = f.run_id
 LEFT JOIN actual_daily a ON a.day = f.day;
 ```
 
-Zwei Flags sind beim Auswerten entscheidend: `actual_is_complete` (Lieferung vollständig) und
-`actual_is_mature` (Messwerte endgültig — die EEG-Faktura-Daten werden noch monatelang
-nachkorrigiert). Ohne beide misst man Datenfehler und nennt sie Prognosefehler.
+Beim Auswerten entscheidend ist `actual_is_complete` (Lieferung vollständig) — unvollständig
+gelieferte Tage sähen sonst wie ein riesiger Prognosefehler aus. `actual_is_mature` war früher
+eine 120-Tage-Wartefrist, weil die alten EEG-Faktura-Daten monatelang nachkorrigiert wurden;
+seit der neuen Datenanbindung ist die Spalte konstant `true` und nur noch aus Kompatibilität da.
 
 Auswertung, z. B. Fehler nach Prognosehorizont:
 
@@ -170,7 +170,7 @@ SELECT days_ahead,
        avg(abs(consumption_forecast - consumption_actual)) AS mae_kwh,
        count(*) AS tage
 FROM energy_forecast_vs_actual
-WHERE actual_is_complete AND actual_is_mature AND intervals = 96
+WHERE actual_is_complete AND intervals = 96
   AND consumption_actual IS NOT NULL
 GROUP BY 1 ORDER BY 1;
 ```
