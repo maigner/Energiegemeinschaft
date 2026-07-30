@@ -112,7 +112,24 @@ else
   INSTALL_ADDONS=0
 fi
 
-# --- 7. Schreiben -----------------------------------------------------------
+# --- 7. openHAB Cloud -------------------------------------------------------
+echo "[IBM]"
+echo "[IBM] Mit openHAB Cloud (myopenhab.org) ist die Anlage von unterwegs"
+echo "[IBM] erreichbar und kann Benachrichtigungen aufs Handy schicken."
+echo "[IBM] Dafuer wird das Addon 'openhabcloud' installiert; am Ende der"
+echo "[IBM] Installation werden UUID und Secret fuer die Registrierung angezeigt."
+if confirm "openHAB Cloud (myopenhab.org) einrichten?"; then
+  INSTALL_CLOUD=1
+else
+  INSTALL_CLOUD=0
+fi
+
+if [ "$INSTALL_CLOUD" = "1" ] && [ "$INSTALL_ADDONS" != "1" ]; then
+  warn "Addon-Verwaltung ist abgeschaltet - den 'openHAB Cloud Connector' dann"
+  warn "bitte in der Main UI installieren: Settings -> Add-ons -> Misc."
+fi
+
+# --- 8. Schreiben -----------------------------------------------------------
 umask 022
 cat > "$IBM_CONF" <<EOF
 # ============================================================================
@@ -152,6 +169,7 @@ DEFAULT_ENTLADUNG_ENDE=7
 # --- Optionen ---------------------------------------------------------------
 INSTALL_ADDONS=${INSTALL_ADDONS}
 INSTALL_PERSISTENCE=1
+INSTALL_CLOUD=${INSTALL_CLOUD}
 EOF
 
 log "Konfiguration geschrieben: $IBM_CONF"
@@ -165,5 +183,6 @@ cat <<ZUSAMMENFASSUNG
 [IBM]   Ladestand min. : ${DEFAULT_MIN_BATTERY_CHARGE} %
 [IBM]   Entladung      : ${DEFAULT_MIN_DISCHARGE_W} - ${DEFAULT_MAX_DISCHARGE_W} W
 [IBM]   Addons         : $([ "$INSTALL_ADDONS" = "1" ] && echo "ueber addons.cfg" || echo "manuell in der Main UI")
+[IBM]   openHAB Cloud  : $([ "$INSTALL_CLOUD" = "1" ] && echo "ja (myopenhab.org)" || echo "nein")
 [IBM]
 ZUSAMMENFASSUNG

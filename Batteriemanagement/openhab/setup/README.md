@@ -18,7 +18,10 @@ Richtet eine openHABian-Installation fuer das **ISCHLSTROM Batteriemanagement
 
 Der Rest laeuft von selbst: das Paket wird geladen und gegen seine Pruefsumme
 verifiziert, der Assistent erkennt Wechselrichter und Ladestands-Item und
-fragt nur noch nach, was er nicht selbst herausfinden kann.
+fragt nur noch nach, was er nicht selbst herausfinden kann. Wurde openHAB
+Cloud gewuenscht, zeigt die Installation am Ende UUID und Secret fuer die
+Registrierung auf myopenhab.org an (siehe
+[openHAB Cloud](#openhab-cloud-myopenhaborg)).
 
 Die Kurzform funktioniert ebenfalls — die Abfragen lesen von `/dev/tty`, nicht
 von stdin:
@@ -73,10 +76,11 @@ Quelldatei im Repository und wird nicht generiert.
 | --- | --- |
 | `00-wizard.sh` | Fragt die Anlagendaten ab und schreibt `ibm.conf`. Erkennt Wechselrichter und Ladestands-Item selbst. |
 | `01-preflight.sh` | Prueft Dienst, Quellskripte, API, Thing, Item und Item-Kollisionen. Aendert nichts. |
-| `02-install-addons.sh` | Traegt Binding, `jsscripting` und `mapdb` in `addons.cfg` ein. |
+| `02-install-addons.sh` | Traegt Binding, `jsscripting`, `mapdb` und (falls gewuenscht) `openhabcloud` in `addons.cfg` ein. |
 | `03-install-items.sh` | Schreibt `items/ibm.items` und `persistence/mapdb.persist`. |
 | `04-install-rules.sh` | Erzeugt die zeitgesteuerten Regeln in `automation/js/`. |
 | `05-verify.sh` | Prueft das Ergebnis, zeigt die letzten `[IBM]`-Logzeilen. Aendert nichts. |
+| `06-myopenhab.sh` | Zeigt UUID und Secret fuer die Registrierung auf myopenhab.org an (wartet ggf. auf das Cloud-Addon). Aendert nichts. |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
 
 Die Skripte sind **idempotent** — ein erneuter Lauf ist jederzeit gefahrlos.
@@ -141,6 +145,38 @@ Code-Ansicht` und den Inhalt einfuegen.
 | `ibm_battery_control.js` | aus dem Wechselrichter-Profil | alle 5 Minuten |
 | `ibm_init.js` | generiert | alle 10 Minuten |
 
+## openHAB Cloud (myopenhab.org)
+
+Auf Wunsch (Frage im Assistenten, `INSTALL_CLOUD=1`) richtet das Setup den
+**openHAB Cloud Connector** ein. Damit ist die Main UI von unterwegs unter
+`https://home.myopenhab.org` erreichbar und die Anlage kann
+Benachrichtigungen an die openHAB-App schicken.
+
+Fuer die Registrierung braucht myopenhab.org zwei Werte der Installation:
+
+| Wert | Datei auf dem Pi |
+| --- | --- |
+| UUID | `/var/lib/openhab/uuid` (legt openHAB beim ersten Start an) |
+| Secret | `/var/lib/openhab/openhabcloud/secret` (entsteht beim ersten Start des Cloud-Addons) |
+
+`06-myopenhab.sh` wartet auf das Secret (die Addon-Installation ueber
+`addons.cfg` kann einige Minuten dauern) und zeigt dann beide Werte mit der
+Anleitung an. Jederzeit erneut abrufbar:
+
+```bash
+sudo /opt/ischlstrom/openhab/setup/06-myopenhab.sh
+```
+
+Registrierung: auf <https://myopenhab.org> ueber *Sign up* ein Konto anlegen
+(E-Mail-Adresse und Passwort des Mitglieds) und dabei UUID und Secret
+eintragen — beides ist spaeter unter *Account* aenderbar. Sobald die Anlage
+verbunden ist, zeigt myopenhab.org sie als *Online*; falls nicht, openHAB
+einmal neu starten (`sudo systemctl restart openhab.service`).
+
+Standardmaessig werden dabei **keine Items** zur Cloud uebertragen
+(exponiert) — die Verbindung dient nur dem Fernzugriff auf die UI und den
+Benachrichtigungen.
+
 ## Warum die Skripte umgebaut werden
 
 Die Dateien unter `../eeg-api` und die Steuerungsskripte sind reine
@@ -163,7 +199,7 @@ neues Paket veroeffentlichen.
 ## Warnungen
 
 **`addons.cfg` wird massgeblich.** Sobald dort eine Kategorie (`binding`,
-`automation`, `persistence`) gesetzt ist, verwaltet die Datei diese Kategorie.
+`automation`, `persistence`, `misc`) gesetzt ist, verwaltet die Datei diese Kategorie.
 Addons derselben Kategorie, die nur ueber die Main UI installiert wurden und
 nicht in der Datei stehen, koennen von openHAB entfernt werden.
 `02-install-addons.sh` ergaenzt bestehende Werte deshalb, statt sie zu

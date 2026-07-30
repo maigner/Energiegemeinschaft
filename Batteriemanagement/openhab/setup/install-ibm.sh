@@ -16,7 +16,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 require_root
 require_openhab
 
-log "=== Schritt 1/6: Konfiguration ==="
+log "=== Schritt 1/7: Konfiguration ==="
 if [ -f "$IBM_CONF" ]; then
   log "Konfiguration vorhanden: $IBM_CONF"
   log "Neu erfassen mit: sudo $here/00-wizard.sh"
@@ -26,23 +26,27 @@ fi
 
 load_config
 
-log "=== Schritt 2/6: Preflight ==="
+log "=== Schritt 2/7: Preflight ==="
 if ! "$here/01-preflight.sh"; then
   warn "Preflight meldet Probleme."
   confirm "Trotzdem fortfahren?" || die "Abgebrochen."
 fi
 
-log "=== Schritt 3/6: Addons ==="
+log "=== Schritt 3/7: Addons ==="
 "$here/02-install-addons.sh"
 
-log "=== Schritt 4/6: Items und Persistence ==="
+log "=== Schritt 4/7: Items und Persistence ==="
 "$here/03-install-items.sh"
 
-log "=== Schritt 5/6: Regeln ==="
+log "=== Schritt 5/7: Regeln ==="
 "$here/04-install-rules.sh"
 
-log "=== Schritt 6/6: Verify ==="
+log "=== Schritt 6/7: Verify ==="
 "$here/05-verify.sh" || warn "Verify meldet Probleme - siehe oben."
+
+log "=== Schritt 7/7: openHAB Cloud (myopenhab.org) ==="
+"$here/06-myopenhab.sh" \
+  || warn "openHAB Cloud noch nicht abgeschlossen - spaeter erneut: sudo $here/06-myopenhab.sh"
 
 cat <<ENDE
 [IBM]
@@ -59,6 +63,14 @@ cat <<ENDE
 [IBM]   3. Settings -> Rules: die vier Regeln mit dem Tag "IBM" pruefen und
 [IBM]      zum Testen einmal manuell ausfuehren.
 [IBM]   4. Schalter "Batteriemanagement aktivieren" einschalten.
+ENDE
+
+if [ "$INSTALL_CLOUD" = "1" ]; then
+  log "  5. Konto auf https://myopenhab.org anlegen - UUID und Secret stehen"
+  log "     oben (erneut anzeigen: sudo $here/06-myopenhab.sh)."
+fi
+
+cat <<ENDE
 [IBM]
 [IBM] Logs beobachten:
 [IBM]   tail -f ${OPENHAB_LOGDIR}/openhab.log | grep '\[IBM\]'

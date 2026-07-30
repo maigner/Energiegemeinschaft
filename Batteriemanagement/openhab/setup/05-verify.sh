@@ -27,6 +27,19 @@ if [ "$INSTALL_PERSISTENCE" = "1" ]; then
     || fail "fehlt: $OPENHAB_CONF/persistence/mapdb.persist"
 fi
 
+# --- openHAB Cloud ----------------------------------------------------------
+# Nur Hinweis, kein Fehler: das Secret entsteht erst, wenn das Cloud-Addon
+# das erste Mal laeuft - die Installation kann einige Minuten dauern.
+if [ "$INSTALL_CLOUD" = "1" ]; then
+  if [ -f "$OPENHAB_USERDATA/openhabcloud/secret" ]; then
+    log "openHAB Cloud eingerichtet (Secret vorhanden)."
+    log "UUID und Secret anzeigen: sudo $IBM_SETUP_DIR/06-myopenhab.sh"
+  else
+    warn "openHAB Cloud: Secret noch nicht vorhanden - Addon noch nicht fertig"
+    warn "installiert? Spaeter ausfuehren: sudo $IBM_SETUP_DIR/06-myopenhab.sh"
+  fi
+fi
+
 # --- Parametrisierung -------------------------------------------------------
 if grep -q "$INVERTER_THING_UID" "$OPENHAB_CONF/automation/js/ibm_battery_control.js" 2>/dev/null; then
   log "Thing-UID korrekt eingesetzt: $INVERTER_THING_UID"

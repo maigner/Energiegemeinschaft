@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
-# 02 - Addons: Fronius-Binding, JS Scripting und mapdb ueber addons.cfg.
+# 02 - Addons: Wechselrichter-Binding, JS Scripting, mapdb und - falls
+# gewuenscht - der openHAB Cloud Connector, alles ueber addons.cfg.
 #
 # ACHTUNG: Sobald in addons.cfg eine Kategorie gesetzt ist, ist die Datei
 # fuer diese Kategorie massgeblich. Addons derselben Kategorie, die ueber die
@@ -61,6 +62,11 @@ cat <<HINWEIS
 [IBM]   binding     = ${INVERTER_BINDING}
 [IBM]   automation  = jsscripting      (JS-Regeln, zwingend erforderlich)
 [IBM]   persistence = mapdb            (Einstellungen ueberleben Neustart)
+HINWEIS
+if [ "$INSTALL_CLOUD" = "1" ]; then
+  echo "[IBM]   misc        = openhabcloud    (Fernzugriff ueber myopenhab.org)"
+fi
+cat <<HINWEIS
 [IBM]
 [IBM] WARNUNG: addons.cfg wird damit fuer diese Kategorien massgeblich.
 [IBM] Addons derselben Kategorie, die nur ueber die Main UI installiert
@@ -78,6 +84,9 @@ ensure_addon "binding" "$INVERTER_BINDING"
 ensure_addon "automation" "jsscripting"
 if [ "$INSTALL_PERSISTENCE" = "1" ]; then
   ensure_addon "persistence" "mapdb"
+fi
+if [ "$INSTALL_CLOUD" = "1" ]; then
+  ensure_addon "misc" "openhabcloud"
 fi
 
 chown "$OPENHAB_USER:$OPENHAB_GROUP" "$cfg" 2>/dev/null || true

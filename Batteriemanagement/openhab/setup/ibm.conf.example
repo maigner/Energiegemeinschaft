@@ -73,3 +73,8 @@ INSTALL_ADDONS=1
 # Persistence (mapdb) einrichten, damit die Einstellungen einen Neustart
 # ueberleben.
 INSTALL_PERSISTENCE=1
+
+# openHAB Cloud (myopenhab.org) einrichten: traegt das Addon 'openhabcloud'
+# in addons.cfg ein (Kategorie misc); 06-myopenhab.sh zeigt danach UUID und
+# Secret fuer die Registrierung des Kontos auf myopenhab.org an.
+INSTALL_CLOUD=1
