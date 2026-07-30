@@ -52,6 +52,9 @@ if [ ! -f "$secret_file" ]; then
   warn "  - Addons werden nicht ueber addons.cfg verwaltet (INSTALL_ADDONS=0)."
   warn "    Dann in der Main UI installieren: Settings -> Add-ons -> Misc"
   warn "    -> 'openHAB Cloud Connector'."
+  warn "  - Addon installiert, aber noch nicht gestartet (das Secret entsteht"
+  warn "    erst beim ersten Start). Dann hilft ein Neustart:"
+  warn "      sudo systemctl restart openhab.service"
   warn "Danach dieses Skript erneut ausfuehren:"
   warn "  sudo $IBM_SETUP_DIR/06-myopenhab.sh"
   exit 1
