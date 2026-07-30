@@ -111,8 +111,25 @@ elif [ "${#soc_candidates[@]}" -gt 1 ]; then
   soc_default="${soc_candidates[0]}"
 else
   soc_default=""
-  warn "Kein Ladestands-Item gefunden. Den Channel '${INVERTER_SOC_CHANNEL}' des"
-  warn "Things in der Main UI mit einem Item verknuepfen."
+  warn "Kein Ladestands-Item gefunden."
+  if [ "${IBM_ASSUME_YES:-0}" != "1" ]; then
+    log "Den Channel '${INVERTER_SOC_CHANNEL}' des Things jetzt in der Main UI mit"
+    log "einem Item verknuepfen (Settings -> Things -> Wechselrichter -> Channels"
+    log "-> 'Add Link to Item') - danach hier fortfahren."
+    while confirm "Erneut nach dem Ladestands-Item suchen?"; do
+      mapfile -t soc_candidates < <(detect_soc_items "$INVERTER_THING_UID")
+      if [ "${#soc_candidates[@]}" -ge 1 ]; then
+        soc_default="${soc_candidates[0]}"
+        if [ "${#soc_candidates[@]}" -gt 1 ]; then
+          echo "[IBM] Moegliche Ladestands-Items:"
+          printf '[IBM]   %s\n' "${soc_candidates[@]}"
+        fi
+        log "Ladestands-Item erkannt: $soc_default"
+        break
+      fi
+      warn "Noch kein Ladestands-Item gefunden."
+    done
+  fi
 fi
 
 ask SOC_ITEM "Item mit dem Batterie-Ladestand" "$soc_default"

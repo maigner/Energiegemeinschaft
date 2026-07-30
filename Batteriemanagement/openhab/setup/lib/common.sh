@@ -181,10 +181,12 @@ detect_thing_uids() {
   local db="$OPENHAB_USERDATA/jsondb/org.openhab.core.thing.Thing.json"
   [ -f "$db" ] || return 0
   # Thing-UIDs haben 3 oder 4 Segmente; alles Laengere ist eine Channel-UID.
+  # "|| true": ohne Treffer beendet grep sich mit 1, und unter dem
+  # "set -euo pipefail" der Aufrufer wuerde das die Funktion abbrechen.
   grep -o "\"${prefix}:[^\"]*\"" "$db" 2>/dev/null \
     | tr -d '"' \
     | awk -F: 'NF>=3 && NF<=4' \
-    | sort -u
+    | sort -u || true
 }
 
 # Kandidaten fuer das SoC-Item. Zuerst ueber die Channel-Verknuepfung,
@@ -196,16 +198,26 @@ detect_soc_items() {
   local found=""
 
   # In der JSONDB heissen die Link-Schluessel "<Item> -> <channelUID>".
+  # "|| true" jeweils: ohne Treffer beendet grep sich mit 1, und unter dem
+  # "set -euo pipefail" der Aufrufer wuerde das die Funktion abbrechen,
+  # bevor die Ersatzsuchen laufen.
   if [ -n "$thing_uid" ] && [ -f "$linkdb" ]; then
     found="$(grep -o "\"[^\"]* -> ${thing_uid}:${INVERTER_SOC_CHANNEL}\"" "$linkdb" 2>/dev/null \
-             | sed -e 's/^"//' -e 's/ ->.*//' | sort -u)"
+             | sed -e 's/^"//' -e 's/ ->.*//' | sort -u || true)"
+  fi
+
+  # Ersatzweise andere Channels desselben Things, die nach Ladestand
+  # aussehen - die Channel-ID variiert je nach Binding-Version.
+  if [ -z "$found" ] && [ -n "$thing_uid" ] && [ -f "$linkdb" ]; then
+    found="$(grep -ioE "\"[^\"]+ -> ${thing_uid}:[^\"]*(soc|charge|ladestand|akku)[^\"]*\"" "$linkdb" 2>/dev/null \
+             | sed -e 's/^"//' -e 's/ ->.*//' | sort -u || true)"
   fi
 
   if [ -z "$found" ] && [ -f "$itemdb" ]; then
     found="$(grep -o '"[A-Za-z0-9_]*"' "$itemdb" 2>/dev/null \
              | tr -d '"' \
-             | grep -Ei 'soc|state_of_charge|ladestand' \
-             | sort -u)"
+             | grep -Ei 'soc|state_?of_?charge|ladestand' \
+             | sort -u || true)"
   fi
 
   printf '%s' "$found"

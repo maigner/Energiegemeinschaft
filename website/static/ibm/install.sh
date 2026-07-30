@@ -20,7 +20,7 @@ set -euo pipefail
 
 BASE_URL="${IBM_BASE_URL:-https://ischlstrom.org}"
 DEST="${IBM_DEST:-/opt/ischlstrom}"
-TARBALL_URL="${BASE_URL}/ibm/ibm-openhab.tar.gz"
+TARBALL_URL="${BASE_URL}/ibm/ibm-openhab.tgz"
 CHECKSUM_URL="${TARBALL_URL}.sha256"
 
 log()  { echo "[IBM] $*"; }
@@ -50,12 +50,12 @@ cleanup() { rm -rf "$tmp"; }
 trap cleanup EXIT
 
 log "Lade Paket: $TARBALL_URL"
-curl -fsSL -o "$tmp/ibm-openhab.tar.gz" "$TARBALL_URL" \
+curl -fsSL -o "$tmp/ibm-openhab.tgz" "$TARBALL_URL" \
   || die "Download fehlgeschlagen. Internetverbindung pruefen: $TARBALL_URL"
 
 log "Lade Pruefsumme: $CHECKSUM_URL"
-if curl -fsSL -o "$tmp/ibm-openhab.tar.gz.sha256" "$CHECKSUM_URL"; then
-  if ( cd "$tmp" && sha256sum -c ibm-openhab.tar.gz.sha256 >/dev/null 2>&1 ); then
+if curl -fsSL -o "$tmp/ibm-openhab.tgz.sha256" "$CHECKSUM_URL"; then
+  if ( cd "$tmp" && sha256sum -c ibm-openhab.tgz.sha256 >/dev/null 2>&1 ); then
     log "Pruefsumme OK."
   else
     die "Pruefsumme stimmt nicht. Download abgebrochen - bitte erneut versuchen."
@@ -77,7 +77,7 @@ if [ -d "$DEST/openhab" ]; then
 fi
 
 mkdir -p "$DEST"
-tar -xzf "$tmp/ibm-openhab.tar.gz" -C "$DEST"
+tar -xzf "$tmp/ibm-openhab.tgz" -C "$DEST"
 [ -d "$DEST/openhab/setup" ] || die "Paket unerwartet aufgebaut - $DEST/openhab/setup fehlt."
 
 if [ -n "${keep_conf:-}" ] && [ -f "$keep_conf" ]; then

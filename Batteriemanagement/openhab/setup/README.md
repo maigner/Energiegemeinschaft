@@ -59,15 +59,18 @@ Auf dem Entwicklungsrechner:
 
 ```bash
 cd Batteriemanagement/openhab/setup
-./build-dist.sh          # erzeugt website/static/ibm/ibm-openhab.tar.gz + .sha256
+./build-dist.sh          # erzeugt website/static/ibm/ibm-openhab.tgz + .sha256
 cd ../../../website
 ./deploy-server.sh       # laedt es auf den Server
 ```
 
 `build-dist.sh` legt das Paket in `website/static/ibm/` ab; SvelteKit liefert
 alles unter `static/` an der Wurzel aus, das Paket ist danach unter
-`https://ischlstrom.org/ibm/ibm-openhab.tar.gz` erreichbar. Tarball und
+`https://ischlstrom.org/ibm/ibm-openhab.tgz` erreichbar. Tarball und
 Pruefsumme sind gitignored — sie werden bei jedem Release neu gebaut.
+Die Endung ist bewusst `.tgz`: Dateien auf `*.gz` liefert der Static-Server
+(sirv) mit `Content-Encoding: gzip` aus, Clients ohne `Accept-Encoding`
+bekaemen dann das entpackte Tar und die Pruefsumme schluege fehl.
 
 Der Bootstrap `website/static/ibm/install.sh` ist dagegen eine gepflegte
 Quelldatei im Repository und wird nicht generiert.

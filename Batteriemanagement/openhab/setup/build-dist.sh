@@ -3,8 +3,12 @@
 # Packt die IBM-Skripte fuer die Auslieferung ueber ischlstrom.org.
 #
 # Erzeugt in website/static/ibm/:
-#   ibm-openhab.tar.gz          das Paket
-#   ibm-openhab.tar.gz.sha256   Pruefsumme (vom Bootstrap verifiziert)
+#   ibm-openhab.tgz          das Paket
+#   ibm-openhab.tgz.sha256   Pruefsumme (vom Bootstrap verifiziert)
+#
+# Endung .tgz statt .tar.gz: sirv (adapter-node) liefert *.gz-Dateien mit
+# "Content-Encoding: gzip" aus - Clients ohne Accept-Encoding bekommen dann
+# das entpackte Tar und die Pruefsumme schlaegt fehl.
 #
 # Auf dem Entwicklungsrechner ausfuehren, VOR website/deploy-server.sh:
 #   ./build-dist.sh && ../../../website/deploy-server.sh
@@ -16,7 +20,7 @@ openhab_dir="$(cd "$here/.." && pwd)"          # Batteriemanagement/openhab
 repo_root="$(cd "$openhab_dir/../.." && pwd)"  # Repository-Wurzel
 dist_dir="$repo_root/website/static/ibm"
 
-tarball="$dist_dir/ibm-openhab.tar.gz"
+tarball="$dist_dir/ibm-openhab.tgz"
 checksum="$tarball.sha256"
 
 log() { echo "[IBM] $*"; }
