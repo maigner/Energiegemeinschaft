@@ -148,10 +148,7 @@ pages:
                               title: Batteriemanagement aktivieren
                               item: Schalte_ISCHLSTROM_Empfehlung_einaus
                               color: green
-                              footer: >-
-                                Hauptschalter. Ausgeschaltet greift IBM nicht
-                                ein - der Wechselrichter arbeitet dann wie ab
-                                Werk.
+                              footer: "=items.Schalte_ISCHLSTROM_Empfehlung_einaus.state === 'ON' ? '🟢 EINGESCHALTET - IBM steuert die Batterie automatisch.' : (items.Schalte_ISCHLSTROM_Empfehlung_einaus.state === 'OFF' ? '⚪ AUSGESCHALTET - IBM greift nicht ein, der Wechselrichter arbeitet wie ab Werk.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
 
         # --- Laden bei Sonnenprognose ----------------------------------------
         - component: oh-block
@@ -172,10 +169,7 @@ pages:
                               title: Ladesperre verwenden
                               item: IBM_LADESPERRE_AKTIV
                               color: blue
-                              footer: >-
-                                Kündigt sich ein sonniger Vormittag an, wird in
-                                diesem Zeitfenster nicht aus dem Netz geladen -
-                                die PV-Anlage füllt die Batterie von selbst.
+                              footer: "=items.IBM_LADESPERRE_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - Kündigt sich ein sonniger Vormittag an, wird im Zeitfenster nicht aus dem Netz geladen; die PV-Anlage füllt die Batterie von selbst.' : (items.IBM_LADESPERRE_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Das Laden aus dem Netz wird nie gesperrt.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -243,10 +237,7 @@ pages:
                               title: Entladung verwenden
                               item: IBM_ENTLADUNG_AKTIV
                               color: blue
-                              footer: >-
-                                Die Batterie speist ins Netz ein, solange die
-                                Gemeinschaft mehr verbraucht als erzeugt (siehe
-                                Überschuss-Zeiten oben).
+                              footer: "=items.IBM_ENTLADUNG_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - Die Batterie speist am Abend ins Netz ein, solange die Gemeinschaft mehr verbraucht als erzeugt (Überschuss-Zeiten oben).' : (items.IBM_ENTLADUNG_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Es wird nicht automatisch eingespeist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
               - component: oh-grid-row
                 config: {}
                 slots:
