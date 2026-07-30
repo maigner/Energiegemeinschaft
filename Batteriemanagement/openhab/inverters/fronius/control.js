@@ -5,6 +5,12 @@
 //   Teil B: Forcierte Batterieentladung (Nacht), abhaengig von Toggle,
 //           Ladestand und Wolkenvorschau
 //
+// Das Entladefenster folgt den taeglich von der API geholten Crossover-Zeiten
+// (Zeitpunkt, an dem die gemeinschaftliche Erzeugung den Verbrauch kreuzt):
+// entladen wird vom abendlichen bis zum morgendlichen Crossover. Die
+// Stunden-Items IBM_ENTLADUNG_START/_ENDE dienen als Rueckfallwert, wenn
+// keine plausiblen Crossover-Zeiten vorliegen.
+//
 // Dieses Skript ist die Vorlage fuer alle Anlagen und wird pro Kunde NICHT
 // veraendert. Alles Anlagenspezifische kommt aus Items - siehe Abschnitt
 // "Konfiguration". Fehlt ein Item oder steht es auf NULL, greift der jeweils
@@ -28,6 +34,10 @@ var FALLBACK_DISCHARGE_END_HOUR = 7;
 
 var FALLBACK_MIN_DISCHARGE_W = 1000;
 var FALLBACK_MAX_DISCHARGE_W = 3000;
+
+// Wolkenvorschau aelter als so viele Stunden gilt als veraltet (sie wird
+// stuendlich abgeholt; drei ausgefallene Abrufe in Folge sind ein Ausfall).
+var MAX_CLOUD_AGE_HOURS = 3;
 
 // --- Hilfsfunktionen zum Lesen der Konfiguration ----------------------------
 
@@ -74,6 +84,25 @@ function onOff(name, fallback) {
   return fallback;
 }
 
+// Uhrzeit "HH:MM[:SS]" aus einem String-Item, als Minuten seit Mitternacht.
+// null, wenn das Item fehlt, nicht lesbar ist oder ausserhalb des
+// Plausibilitaetsfensters [minHour, maxHour) liegt.
+function timeItemMinutes(name, minHour, maxHour) {
+  var item = readItem(name);
+  if (item === null) return null;
+  var state = String(item.state);
+  var match = state.match(/^(\d{1,2}):(\d{2})/);
+  if (match === null) return null;
+  var h = parseInt(match[1], 10);
+  var m = parseInt(match[2], 10);
+  if (h > 23 || m > 59) return null;
+  if (h < minHour || h >= maxHour) {
+    console.log('[IBM][Konfig] ' + name + '=' + state + ' unplausibel (erwartet ' + minHour + '-' + maxHour + ' Uhr) - verwende Stunden-Item');
+    return null;
+  }
+  return h * 60 + m;
+}
+
 // --- Konfiguration ----------------------------------------------------------
 
 var CHARGE_LOCK_ACTIVE     = onOff('IBM_LADESPERRE_AKTIV', FALLBACK_CHARGE_LOCK_ACTIVE);
@@ -85,16 +114,76 @@ var DISCHARGE_ACTIVE       = onOff('IBM_ENTLADUNG_AKTIV', FALLBACK_DISCHARGE_ACT
 var DISCHARGE_START_HOUR   = hour('IBM_ENTLADUNG_START', FALLBACK_DISCHARGE_START_HOUR);
 var DISCHARGE_END_HOUR     = hour('IBM_ENTLADUNG_ENDE', FALLBACK_DISCHARGE_END_HOUR);
 
+// Crossover-Zeiten der Gemeinschaft: morgens 03-12 Uhr, abends 12-24 Uhr
+// plausibel. Ausserhalb (oder ohne Daten) greifen die Stunden-Items.
+var MORNING_CROSSOVER_MIN  = timeItemMinutes('Ischlstrom_Crossover_Start', 3, 12);
+var EVENING_CROSSOVER_MIN  = timeItemMinutes('Ischlstrom_Crossover_Ende', 12, 24);
+
 // --- Skript-Logik -----------------------------------------------------------
 var now = time.ZonedDateTime.now();
-var currentHour = now.hour();
+var nowMinutes = now.hour() * 60 + now.minute();
 
-// Prueft, ob die aktuelle Stunde im Fenster liegt. Fenster duerfen ueber
-// Mitternacht gehen (start > ende), z. B. 21:00-07:00.
-function inWindow(startHour, endHour) {
-  if (startHour === endHour) return false;
-  if (startHour < endHour) return currentHour >= startHour && currentHour < endHour;
-  return currentHour >= startHour || currentHour < endHour;
+// Prueft, ob die aktuelle Zeit im Fenster liegt (Minuten seit Mitternacht).
+// Fenster duerfen ueber Mitternacht gehen (start > ende), z. B. 21:00-07:00.
+function inWindow(startMin, endMin) {
+  if (startMin === endMin) return false;
+  if (startMin < endMin) return nowMinutes >= startMin && nowMinutes < endMin;
+  return nowMinutes >= startMin || nowMinutes < endMin;
+}
+
+function fmtMinutes(m) {
+  var h = Math.floor(m / 60);
+  var mm = m % 60;
+  return (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm;
+}
+
+// Ladesperre: fest eingestelltes Vormittagsfenster.
+var chargeLockStart = CHARGE_LOCK_START_HOUR * 60;
+var chargeLockEnd   = CHARGE_LOCK_END_HOUR * 60;
+
+// Entladung: vom abendlichen bis zum morgendlichen Crossover - solange die
+// Gemeinschaft mehr verbraucht als erzeugt. Ohne Crossover-Daten die
+// Stunden-Items.
+var dischargeStart = (EVENING_CROSSOVER_MIN !== null) ? EVENING_CROSSOVER_MIN : DISCHARGE_START_HOUR * 60;
+var dischargeEnd   = (MORNING_CROSSOVER_MIN !== null) ? MORNING_CROSSOVER_MIN : DISCHARGE_END_HOUR * 60;
+var dischargeSource = (EVENING_CROSSOVER_MIN !== null && MORNING_CROSSOVER_MIN !== null) ? 'Crossover'
+  : (EVENING_CROSSOVER_MIN !== null || MORNING_CROSSOVER_MIN !== null) ? 'Crossover/Stunden-Item' : 'Stunden-Item';
+
+// Wolkenvorschau lesen: Wert 0-100 oder null, wenn ungueltig oder veraltet.
+// Veraltete Werte (API-Ausfall) duerfen die Steuerung nicht treiben.
+function cloudForecast() {
+  var item = readItem('Ischlstrom_Wolkenvorschau');
+  if (item === null) {
+    console.log('[IBM][Wolken] Item Ischlstrom_Wolkenvorschau fehlt');
+    return null;
+  }
+  var clouds = parseFloat(item.numericState);
+  if (isNaN(clouds) || clouds < 0 || clouds > 100) {
+    console.log('[IBM][Wolken] Wolkenvorschau ungueltig (' + clouds + '%)');
+    return null;
+  }
+  var stamp = readItem('Ischlstrom_Wolkenvorschau_Zeit');
+  if (stamp === null) {
+    // aeltere Installation ohne Zeitstempel-Item: keine Aktualitaetspruefung
+    return clouds;
+  }
+  var state = String(stamp.state);
+  if (state === 'NULL' || state === 'UNDEF') {
+    console.log('[IBM][Wolken] Kein Abrufzeitpunkt - Wolkenvorschau gilt als veraltet');
+    return null;
+  }
+  try {
+    var fetched = time.ZonedDateTime.parse(state);
+    var ageHours = time.Duration.between(fetched, now).toHours();
+    if (ageHours >= MAX_CLOUD_AGE_HOURS) {
+      console.log('[IBM][Wolken] Wolkenvorschau veraltet (' + ageHours + 'h alt, max. ' + MAX_CLOUD_AGE_HOURS + 'h)');
+      return null;
+    }
+  } catch (e) {
+    console.log('[IBM][Wolken] Abrufzeitpunkt unlesbar (' + state + ') - Wolkenvorschau gilt als veraltet');
+    return null;
+  }
+  return clouds;
 }
 
 // ----------------------------------------------------------------------------
@@ -114,9 +203,10 @@ if (toggleOn) {
 // Teil A: Ladesperre bei geringer Bewoelkung
 // ----------------------------------------------------------------------------
 function handleChargeLock() {
-  var clouds = parseFloat(items.getItem('Ischlstrom_Wolkenvorschau').numericState);
-  if (isNaN(clouds) || clouds < 0 || clouds > 100) {
-    console.log('[IBM][Ladesperre] Wolkenvorschau invalid (' + clouds + '%) - abort');
+  var clouds = cloudForecast();
+  if (clouds === null) {
+    // Ohne verlaessliche Vorschau nicht sperren - Laden bleibt erlaubt.
+    console.log('[IBM][Ladesperre] Keine verlaessliche Wolkenvorschau - Laden wird nicht gesperrt');
     return;
   }
   if (clouds >= CLOUD_THRESHOLD) {
@@ -169,10 +259,13 @@ function handleForcedDischarge() {
   }
   console.log('[IBM][Entladung] Entladeleistung: min=' + dischargeMinW + 'W, max=' + dischargeMaxW + 'W');
 
-  var clouds = parseFloat(items.getItem('Ischlstrom_Wolkenvorschau').numericState);
-  if (isNaN(clouds) || clouds < 0 || clouds > 100) {
-    console.log('[IBM][Entladung] Wolkenvorschau (' + clouds + '%) - invalid value, using maxW');
-    clouds = 0;
+  var clouds = cloudForecast();
+  if (clouds === null) {
+    // Konservativ: ohne verlaessliche Vorschau so entladen, als waere der
+    // naechste Tag komplett bewoelkt (minimale Leistung), damit die Batterie
+    // bei einem API-Ausfall nicht mit Maximalleistung leerlaeuft.
+    console.log('[IBM][Entladung] Keine verlaessliche Wolkenvorschau - entlade mit minimaler Leistung');
+    clouds = 100;
   }
 
   // 0% Wolken -> maxW, 100% Wolken -> minW (linear interpoliert)
@@ -191,12 +284,12 @@ function handleForcedDischarge() {
 // ----------------------------------------------------------------------------
 // Zeitfenster-Weiche: entscheidet, welcher Teil ausgefuehrt wird
 // ----------------------------------------------------------------------------
-if (CHARGE_LOCK_ACTIVE && inWindow(CHARGE_LOCK_START_HOUR, CHARGE_LOCK_END_HOUR)) {
-  console.log('[IBM] Zeitfenster Vormittag (' + currentHour + ':xx, ' + CHARGE_LOCK_START_HOUR + '-' + CHARGE_LOCK_END_HOUR + ') - pruefe Ladesperre');
+if (CHARGE_LOCK_ACTIVE && inWindow(chargeLockStart, chargeLockEnd)) {
+  console.log('[IBM] Zeitfenster Vormittag (' + fmtMinutes(nowMinutes) + ', ' + fmtMinutes(chargeLockStart) + '-' + fmtMinutes(chargeLockEnd) + ') - pruefe Ladesperre');
   handleChargeLock();
-} else if (DISCHARGE_ACTIVE && inWindow(DISCHARGE_START_HOUR, DISCHARGE_END_HOUR)) {
-  console.log('[IBM] Zeitfenster Nacht (' + currentHour + ':xx, ' + DISCHARGE_START_HOUR + '-' + DISCHARGE_END_HOUR + ') - pruefe forcierte Entladung');
+} else if (DISCHARGE_ACTIVE && inWindow(dischargeStart, dischargeEnd)) {
+  console.log('[IBM] Zeitfenster Nacht (' + fmtMinutes(nowMinutes) + ', ' + fmtMinutes(dischargeStart) + '-' + fmtMinutes(dischargeEnd) + ', Quelle: ' + dischargeSource + ') - pruefe forcierte Entladung');
   handleForcedDischarge();
 } else {
-  console.log('[IBM] Ausserhalb beider Zeitfenster (' + currentHour + ':xx) - keine Aktion');
+  console.log('[IBM] Ausserhalb beider Zeitfenster (' + fmtMinutes(nowMinutes) + ') - keine Aktion');
 }

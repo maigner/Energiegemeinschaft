@@ -175,3 +175,65 @@ WHERE actual_is_complete AND intervals = 96
 GROUP BY 1 ORDER BY 1;
 ```
 
+
+# Crossover-Zeiten der Energiegemeinschaft
+
+`energy_community_weekly_crossover_times` liefert je Kalenderwoche die
+durchschnittlichen Uhrzeiten (Europe/Vienna), zu denen die gemeinschaftliche
+Erzeugung (Meter Code 196) den Gesamtverbrauch (Meter Code 193) morgens über-
+und abends unterschreitet. Gemittelt wird **über alle Jahre hinweg** (Gruppierung
+nach Tag-des-Jahres → Kalenderwoche), die Sicht liefert also "typische" Zeiten
+für diese Woche im Jahr — deshalb genügt der monatliche Refresh im Website-Cron
+(`hooks.server.js`), und die aktuelle Woche hat immer eine Zeile, sobald
+historische Daten existieren. Die Website liest sie in
+`/api/eeginfo/crossover/v1`; das OpenHAB-Batteriemanagement steuert damit sein
+Entladefenster.
+
+```sql
+DROP MATERIALIZED VIEW IF EXISTS energy_community_weekly_crossover_times;
+CREATE MATERIALIZED VIEW energy_community_weekly_crossover_times AS
+WITH local_measurements AS (
+    SELECT (m."timestamp" AT TIME ZONE 'Europe/Vienna') AS ts_local,
+           m.value,
+           m.meter_code_id
+    FROM metering_measurement m
+    WHERE m.meter_code_id IN (193, 196)
+), daily_slots AS (
+    SELECT EXTRACT(doy FROM ts_local)::integer AS day_of_year,
+           ('1970-01-01'::date + ts_local::time) AS time_slot,
+           avg(value) FILTER (WHERE meter_code_id = 193) AS gesamtverbrauch,
+           avg(value) FILTER (WHERE meter_code_id = 196) AS gesamte_gem_erzeugung
+    FROM local_measurements
+    GROUP BY 1, 2
+), crossovers_per_day AS (
+    SELECT day_of_year, time_slot, gesamtverbrauch, gesamte_gem_erzeugung,
+           (gesamte_gem_erzeugung > gesamtverbrauch) AS is_over,
+           lag(gesamte_gem_erzeugung > gesamtverbrauch)
+               OVER (PARTITION BY day_of_year ORDER BY time_slot) AS prev_is_over
+    FROM daily_slots
+    WHERE gesamtverbrauch IS NOT NULL AND gesamte_gem_erzeugung IS NOT NULL
+), crossover_times AS (
+    SELECT day_of_year,
+           min(time_slot) FILTER (WHERE is_over = true  AND prev_is_over = false) AS morning_crossover,
+           min(time_slot) FILTER (WHERE is_over = false AND prev_is_over = true)  AS evening_crossover
+    FROM crossovers_per_day
+    GROUP BY day_of_year
+), weekly AS (
+    SELECT EXTRACT(week FROM ('2001-01-01'::date + (day_of_year - 1)))::integer AS week_number,
+           to_char('1970-01-01'::date + make_interval(secs =>
+               avg(EXTRACT(epoch FROM morning_crossover) - EXTRACT(epoch FROM '1970-01-01'::date))::double precision),
+               'HH24:MI') AS avg_morning_crossover,
+           to_char('1970-01-01'::date + make_interval(secs =>
+               avg(EXTRACT(epoch FROM evening_crossover) - EXTRACT(epoch FROM '1970-01-01'::date))::double precision),
+               'HH24:MI') AS avg_evening_crossover,
+           round(avg(EXTRACT(epoch FROM morning_crossover) - EXTRACT(epoch FROM '1970-01-01'::date)) / 3600.0, 3) AS morning_hour,
+           round(avg(EXTRACT(epoch FROM evening_crossover) - EXTRACT(epoch FROM '1970-01-01'::date)) / 3600.0, 3) AS evening_hour,
+           count(DISTINCT day_of_year) AS days_averaged
+    FROM crossover_times
+    WHERE morning_crossover IS NOT NULL AND evening_crossover IS NOT NULL
+    GROUP BY 1
+)
+SELECT week_number, avg_morning_crossover, avg_evening_crossover,
+       morning_hour, evening_hour, days_averaged
+FROM weekly
+ORDER BY week_number;

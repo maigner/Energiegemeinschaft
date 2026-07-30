@@ -99,6 +99,7 @@ Assistent listet automatisch auf, was dort liegt. Ein neuer Hersteller braucht
 | --- | --- | --- |
 | `Schalte_ISCHLSTROM_Empfehlung_einaus` | Switch | Hauptschalter, vom Mitglied bedient |
 | `Ischlstrom_Wolkenvorschau` | Number | API `/api/wolken/vorschau/v1` |
+| `Ischlstrom_Wolkenvorschau_Zeit` | String | Abrufzeitpunkt der Wolkenvorschau (Aktualitaetspruefung) |
 | `Ischlstrom_Crossover_Start` | String | API `/api/eeginfo/crossover/v1` |
 | `Ischlstrom_Crossover_Ende` | String | API `/api/eeginfo/crossover/v1` |
 | `IBM_MIN_BATTERY_CHARGE` | Number | Einstellung |
@@ -108,7 +109,16 @@ Assistent listet automatisch auf, was dort liegt. Ein neuer Hersteller braucht
 | `IBM_LADESPERRE_START` / `_ENDE` | Number | Zeitfenster, Stunde 0-23 |
 | `IBM_LADESPERRE_WOLKEN_SCHWELLE` | Number | Bewoelkungsgrad in % |
 | `IBM_ENTLADUNG_AKTIV` | Switch | Teilfunktion Entladung ein/aus |
-| `IBM_ENTLADUNG_START` / `_ENDE` | Number | Zeitfenster, Stunde 0-23 |
+| `IBM_ENTLADUNG_START` / `_ENDE` | Number | Rueckfall-Zeitfenster, Stunde 0-23 |
+
+Das Entladefenster folgt den Crossover-Zeiten der Gemeinschaft
+(`Ischlstrom_Crossover_Start`/`_Ende`): entladen wird vom abendlichen bis zum
+morgendlichen Crossover, also solange die Gemeinschaft mehr verbraucht als
+erzeugt. `IBM_ENTLADUNG_START`/`_ENDE` greifen nur, wenn keine plausiblen
+Crossover-Zeiten vorliegen. Die Wolkenvorschau gilt als veraltet, wenn ihr
+letzter Abruf (`Ischlstrom_Wolkenvorschau_Zeit`) laenger als drei Stunden
+zurueckliegt — die Steuerung sperrt dann kein Laden und entlaedt nur mit
+minimaler Leistung.
 
 Das Ladestands-Item wird **nicht** angelegt — es entsteht beim Verknuepfen des
 Channels in der Main UI und wird ueber `SOC_ITEM` nur referenziert.

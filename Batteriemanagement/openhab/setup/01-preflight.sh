@@ -76,6 +76,7 @@ if [ -f "$items_db" ]; then
   # JSONDB (Main UI) existieren, sonst streiten sich Datei und UI.
   for item in Schalte_ISCHLSTROM_Empfehlung_einaus \
               Ischlstrom_Wolkenvorschau \
+              Ischlstrom_Wolkenvorschau_Zeit \
               Ischlstrom_Crossover_Start \
               Ischlstrom_Crossover_Ende \
               IBM_MIN_BATTERY_CHARGE \

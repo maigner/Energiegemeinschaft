@@ -54,6 +54,9 @@ export const getCloudForecast = async () => {
     return (result?.rows.length > 0 ? result?.rows : null);
 };
 
+// Das Fenster wird in Server-Lokalzeit gebildet und ist nur korrekt, solange
+// der Prozess mit TZ=Europe/Vienna laeuft (so im Docker-Container gesetzt) --
+// die weather_weatherdata-Zeitstempel sind UTC-Instants (timestamptz).
 function getNoonTimeWindow(): { start: Date; end: Date } {
 
     const date = new Date();

@@ -28,9 +28,10 @@ install_file "$OPENHAB_CONF/items/ibm.items" <<EOF
 Switch Schalte_ISCHLSTROM_Empfehlung_einaus "Batteriemanagement aktivieren" <switch> (IBM)
 
 // Von der ischlstrom API befuellt
-Number Ischlstrom_Wolkenvorschau  "Bewoelkungsvorhersage [%.0f %%]" <sun>  (IBM)
-String Ischlstrom_Crossover_Start "Crossover Start [%s]"            <time> (IBM)
-String Ischlstrom_Crossover_Ende  "Crossover Ende [%s]"             <time> (IBM)
+Number Ischlstrom_Wolkenvorschau      "Bewoelkungsvorhersage [%.0f %%]" <sun>  (IBM)
+String Ischlstrom_Wolkenvorschau_Zeit "Wolkenvorschau abgerufen [%s]"   <time> (IBM)
+String Ischlstrom_Crossover_Start     "Crossover Start [%s]"            <time> (IBM)
+String Ischlstrom_Crossover_Ende      "Crossover Ende [%s]"             <time> (IBM)
 
 // Vom Mitglied einstellbar
 Number IBM_MIN_BATTERY_CHARGE                       "Minimaler Ladestand Batterie [%.0f %%]" <batterylevel> (IBM)
@@ -58,7 +59,9 @@ if [ "$INSTALL_PERSISTENCE" = "1" ]; then
 // ISCHLSTROM Batteriemanagement (IBM)
 // GENERIERT von 03-install-items.sh
 //
-// Sichert die Einstellungen, damit sie einen Neustart ueberleben.
+// Sichert die Einstellungen und die zuletzt geholten API-Werte, damit sie
+// einen Neustart ueberleben. Die Wolkenvorschau ist trotzdem sicher: die
+// Steuerung prueft ueber Ischlstrom_Wolkenvorschau_Zeit, ob sie veraltet ist.
 // ============================================================================
 
 Strategies {
@@ -67,6 +70,10 @@ Strategies {
 
 Items {
     Schalte_ISCHLSTROM_Empfehlung_einaus,
+    Ischlstrom_Wolkenvorschau,
+    Ischlstrom_Wolkenvorschau_Zeit,
+    Ischlstrom_Crossover_Start,
+    Ischlstrom_Crossover_Ende,
     IBM_MIN_BATTERY_CHARGE,
     Minimale_Entladeleistung_Batterieeinspeisung,
     Maximale_Entladeleistung_Batterieeinspeisung,
