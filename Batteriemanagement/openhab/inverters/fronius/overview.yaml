@@ -11,7 +11,9 @@ version: 1
 #   Settings -> Pages -> Overview -> Code-Ansicht -> Inhalt von
 #   pages.overview einfuegen
 #
-# Zeigt und bedient alle Items, die das Batteriemanagement steuert.
+# Zeigt und bedient alle Items, die das Batteriemanagement steuert. Jede
+# Karte traegt eine Erklaerung (footer), damit die Seite ohne Vorwissen
+# verstaendlich ist; Feineinstellungen stehen unter "Fuer Experten".
 # ============================================================================
 pages:
   overview:
@@ -24,11 +26,49 @@ pages:
       label: Overview
     slots:
       default:
+        # --- Was macht IBM? -------------------------------------------------
         - component: oh-block
           config: {}
           slots:
             default:
-              # --- Status -------------------------------------------------
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config:
+                              title: ISCHLSTROM Batteriemanagement (IBM)
+                            slots:
+                              content:
+                                - component: Label
+                                  config:
+                                    text: >-
+                                      IBM steuert die Batterie so, dass möglichst
+                                      viel Sonnenstrom in der Energiegemeinschaft
+                                      bleibt: Vor sonnigen Vormittagen wird nachts
+                                      nicht unnötig aus dem Netz geladen, und am
+                                      Abend speist die Batterie ein, solange die
+                                      Gemeinschaft mehr Strom verbraucht als
+                                      erzeugt. Wettervorhersage und
+                                      Überschuss-Zeiten holt sich die Anlage
+                                      automatisch von ischlstrom.org. Die
+                                      Voreinstellungen passen für die meisten
+                                      Anlagen.
+                                    style:
+                                      padding: 16px
+                                      white-space: normal
+                                      line-height: 1.5
+
+        # --- Aktueller Zustand ----------------------------------------------
+        - component: oh-block
+          config:
+            title: Aktueller Zustand
+          slots:
+            default:
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -39,25 +79,27 @@ pages:
                         default:
                           - component: oh-label-card
                             config:
-                              title: Ladestand Batterie
+                              title: Ladestand der Batterie
                               item: Fronius_Symo_Inverter_Battery_State_of_Charge
+                              footer: >-
+                                Wie voll die Batterie gerade ist. Tippen zeigt
+                                den Verlauf.
                               action:
                                 - analyzer
                               actionAnalyzerItems:
                                 - Fronius_Symo_Inverter_Battery_State_of_Charge
-              - component: oh-grid-row
-                config: {}
-                slots:
-                  default:
                     - component: oh-grid-col
                       config: {}
                       slots:
                         default:
                           - component: oh-label-card
                             config:
-                              title: Bewölkungsvorhersage
+                              title: Bewölkung am Vormittag
                               item: Ischlstrom_Wolkenvorschau
-                              footer: Bewölkungsgrad zwischen 0% und 100%
+                              footer: >-
+                                Vorhersage in Prozent: 0 % = wolkenlos,
+                                100 % = bedeckt. Kommt stündlich von
+                                ischlstrom.org.
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -70,7 +112,10 @@ pages:
                             config:
                               title: Überschuss ab
                               item: Ischlstrom_Crossover_Start
-                              footer: Zeit, ab der die Energiegemeinschaft im Wochenschnitt mehr erzeugt als verbraucht
+                              footer: >-
+                                Ab dieser Uhrzeit erzeugt die Gemeinschaft mehr
+                                Strom, als sie verbraucht - die Einspeisung aus
+                                der Batterie endet.
                     - component: oh-grid-col
                       config: {}
                       slots:
@@ -79,9 +124,17 @@ pages:
                             config:
                               title: Überschuss bis
                               item: Ischlstrom_Crossover_Ende
-                              footer: Zeit, ab der wieder mehr verbraucht als erzeugt wird
+                              footer: >-
+                                Ab dieser Uhrzeit verbraucht die Gemeinschaft
+                                wieder mehr, als sie erzeugt - die Batterie
+                                beginnt am Abend einzuspeisen.
 
-              # --- Hauptschalter ------------------------------------------
+        # --- Hauptschalter ---------------------------------------------------
+        - component: oh-block
+          config:
+            title: Steuerung
+          slots:
+            default:
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -95,8 +148,17 @@ pages:
                               title: Batteriemanagement aktivieren
                               item: Schalte_ISCHLSTROM_Empfehlung_einaus
                               color: green
+                              footer: >-
+                                Hauptschalter. Ausgeschaltet greift IBM nicht
+                                ein - der Wechselrichter arbeitet dann wie ab
+                                Werk.
 
-              # --- Ladesperre am Vormittag --------------------------------
+        # --- Laden bei Sonnenprognose ----------------------------------------
+        - component: oh-block
+          config:
+            title: Laden bei Sonnenprognose
+          slots:
+            default:
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -107,9 +169,13 @@ pages:
                         default:
                           - component: oh-toggle-card
                             config:
-                              title: Ladesperre bei Sonnenprognose
+                              title: Ladesperre verwenden
                               item: IBM_LADESPERRE_AKTIV
                               color: blue
+                              footer: >-
+                                Kündigt sich ein sonniger Vormittag an, wird in
+                                diesem Zeitfenster nicht aus dem Netz geladen -
+                                die PV-Anlage füllt die Batterie von selbst.
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -120,22 +186,24 @@ pages:
                         default:
                           - component: oh-stepper-card
                             config:
-                              title: Ladesperre ab (Stunde)
+                              title: Sperre von (Uhr)
                               item: IBM_LADESPERRE_START
                               min: 0
                               max: 23
                               step: 1
+                              footer: Beginn des Zeitfensters, Stunde 0-23.
                     - component: oh-grid-col
                       config: {}
                       slots:
                         default:
                           - component: oh-stepper-card
                             config:
-                              title: Ladesperre bis (Stunde)
+                              title: Sperre bis (Uhr)
                               item: IBM_LADESPERRE_ENDE
                               min: 0
                               max: 23
                               step: 1
+                              footer: Ende des Zeitfensters, Stunde 0-23.
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -146,14 +214,22 @@ pages:
                         default:
                           - component: oh-stepper-card
                             config:
-                              title: Wolken-Schwelle Ladesperre
-                              footer: unter diesem Bewölkungsgrad wird das Laden aus dem Netz gesperrt
+                              title: Bewölkungs-Schwelle (%)
                               item: IBM_LADESPERRE_WOLKEN_SCHWELLE
                               min: 0
                               max: 100
                               step: 5
+                              footer: >-
+                                Nur wenn die Bewölkungsvorhersage unter diesem
+                                Wert liegt (also genug Sonne kommt), wird das
+                                Laden gesperrt.
 
-              # --- Forcierte Entladung ------------------------------------
+        # --- Einspeisen am Abend ---------------------------------------------
+        - component: oh-block
+          config:
+            title: Einspeisen am Abend
+          slots:
+            default:
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -164,9 +240,13 @@ pages:
                         default:
                           - component: oh-toggle-card
                             config:
-                              title: Forcierte Entladung nachts
+                              title: Entladung verwenden
                               item: IBM_ENTLADUNG_AKTIV
                               color: blue
+                              footer: >-
+                                Die Batterie speist ins Netz ein, solange die
+                                Gemeinschaft mehr verbraucht als erzeugt (siehe
+                                Überschuss-Zeiten oben).
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -177,38 +257,14 @@ pages:
                         default:
                           - component: oh-stepper-card
                             config:
-                              title: Entladung ab (Stunde)
-                              item: IBM_ENTLADUNG_START
-                              min: 0
-                              max: 23
-                              step: 1
-                    - component: oh-grid-col
-                      config: {}
-                      slots:
-                        default:
-                          - component: oh-stepper-card
-                            config:
-                              title: Entladung bis (Stunde)
-                              item: IBM_ENTLADUNG_ENDE
-                              min: 0
-                              max: 23
-                              step: 1
-              - component: oh-grid-row
-                config: {}
-                slots:
-                  default:
-                    - component: oh-grid-col
-                      config: {}
-                      slots:
-                        default:
-                          - component: oh-stepper-card
-                            config:
-                              title: Minimaler Ladestand Batterie
-                              footer: bei diesem Ladestand wird die Einspeisung aus der Batterie beendet
+                              title: Reserve-Ladestand (%)
                               item: IBM_MIN_BATTERY_CHARGE
                               min: 10
                               max: 90
                               step: 5
+                              footer: >-
+                                Unter diesem Ladestand stoppt die Einspeisung -
+                                diese Reserve bleibt für den eigenen Haushalt.
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -219,19 +275,64 @@ pages:
                         default:
                           - component: oh-stepper-card
                             config:
-                              title: Minimale Entladeleistung Batterieeinspeisung
-                              item: Minimale_Entladeleistung_Batterieeinspeisung
+                              title: Ersatzfenster ab (Uhr)
+                              item: IBM_ENTLADUNG_START
                               min: 0
-                              max: 1000
-                              step: 100
+                              max: 23
+                              step: 1
+                              footer: >-
+                                Gilt nur, wenn keine Überschuss-Zeiten von
+                                ischlstrom.org vorliegen.
                     - component: oh-grid-col
                       config: {}
                       slots:
                         default:
                           - component: oh-stepper-card
                             config:
-                              title: Maximale Entladeleistung Batterieeinspeisung
+                              title: Ersatzfenster bis (Uhr)
+                              item: IBM_ENTLADUNG_ENDE
+                              min: 0
+                              max: 23
+                              step: 1
+                              footer: >-
+                                Gilt nur, wenn keine Überschuss-Zeiten von
+                                ischlstrom.org vorliegen.
+
+        # --- Fuer Experten ---------------------------------------------------
+        - component: oh-block
+          config:
+            title: Für Experten
+          slots:
+            default:
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-stepper-card
+                            config:
+                              title: Minimale Entladeleistung (W)
+                              item: Minimale_Entladeleistung_Batterieeinspeisung
+                              min: 0
+                              max: 1000
+                              step: 100
+                              footer: >-
+                                Kleinste Leistung, mit der eingespeist wird -
+                                auch wenn die Wolkenvorschau veraltet ist.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-stepper-card
+                            config:
+                              title: Maximale Entladeleistung (W)
                               item: Maximale_Entladeleistung_Batterieeinspeisung
                               min: 1000
                               max: 4000
                               step: 500
+                              footer: >-
+                                Obergrenze fürs Einspeisen. Die Vorgabe passt
+                                für die meisten Anlagen.
