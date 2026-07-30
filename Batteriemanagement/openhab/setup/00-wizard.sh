@@ -129,7 +129,54 @@ if [ "$INSTALL_CLOUD" = "1" ] && [ "$INSTALL_ADDONS" != "1" ]; then
   warn "bitte in der Main UI installieren: Settings -> Add-ons -> Misc."
 fi
 
-# --- 8. Schreiben -----------------------------------------------------------
+# --- 8. Netzwerk-Watchdog ---------------------------------------------------
+INSTALL_WATCHDOG=0
+INVERTER_HOST_THING_UID=""
+OH_API_TOKEN=""
+
+if [ -n "$INVERTER_REDISCOVER_SCRIPT" ] && [ -n "$INVERTER_HOST_THING_PREFIX" ] \
+   && [ -f "$IBM_SCRIPT_DIR/$INVERTER_REDISCOVER_SCRIPT" ]; then
+  echo "[IBM]"
+  echo "[IBM] Teilt der Router dem Wechselrichter per DHCP eine neue IP zu, verliert"
+  echo "[IBM] openHAB die Verbindung. Der Netzwerk-Watchdog sucht in dem Fall das"
+  echo "[IBM] lokale Netz ab und traegt die neue Adresse selbst in das Thing ein."
+  echo "[IBM] Dafuer wird ein openHAB-API-Token benoetigt (Main UI -> links unten auf"
+  echo "[IBM] den Benutzernamen klicken -> 'Create new API token')."
+  if confirm "Netzwerk-Watchdog einrichten?"; then
+    mapfile -t host_candidates < <(detect_thing_uids "$INVERTER_HOST_THING_PREFIX")
+
+    # Rueckfalloption: Bridge-Segment aus der Wechselrichter-UID ableiten
+    # (fronius:powerinverter:<bridge>:<id> -> fronius:bridge:<bridge>).
+    host_default=""
+    if [ "$(echo "$INVERTER_THING_UID" | awk -F: '{print NF}')" -eq 4 ]; then
+      host_default="${INVERTER_HOST_THING_PREFIX}:$(echo "$INVERTER_THING_UID" | cut -d: -f3)"
+    fi
+
+    if [ "${#host_candidates[@]}" -eq 1 ]; then
+      host_default="${host_candidates[0]}"
+      log "Bridge erkannt: $host_default"
+    elif [ "${#host_candidates[@]}" -gt 1 ]; then
+      echo "[IBM] Mehrere Bridges gefunden:"
+      printf '[IBM]   %s\n' "${host_candidates[@]}"
+      host_default="${host_candidates[0]}"
+    elif [ -z "$host_default" ]; then
+      warn "Kein Thing mit Praefix '${INVERTER_HOST_THING_PREFIX}' gefunden."
+    fi
+
+    ask INVERTER_HOST_THING_UID "Thing-UID der Bridge (traegt die IP-Adresse)" "$host_default"
+    ask OH_API_TOKEN "openHAB-API-Token (leer = Watchdog ueberspringen)" ""
+
+    if [ -n "$INVERTER_HOST_THING_UID" ] && [ -n "$OH_API_TOKEN" ]; then
+      INSTALL_WATCHDOG=1
+    else
+      warn "Ohne Bridge-UID und API-Token kein Watchdog - spaeter nachruestbar:"
+      warn "Werte in ibm.conf eintragen (INVERTER_HOST_THING_UID, OH_API_TOKEN,"
+      warn "INSTALL_WATCHDOG=1) und 04-install-rules.sh erneut ausfuehren."
+    fi
+  fi
+fi
+
+# --- 9. Schreiben -----------------------------------------------------------
 umask 022
 cat > "$IBM_CONF" <<EOF
 # ============================================================================
@@ -170,6 +217,15 @@ DEFAULT_ENTLADUNG_ENDE=7
 INSTALL_ADDONS=${INSTALL_ADDONS}
 INSTALL_PERSISTENCE=1
 INSTALL_CLOUD=${INSTALL_CLOUD}
+
+# --- Netzwerk-Watchdog ------------------------------------------------------
+# Sucht den Wechselrichter nach einem DHCP-IP-Wechsel im Netz und traegt die
+# neue Adresse in das Bridge-Thing ein. Braucht ein openHAB-API-Token.
+INSTALL_WATCHDOG=${INSTALL_WATCHDOG}
+INVERTER_HOST_THING_UID="${INVERTER_HOST_THING_UID}"
+OH_API_TOKEN="${OH_API_TOKEN}"
+CRON_WATCHDOG="0 7/15 * * * ?"
+WATCHDOG_COOLDOWN_MIN=10
 EOF
 
 log "Konfiguration geschrieben: $IBM_CONF"
@@ -184,5 +240,6 @@ cat <<ZUSAMMENFASSUNG
 [IBM]   Entladung      : ${DEFAULT_MIN_DISCHARGE_W} - ${DEFAULT_MAX_DISCHARGE_W} W
 [IBM]   Addons         : $([ "$INSTALL_ADDONS" = "1" ] && echo "ueber addons.cfg" || echo "manuell in der Main UI")
 [IBM]   openHAB Cloud  : $([ "$INSTALL_CLOUD" = "1" ] && echo "ja (myopenhab.org)" || echo "nein")
+[IBM]   Watchdog       : $([ "$INSTALL_WATCHDOG" = "1" ] && echo "ja (${INVERTER_HOST_THING_UID})" || echo "nein")
 [IBM]
 ZUSAMMENFASSUNG

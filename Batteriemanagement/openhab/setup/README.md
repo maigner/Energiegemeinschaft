@@ -78,7 +78,7 @@ Quelldatei im Repository und wird nicht generiert.
 | `01-preflight.sh` | Prueft Dienst, Quellskripte, API, Thing, Item und Item-Kollisionen. Aendert nichts. |
 | `02-install-addons.sh` | Traegt Binding, `jsscripting`, `mapdb` und (falls gewuenscht) `openhabcloud` in `addons.cfg` ein. |
 | `03-install-items.sh` | Schreibt `items/ibm.items` und `persistence/mapdb.persist`. |
-| `04-install-rules.sh` | Erzeugt die zeitgesteuerten Regeln in `automation/js/`. |
+| `04-install-rules.sh` | Erzeugt die zeitgesteuerten Regeln in `automation/js/` und (falls gewuenscht) den Netzwerk-Watchdog. |
 | `05-verify.sh` | Prueft das Ergebnis, zeigt die letzten `[IBM]`-Logzeilen. Aendert nichts. |
 | `06-myopenhab.sh` | Zeigt UUID und Secret fuer die Registrierung auf myopenhab.org an (wartet ggf. auf das Cloud-Addon). Aendert nichts. |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
@@ -144,6 +144,47 @@ Code-Ansicht` und den Inhalt einfuegen.
 | `ibm_crossover.js` | `../eeg-api/crossover.js` | taeglich 04:05 |
 | `ibm_battery_control.js` | aus dem Wechselrichter-Profil | alle 5 Minuten |
 | `ibm_init.js` | generiert | alle 10 Minuten |
+| `ibm_watchdog.js` (optional) | generiert | bei Bridge-OFFLINE + alle 15 Minuten |
+
+## Netzwerk-Watchdog (wechselnde IP des Wechselrichters)
+
+Teilt der Router dem Wechselrichter per DHCP eine neue IP zu, verliert das
+Binding die Verbindung und die Steuerung faellt aus. Der Watchdog behebt das
+automatisch, ohne dass am Router des Mitglieds etwas umgestellt werden muss:
+
+1. Geht das Bridge-Thing auf `OFFLINE` (zusaetzlich Fallback-Pruefung alle
+   15 Minuten), ruft die Regel `ibm_watchdog.js` das Skript
+   `/etc/openhab/scripts/ibm_rediscover.sh` auf.
+2. Antwortet die konfigurierte Adresse noch (z. B. Datamanager im
+   Nachtmodus, falsche Credentials), passiert nichts - das Problem liegt
+   dann nicht an der IP.
+3. Sonst wird das eigene /24-Netz nach der Fronius Solar API abgesucht
+   (`/solar_api/GetAPIVersion.cgi`, parallele `curl`-Aufrufe, wenige
+   Sekunden) - fruehestens alle `WATCHDOG_COOLDOWN_MIN` Minuten.
+4. Gefundene Geraete werden ueber ihre Seriennummer (`UniqueID` aus
+   `GetInverterInfo.cgi`) mit der gemerkten Seriennummer der Anlage
+   abgeglichen, damit nie ein fremdes Geraet uebernommen wird. Die
+   Seriennummer merkt sich der Watchdog selbst, solange die Anlage
+   `ONLINE` ist (`/var/lib/openhab/ibm/inverter_serial`).
+5. Die neue Adresse wird per REST API (`PUT /rest/things/<uid>/config`) in
+   das Bridge-Thing eingetragen; das Binding verbindet sich daraufhin von
+   selbst neu.
+
+Der Watchdog braucht ein **openHAB-API-Token** eines Admin-Benutzers
+(Main UI -> links unten auf den Benutzernamen klicken -> "Create new API
+token"). Der Assistent fragt danach; ohne Token wird der Watchdog
+uebersprungen und kann spaeter nachgeruestet werden: `INSTALL_WATCHDOG=1`,
+`INVERTER_HOST_THING_UID` und `OH_API_TOKEN` in `ibm.conf` eintragen, dann
+`04-install-rules.sh` erneut ausfuehren. Das Token liegt danach in
+`/var/lib/openhab/ibm/api_token` (nur fuer den openhab-Benutzer lesbar).
+
+Manueller Testlauf (auch bei `ONLINE`, erzwingt die Suche):
+
+```bash
+sudo -u openhab /etc/openhab/scripts/ibm_rediscover.sh --force
+```
+
+Alle Meldungen erscheinen mit dem Praefix `[IBM][Watchdog]` im openhab.log.
 
 ## openHAB Cloud (myopenhab.org)
 

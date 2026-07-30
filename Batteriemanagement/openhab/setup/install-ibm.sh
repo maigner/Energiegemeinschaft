@@ -60,7 +60,7 @@ cat <<ENDE
 [IBM] Naechste Schritte in der Main UI (http://<pi>:8080):
 [IBM]   1. Settings -> Add-ons pruefen (${INVERTER_BINDING}, JS Scripting, mapdb)
 [IBM]   2. ${INVERTER_NOTES}
-[IBM]   3. Settings -> Rules: die vier Regeln mit dem Tag "IBM" pruefen und
+[IBM]   3. Settings -> Rules: die Regeln mit dem Tag "IBM" pruefen und
 [IBM]      zum Testen einmal manuell ausfuehren.
 [IBM]   4. Schalter "Batteriemanagement aktivieren" einschalten.
 ENDE

@@ -95,6 +95,44 @@ if [ -f "$items_db" ]; then
   done
 fi
 
+# --- Netzwerk-Watchdog ------------------------------------------------------
+if [ "$INSTALL_WATCHDOG" = "1" ]; then
+  src="$IBM_SCRIPT_DIR/${INVERTER_REDISCOVER_SCRIPT:-}"
+  if [ -z "$INVERTER_REDISCOVER_SCRIPT" ] || [ ! -f "$src" ]; then
+    fail "Netzwerksuche fehlt im Profil '$INVERTER_TYPE': ${src}"
+  else
+    log "gefunden: $src"
+  fi
+
+  [ -n "$INVERTER_HOST_THING_UID" ] || fail "INVERTER_HOST_THING_UID fehlt in ibm.conf (Watchdog)."
+  [ -n "$OH_API_TOKEN" ] || fail "OH_API_TOKEN fehlt in ibm.conf (Watchdog)."
+
+  if [ -f "$things_db" ] && [ -n "$INVERTER_HOST_THING_UID" ]; then
+    if grep -q "$INVERTER_HOST_THING_UID" "$things_db"; then
+      log "Bridge-Thing gefunden: $INVERTER_HOST_THING_UID"
+    else
+      fail "Bridge-Thing '$INVERTER_HOST_THING_UID' nicht in der JSONDB."
+    fi
+  fi
+
+  for cmd in ip flock xargs seq curl; do
+    command -v "$cmd" >/dev/null 2>&1 || fail "Kommando fehlt fuer den Watchdog: $cmd"
+  done
+
+  # Token gegen die REST API pruefen (Thing-Endpunkte brauchen Admin-Rechte).
+  if command -v curl >/dev/null 2>&1 && [ -n "$OH_API_TOKEN" ] && [ -n "$INVERTER_HOST_THING_UID" ]; then
+    code="$(curl -s -o /dev/null -w '%{http_code}' -m 10 \
+      -H "Authorization: Bearer $OH_API_TOKEN" \
+      "http://127.0.0.1:8080/rest/things/$INVERTER_HOST_THING_UID" || true)"
+    case "$code" in
+      200)     log "API-Token OK - Bridge-Thing per REST erreichbar." ;;
+      401|403) fail "API-Token wird abgelehnt (HTTP $code) - Token eines Admin-Benutzers eintragen." ;;
+      404)     fail "Bridge-Thing per REST nicht gefunden (HTTP 404): $INVERTER_HOST_THING_UID" ;;
+      *)       warn "openHAB REST API nicht pruefbar (HTTP $code) - laeuft openHAB?" ;;
+    esac
+  fi
+fi
+
 # --- Ergebnis ---------------------------------------------------------------
 if [ "$problems" -eq 0 ]; then
   log "Preflight OK - keine Probleme gefunden."

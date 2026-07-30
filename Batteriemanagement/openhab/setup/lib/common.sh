@@ -119,6 +119,11 @@ load_profile() {
   INVERTER_SOC_CHANNEL="${INVERTER_SOC_CHANNEL:-soc}"
   INVERTER_NOTES="${INVERTER_NOTES:-}"
 
+  # Optional: Netzwerk-Watchdog (nur wenn das Profil eine Netzwerksuche hat)
+  INVERTER_HOST_THING_PREFIX="${INVERTER_HOST_THING_PREFIX:-}"
+  INVERTER_HOST_PARAM="${INVERTER_HOST_PARAM:-hostname}"
+  INVERTER_REDISCOVER_SCRIPT="${INVERTER_REDISCOVER_SCRIPT:-}"
+
   log "Wechselrichter-Profil geladen: $INVERTER_LABEL ($type)"
 }
 
@@ -154,6 +159,13 @@ load_config() {
   # Aeltere ibm.conf kennt die Option noch nicht - dann nichts aendern.
   INSTALL_CLOUD="${INSTALL_CLOUD:-0}"
 
+  # Netzwerk-Watchdog (aeltere ibm.conf kennt die Optionen noch nicht)
+  INSTALL_WATCHDOG="${INSTALL_WATCHDOG:-0}"
+  INVERTER_HOST_THING_UID="${INVERTER_HOST_THING_UID:-}"
+  OH_API_TOKEN="${OH_API_TOKEN:-}"
+  CRON_WATCHDOG="${CRON_WATCHDOG:-0 7/15 * * * ?}"
+  WATCHDOG_COOLDOWN_MIN="${WATCHDOG_COOLDOWN_MIN:-10}"
+
   load_profile "$INVERTER_TYPE"
 }
 
@@ -163,11 +175,13 @@ load_config() {
 # ---------------------------------------------------------------------------
 
 # Kandidaten fuer die Thing-UID des Wechselrichters.
+# Optionales Argument: abweichendes UID-Praefix (z. B. die Bridge).
 detect_thing_uids() {
+  local prefix="${1:-$INVERTER_THING_PREFIX}"
   local db="$OPENHAB_USERDATA/jsondb/org.openhab.core.thing.Thing.json"
   [ -f "$db" ] || return 0
   # Thing-UIDs haben 3 oder 4 Segmente; alles Laengere ist eine Channel-UID.
-  grep -o "\"${INVERTER_THING_PREFIX}:[^\"]*\"" "$db" 2>/dev/null \
+  grep -o "\"${prefix}:[^\"]*\"" "$db" 2>/dev/null \
     | tr -d '"' \
     | awk -F: 'NF>=3 && NF<=4' \
     | sort -u

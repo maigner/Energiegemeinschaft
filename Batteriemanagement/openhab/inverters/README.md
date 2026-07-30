@@ -25,6 +25,15 @@ inverters/
    | `INVERTER_SOC_PLACEHOLDER` | Itemname im Steuerungsskript, den das Setup ersetzt |
    | `INVERTER_NOTES` | Hinweis fuer den Installateur |
 
+   Optional, fuer den Netzwerk-Watchdog (ohne diese Variablen bietet das
+   Setup keinen Watchdog an):
+
+   | Variable | Bedeutung |
+   | --- | --- |
+   | `INVERTER_HOST_THING_PREFIX` | Praefix des Things, das die Netzwerkadresse traegt (bei Fronius die Bridge: `fronius:bridge`) |
+   | `INVERTER_HOST_PARAM` | Name des Konfigurationsparameters mit der Adresse (Vorgabe: `hostname`) |
+   | `INVERTER_REDISCOVER_SCRIPT` | Pfad zur Netzwerksuche, relativ zu `openhab/` |
+
 3. Steuerungsskript schreiben. Es ist ein reiner **Skriptkoerper** (wie in der
    Main UI unter "Script Action"), kein `rules.JSRule(...)` — das Setup
    verpackt es selbst und haengt den Cron-Trigger an.
@@ -53,6 +62,23 @@ inverters/
    | `IBM_ENTLADUNG_START` / `_ENDE` | Number | Stunde 0-23 |
 
 4. Alle Logausgaben mit `[IBM]` praefixieren.
+
+5. Optional eine Netzwerksuche schreiben (Bash), die den Wechselrichter nach
+   einem DHCP-IP-Wechsel wiederfindet - siehe `fronius/rediscover.sh` als
+   Muster. Das Setup ersetzt darin diese Platzhalter:
+
+   | Platzhalter | Wert |
+   | --- | --- |
+   | `@IBM_HOST_THING_UID@` | UID des Things mit der Netzwerkadresse |
+   | `@IBM_HOST_PARAM@` | Name des Adress-Parameters |
+   | `@IBM_TOKEN_FILE@` | Datei mit dem openHAB-API-Token |
+   | `@IBM_STATE_DIR@` | Arbeitsverzeichnis (Lock, gemerkte Seriennummer) |
+   | `@IBM_COOLDOWN_MIN@` | Mindestabstand zwischen zwei Suchen in Minuten |
+
+   Vertrag: Das Skript wird bei Thing-`OFFLINE` und zusaetzlich alle
+   15 Minuten aufgerufen, prueft Status, Abkuehlzeit und Geraeteidentitaet
+   selbst, ist bei `ONLINE` still und traegt eine gefundene neue Adresse per
+   REST API in das Thing ein. Logausgaben mit `[IBM][Watchdog]` praefixieren.
 
 ## Grundsatz: konfigurieren statt kopieren
 

@@ -22,6 +22,17 @@ INVERTER_SOC_CHANNEL="soc"
 # Steuerungsskript, relativ zu IBM_SCRIPT_DIR
 INVERTER_CONTROL_SCRIPT="inverters/fronius/control.js"
 
+# Thing, das die Netzwerkadresse traegt (bei Fronius die Bridge, nicht der
+# Wechselrichter selbst) - Praefix zur Erkennung in der JSONDB
+INVERTER_HOST_THING_PREFIX="fronius:bridge"
+
+# Name des Konfigurationsparameters mit der Adresse in diesem Thing
+INVERTER_HOST_PARAM="hostname"
+
+# Netzwerksuche fuer den Watchdog (optional), relativ zu IBM_SCRIPT_DIR.
+# Fehlt die Variable, bietet das Setup keinen Watchdog an.
+INVERTER_REDISCOVER_SCRIPT="inverters/fronius/rediscover.sh"
+
 # Platzhalter im Steuerungsskript, die das Setup ersetzt:
 #   - die fest verdrahtete Thing-UID (ueber INVERTER_THING_PREFIX erkannt)
 #   - der Itemname des Ladestands

@@ -139,5 +139,91 @@ rules.JSRule({
 });
 EOF
 
+# --- Netzwerk-Watchdog ------------------------------------------------------
+# Ueberwacht das Thing mit der Netzwerkadresse (bei Fronius die Bridge) und
+# startet bei OFFLINE die Netzwerksuche aus dem Wechselrichter-Profil, die
+# eine per DHCP geaenderte IP findet und per REST API in das Thing eintraegt.
+install_watchdog() {
+  local src="$IBM_SCRIPT_DIR/$INVERTER_REDISCOVER_SCRIPT"
+  local state_dir="$OPENHAB_USERDATA/ibm"
+  local token_file="$state_dir/api_token"
+  local script_target="$OPENHAB_CONF/scripts/ibm_rediscover.sh"
+
+  if [ -z "$INVERTER_REDISCOVER_SCRIPT" ] || [ ! -f "$src" ]; then
+    warn "Profil '$INVERTER_TYPE' hat keine Netzwerksuche - Watchdog uebersprungen."
+    return 0
+  fi
+  if [ -z "$INVERTER_HOST_THING_UID" ]; then
+    warn "INVERTER_HOST_THING_UID fehlt in ibm.conf - Watchdog uebersprungen."
+    return 0
+  fi
+  if [ -z "$OH_API_TOKEN" ]; then
+    warn "OH_API_TOKEN fehlt in ibm.conf - Watchdog uebersprungen."
+    return 0
+  fi
+
+  # Arbeitsverzeichnis des Watchdogs (Token, gemerkte Seriennummer, Lock)
+  mkdir -p "$state_dir"
+  chown "$OPENHAB_USER:$OPENHAB_GROUP" "$state_dir" 2>/dev/null || true
+  chmod 0700 "$state_dir"
+
+  # Das Token gehoert nicht in eine weltlesbare Datei, daher nicht install_file.
+  printf '%s\n' "$OH_API_TOKEN" > "$token_file"
+  chown "$OPENHAB_USER:$OPENHAB_GROUP" "$token_file" 2>/dev/null || true
+  chmod 0600 "$token_file"
+  log "API-Token abgelegt: $token_file"
+
+  sed -e "s|@IBM_HOST_THING_UID@|$(sed_escape "$INVERTER_HOST_THING_UID")|g" \
+      -e "s|@IBM_HOST_PARAM@|$(sed_escape "$INVERTER_HOST_PARAM")|g" \
+      -e "s|@IBM_TOKEN_FILE@|$(sed_escape "$token_file")|g" \
+      -e "s|@IBM_STATE_DIR@|$(sed_escape "$state_dir")|g" \
+      -e "s|@IBM_COOLDOWN_MIN@|$(sed_escape "$WATCHDOG_COOLDOWN_MIN")|g" \
+      "$src" | install_file "$script_target"
+  chmod 0755 "$script_target"
+
+  install_file "$js_dir/ibm_watchdog.js" <<EOF
+// ===========================================================================
+// GENERIERT von 04-install-rules.sh - nicht direkt bearbeiten.
+// Quelle der Netzwerksuche: $INVERTER_REDISCOVER_SCRIPT
+// Aenderungen im Repository vornehmen und das Setup erneut ausfuehren.
+// ===========================================================================
+rules.JSRule({
+  id: 'ibm_inverter_watchdog',
+  name: 'IBM - Netzwerk-Watchdog (${INVERTER_TYPE})',
+  description: 'Findet den Wechselrichter nach einem IP-Wechsel im Netz wieder',
+  tags: ['IBM'],
+  triggers: [
+    triggers.ThingStatusChangeTrigger('${INVERTER_HOST_THING_UID}', 'OFFLINE'),
+    triggers.GenericCronTrigger('${CRON_WATCHDOG}')
+  ],
+  execute: (event) => {
+    // Das Skript prueft selbst Status, Abkuehlzeit und Identitaet -
+    // im Normalbetrieb (Thing ONLINE) tut es nichts und gibt nichts aus.
+    var out = actions.Exec.executeCommandLine(time.Duration.ofMinutes(5), '${script_target}');
+    if (out) {
+      String(out).split('\n').forEach(function (line) {
+        if (line.trim().length > 0) { console.log(line); }
+      });
+    }
+  }
+});
+EOF
+
+  # Einmal sofort laufen lassen: prueft Token und REST-Zugriff und merkt sich
+  # die Seriennummer des Wechselrichters, solange die Verbindung noch steht.
+  if command -v runuser >/dev/null 2>&1; then
+    log "Erster Watchdog-Lauf (prueft Token und merkt sich die Seriennummer) ..."
+    runuser -u "$OPENHAB_USER" -- "$script_target" \
+      | sed 's/^/[IBM]   /' \
+      || warn "Erster Watchdog-Lauf fehlgeschlagen - siehe Meldungen oben."
+  fi
+}
+
+if [ "$INSTALL_WATCHDOG" = "1" ]; then
+  install_watchdog
+else
+  log "INSTALL_WATCHDOG=0 - Netzwerk-Watchdog uebersprungen."
+fi
+
 log "Regeln installiert in $js_dir"
 log "openHAB laedt Dateien in diesem Verzeichnis automatisch neu."
