@@ -9,6 +9,10 @@ Richtet eine openHABian-Installation fuer das **ISCHLSTROM Batteriemanagement
    abwarten (dauert beim ersten Boot einige Minuten).
 2. Wechselrichter in der Main UI anlegen (`Settings -> Things`), Credentials
    hinterlegen und den Ladestands-Channel mit einem Item verknuepfen.
+   Dieser Schritt kann auch uebersprungen und waehrend der Installation
+   nachgeholt werden: fehlt das Thing, bietet der Assistent an, das Binding
+   selbst ueber `addons.cfg` zu installieren, und wartet dann, bis der
+   Wechselrichter in der Main UI angelegt ist.
 3. Per SSH einloggen und:
 
    ```bash
@@ -74,7 +78,7 @@ Quelldatei im Repository und wird nicht generiert.
 
 | Skript | Wirkung |
 | --- | --- |
-| `00-wizard.sh` | Fragt die Anlagendaten ab und schreibt `ibm.conf`. Erkennt Wechselrichter und Ladestands-Item selbst. |
+| `00-wizard.sh` | Fragt die Anlagendaten ab und schreibt `ibm.conf`. Erkennt Wechselrichter und Ladestands-Item selbst; fehlt das Thing, installiert er auf Wunsch das Binding und wartet auf das Anlegen in der Main UI. |
 | `01-preflight.sh` | Prueft Dienst, Quellskripte, API, Thing, Item und Item-Kollisionen. Aendert nichts. |
 | `02-install-addons.sh` | Traegt Binding, `jsscripting`, `mapdb` und (falls gewuenscht) `openhabcloud` in `addons.cfg` ein. |
 | `03-install-items.sh` | Schreibt `items/ibm.items` und `persistence/mapdb.persist`. |
@@ -82,6 +86,12 @@ Quelldatei im Repository und wird nicht generiert.
 | `05-verify.sh` | Prueft das Ergebnis, zeigt die letzten `[IBM]`-Logzeilen. Aendert nichts. |
 | `06-myopenhab.sh` | Zeigt UUID und Secret fuer die Registrierung auf myopenhab.org an (wartet ggf. auf das Cloud-Addon). Aendert nichts. |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
+
+`install-ibm.sh` setzt ausserdem die Zeitzone auf `Europe/Vienna` — sowohl die
+Systemzeitzone (`timedatectl`) als auch die Regionaleinstellung von openHAB
+(`org.openhab.i18n:timezone` in `services/runtime.cfg`; dieser Eintrag geht der
+Main-UI-Einstellung vor). Abweichende Zeitzone: `IBM_TIMEZONE` als
+Umgebungsvariable setzen.
 
 Die Skripte sind **idempotent** — ein erneuter Lauf ist jederzeit gefahrlos.
 Geaenderte Dateien werden vorher als `*.bak-<zeitstempel>` gesichert,

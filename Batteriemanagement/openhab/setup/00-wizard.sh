@@ -9,6 +9,7 @@ set -euo pipefail
 
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 
+require_root
 require_openhab
 
 cat <<'KOPF'
@@ -66,7 +67,33 @@ elif [ "${#thing_candidates[@]}" -gt 1 ]; then
 else
   thing_default=""
   warn "Kein Thing mit Praefix '${INVERTER_THING_PREFIX}' gefunden."
-  warn "Den Wechselrichter zuerst in der Main UI anlegen (Settings -> Things)."
+
+  if addons_cfg_has "binding" "$INVERTER_BINDING"; then
+    log "Binding '${INVERTER_BINDING}' steht bereits in addons.cfg."
+  elif confirm "Binding '${INVERTER_BINDING}' jetzt ueber addons.cfg installieren?"; then
+    addons_cfg_prepare
+    addons_cfg_add "binding" "$INVERTER_BINDING"
+    wait_for_addon "openhab-binding-${INVERTER_BINDING}" || true
+  fi
+
+  if [ "${IBM_ASSUME_YES:-0}" != "1" ]; then
+    log "Den Wechselrichter jetzt in der Main UI anlegen (http://<pi>:8080,"
+    log "Settings -> Things -> '+'), Credentials hinterlegen und den"
+    log "Ladestands-Channel mit einem Item verknuepfen."
+    while confirm "Erneut nach dem Thing suchen?"; do
+      mapfile -t thing_candidates < <(detect_thing_uids)
+      if [ "${#thing_candidates[@]}" -ge 1 ]; then
+        thing_default="${thing_candidates[0]}"
+        if [ "${#thing_candidates[@]}" -gt 1 ]; then
+          echo "[IBM] Mehrere Wechselrichter gefunden:"
+          printf '[IBM]   %s\n' "${thing_candidates[@]}"
+        fi
+        log "Wechselrichter erkannt: $thing_default"
+        break
+      fi
+      warn "Noch kein Thing mit Praefix '${INVERTER_THING_PREFIX}' gefunden."
+    done
+  fi
 fi
 
 ask INVERTER_THING_UID "Thing-UID des Wechselrichters" "$thing_default"

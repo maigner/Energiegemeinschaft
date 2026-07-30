@@ -22,39 +22,7 @@ if [ "$INSTALL_ADDONS" != "1" ]; then
   exit 0
 fi
 
-cfg="$OPENHAB_CONF/services/addons.cfg"
-
-# Haengt einen Wert an eine kommaseparierte Liste an, ohne Duplikate.
-ensure_addon() {
-  local key="$1" value="$2"
-  local current merged
-
-  if grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$cfg"; then
-    current="$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$cfg" | head -n1 | cut -d= -f2- | tr -d '[:space:]')"
-    case ",${current}," in
-      *",${value},"*)
-        log "${key}: '${value}' bereits eingetragen."
-        return 0
-        ;;
-    esac
-    merged="${current:+${current},}${value}"
-    sed -i -E "s|^[[:space:]]*${key}[[:space:]]*=.*|${key} = ${merged}|" "$cfg"
-    log "${key}: '${value}' ergaenzt -> ${merged}"
-  else
-    printf '%s = %s\n' "$key" "$value" >> "$cfg"
-    log "${key}: '${value}' neu eingetragen."
-  fi
-}
-
-mkdir -p "$(dirname "$cfg")"
-if [ ! -f "$cfg" ]; then
-  log "addons.cfg existiert nicht und wird angelegt: $cfg"
-  : > "$cfg"
-  chown "$OPENHAB_USER:$OPENHAB_GROUP" "$cfg" 2>/dev/null || true
-else
-  cp -a "$cfg" "$cfg.bak-$(date +%Y%m%d%H%M%S)"
-  log "Backup angelegt: $cfg.bak-*"
-fi
+addons_cfg_prepare
 
 cat <<HINWEIS
 [IBM]
@@ -80,15 +48,15 @@ if ! confirm "addons.cfg jetzt anpassen?"; then
   exit 0
 fi
 
-ensure_addon "binding" "$INVERTER_BINDING"
-ensure_addon "automation" "jsscripting"
+addons_cfg_add "binding" "$INVERTER_BINDING"
+addons_cfg_add "automation" "jsscripting"
 if [ "$INSTALL_PERSISTENCE" = "1" ]; then
-  ensure_addon "persistence" "mapdb"
+  addons_cfg_add "persistence" "mapdb"
 fi
 if [ "$INSTALL_CLOUD" = "1" ]; then
-  ensure_addon "misc" "openhabcloud"
+  addons_cfg_add "misc" "openhabcloud"
 fi
 
-chown "$OPENHAB_USER:$OPENHAB_GROUP" "$cfg" 2>/dev/null || true
+chown "$OPENHAB_USER:$OPENHAB_GROUP" "$ADDONS_CFG" 2>/dev/null || true
 log "addons.cfg aktualisiert. Die Installation kann einige Minuten dauern."
 log "Fortschritt: tail -f $OPENHAB_LOGDIR/openhab.log"

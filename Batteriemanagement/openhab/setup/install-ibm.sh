@@ -16,7 +16,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 require_root
 require_openhab
 
-log "=== Schritt 1/7: Konfiguration ==="
+log "=== Schritt 1/8: Konfiguration ==="
 if [ -f "$IBM_CONF" ]; then
   log "Konfiguration vorhanden: $IBM_CONF"
   log "Neu erfassen mit: sudo $here/00-wizard.sh"
@@ -26,25 +26,28 @@ fi
 
 load_config
 
-log "=== Schritt 2/7: Preflight ==="
+log "=== Schritt 2/8: Zeitzone ==="
+ensure_timezone
+
+log "=== Schritt 3/8: Preflight ==="
 if ! "$here/01-preflight.sh"; then
   warn "Preflight meldet Probleme."
   confirm "Trotzdem fortfahren?" || die "Abgebrochen."
 fi
 
-log "=== Schritt 3/7: Addons ==="
+log "=== Schritt 4/8: Addons ==="
 "$here/02-install-addons.sh"
 
-log "=== Schritt 4/7: Items und Persistence ==="
+log "=== Schritt 5/8: Items und Persistence ==="
 "$here/03-install-items.sh"
 
-log "=== Schritt 5/7: Regeln ==="
+log "=== Schritt 6/8: Regeln ==="
 "$here/04-install-rules.sh"
 
-log "=== Schritt 6/7: Verify ==="
+log "=== Schritt 7/8: Verify ==="
 "$here/05-verify.sh" || warn "Verify meldet Probleme - siehe oben."
 
-log "=== Schritt 7/7: openHAB Cloud (myopenhab.org) ==="
+log "=== Schritt 8/8: openHAB Cloud (myopenhab.org) ==="
 "$here/06-myopenhab.sh" \
   || warn "openHAB Cloud noch nicht abgeschlossen - spaeter erneut: sudo $here/06-myopenhab.sh"
 

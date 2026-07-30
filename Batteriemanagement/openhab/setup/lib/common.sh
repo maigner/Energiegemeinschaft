@@ -212,6 +212,120 @@ detect_soc_items() {
 }
 
 # ---------------------------------------------------------------------------
+# Addons (addons.cfg)
+#
+# ACHTUNG: Sobald in addons.cfg eine Kategorie gesetzt ist, ist die Datei
+# fuer diese Kategorie massgeblich - siehe Warnung in README.md.
+# ---------------------------------------------------------------------------
+ADDONS_CFG="${ADDONS_CFG:-$OPENHAB_CONF/services/addons.cfg}"
+
+# Legt addons.cfg an bzw. sichert die bestehende Datei.
+addons_cfg_prepare() {
+  mkdir -p "$(dirname "$ADDONS_CFG")"
+  if [ ! -f "$ADDONS_CFG" ]; then
+    log "addons.cfg existiert nicht und wird angelegt: $ADDONS_CFG"
+    : > "$ADDONS_CFG"
+    chown "$OPENHAB_USER:$OPENHAB_GROUP" "$ADDONS_CFG" 2>/dev/null || true
+  else
+    cp -a "$ADDONS_CFG" "$ADDONS_CFG.bak-$(date +%Y%m%d%H%M%S)"
+    log "Backup angelegt: $ADDONS_CFG.bak-*"
+  fi
+}
+
+# Steht der Wert bereits in der kommaseparierten Liste der Kategorie?
+addons_cfg_has() {
+  local key="$1" value="$2" current
+  [ -f "$ADDONS_CFG" ] || return 1
+  current="$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$ADDONS_CFG" 2>/dev/null | head -n1 | cut -d= -f2- | tr -d '[:space:]')"
+  case ",${current}," in
+    *",${value},"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Haengt einen Wert an die kommaseparierte Liste einer Kategorie an, ohne
+# Duplikate und ohne bestehende Werte zu ueberschreiben.
+addons_cfg_add() {
+  local key="$1" value="$2" current merged
+  if grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$ADDONS_CFG"; then
+    if addons_cfg_has "$key" "$value"; then
+      log "${key}: '${value}' bereits eingetragen."
+      return 0
+    fi
+    current="$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$ADDONS_CFG" | head -n1 | cut -d= -f2- | tr -d '[:space:]')"
+    merged="${current:+${current},}${value}"
+    sed -i -E "s|^[[:space:]]*${key}[[:space:]]*=.*|${key} = ${merged}|" "$ADDONS_CFG"
+    log "${key}: '${value}' ergaenzt -> ${merged}"
+  else
+    printf '%s = %s\n' "$key" "$value" >> "$ADDONS_CFG"
+    log "${key}: '${value}' neu eingetragen."
+  fi
+}
+
+# Wartet, bis openHAB das Karaf-Feature installiert hat (Meldung des
+# FeatureInstallers in openhab.log), z. B. openhab-binding-fronius.
+wait_for_addon() {
+  local feature="$1" timeout="${2:-300}" waited=0
+  local logfile="$OPENHAB_LOGDIR/openhab.log"
+  log "Warte auf die Installation von '${feature}' (max. $((timeout / 60)) Minuten) ..."
+  while [ "$waited" -lt "$timeout" ]; do
+    if grep -q "Installed '${feature}'" "$logfile" 2>/dev/null; then
+      log "'${feature}' ist installiert."
+      return 0
+    fi
+    sleep 5
+    waited=$((waited + 5))
+  done
+  warn "Keine Installationsbestaetigung fuer '${feature}' im Log gefunden -"
+  warn "Status in der Main UI pruefen: Settings -> Add-ons."
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# System
+# ---------------------------------------------------------------------------
+
+# Setzt System- und openHAB-Zeitzone, damit die zeitgesteuerten Regeln in
+# lokaler Zeit laufen. Idempotent; Vorgabe ueberschreibbar mit IBM_TIMEZONE.
+ensure_timezone() {
+  local tz="${1:-${IBM_TIMEZONE:-Europe/Vienna}}"
+
+  # Systemzeitzone (timedatectl fehlt z. B. in Containern)
+  if command -v timedatectl >/dev/null 2>&1; then
+    local current
+    current="$(timedatectl show --property=Timezone --value 2>/dev/null || true)"
+    if [ "$current" = "$tz" ]; then
+      log "Systemzeitzone bereits $tz."
+    else
+      timedatectl set-timezone "$tz" \
+        && log "Systemzeitzone gesetzt: $tz (war: ${current:-unbekannt})" \
+        || warn "Systemzeitzone konnte nicht gesetzt werden."
+    fi
+  else
+    warn "timedatectl nicht gefunden - Systemzeitzone nicht gesetzt."
+  fi
+
+  # Regionaleinstellung von openHAB. Der Eintrag in runtime.cfg geht der
+  # Main-UI-Einstellung (Settings -> Regional Settings) vor.
+  local cfg="$OPENHAB_CONF/services/runtime.cfg" key="org.openhab.i18n:timezone"
+  if [ -f "$cfg" ] && grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$cfg"; then
+    if grep -qE "^[[:space:]]*${key}[[:space:]]*=[[:space:]]*${tz}[[:space:]]*$" "$cfg"; then
+      log "openHAB-Zeitzone bereits $tz ($cfg)."
+    else
+      cp -a "$cfg" "$cfg.bak-$(date +%Y%m%d%H%M%S)"
+      sed -i -E "s|^[[:space:]]*${key}[[:space:]]*=.*|${key}=${tz}|" "$cfg"
+      log "openHAB-Zeitzone gesetzt: $tz ($cfg)."
+    fi
+  else
+    mkdir -p "$(dirname "$cfg")"
+    [ -f "$cfg" ] || : > "$cfg"
+    printf '%s=%s\n' "$key" "$tz" >> "$cfg"
+    chown "$OPENHAB_USER:$OPENHAB_GROUP" "$cfg" 2>/dev/null || true
+    log "openHAB-Zeitzone gesetzt: $tz ($cfg)."
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Dateien
 # ---------------------------------------------------------------------------
 
