@@ -1,0 +1,4 @@
+# Transiente Build-Artefakte von setup/build-dist.sh (werden nach dem
+# Paketbau geloescht, bleiben aber liegen, wenn der Build abbricht)
+BUILD-INFO
+inverters/*/overview.page.json

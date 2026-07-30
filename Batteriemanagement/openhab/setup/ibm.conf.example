@@ -75,9 +75,21 @@ INSTALL_ADDONS=1
 INSTALL_PERSISTENCE=1
 
 # openHAB Cloud (myopenhab.org) einrichten: traegt das Addon 'openhabcloud'
-# in addons.cfg ein (Kategorie misc); 06-myopenhab.sh zeigt danach UUID und
+# in addons.cfg ein (Kategorie misc); 07-myopenhab.sh zeigt danach UUID und
 # Secret fuer die Registrierung des Kontos auf myopenhab.org an.
 INSTALL_CLOUD=1
+
+# Overview-Seite der Main UI per REST API installieren (braucht OH_API_TOKEN).
+# Eine bestehende Overview-Seite wird vorher nach /var/lib/openhab/ibm/
+# gesichert.
+INSTALL_OVERVIEW=1
+
+# --- openHAB REST API -------------------------------------------------------
+
+# API-Token eines Admin-Benutzers; gebraucht vom Netzwerk-Watchdog und von
+# der Installation der Overview-Seite. Erzeugen in der Main UI: links unten
+# auf den Benutzernamen klicken -> "Create new API token".
+OH_API_TOKEN=""
 
 # --- Netzwerk-Watchdog ------------------------------------------------------
 # Teilt der Router dem Wechselrichter per DHCP eine neue IP zu, sucht der
@@ -89,10 +101,6 @@ INSTALL_WATCHDOG=1
 # nicht der Wechselrichter selbst.
 # Main UI -> Settings -> Things -> Fronius Bridge
 INVERTER_HOST_THING_UID="fronius:bridge:0cb68e8e38"
-
-# openHAB-API-Token eines Admin-Benutzers. Erzeugen in der Main UI: links
-# unten auf den Benutzernamen klicken -> "Create new API token".
-OH_API_TOKEN=""
 
 # Fallback-Pruefung, falls das OFFLINE-Ereignis verpasst wurde (Quartz-Cron).
 CRON_WATCHDOG="0 7/15 * * * ?"

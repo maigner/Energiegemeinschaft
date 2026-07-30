@@ -156,8 +156,9 @@ load_config() {
   DEFAULT_ENTLADUNG_ENDE="${DEFAULT_ENTLADUNG_ENDE:-7}"
   INSTALL_ADDONS="${INSTALL_ADDONS:-1}"
   INSTALL_PERSISTENCE="${INSTALL_PERSISTENCE:-1}"
-  # Aeltere ibm.conf kennt die Option noch nicht - dann nichts aendern.
+  # Aeltere ibm.conf kennt die Optionen noch nicht - dann nichts aendern.
   INSTALL_CLOUD="${INSTALL_CLOUD:-0}"
+  INSTALL_OVERVIEW="${INSTALL_OVERVIEW:-0}"
 
   # Netzwerk-Watchdog (aeltere ibm.conf kennt die Optionen noch nicht)
   INSTALL_WATCHDOG="${INSTALL_WATCHDOG:-0}"

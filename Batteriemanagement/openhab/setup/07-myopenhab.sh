@@ -56,7 +56,7 @@ if [ ! -f "$secret_file" ]; then
   warn "    erst beim ersten Start). Dann hilft ein Neustart:"
   warn "      sudo systemctl restart openhab.service"
   warn "Danach dieses Skript erneut ausfuehren:"
-  warn "  sudo $IBM_SETUP_DIR/06-myopenhab.sh"
+  warn "  sudo $IBM_SETUP_DIR/07-myopenhab.sh"
   exit 1
 fi
 

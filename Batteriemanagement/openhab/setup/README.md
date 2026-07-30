@@ -75,6 +75,9 @@ bekaemen dann das entpackte Tar und die Pruefsumme schluege fehl.
 Der Bootstrap `website/static/ibm/install.sh` ist dagegen eine gepflegte
 Quelldatei im Repository und wird nicht generiert.
 
+`build-dist.sh` braucht `python3` mit PyYAML (`sudo apt install python3-yaml`),
+um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
+
 ## Die einzelnen Schritte
 
 `install-ibm.sh` fuehrt sie der Reihe nach aus; jedes laeuft auch einzeln.
@@ -86,8 +89,9 @@ Quelldatei im Repository und wird nicht generiert.
 | `02-install-addons.sh` | Traegt Binding, `jsscripting`, `mapdb` und (falls gewuenscht) `openhabcloud` in `addons.cfg` ein. |
 | `03-install-items.sh` | Schreibt `items/ibm.items` und `persistence/mapdb.persist`. |
 | `04-install-rules.sh` | Erzeugt die zeitgesteuerten Regeln in `automation/js/` und (falls gewuenscht) den Netzwerk-Watchdog. |
-| `05-verify.sh` | Prueft das Ergebnis, zeigt die letzten `[IBM]`-Logzeilen. Aendert nichts. |
-| `06-myopenhab.sh` | Zeigt UUID und Secret fuer die Registrierung auf myopenhab.org an (wartet ggf. auf das Cloud-Addon). Aendert nichts. |
+| `05-install-overview.sh` | Schreibt die IBM-Uebersichtsseite per REST API in die Main UI (braucht `OH_API_TOKEN`; eine bestehende Seite wird vorher gesichert). |
+| `06-verify.sh` | Prueft das Ergebnis, zeigt die letzten `[IBM]`-Logzeilen. Aendert nichts. |
+| `07-myopenhab.sh` | Zeigt UUID und Secret fuer die Registrierung auf myopenhab.org an (wartet ggf. auf das Cloud-Addon). Aendert nichts. |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
 
 `install-ibm.sh` setzt ausserdem die Zeitzone auf `Europe/Vienna` — sowohl die
@@ -144,10 +148,14 @@ Die Startwerte dieser Items stehen in `ibm.conf` (`DEFAULT_*`) und werden von
 `ibm_init.js` gesetzt, solange ein Item noch `NULL` ist. Danach ist alles in
 der Main UI aenderbar — **das Steuerungsskript wird pro Kunde nie angepasst**.
 
-Eine passende Uebersichtsseite fuer die Main UI liegt in
-`../inverters/fronius/overview.yaml`. Sie wird nicht automatisch installiert
-(Main-UI-Seiten liegen in der JSONDB): `Settings -> Pages -> Overview ->
-Code-Ansicht` und den Inhalt einfuegen.
+**Overview-Seite:** Eine passende Uebersichtsseite fuer die Main UI liegt in
+`../inverters/fronius/overview.yaml`. Main-UI-Seiten liegen in der JSONDB,
+deshalb installiert `05-install-overview.sh` sie per REST API — dafuer wird
+das openHAB-API-Token gebraucht (`OH_API_TOKEN`, fragt der Assistent ab), und
+`build-dist.sh` wandelt die Seite beim Paketbau nach `overview.page.json`.
+Eine bestehende Overview-Seite wird vorher nach `/var/lib/openhab/ibm/`
+gesichert. Ohne Token bleibt der manuelle Weg: `Settings -> Pages ->
+Overview -> Code-Ansicht` und den Inhalt von `pages.overview` einfuegen.
 
 **Regeln** (`/etc/openhab/automation/js/`, Tag `IBM`):
 
@@ -213,12 +221,12 @@ Fuer die Registrierung braucht myopenhab.org zwei Werte der Installation:
 | UUID | `/var/lib/openhab/uuid` (legt openHAB beim ersten Start an) |
 | Secret | `/var/lib/openhab/openhabcloud/secret` (entsteht beim ersten Start des Cloud-Addons) |
 
-`06-myopenhab.sh` wartet auf das Secret (die Addon-Installation ueber
+`07-myopenhab.sh` wartet auf das Secret (die Addon-Installation ueber
 `addons.cfg` kann einige Minuten dauern) und zeigt dann beide Werte mit der
 Anleitung an. Jederzeit erneut abrufbar:
 
 ```bash
-sudo /opt/ischlstrom/openhab/setup/06-myopenhab.sh
+sudo /opt/ischlstrom/openhab/setup/07-myopenhab.sh
 ```
 
 Registrierung: auf <https://myopenhab.org> ueber *Sign up* ein Konto anlegen
@@ -279,7 +287,7 @@ erst nach dem Einschalten wird gesteuert.
 ## Fehlersuche
 
 ```bash
-sudo /opt/ischlstrom/openhab/setup/05-verify.sh
+sudo /opt/ischlstrom/openhab/setup/06-verify.sh
 tail -f /var/log/openhab/openhab.log | grep '\[IBM\]'
 ```
 

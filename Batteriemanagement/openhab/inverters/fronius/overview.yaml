@@ -2,9 +2,14 @@ version: 1
 # ============================================================================
 # IBM - Uebersichtsseite fuer die Main UI
 #
-# Nicht vom Setup installiert (Main-UI-Seiten liegen in der JSONDB, nicht in
-# einer Konfigurationsdatei). Manuell einspielen:
-#   Settings -> Pages -> Overview -> Code-Ansicht -> Inhalt ersetzen
+# Wird von setup/05-install-overview.sh per REST API installiert; dafuer
+# wandelt build-dist.sh diese Datei beim Paketbau nach overview.page.json.
+# Das Ladestands-Item (INVERTER_SOC_PLACEHOLDER aus profile.sh) wird dabei
+# durch das SOC_ITEM der Anlage ersetzt.
+#
+# Manuell einspielen geht weiterhin:
+#   Settings -> Pages -> Overview -> Code-Ansicht -> Inhalt von
+#   pages.overview einfuegen
 #
 # Zeigt und bedient alle Items, die das Batteriemanagement steuert.
 # ============================================================================

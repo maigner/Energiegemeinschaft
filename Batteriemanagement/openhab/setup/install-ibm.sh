@@ -16,7 +16,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 require_root
 require_openhab
 
-log "=== Schritt 1/8: Konfiguration ==="
+log "=== Schritt 1/9: Konfiguration ==="
 if [ -f "$IBM_CONF" ]; then
   log "Konfiguration vorhanden: $IBM_CONF"
   log "Neu erfassen mit: sudo $here/00-wizard.sh"
@@ -26,30 +26,34 @@ fi
 
 load_config
 
-log "=== Schritt 2/8: Zeitzone ==="
+log "=== Schritt 2/9: Zeitzone ==="
 ensure_timezone
 
-log "=== Schritt 3/8: Preflight ==="
+log "=== Schritt 3/9: Preflight ==="
 if ! "$here/01-preflight.sh"; then
   warn "Preflight meldet Probleme."
   confirm "Trotzdem fortfahren?" || die "Abgebrochen."
 fi
 
-log "=== Schritt 4/8: Addons ==="
+log "=== Schritt 4/9: Addons ==="
 "$here/02-install-addons.sh"
 
-log "=== Schritt 5/8: Items und Persistence ==="
+log "=== Schritt 5/9: Items und Persistence ==="
 "$here/03-install-items.sh"
 
-log "=== Schritt 6/8: Regeln ==="
+log "=== Schritt 6/9: Regeln ==="
 "$here/04-install-rules.sh"
 
-log "=== Schritt 7/8: Verify ==="
-"$here/05-verify.sh" || warn "Verify meldet Probleme - siehe oben."
+log "=== Schritt 7/9: Overview-Seite ==="
+"$here/05-install-overview.sh" \
+  || warn "Overview-Seite nicht installiert - spaeter erneut: sudo $here/05-install-overview.sh"
 
-log "=== Schritt 8/8: openHAB Cloud (myopenhab.org) ==="
-"$here/06-myopenhab.sh" \
-  || warn "openHAB Cloud noch nicht abgeschlossen - spaeter erneut: sudo $here/06-myopenhab.sh"
+log "=== Schritt 8/9: Verify ==="
+"$here/06-verify.sh" || warn "Verify meldet Probleme - siehe oben."
+
+log "=== Schritt 9/9: openHAB Cloud (myopenhab.org) ==="
+"$here/07-myopenhab.sh" \
+  || warn "openHAB Cloud noch nicht abgeschlossen - spaeter erneut: sudo $here/07-myopenhab.sh"
 
 cat <<ENDE
 [IBM]
@@ -70,7 +74,7 @@ ENDE
 
 if [ "$INSTALL_CLOUD" = "1" ]; then
   log "  5. Konto auf https://myopenhab.org anlegen - UUID und Secret stehen"
-  log "     oben (erneut anzeigen: sudo $here/06-myopenhab.sh)."
+  log "     oben (erneut anzeigen: sudo $here/07-myopenhab.sh)."
 fi
 
 cat <<ENDE

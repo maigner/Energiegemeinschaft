@@ -29,7 +29,30 @@ die() { echo "[IBM] FEHLER: $*" >&2; exit 1; }
 [ -d "$repo_root/website/static" ] || die "website/static nicht gefunden - Repository-Wurzel falsch erkannt: $repo_root"
 [ -f "$openhab_dir/setup/install-ibm.sh" ] || die "setup/install-ibm.sh nicht gefunden in $openhab_dir"
 
+command -v python3 >/dev/null 2>&1 || die "python3 fehlt (wird fuer die Overview-Konvertierung gebraucht)."
+python3 -c 'import yaml' 2>/dev/null || die "PyYAML fehlt: sudo apt install python3-yaml"
+
 mkdir -p "$dist_dir"
+
+# Overview-Seiten der Profile in das REST-Format wandeln - die Main UI
+# speichert Seiten in der JSONDB, 05-install-overview.sh schreibt sie daher
+# per REST API und braucht die Seite als JSON.
+generated_pages=()
+for ov in "$openhab_dir"/inverters/*/overview.yaml; do
+  [ -f "$ov" ] || continue
+  out="${ov%.yaml}.page.json"
+  python3 - "$ov" "$out" <<'PY' || die "Overview-Konvertierung fehlgeschlagen: $ov"
+import json, sys, yaml
+src, dst = sys.argv[1], sys.argv[2]
+with open(src) as f:
+    data = yaml.safe_load(f)
+page = {"uid": "overview", **data["pages"]["overview"]}
+with open(dst, "w") as f:
+    json.dump(page, f, ensure_ascii=False, indent=2)
+PY
+  generated_pages+=("$out")
+  log "erzeugt: $out"
+done
 
 # Build-Information mit ins Paket, damit auf dem Pi nachvollziehbar ist,
 # welcher Stand installiert wurde.
@@ -51,6 +74,7 @@ tar -czf "$tarball" \
     "$(basename "$openhab_dir")"
 
 rm -f "$build_info"
+[ "${#generated_pages[@]}" -gt 0 ] && rm -f "${generated_pages[@]}"
 
 ( cd "$dist_dir" && sha256sum "$(basename "$tarball")" > "$(basename "$checksum")" )
 

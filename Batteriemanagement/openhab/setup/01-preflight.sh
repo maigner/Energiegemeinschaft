@@ -133,6 +133,28 @@ if [ "$INSTALL_WATCHDOG" = "1" ]; then
   fi
 fi
 
+# --- Overview-Seite ---------------------------------------------------------
+if [ "$INSTALL_OVERVIEW" = "1" ]; then
+  ov="$IBM_INVERTER_DIR/$INVERTER_TYPE/overview.page.json"
+  if [ -f "$ov" ]; then
+    log "gefunden: $ov"
+  else
+    fail "Overview-Seite fehlt: $ov - Paket mit aktuellem build-dist.sh gebaut?"
+  fi
+  [ -n "$OH_API_TOKEN" ] || fail "OH_API_TOKEN fehlt in ibm.conf (Overview-Seite)."
+
+  if command -v curl >/dev/null 2>&1 && [ -n "$OH_API_TOKEN" ]; then
+    code="$(curl -s -o /dev/null -w '%{http_code}' -m 10 \
+      -H "Authorization: Bearer $OH_API_TOKEN" \
+      "http://127.0.0.1:8080/rest/ui/components/ui%3Apage" || true)"
+    case "$code" in
+      200)     log "API-Token OK - UI-Seiten per REST erreichbar." ;;
+      401|403) fail "API-Token wird abgelehnt (HTTP $code) - Token eines Admin-Benutzers eintragen." ;;
+      *)       warn "openHAB REST API nicht pruefbar (HTTP $code) - laeuft openHAB?" ;;
+    esac
+  fi
+fi
+
 # --- Ergebnis ---------------------------------------------------------------
 if [ "$problems" -eq 0 ]; then
   log "Preflight OK - keine Probleme gefunden."

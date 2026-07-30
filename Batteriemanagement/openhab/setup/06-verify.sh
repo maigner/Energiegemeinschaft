@@ -33,10 +33,10 @@ fi
 if [ "$INSTALL_CLOUD" = "1" ]; then
   if [ -f "$OPENHAB_USERDATA/openhabcloud/secret" ]; then
     log "openHAB Cloud eingerichtet (Secret vorhanden)."
-    log "UUID und Secret anzeigen: sudo $IBM_SETUP_DIR/06-myopenhab.sh"
+    log "UUID und Secret anzeigen: sudo $IBM_SETUP_DIR/07-myopenhab.sh"
   else
     warn "openHAB Cloud: Secret noch nicht vorhanden - Addon noch nicht fertig"
-    warn "installiert? Spaeter ausfuehren: sudo $IBM_SETUP_DIR/06-myopenhab.sh"
+    warn "installiert? Spaeter ausfuehren: sudo $IBM_SETUP_DIR/07-myopenhab.sh"
   fi
 fi
 
