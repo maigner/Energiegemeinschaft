@@ -165,6 +165,13 @@ load_config() {
   CRON_WATCHDOG="${CRON_WATCHDOG:-0 7/15 * * * ?}"
   WATCHDOG_COOLDOWN_MIN="${WATCHDOG_COOLDOWN_MIN:-10}"
 
+  # WireGuard-Fernwartung (aeltere ibm.conf kennt die Optionen noch nicht)
+  INSTALL_WIREGUARD="${INSTALL_WIREGUARD:-0}"
+  WG_ADDRESS="${WG_ADDRESS:-}"
+  WG_SERVER_ENDPOINT="${WG_SERVER_ENDPOINT:-s1.ischlstrom.org:51820}"
+  WG_SERVER_PUBLIC_KEY="${WG_SERVER_PUBLIC_KEY:-}"
+  WG_SSH_USER="${WG_SSH_USER:-openhabian}"
+
   load_profile "$INVERTER_TYPE"
 }
 

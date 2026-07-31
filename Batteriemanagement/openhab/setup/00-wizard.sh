@@ -241,7 +241,29 @@ if [ -n "$OH_API_TOKEN" ] && [ -f "$IBM_INVERTER_DIR/$INVERTER_TYPE/overview.yam
   fi
 fi
 
-# --- 11. Schreiben ----------------------------------------------------------
+# --- 11. Fernwartung (WireGuard) --------------------------------------------
+INSTALL_WIREGUARD=0
+WG_ADDRESS=""
+WG_SERVER_ENDPOINT="s1.ischlstrom.org:51820"
+
+echo "[IBM]"
+echo "[IBM] Ueber einen WireGuard-Tunnel zum Wartungsserver kann ISCHLSTROM die"
+echo "[IBM] Anlage aus der Ferne warten (Updates, Fehlersuche). Der Pi baut die"
+echo "[IBM] Verbindung selbst nach aussen auf - am Router ist nichts zu tun,"
+echo "[IBM] und der normale Internetverkehr bleibt unberuehrt."
+if confirm "WireGuard-Fernwartung einrichten?"; then
+  ask WG_ADDRESS "Tunnel-IP dieser Anlage (vergibt der Wartungsserver, z. B. 10.88.0.11)" ""
+  if [ -n "$WG_ADDRESS" ]; then
+    ask WG_SERVER_ENDPOINT "Wartungsserver (Host:Port)" "$WG_SERVER_ENDPOINT"
+    INSTALL_WIREGUARD=1
+  else
+    warn "Ohne Tunnel-IP keine Fernwartung - spaeter nachruestbar:"
+    warn "INSTALL_WIREGUARD=1 und WG_ADDRESS in ibm.conf eintragen, dann"
+    warn "08-install-wireguard.sh erneut ausfuehren."
+  fi
+fi
+
+# --- 12. Schreiben ----------------------------------------------------------
 umask 022
 cat > "$IBM_CONF" <<EOF
 # ============================================================================
@@ -297,6 +319,14 @@ INSTALL_WATCHDOG=${INSTALL_WATCHDOG}
 INVERTER_HOST_THING_UID="${INVERTER_HOST_THING_UID}"
 CRON_WATCHDOG="0 7/15 * * * ?"
 WATCHDOG_COOLDOWN_MIN=10
+
+# --- WireGuard-Fernwartung --------------------------------------------------
+# Ausgehender Tunnel zum Wartungsserver fuer Updates und Fehlersuche.
+# Server-Public-Key und SSH-Wartungsschluessel laedt 08-install-wireguard.sh
+# von <IBM_API_BASE>/ibm/; Details siehe README.
+INSTALL_WIREGUARD=${INSTALL_WIREGUARD}
+WG_ADDRESS="${WG_ADDRESS}"
+WG_SERVER_ENDPOINT="${WG_SERVER_ENDPOINT}"
 EOF
 
 log "Konfiguration geschrieben: $IBM_CONF"
@@ -313,5 +343,6 @@ cat <<ZUSAMMENFASSUNG
 [IBM]   openHAB Cloud  : $([ "$INSTALL_CLOUD" = "1" ] && echo "ja (myopenhab.org)" || echo "nein")
 [IBM]   Watchdog       : $([ "$INSTALL_WATCHDOG" = "1" ] && echo "ja (${INVERTER_HOST_THING_UID})" || echo "nein")
 [IBM]   Overview-Seite : $([ "$INSTALL_OVERVIEW" = "1" ] && echo "ja" || echo "nein")
+[IBM]   Fernwartung    : $([ "$INSTALL_WIREGUARD" = "1" ] && echo "ja (${WG_ADDRESS} -> ${WG_SERVER_ENDPOINT})" || echo "nein")
 [IBM]
 ZUSAMMENFASSUNG

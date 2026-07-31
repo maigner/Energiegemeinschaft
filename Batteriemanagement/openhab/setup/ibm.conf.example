@@ -117,3 +117,26 @@ CRON_WATCHDOG="0 7/15 * * * ?"
 
 # Fruehestens alle so viele Minuten wird das Netz erneut abgesucht.
 WATCHDOG_COOLDOWN_MIN=10
+
+# --- WireGuard-Fernwartung ---------------------------------------------------
+# Ausgehender WireGuard-Tunnel zum Wartungsserver, damit die Anlage fuer
+# Updates und Fehlersuche per SSH erreichbar bleibt. Der Pi baut die
+# Verbindung selbst auf - am Router des Mitglieds ist nichts zu oeffnen,
+# und durch den Tunnel laeuft nur das Wartungsnetz (siehe README).
+INSTALL_WIREGUARD=1
+
+# Tunnel-IP dieser Anlage. Vergibt der Wartungsserver - muss je Anlage
+# eindeutig sein (Peer-Liste in dessen wg0.conf ist die Registry).
+WG_ADDRESS="10.88.0.11"
+
+# Gegenstelle (Host:Port).
+WG_SERVER_ENDPOINT="s1.ischlstrom.org:51820"
+
+# Public Key des Wartungsservers. Leer = wird von
+# <IBM_API_BASE>/ibm/wg-server.pub geladen.
+WG_SERVER_PUBLIC_KEY=""
+
+# Benutzer, in dessen authorized_keys der veroeffentlichte
+# SSH-Wartungsschluessel (<IBM_API_BASE>/ibm/ssh-maintainer.pub)
+# eingetragen wird. Leer = keinen Schluessel eintragen.
+WG_SSH_USER="openhabian"

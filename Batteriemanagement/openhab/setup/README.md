@@ -92,6 +92,7 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 | `05-install-overview.sh` | Schreibt die IBM-Seiten (Overview + Unterseiten) per REST API in die Main UI (braucht `OH_API_TOKEN`; bestehende Seiten werden vorher gesichert). |
 | `06-verify.sh` | Prueft das Ergebnis, zeigt die letzten `[IBM]`-Logzeilen. Aendert nichts. |
 | `07-myopenhab.sh` | Zeigt UUID und Secret fuer die Registrierung auf myopenhab.org an (wartet ggf. auf das Cloud-Addon). Aendert nichts. |
+| `08-install-wireguard.sh` | Richtet den WireGuard-Tunnel zum Wartungsserver ein und traegt den SSH-Wartungsschluessel ein (siehe [Fernwartung](#fernwartung-wireguard)). |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
 
 `install-ibm.sh` setzt ausserdem die Zeitzone auf `Europe/Vienna` — sowohl die
@@ -287,6 +288,85 @@ einmal neu starten (`sudo systemctl restart openhab.service`).
 Standardmaessig werden dabei **keine Items** zur Cloud uebertragen
 (exponiert) — die Verbindung dient nur dem Fernzugriff auf die UI und den
 Benachrichtigungen.
+
+## Fernwartung (WireGuard)
+
+Nach der Installation beim Mitglied gibt es keinen direkten SSH-Zugang mehr
+zum Pi. Auf Wunsch (Frage im Assistenten, `INSTALL_WIREGUARD=1`) richtet
+`08-install-wireguard.sh` deshalb einen **ausgehenden WireGuard-Tunnel** zum
+Wartungsserver ein. Der Pi haelt die Verbindung selbst offen
+(`PersistentKeepalive`), am Router des Mitglieds muss nichts geoeffnet
+werden, und durch den Tunnel laeuft ausschliesslich das Wartungsnetz
+(`10.88.0.0/24`) — der normale Internetverkehr bleibt unberuehrt.
+
+**Adressplan:** Der Wartungsserver ist `10.88.0.1`, jede Anlage bekommt eine
+eindeutige Tunnel-IP ab `10.88.0.11` (`WG_ADDRESS`, fragt der Assistent ab).
+Die Peer-Liste in der `wg0.conf` des Servers ist die Registry — je Peer einen
+Kommentar mit Anlagenname und IP dazuschreiben.
+
+### Einmalig auf dem Wartungsserver
+
+```bash
+sudo apt install wireguard
+sudo bash -c 'umask 077 && wg genkey | tee /etc/wireguard/server.key | wg pubkey > /etc/wireguard/server.pub'
+sudo ufw allow 51820/udp
+sudo systemctl enable --now wg-quick@wg0
+```
+
+`/etc/wireguard/wg0.conf` auf dem Server:
+
+```ini
+[Interface]
+Address    = 10.88.0.1/24
+ListenPort = 51820
+PrivateKey = <Inhalt von server.key>
+
+# je Anlage ein [Peer]-Block, siehe unten
+```
+
+Danach zwei Dateien nach `website/static/ibm/` legen und deployen — beide
+sind oeffentlich und werden vom Setup auf dem Pi geladen:
+
+| Datei | Inhalt |
+| --- | --- |
+| `wg-server.pub` | Public Key des Wartungsservers (`server.pub`) |
+| `ssh-maintainer.pub` | SSH-Public-Key fuer die Fernwartung; wird in die `authorized_keys` des Benutzers `WG_SSH_USER` (Vorgabe `openhabian`) eingetragen. Fehlt die Datei, wird kein Schluessel eingetragen. |
+
+### Je Anlage
+
+1. Der Assistent fragt die Tunnel-IP ab; `08-install-wireguard.sh` erzeugt
+   das Schluesselpaar (`/etc/wireguard/ibm-pi.key`), schreibt die `wg0.conf`,
+   startet den Tunnel und zeigt am Ende den fertigen `[Peer]`-Block an.
+2. Diesen Block auf dem Wartungsserver in `/etc/wireguard/wg0.conf`
+   eintragen und neu laden (bestehende Tunnel bleiben verbunden):
+
+   ```bash
+   sudo bash -c 'wg syncconf wg0 <(wg-quick strip wg0)'
+   ```
+
+3. Das Skript wartet auf Wunsch auf den ersten Handshake — so ist vor dem
+   Verlassen der Anlage sicher, dass der Tunnel steht.
+
+Zugriff danach vom Wartungsserver aus (`ssh openhabian@10.88.0.<x>`) oder
+bequem vom eigenen Rechner per ProxyJump in `~/.ssh/config`:
+
+```
+Host pi-*
+    User openhabian
+    ProxyJump <benutzer>@s1.ischlstrom.org
+
+Host pi-mueller
+    HostName 10.88.0.11
+```
+
+**Nachruesten** bei bestehender Installation: `INSTALL_WIREGUARD=1` und
+`WG_ADDRESS` in `ibm.conf` eintragen, dann
+`sudo /opt/ischlstrom/openhab/setup/08-install-wireguard.sh` ausfuehren.
+
+Kein Handshake? Peer-Eintrag auf dem Server, `WG_SERVER_ENDPOINT` und die
+Server-Firewall pruefen (UDP 51820 muss offen sein); der klassische Fehler
+sind vertauschte Public Keys (jede Seite traegt den Key der **Gegenseite**
+ein). Status auf dem Pi: `sudo wg show wg0`.
 
 ## Warum die Skripte umgebaut werden
 
