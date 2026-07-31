@@ -169,7 +169,7 @@ pages:
                               title: Ladesperre verwenden
                               item: IBM_LADESPERRE_AKTIV
                               color: blue
-                              footer: "=items.IBM_LADESPERRE_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - Kündigt sich ein sonniger Vormittag an, wird im Zeitfenster nicht aus dem Netz geladen; die PV-Anlage füllt die Batterie von selbst.' : (items.IBM_LADESPERRE_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Das Laden aus dem Netz wird nie gesperrt.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
+                              footer: "=items.IBM_LADESPERRE_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - An sonnigen Tagen wird zwischen den unten angezeigten Zeiten nicht geladen; die Batterie füllt sich danach aus dem Mittags-Überschuss der Gemeinschaft.' : (items.IBM_LADESPERRE_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Das Laden wird nie gesperrt.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -178,26 +178,26 @@ pages:
                       config: {}
                       slots:
                         default:
-                          - component: oh-stepper-card
+                          - component: oh-label-card
                             config:
-                              title: Sperre von (Uhr)
-                              item: IBM_LADESPERRE_START
-                              min: 0
-                              max: 23
-                              step: 1
-                              footer: Beginn des Zeitfensters, Stunde 0-23.
+                              title: Sperre ab
+                              item: Ischlstrom_Ladesperre_Start
+                              footer: >-
+                                Erster Sonnenschein laut Tagesprognose - kommt
+                                automatisch von ischlstrom.org. "-" bedeutet:
+                                heute keine Sperre.
                     - component: oh-grid-col
                       config: {}
                       slots:
                         default:
-                          - component: oh-stepper-card
+                          - component: oh-label-card
                             config:
-                              title: Sperre bis (Uhr)
-                              item: IBM_LADESPERRE_ENDE
-                              min: 0
-                              max: 23
-                              step: 1
-                              footer: Ende des Zeitfensters, Stunde 0-23.
+                              title: Sperre bis
+                              item: Ischlstrom_Ladesperre_Ende
+                              footer: >-
+                                Ab dieser Uhrzeit erzeugt die Gemeinschaft laut
+                                Prognose mehr, als sie verbraucht - dann darf
+                                die Batterie den Überschuss aufnehmen.
               - component: oh-grid-row
                 config: {}
                 slots:

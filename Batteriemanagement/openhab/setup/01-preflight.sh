@@ -37,7 +37,7 @@ done
 
 # --- Erreichbarkeit der ischlstrom API --------------------------------------
 if command -v curl >/dev/null 2>&1; then
-  for path in "/api/wolken/vorschau/v1" "/api/eeginfo/crossover/v1"; do
+  for path in "/api/wolken/vorschau/v1" "/api/eeginfo/crossover/v1" "/api/eeginfo/ladefenster/v1"; do
     # curl gibt bei Verbindungsfehlern selbst "000" aus und beendet sich mit
     # einem Fehlercode - daher nur abfangen, nicht zusaetzlich ausgeben.
     code="$(curl -s -o /dev/null -w '%{http_code}' -m 10 "${IBM_API_BASE}${path}" || true)"
@@ -79,12 +79,13 @@ if [ -f "$items_db" ]; then
               Ischlstrom_Wolkenvorschau_Zeit \
               Ischlstrom_Crossover_Start \
               Ischlstrom_Crossover_Ende \
+              Ischlstrom_Ladesperre_Start \
+              Ischlstrom_Ladesperre_Ende \
+              Ischlstrom_Ladesperre_Datum \
               IBM_MIN_BATTERY_CHARGE \
               Minimale_Entladeleistung_Batterieeinspeisung \
               Maximale_Entladeleistung_Batterieeinspeisung \
               IBM_LADESPERRE_AKTIV \
-              IBM_LADESPERRE_START \
-              IBM_LADESPERRE_ENDE \
               IBM_LADESPERRE_WOLKEN_SCHWELLE \
               IBM_ENTLADUNG_AKTIV; do
     if grep -q "\"$item\"" "$items_db"; then

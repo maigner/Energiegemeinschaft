@@ -39,6 +39,10 @@ CRON_CLOUD="0 40 * * * ?"
 # taeglich abholen genuegt daher voellig.
 CRON_CROSSOVER="0 5 4 * * ?"
 
+# Ladesperre-Fenster aus der Tagesprognose. Stuendlich, damit ein frueher
+# API-Ausfall am selben Tag noch nachgeholt wird.
+CRON_LADESPERRE="0 50 * * * ?"
+
 # Initialisierung der Konfigurations-Items (setzt nur NULL/UNDEF-Werte).
 CRON_INIT="0 */10 * * * ?"
 
@@ -51,11 +55,10 @@ DEFAULT_MIN_BATTERY_CHARGE=20
 DEFAULT_MIN_DISCHARGE_W=1000
 DEFAULT_MAX_DISCHARGE_W=3000
 
-# Ladesperre am Vormittag: bei wenig Bewoelkung nicht aus dem Netz laden,
-# weil die eigene PV-Anlage den Speicher ohnehin fuellen wird.
+# Ladesperre am Vormittag: bei sonniger Prognose nicht laden, bis die
+# Gemeinschaft Ueberschuss hat. Das Zeitfenster kommt aus der Tagesprognose
+# von ischlstrom.org (erster Sonnenschein bis Vormittags-Crossover).
 DEFAULT_LADESPERRE_AKTIV=ON
-DEFAULT_LADESPERRE_START=7       # Stunde 0-23
-DEFAULT_LADESPERRE_ENDE=11       # Stunde 0-23
 DEFAULT_WOLKEN_SCHWELLE=75       # unter diesem Bewoelkungsgrad wird gesperrt
 
 # Forcierte Entladung in der Nacht. Das Zeitfenster kommt aus den

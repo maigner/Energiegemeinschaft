@@ -261,6 +261,7 @@ IBM_API_BASE="${IBM_API_BASE}"
 CRON_BATTERY="0 */5 * * * ?"
 CRON_CLOUD="0 40 * * * ?"
 CRON_CROSSOVER="0 5 4 * * ?"
+CRON_LADESPERRE="0 50 * * * ?"
 CRON_INIT="0 */10 * * * ?"
 
 # --- Startwerte -------------------------------------------------------------
@@ -271,8 +272,6 @@ DEFAULT_MAX_DISCHARGE_W=${DEFAULT_MAX_DISCHARGE_W}
 # Zeitfenster und Schwellwerte der Steuerung. Nicht im Assistenten abgefragt -
 # hier oder spaeter direkt in der Main UI anpassen.
 DEFAULT_LADESPERRE_AKTIV=ON
-DEFAULT_LADESPERRE_START=7
-DEFAULT_LADESPERRE_ENDE=11
 DEFAULT_WOLKEN_SCHWELLE=75
 DEFAULT_ENTLADUNG_AKTIV=ON
 

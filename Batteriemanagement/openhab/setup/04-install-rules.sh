@@ -81,6 +81,14 @@ generate_rule \
   "$CRON_CROSSOVER"
 
 generate_rule \
+  "$IBM_SCRIPT_DIR/eeg-api/ladefenster.js" \
+  "$js_dir/ibm_ladesperre.js" \
+  "ibm_ladesperre" \
+  "IBM - Ladesperre-Fenster abholen" \
+  "Holt das Ladesperre-Fenster aus der Tagesprognose der ischlstrom API" \
+  "$CRON_LADESPERRE"
+
+generate_rule \
   "$IBM_SCRIPT_DIR/$INVERTER_CONTROL_SCRIPT" \
   "$js_dir/ibm_battery_control.js" \
   "ibm_battery_control" \
@@ -110,8 +118,6 @@ rules.JSRule({
       'Minimale_Entladeleistung_Batterieeinspeisung': ${DEFAULT_MIN_DISCHARGE_W},
       'Maximale_Entladeleistung_Batterieeinspeisung': ${DEFAULT_MAX_DISCHARGE_W},
       'IBM_LADESPERRE_AKTIV': '${DEFAULT_LADESPERRE_AKTIV}',
-      'IBM_LADESPERRE_START': ${DEFAULT_LADESPERRE_START},
-      'IBM_LADESPERRE_ENDE': ${DEFAULT_LADESPERRE_ENDE},
       'IBM_LADESPERRE_WOLKEN_SCHWELLE': ${DEFAULT_WOLKEN_SCHWELLE},
       'IBM_ENTLADUNG_AKTIV': '${DEFAULT_ENTLADUNG_AKTIV}'
     };

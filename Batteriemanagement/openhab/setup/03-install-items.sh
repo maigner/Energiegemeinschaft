@@ -32,16 +32,17 @@ Number Ischlstrom_Wolkenvorschau      "Bewoelkungsvorhersage [%.0f %%]" <sun>  (
 String Ischlstrom_Wolkenvorschau_Zeit "Wolkenvorschau abgerufen [%s]"   <time> (IBM)
 String Ischlstrom_Crossover_Start     "Crossover Start [%s]"            <time> (IBM)
 String Ischlstrom_Crossover_Ende      "Crossover Ende [%s]"             <time> (IBM)
+String Ischlstrom_Ladesperre_Start    "Ladesperre ab [%s]"              <time> (IBM)
+String Ischlstrom_Ladesperre_Ende     "Ladesperre bis [%s]"             <time> (IBM)
+String Ischlstrom_Ladesperre_Datum    "Ladesperre-Fenster fuer [%s]"    <calendar> (IBM)
 
 // Vom Mitglied einstellbar
 Number IBM_MIN_BATTERY_CHARGE                       "Minimaler Ladestand Batterie [%.0f %%]" <batterylevel> (IBM)
 Number Minimale_Entladeleistung_Batterieeinspeisung "Minimale Entladeleistung [%.0f W]"      <energy>       (IBM)
 Number Maximale_Entladeleistung_Batterieeinspeisung "Maximale Entladeleistung [%.0f W]"      <energy>       (IBM)
 
-// Ladesperre am Vormittag
+// Ladesperre am Vormittag (Fenster kommt aus der Tagesprognose der API)
 Switch IBM_LADESPERRE_AKTIV            "Ladesperre bei Sonnenprognose"      <switch> (IBM)
-Number IBM_LADESPERRE_START            "Ladesperre ab [%.0f Uhr]"           <time>   (IBM)
-Number IBM_LADESPERRE_ENDE             "Ladesperre bis [%.0f Uhr]"          <time>   (IBM)
 Number IBM_LADESPERRE_WOLKEN_SCHWELLE  "Wolken-Schwelle Ladesperre [%.0f %%]" <sun>  (IBM)
 
 // Forcierte Entladung in der Nacht (Fenster kommt aus den Crossover-Zeiten)
@@ -72,12 +73,13 @@ Items {
     Ischlstrom_Wolkenvorschau_Zeit,
     Ischlstrom_Crossover_Start,
     Ischlstrom_Crossover_Ende,
+    Ischlstrom_Ladesperre_Start,
+    Ischlstrom_Ladesperre_Ende,
+    Ischlstrom_Ladesperre_Datum,
     IBM_MIN_BATTERY_CHARGE,
     Minimale_Entladeleistung_Batterieeinspeisung,
     Maximale_Entladeleistung_Batterieeinspeisung,
     IBM_LADESPERRE_AKTIV,
-    IBM_LADESPERRE_START,
-    IBM_LADESPERRE_ENDE,
     IBM_LADESPERRE_WOLKEN_SCHWELLE,
     IBM_ENTLADUNG_AKTIV
         : strategy = everyChange, restoreOnStartup

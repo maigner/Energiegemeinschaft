@@ -123,11 +123,12 @@ Assistent listet automatisch auf, was dort liegt. Ein neuer Hersteller braucht
 | `Ischlstrom_Wolkenvorschau_Zeit` | String | Abrufzeitpunkt der Wolkenvorschau (Aktualitaetspruefung) |
 | `Ischlstrom_Crossover_Start` | String | API `/api/eeginfo/crossover/v1` |
 | `Ischlstrom_Crossover_Ende` | String | API `/api/eeginfo/crossover/v1` |
+| `Ischlstrom_Ladesperre_Start` / `_Ende` | String | API `/api/eeginfo/ladefenster/v1` |
+| `Ischlstrom_Ladesperre_Datum` | String | Tag, fuer den das Ladesperre-Fenster gilt |
 | `IBM_MIN_BATTERY_CHARGE` | Number | Einstellung |
 | `Minimale_Entladeleistung_Batterieeinspeisung` | Number | Einstellung |
 | `Maximale_Entladeleistung_Batterieeinspeisung` | Number | Einstellung |
 | `IBM_LADESPERRE_AKTIV` | Switch | Teilfunktion Ladesperre ein/aus |
-| `IBM_LADESPERRE_START` / `_ENDE` | Number | Zeitfenster, Stunde 0-23 |
 | `IBM_LADESPERRE_WOLKEN_SCHWELLE` | Number | Bewoelkungsgrad in % |
 | `IBM_ENTLADUNG_AKTIV` | Switch | Teilfunktion Entladung ein/aus |
 
@@ -136,7 +137,18 @@ Das Entladefenster folgt den Crossover-Zeiten der Gemeinschaft
 morgendlichen Crossover, also solange die Gemeinschaft mehr verbraucht als
 erzeugt. Liegen keine plausiblen Crossover-Zeiten vor (ischlstrom.org nie
 erreichbar gewesen oder Werte unbrauchbar), wird **nicht** entladen - ein
-Ersatz-Zeitfenster gibt es nicht. Die Wolkenvorschau gilt als veraltet, wenn ihr
+Ersatz-Zeitfenster gibt es nicht.
+
+Das Ladesperre-Fenster kommt aus der Tagesprognose
+(`/api/eeginfo/ladefenster/v1`, berechnet aus den Kurven von `/vorhersage`):
+gesperrt wird vom ersten Sonnenschein bis zum prognostizierten
+Vormittags-Crossover. Die morgendliche Verbrauchsspitze der Gemeinschaft wird
+so direkt aus der PV gedeckt, die Batterie laedt erst aus dem
+Mittags-Ueberschuss. Das Fenster gilt nur fuer das mitgelieferte Datum
+(`Ischlstrom_Ladesperre_Datum`); ist es veraltet, unplausibel oder liefert
+die Prognose keinen Ueberschuss (`-`), wird nicht gesperrt. Die
+Wolken-Schwelle bleibt als zusaetzliche Bedingung bestehen: gesperrt wird nur
+bei sonniger Vorschau. Die Wolkenvorschau gilt als veraltet, wenn ihr
 letzter Abruf (`Ischlstrom_Wolkenvorschau_Zeit`) laenger als drei Stunden
 zurueckliegt — die Steuerung sperrt dann kein Laden und entlaedt nur mit
 minimaler Leistung.
@@ -163,6 +175,7 @@ Overview -> Code-Ansicht` und den Inhalt von `pages.overview` einfuegen.
 | --- | --- | --- |
 | `ibm_cloud_forecast.js` | `../eeg-api/cloud_forecast.js` | stuendlich :40 |
 | `ibm_crossover.js` | `../eeg-api/crossover.js` | taeglich 04:05 |
+| `ibm_ladesperre.js` | `../eeg-api/ladefenster.js` | stuendlich :50 |
 | `ibm_battery_control.js` | aus dem Wechselrichter-Profil | alle 5 Minuten |
 | `ibm_init.js` | generiert | alle 10 Minuten |
 | `ibm_watchdog.js` (optional) | generiert | bei Bridge-OFFLINE + alle 15 Minuten |

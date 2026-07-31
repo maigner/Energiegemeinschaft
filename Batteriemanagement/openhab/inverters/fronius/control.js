@@ -1,7 +1,10 @@
 // ============================================================================
 // IBM - Batteriesteuerung Fronius
 //
-//   Teil A: Batterieladen sperren bei geringer Bewoelkung (Vormittag)
+//   Teil A: Batterieladen sperren bei geringer Bewoelkung (Vormittag).
+//           Das Fenster kommt aus der Tagesprognose der API (erster
+//           Sonnenschein bis Vormittags-Crossover) und gilt nur fuer das
+//           mitgelieferte Datum - ohne gueltiges Fenster wird nicht gesperrt.
 //   Teil B: Forcierte Batterieentladung (Nacht), abhaengig von Toggle,
 //           Ladestand und Wolkenvorschau
 //
@@ -24,8 +27,6 @@ var fa = actions.thingActions('fronius', 'fronius:powerinverter:0cb68e8e38:273b6
 
 // --- Rueckfallwerte, falls das zugehoerige Item fehlt oder ungueltig ist ----
 var FALLBACK_CHARGE_LOCK_ACTIVE = true;
-var FALLBACK_CHARGE_LOCK_START_HOUR = 7;
-var FALLBACK_CHARGE_LOCK_END_HOUR = 11;
 var FALLBACK_CLOUD_THRESHOLD = 75;
 
 var FALLBACK_DISCHARGE_ACTIVE = true;
@@ -61,11 +62,6 @@ function num(name, fallback, min, max) {
     return fallback;
   }
   return value;
-}
-
-// Ganze Stunde 0-23.
-function hour(name, fallback) {
-  return Math.floor(num(name, fallback, 0, 23));
 }
 
 // Schalter, mit Rueckfallwert bei NULL/UNDEF.
@@ -104,9 +100,13 @@ function timeItemMinutes(name, minHour, maxHour) {
 // --- Konfiguration ----------------------------------------------------------
 
 var CHARGE_LOCK_ACTIVE     = onOff('IBM_LADESPERRE_AKTIV', FALLBACK_CHARGE_LOCK_ACTIVE);
-var CHARGE_LOCK_START_HOUR = hour('IBM_LADESPERRE_START', FALLBACK_CHARGE_LOCK_START_HOUR);
-var CHARGE_LOCK_END_HOUR   = hour('IBM_LADESPERRE_ENDE', FALLBACK_CHARGE_LOCK_END_HOUR);
 var CLOUD_THRESHOLD        = num('IBM_LADESPERRE_WOLKEN_SCHWELLE', FALLBACK_CLOUD_THRESHOLD, 0, 100);
+
+// Ladesperre-Fenster aus der Tagesprognose: erster Sonnenschein 4-12 Uhr,
+// Vormittags-Crossover 5-15 Uhr plausibel. '-' (kein Ueberschuss erwartet)
+// oder unplausible Werte ergeben null - dann wird nicht gesperrt.
+var CHARGE_LOCK_START_MIN  = timeItemMinutes('Ischlstrom_Ladesperre_Start', 4, 12);
+var CHARGE_LOCK_END_MIN    = timeItemMinutes('Ischlstrom_Ladesperre_Ende', 5, 15);
 
 var DISCHARGE_ACTIVE       = onOff('IBM_ENTLADUNG_AKTIV', FALLBACK_DISCHARGE_ACTIVE);
 
@@ -133,9 +133,27 @@ function fmtMinutes(m) {
   return (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm;
 }
 
-// Ladesperre: fest eingestelltes Vormittagsfenster.
-var chargeLockStart = CHARGE_LOCK_START_HOUR * 60;
-var chargeLockEnd   = CHARGE_LOCK_END_HOUR * 60;
+// Ladesperre: Fenster aus der Tagesprognose, nur fuer das gemeldete Datum
+// gueltig - ein nach einem API-Ausfall uebrig gebliebenes Fenster von
+// gestern darf heute nicht sperren.
+function chargeLockDateValid() {
+  var item = readItem('Ischlstrom_Ladesperre_Datum');
+  if (item === null) return false;
+  var state = String(item.state);
+  var m = now.monthValue();
+  var d = now.dayOfMonth();
+  var today = now.year() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+  if (state !== today) {
+    console.log('[IBM][Konfig] Ladesperre-Fenster gilt fuer ' + state + ', heute ist ' + today + ' - wird ignoriert');
+    return false;
+  }
+  return true;
+}
+
+var chargeLockStart = CHARGE_LOCK_START_MIN;
+var chargeLockEnd   = CHARGE_LOCK_END_MIN;
+var chargeLockReady = chargeLockStart !== null && chargeLockEnd !== null
+  && chargeLockStart < chargeLockEnd && chargeLockDateValid();
 
 // Entladung: vom abendlichen bis zum morgendlichen Crossover - solange die
 // Gemeinschaft mehr verbraucht als erzeugt. Ohne plausible Crossover-Daten
@@ -278,7 +296,11 @@ function handleForcedDischarge() {
 // ----------------------------------------------------------------------------
 // Zeitfenster-Weiche: entscheidet, welcher Teil ausgefuehrt wird
 // ----------------------------------------------------------------------------
-if (CHARGE_LOCK_ACTIVE && inWindow(chargeLockStart, chargeLockEnd)) {
+if (CHARGE_LOCK_ACTIVE && !chargeLockReady) {
+  console.log('[IBM] Kein gueltiges Ladesperre-Fenster fuer heute - Laden bleibt erlaubt');
+}
+
+if (CHARGE_LOCK_ACTIVE && chargeLockReady && inWindow(chargeLockStart, chargeLockEnd)) {
   console.log('[IBM] Zeitfenster Vormittag (' + fmtMinutes(nowMinutes) + ', ' + fmtMinutes(chargeLockStart) + '-' + fmtMinutes(chargeLockEnd) + ') - pruefe Ladesperre');
   handleChargeLock();
 } else if (DISCHARGE_ACTIVE && (dischargeStart === null || dischargeEnd === null)) {

@@ -77,6 +77,45 @@ export const getForecastDays = async (runId: number, days: number = 10) => {
 };
 
 /**
+ * Ladesperre-Fenster für das Batteriemanagement (IBM): vom ersten
+ * nennenswerten Sonnenschein (Erzeugung über 5 % des Tagesmaximums) bis zum
+ * prognostizierten Vormittags-Crossover (Erzeugung >= Verbrauch). Die Idee:
+ * die morgendliche Verbrauchsspitze soll direkt aus der PV gedeckt werden,
+ * die Batterie lädt erst aus dem Mittags-Überschuss. An Tagen ohne erwarteten
+ * Überschuss ist `ende` null -- dann gibt es keine Sperre.
+ */
+export const getTodayChargeWindow = async (runId: number) => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        WITH slots AS (
+            SELECT
+                timestamp AT TIME ZONE 'Europe/Vienna' AS ts_local,
+                generation_kwh,
+                consumption_kwh
+            FROM metering_energyforecast
+            WHERE run_id = $1
+              AND (timestamp AT TIME ZONE 'Europe/Vienna')::date = (now() AT TIME ZONE 'Europe/Vienna')::date
+        ),
+        peak AS (SELECT MAX(generation_kwh) AS max_gen FROM slots)
+        SELECT
+            COUNT(*)::int AS intervals,
+            to_char((now() AT TIME ZONE 'Europe/Vienna')::date, 'YYYY-MM-DD') AS datum,
+            to_char(MIN(ts_local) FILTER (
+                WHERE generation_kwh > 0.05 * (SELECT max_gen FROM peak)
+            ), 'HH24:MI') AS start,
+            to_char(MIN(ts_local) FILTER (
+                WHERE generation_kwh >= consumption_kwh
+                  AND EXTRACT(hour FROM ts_local) >= 3
+            ), 'HH24:MI') AS ende
+        FROM slots
+    `, [runId]);
+    sql.release();
+    const row = result?.rows?.[0];
+    if (!row || !row.intervals) return null;
+    return row;
+};
+
+/**
  * Prognose gegen tatsächlich gemessene Werte. Je Tag zählt der Lauf, der ihm am
  * nächsten lag.
  *

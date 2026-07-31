@@ -52,11 +52,12 @@ inverters/
    | `Ischlstrom_Wolkenvorschau` | Number | Bewoelkung 0-100 % |
    | `Ischlstrom_Crossover_Start` | String | Beginn Ueberschussfenster, `HH:MM:SS` |
    | `Ischlstrom_Crossover_Ende` | String | Ende Ueberschussfenster, `HH:MM:SS` |
+   | `Ischlstrom_Ladesperre_Start` / `_Ende` | String | Ladesperre-Fenster, `HH:MM` oder `-` |
+   | `Ischlstrom_Ladesperre_Datum` | String | Gueltigkeitstag des Fensters, `YYYY-MM-DD` |
    | `IBM_MIN_BATTERY_CHARGE` | Number | Minimaler Ladestand in % |
    | `Minimale_Entladeleistung_Batterieeinspeisung` | Number | Watt |
    | `Maximale_Entladeleistung_Batterieeinspeisung` | Number | Watt |
    | `IBM_LADESPERRE_AKTIV` | Switch | Teilfunktion Ladesperre ein/aus |
-   | `IBM_LADESPERRE_START` / `_ENDE` | Number | Stunde 0-23 |
    | `IBM_LADESPERRE_WOLKEN_SCHWELLE` | Number | Bewoelkung in % |
    | `IBM_ENTLADUNG_AKTIV` | Switch | Teilfunktion Entladung ein/aus |
 
