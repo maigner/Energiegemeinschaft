@@ -19,9 +19,20 @@
     const kwh = (/** @type {number} */ value) =>
         Number(value ?? 0).toLocaleString("de-AT", { maximumFractionDigits: 0 });
 
+    // null statt Division durch 0 (z.B. Erzeugung an trüben Wintertagen)
+    const percent = (/** @type {number} */ part, /** @type {number} */ total) =>
+        Number(total) > 0 ? (100 * Number(part ?? 0)) / Number(total) : null;
+    const formatPercent = (/** @type {number | null} */ value) =>
+        value === null ? "-" : `${value.toFixed(0)}%`;
+
     const today = data.days?.[0] ?? null;
-    const coverage = today
-        ? (100 * today.self_coverage_kwh) / today.consumption_kwh
+    // Verbrauchersicht: Anteil des Verbrauchs, der aus der Gemeinschaft kommt
+    const todayCoverage = today
+        ? percent(today.self_coverage_kwh, today.consumption_kwh)
+        : null;
+    // Erzeugersicht: Anteil der Erzeugung, den die Gemeinschaft abnimmt
+    const todayUptake = today
+        ? percent(today.self_coverage_kwh, today.generation_kwh)
         : null;
 
     // mittlerer absoluter Fehler der bereits überprüfbaren Tage
@@ -69,7 +80,7 @@
     <P class="mx-auto mt-4 max-w-3xl text-center">
         So viel Strom wird unsere Gemeinschaft in den nächsten Tagen
         voraussichtlich verbrauchen und erzeugen. Die Prognose rechnet aus
-        Wettervorhersage, Jahreszeit und Tagesrhythmus — die tatsächlichen
+        Wettervorhersage, Jahreszeit und Tagesrhythmus. Die tatsächlichen
         Messwerte treffen erst Wochen später ein.
     </P>
 
@@ -84,17 +95,86 @@
                 <span class="text-2xl font-bold">{kwh(today.generation_kwh)} kWh</span>
             </Card>
             <Card class="p-4 text-center">
-                <span class="text-sm text-gray-500 dark:text-gray-400">aus der Gemeinschaft</span>
-                <span class="text-2xl font-bold">{kwh(today.self_coverage_kwh)} kWh</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400">Deckungsgrad</span>
+                <span class="text-2xl font-bold">{formatPercent(todayCoverage)}</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">
+                    des Verbrauchs aus der Gemeinschaft
+                </span>
             </Card>
             <Card class="p-4 text-center">
-                <span class="text-sm text-gray-500 dark:text-gray-400">Deckungsgrad</span>
-                <span class="text-2xl font-bold">{coverage?.toFixed(0)} %</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400">Abnahmegrad</span>
+                <span class="text-2xl font-bold">{formatPercent(todayUptake)}</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">
+                    der Erzeugung bleibt in der Gemeinschaft
+                </span>
             </Card>
         </div>
     {/if}
 
-    <Heading tag="h4" class="mt-10 text-center">Die nächsten sieben Tage</Heading>
+    <Heading tag="h4" class="mt-12 text-center">Was sagen diese Zahlen aus?</Heading>
+    <P class="mx-auto mt-4 max-w-3xl text-center">
+        Der Strom, der innerhalb der Gemeinschaft fließt, lässt sich aus zwei
+        Blickwinkeln betrachten. Je nachdem, ob man Strom bezieht oder
+        einspeist, interessiert eine andere Zahl.
+    </P>
+    <div class="mx-auto mt-6 grid max-w-4xl gap-4 md:grid-cols-2">
+        <Card class="p-5" size="xl">
+            <Heading tag="h5" class="text-blue-700 dark:text-blue-400">
+                Für Verbraucher: der Deckungsgrad
+            </Heading>
+            <P class="mt-2 text-sm">
+                Wie viel des Verbrauchs wird durch Strom aus der Gemeinschaft
+                gedeckt? Dieser Anteil ist günstiger als Strom vom Lieferanten:
+                Der Bezugstarif der Gemeinschaft liegt meist darunter, und als
+                regionale EEG sparen wir zusätzlich 28% der Netzkosten
+                für jede gemeinschaftlich verteilte kWh.
+            </P>
+            <P class="mt-2 text-sm">
+                Ein hoher Deckungsgrad heißt also: kleinere Stromrechnung. Wer
+                Geschirrspüler, Waschmaschine oder E-Auto in die sonnigen
+                Mittagsstunden verlegt, hebt ihn spürbar an.
+            </P>
+            {#if today && todayCoverage !== null}
+                <P class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Heute laut Prognose: {kwh(today.self_coverage_kwh)} von
+                    {kwh(today.consumption_kwh)} kWh Verbrauch, also
+                    {formatPercent(todayCoverage)}.
+                </P>
+            {/if}
+        </Card>
+        <Card class="p-5" size="xl">
+            <Heading tag="h5" class="text-amber-600 dark:text-amber-400">
+                Für Erzeuger: der Abnahmegrad
+            </Heading>
+            <P class="mt-2 text-sm">
+                Wie viel der Erzeugung nehmen die Mitglieder tatsächlich ab?
+                Für diesen Anteil zahlt die Gemeinschaft ihren Einspeisetarif,
+                in der Regel mehr, als die Einspeisung ins öffentliche Netz
+                bringt. Was die Gemeinschaft gerade nicht braucht, geht als
+                Überschuss ins Netz.
+            </P>
+            <P class="mt-2 text-sm">
+                Ein hoher Abnahmegrad heißt also: bessere Erlöse für die
+                Einspeiser. Er steigt, wenn möglichst viel Verbrauch in die
+                Stunden mit viel Sonne fällt.
+            </P>
+            {#if today && todayUptake !== null}
+                <P class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Heute laut Prognose: {kwh(today.self_coverage_kwh)} von
+                    {kwh(today.generation_kwh)} kWh Erzeugung, also
+                    {formatPercent(todayUptake)}.
+                </P>
+            {/if}
+        </Card>
+    </div>
+    <P class="mx-auto mt-4 max-w-3xl text-center text-sm text-gray-500 dark:text-gray-400">
+        Die Interessen sind verschieden, das Rezept ist dasselbe: Je besser
+        Verbrauch und Erzeugung zeitlich zusammenpassen, desto höher sind beide
+        Werte, und desto mehr haben alle davon. Die aktuellen Tarife stehen in
+        den <a href="/faq" class="underline">häufigen Fragen</a>.
+    </P>
+
+    <Heading tag="h4" class="mt-12 text-center">Die nächsten sieben Tage</Heading>
     <div class="mt-4">
         <ForecastChart hours={data.hours} />
     </div>
@@ -108,6 +188,7 @@
                 <TableHeadCell class="text-right">Erzeugung</TableHeadCell>
                 <TableHeadCell class="text-right">aus der Gemeinschaft</TableHeadCell>
                 <TableHeadCell class="text-right">Deckung</TableHeadCell>
+                <TableHeadCell class="text-right">Abnahme</TableHeadCell>
             </TableHead>
             <TableBody>
                 {#each data.days as day}
@@ -119,7 +200,10 @@
                         <TableBodyCell class="text-right">{kwh(day.generation_kwh)} kWh</TableBodyCell>
                         <TableBodyCell class="text-right">{kwh(day.self_coverage_kwh)} kWh</TableBodyCell>
                         <TableBodyCell class="text-right">
-                            {((100 * day.self_coverage_kwh) / day.consumption_kwh).toFixed(0)} %
+                            {formatPercent(percent(day.self_coverage_kwh, day.consumption_kwh))}
+                        </TableBodyCell>
+                        <TableBodyCell class="text-right">
+                            {formatPercent(percent(day.self_coverage_kwh, day.generation_kwh))}
                         </TableBodyCell>
                     </TableBodyRow>
                 {/each}
@@ -130,17 +214,17 @@
     {#if data.accuracy?.length}
         <Heading tag="h4" class="mt-12 text-center">Wie gut war die Prognose?</Heading>
         <P class="mx-auto mt-4 max-w-3xl text-center">
-            Für diese Tage liegen inzwischen Messwerte vor — hier steht, was
+            Für diese Tage liegen inzwischen Messwerte vor. Hier steht, was
             vorher prognostiziert wurde, neben dem, was tatsächlich gemessen
             wurde.
         </P>
         {#if accuracySummary}
             <div class="mt-4 flex justify-center gap-3">
                 <Badge large color="blue">
-                    Verbrauch: {accuracySummary.consumption.toFixed(0)} % Abweichung
+                    Verbrauch: {accuracySummary.consumption.toFixed(0)}% Abweichung
                 </Badge>
                 <Badge large color="yellow">
-                    Erzeugung: {accuracySummary.generation.toFixed(0)} % Abweichung
+                    Erzeugung: {accuracySummary.generation.toFixed(0)}% Abweichung
                 </Badge>
                 <Badge large color="gray">{accuracySummary.days} Tage</Badge>
             </div>
@@ -151,7 +235,7 @@
         {#if accuracySummary?.measuredWeatherDays}
             <P class="mx-auto mt-3 max-w-3xl text-center text-sm text-gray-500 dark:text-gray-400">
                 Bei {accuracySummary.measuredWeatherDays} dieser {accuracySummary.days}
-                Tage lag der Tag zum Zeitpunkt der Berechnung schon zurück — die
+                Tage lag der Tag zum Zeitpunkt der Berechnung schon zurück. Die
                 Messdaten dazu fehlten zwar noch, das Wetter war aber bereits
                 bekannt. Diese Tage fallen etwas besser aus als eine echte
                 Vorausschau.
@@ -162,7 +246,7 @@
     <P class="mx-auto mt-10 max-w-3xl text-center text-sm text-gray-500 dark:text-gray-400">
         Prognose vom {formatDate(new Date(data.run.created_at))}, gerechnet mit
         Messdaten bis {formatDate(new Date(data.run.data_until))}. Wetterdaten von
-        Open-Meteo. Eine Prognose bleibt eine Schätzung — vor allem die Erzeugung
+        Open-Meteo. Eine Prognose bleibt eine Schätzung. Vor allem die Erzeugung
         hängt am Wetter und wird mit jedem Tag Vorlauf unsicherer.
     </P>
 {/if}
