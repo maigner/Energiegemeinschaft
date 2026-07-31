@@ -138,7 +138,10 @@
                 {@const d = anlage.data}
                 {@const soc = num(d.soc, 0)}
                 {@const haupt = schalter(d.hauptschalter)}
-                <Card class="max-w-none p-4">
+                <Card
+                    href={`/board/openhab/${anlage.id}`}
+                    class="max-w-none p-4 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
                     <div class="flex items-center justify-between mb-2">
                         <div class="flex items-center gap-2">
                             <Indicator color={statusColor[status]} />

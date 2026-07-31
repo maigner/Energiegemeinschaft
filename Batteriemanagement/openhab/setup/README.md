@@ -261,6 +261,16 @@ Ausbleibende Meldungen zeigt das Dashboard an (gelb nach 15 Minuten, rot
 nach einer Stunde) — es eignet sich damit auch als einfache
 Ausfallueberwachung der openhabians.
 
+Ein Klick auf eine Anlage oeffnet die **Detailseite** mit Diagrammen der
+letzten Woche: Batterie-Ladestand sowie Batterieleistung und Einspeisung
+aus der Batterie ins Netz. Die Kurven entstehen aus den Statusmeldungen
+(5-Minuten-Raster, serverseitig 30 Tage aufbewahrt). Die Leistungswerte
+liefert die Anlage nur, wenn die Channels fuer Batterie- und Netzleistung
+in der Main UI mit Items verknuepft sind (bei Fronius:
+`Fronius_Symo_Inverter_Battery_Power`, `Fronius_Symo_Inverter_Grid_Power`,
+optional `Solar_Plant_Power` und `Load_Power`); ohne diese Items fehlt nur
+das Leistungsdiagramm, der Rest funktioniert unveraendert.
+
 ## Netzwerk-Watchdog (wechselnde IP des Wechselrichters)
 
 Teilt der Router dem Wechselrichter per DHCP eine neue IP zu, verliert das

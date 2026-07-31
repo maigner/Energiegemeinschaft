@@ -6,6 +6,7 @@ import cron from 'node-cron';
 import { fetchAndStoreWeatherData } from "$lib/server/db/weather/openmeteo";
 import { checkActivationReminders, sendActivationReminders } from "$lib/server/mail/reminders/memberReminders";
 import { refreshMaterializedViewCrossoverTimes } from "$lib/server/db/energy/overview";
+import { pruneOpenhabStatusHistory } from "$lib/server/db/members/openhabStatus";
 import { dev } from "$app/environment";
 
 
@@ -69,6 +70,14 @@ export async function cronHandle({ event, resolve }) {
 			if (dev) return;
 			console.log('Runs once a week: checkActivationReminders');
 			checkActivationReminders();
+		});
+
+		// pruneOpenhabStatusHistory
+		// every day, remove openhab status history older than 30 days
+		cron.schedule('23 3 * * *', () => {
+			if (dev) return;
+			console.log('Runs daily at 03:23: pruneOpenhabStatusHistory');
+			pruneOpenhabStatusHistory();
 		});
 
 		// refreshMaterializedViewCrossoverTimes

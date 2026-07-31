@@ -26,6 +26,18 @@ function numberOf(name) {
   return isNaN(n) ? null : n;
 }
 
+// Erster numerischer Wert aus einer Liste von Kandidaten-Items. Die
+// Leistungs-Items entstehen beim Verknuepfen der Channels in der Main UI
+// und heissen daher nicht auf jeder Anlage gleich; fuer weitere
+// Wechselrichter-Typen die ueblichen Itemnamen hier ergaenzen.
+function firstNumberOf(names) {
+  for (var i = 0; i < names.length; i++) {
+    var n = numberOf(names[i]);
+    if (n !== null) return n;
+  }
+  return null;
+}
+
 var inverterStatus = null;
 try {
   var thing = things.getThing('@IBM_THING_UID@');
@@ -43,6 +55,12 @@ var payload = {
     inverter_type: '@IBM_INVERTER_TYPE@',
     inverter_status: inverterStatus,
     soc: numberOf('@IBM_SOC_ITEM@'),
+    // Leistungswerte (Fronius-Vorzeichen: Batterie + = Entladen,
+    // Netz + = Bezug, - = Einspeisung); null wenn kein Item verknuepft ist.
+    battery_power_w: firstNumberOf(['Fronius_Symo_Inverter_Battery_Power']),
+    grid_power_w: firstNumberOf(['Fronius_Symo_Inverter_Grid_Power']),
+    pv_power_w: firstNumberOf(['Fronius_Symo_Inverter_Solar_Plant_Power']),
+    load_power_w: firstNumberOf(['Fronius_Symo_Inverter_Load_Power']),
     hauptschalter: stateOf('Schalte_ISCHLSTROM_Empfehlung_einaus'),
     ladesperre_aktiv: stateOf('IBM_LADESPERRE_AKTIV'),
     entladung_aktiv: stateOf('IBM_ENTLADUNG_AKTIV'),

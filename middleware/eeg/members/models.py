@@ -51,6 +51,24 @@ class OpenhabStatus(models.Model):
         return f"{self.member}: {self.name or 'ohne Namen'} (last seen {self.last_seen})"
 
 
+class OpenhabStatusHistory(models.Model):
+    """One row per status push of an installation, appended by the website
+    (POST /api/ibm/status/v1). Feeds the charts on /board/openhab/<id>;
+    rows older than 30 days are pruned by a website cron job."""
+    status = models.ForeignKey(OpenhabStatus, on_delete=models.CASCADE)
+    time = models.DateTimeField()
+    data = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        verbose_name_plural = "Openhab status histories"
+        indexes = [
+            models.Index(fields=["status", "time"]),
+        ]
+
+    def __str__(self):
+        return f"{self.status_id} @ {self.time}"
+
+
 class BoardApproval(models.Model):
     member = models.ForeignKey(Member, on_delete=models.CASCADE)
     date_time = models.DateTimeField(auto_now_add=True)

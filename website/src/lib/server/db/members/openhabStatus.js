@@ -62,7 +62,94 @@ export const pushOpenhabStatus = async (token, name, data) => {
              RETURNING id`,
             [token, name, JSON.stringify(data)]
         );
-        return result.rowCount > 0;
+        if (result.rowCount === 0) {
+            return false;
+        }
+        // Jeder Push wird zusaetzlich als Verlauf abgelegt; daraus entstehen
+        // die Diagramme auf der Detailseite. Alte Zeilen raeumt der taegliche
+        // Cron-Job auf (pruneOpenhabStatusHistory).
+        await db.query(
+            `INSERT INTO members_openhabstatushistory (status_id, time, data)
+             VALUES ($1, now(), $2)`,
+            [result.rows[0].id, JSON.stringify(data)]
+        );
+        return true;
+    } finally {
+        db.release();
+    }
+};
+
+/**
+ * Verlauf einer Anlage fuer die Diagramme der Detailseite, gemittelt auf
+ * 15-Minuten-Fenster. Vorzeichen wie vom Fronius geliefert: Batterie
+ * positiv = Entladen, Netz negativ = Einspeisung.
+ *
+ * @param {number} statusId - members_openhabstatus.id
+ * @param {number} days - Zeitraum in Tagen
+ */
+export const getOpenhabStatusHistory = async (statusId, days) => {
+    const db = await middlewareDbConnection();
+    try {
+        const result = await db.query(
+            `SELECT to_timestamp(floor(extract(epoch FROM time) / 900) * 900) AS bucket,
+                    avg(CASE WHEN jsonb_typeof(data->'soc') = 'number' THEN (data->>'soc')::float END) AS soc,
+                    avg(CASE WHEN jsonb_typeof(data->'battery_power_w') = 'number' THEN (data->>'battery_power_w')::float END) AS battery_power_w,
+                    avg(CASE WHEN jsonb_typeof(data->'grid_power_w') = 'number' THEN (data->>'grid_power_w')::float END) AS grid_power_w
+               FROM members_openhabstatushistory
+              WHERE status_id = $1
+                AND time >= now() - make_interval(days => $2)
+              GROUP BY bucket
+              ORDER BY bucket`,
+            [statusId, days]
+        );
+        return result.rows;
+    } finally {
+        db.release();
+    }
+};
+
+/**
+ * Loescht Verlaufszeilen, die aelter als 30 Tage sind (taeglicher Cron-Job).
+ */
+export const pruneOpenhabStatusHistory = async () => {
+    const db = await middlewareDbConnection();
+    try {
+        const result = await db.query(
+            `DELETE FROM members_openhabstatushistory
+              WHERE time < now() - interval '30 days'`
+        );
+        if (result.rowCount > 0) {
+            console.log(`openhab status history pruned: ${result.rowCount} rows`);
+        }
+    } finally {
+        db.release();
+    }
+};
+
+/**
+ * Eine Anlage samt letztem Status, fuer die Detailseite.
+ *
+ * @param {number} statusId - members_openhabstatus.id
+ */
+export const getOpenhabStatus = async (statusId) => {
+    const db = await middlewareDbConnection();
+    try {
+        const result = await db.query(
+            `SELECT s.id,
+                    s.token,
+                    s.name,
+                    s.created_at,
+                    s.last_seen,
+                    EXTRACT(EPOCH FROM (now() - s.last_seen)) AS age_seconds,
+                    s.data,
+                    m.name AS member_name,
+                    m.identifier AS member_identifier
+               FROM members_openhabstatus s
+               JOIN members_member m ON s.member_id = m.id
+              WHERE s.id = $1`,
+            [statusId]
+        );
+        return result.rows[0] ?? null;
     } finally {
         db.release();
     }
