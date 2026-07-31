@@ -135,6 +135,31 @@ fi
 ask SOC_ITEM "Item mit dem Batterie-Ladestand" "$soc_default"
 [ -n "$SOC_ITEM" ] || die "Ohne Ladestands-Item kann nicht eingerichtet werden."
 
+# --- 3b. Batterieleistungs-Item (fuer die Overview-Seite) --------------------
+# Optional: Die Overview zeigt damit die aktuelle Einspeiseleistung der
+# Batterie. Ohne verknuepftes Item bleibt die Karte leer ("-").
+BATTERY_POWER_ITEM=""
+if [ -n "$INVERTER_BATTERY_POWER_PLACEHOLDER" ]; then
+  mapfile -t power_candidates < <(detect_battery_power_items "$INVERTER_THING_UID")
+
+  if [ "${#power_candidates[@]}" -ge 1 ]; then
+    power_default="${power_candidates[0]}"
+    if [ "${#power_candidates[@]}" -gt 1 ]; then
+      echo "[IBM] Moegliche Batterieleistungs-Items:"
+      printf '[IBM]   %s\n' "${power_candidates[@]}"
+    fi
+    log "Batterieleistungs-Item erkannt: $power_default"
+  else
+    power_default="$INVERTER_BATTERY_POWER_PLACEHOLDER"
+    warn "Kein Batterieleistungs-Item gefunden. Den Channel"
+    warn "'${INVERTER_BATTERY_POWER_CHANNEL}' des Things in der Main UI mit einem"
+    warn "Item verknuepfen (Standardname unten), sonst bleibt die Karte"
+    warn "'Einspeiseleistung der Batterie' auf der Overview leer."
+  fi
+
+  ask BATTERY_POWER_ITEM "Item mit der Batterieleistung" "$power_default"
+fi
+
 # --- 4. API -----------------------------------------------------------------
 ask IBM_API_BASE "Basis-URL der ischlstrom API" "https://ischlstrom.org"
 
@@ -299,6 +324,7 @@ cat > "$IBM_CONF" <<EOF
 INVERTER_TYPE="${INVERTER_TYPE}"
 INVERTER_THING_UID="${INVERTER_THING_UID}"
 SOC_ITEM="${SOC_ITEM}"
+BATTERY_POWER_ITEM="${BATTERY_POWER_ITEM}"
 
 # --- ischlstrom API ---------------------------------------------------------
 IBM_API_BASE="${IBM_API_BASE}"
@@ -369,6 +395,7 @@ cat <<ZUSAMMENFASSUNG
 [IBM]   Wechselrichter : ${INVERTER_LABEL}
 [IBM]   Thing-UID      : ${INVERTER_THING_UID}
 [IBM]   Ladestand-Item : ${SOC_ITEM}
+[IBM]   Leistungs-Item : ${BATTERY_POWER_ITEM:-"(keins - Karte bleibt leer)"}
 [IBM]   API            : ${IBM_API_BASE}
 [IBM]   Status-Push    : $([ "$INSTALL_STATUS_PUSH" = "1" ] && echo "ja (${IBM_ANLAGE_NAME})" || echo "nein")
 [IBM]   Ladestand min. : ${DEFAULT_MIN_BATTERY_CHARGE} %

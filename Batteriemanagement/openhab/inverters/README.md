@@ -25,6 +25,15 @@ inverters/
    | `INVERTER_SOC_PLACEHOLDER` | Itemname im Steuerungsskript, den das Setup ersetzt |
    | `INVERTER_NOTES` | Hinweis fuer den Installateur |
 
+   Optional, fuer die Karte "Einspeiseleistung der Batterie" auf der
+   Overview-Seite (ohne diese Variablen entfaellt die Abfrage im
+   Assistenten und die Ersetzung beim Installieren der Seiten):
+
+   | Variable | Bedeutung |
+   | --- | --- |
+   | `INVERTER_BATTERY_POWER_CHANNEL` | Channel mit der aktuellen Batterieleistung (+ entladen, - laden) |
+   | `INVERTER_BATTERY_POWER_PLACEHOLDER` | Itemname in den Main-UI-Seiten, den das Setup durch `BATTERY_POWER_ITEM` ersetzt |
+
    Optional, fuer den Netzwerk-Watchdog (ohne diese Variablen bietet das
    Setup keinen Watchdog an):
 

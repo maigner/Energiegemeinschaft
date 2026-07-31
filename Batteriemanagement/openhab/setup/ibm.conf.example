@@ -22,6 +22,13 @@ INVERTER_THING_UID="fronius:powerinverter:0cb68e8e38:273b6c06b4"
 # in der Main UI erzeugt.
 SOC_ITEM="Fronius_Symo_Inverter_Battery_State_of_Charge"
 
+# Item mit der aktuellen Batterieleistung (+ entladen, - laden; verknuepft
+# mit dem Channel powerflowchannelpakku). Zeigt auf der Overview-Seite die
+# Einspeiseleistung der Batterie. Entsteht wie das SoC-Item beim Verknuepfen
+# des Channels in der Main UI; leer = Platzhalter bleibt stehen und die
+# Karte zeigt "-", bis ein Item mit dem Standardnamen existiert.
+BATTERY_POWER_ITEM="Fronius_Symo_Inverter_Battery_Power"
+
 # --- ischlstrom API ---------------------------------------------------------
 
 IBM_API_BASE="https://ischlstrom.org"

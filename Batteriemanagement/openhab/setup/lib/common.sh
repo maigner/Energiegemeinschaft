@@ -119,6 +119,11 @@ load_profile() {
   INVERTER_SOC_CHANNEL="${INVERTER_SOC_CHANNEL:-soc}"
   INVERTER_NOTES="${INVERTER_NOTES:-}"
 
+  # Optional: Batterieleistung fuer die Overview-Seite (nur wenn das Profil
+  # Channel und Platzhalter kennt)
+  INVERTER_BATTERY_POWER_CHANNEL="${INVERTER_BATTERY_POWER_CHANNEL:-}"
+  INVERTER_BATTERY_POWER_PLACEHOLDER="${INVERTER_BATTERY_POWER_PLACEHOLDER:-}"
+
   # Optional: Netzwerk-Watchdog (nur wenn das Profil eine Netzwerksuche hat)
   INVERTER_HOST_THING_PREFIX="${INVERTER_HOST_THING_PREFIX:-}"
   INVERTER_HOST_PARAM="${INVERTER_HOST_PARAM:-hostname}"
@@ -140,6 +145,7 @@ load_config() {
 
   # Defaults, falls eine aeltere ibm.conf noch nicht alles kennt
   INVERTER_TYPE="${INVERTER_TYPE:-fronius}"
+  BATTERY_POWER_ITEM="${BATTERY_POWER_ITEM:-}"
   CRON_BATTERY="${CRON_BATTERY:-0 */5 * * * ?}"
   CRON_CLOUD="${CRON_CLOUD:-0 40 * * * ?}"
   CRON_CROSSOVER="${CRON_CROSSOVER:-0 5 4 * * ?}"
@@ -223,6 +229,30 @@ detect_soc_items() {
     found="$(grep -o '"[A-Za-z0-9_]*"' "$itemdb" 2>/dev/null \
              | tr -d '"' \
              | grep -Ei 'soc|state_?of_?charge|ladestand' \
+             | sort -u || true)"
+  fi
+
+  printf '%s' "$found"
+}
+
+# Kandidaten fuer das Batterieleistungs-Item (Overview-Seite). Zuerst ueber
+# die Channel-Verknuepfung, ersatzweise ueber Itemnamen.
+detect_battery_power_items() {
+  local thing_uid="${1:-}"
+  local linkdb="$OPENHAB_USERDATA/jsondb/org.openhab.core.thing.link.ItemChannelLink.json"
+  local itemdb="$OPENHAB_USERDATA/jsondb/org.openhab.core.items.Item.json"
+  local found=""
+
+  # "|| true" jeweils: siehe detect_soc_items.
+  if [ -n "$thing_uid" ] && [ -n "$INVERTER_BATTERY_POWER_CHANNEL" ] && [ -f "$linkdb" ]; then
+    found="$(grep -o "\"[^\"]* -> ${thing_uid}:${INVERTER_BATTERY_POWER_CHANNEL}\"" "$linkdb" 2>/dev/null \
+             | sed -e 's/^"//' -e 's/ ->.*//' | sort -u || true)"
+  fi
+
+  if [ -z "$found" ] && [ -f "$itemdb" ]; then
+    found="$(grep -o '"[A-Za-z0-9_]*"' "$itemdb" 2>/dev/null \
+             | tr -d '"' \
+             | grep -Ei 'battery_?power|batterieleistung|pakku' \
              | sort -u || true)"
   fi
 

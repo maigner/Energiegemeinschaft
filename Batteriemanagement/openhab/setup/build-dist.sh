@@ -10,8 +10,8 @@
 # "Content-Encoding: gzip" aus - Clients ohne Accept-Encoding bekommen dann
 # das entpackte Tar und die Pruefsumme schlaegt fehl.
 #
-# Auf dem Entwicklungsrechner ausfuehren, VOR website/deploy-server.sh:
-#   ./build-dist.sh && ../../../website/deploy-server.sh
+# Wird von website/deploy-server.sh automatisch aufgerufen; fuer einen
+# lokalen Test kann es auch einzeln ausgefuehrt werden.
 # ============================================================================
 set -euo pipefail
 
@@ -86,5 +86,5 @@ log ""
 log "Inhalt:"
 tar -tzf "$tarball" | sed 's/^/[IBM]   /'
 log ""
-log "Naechster Schritt: website/deploy-server.sh ausfuehren, damit"
-log "https://ischlstrom.org/ibm/install.sh das neue Paket ausliefert."
+log "Ausgeliefert wird das Paket ueber website/deploy-server.sh unter"
+log "https://ischlstrom.org/ibm/install.sh."

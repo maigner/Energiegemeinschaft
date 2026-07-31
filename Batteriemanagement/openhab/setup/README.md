@@ -58,11 +58,13 @@ uebernommen — ein Update aendert die Konfiguration der Anlage also nicht.
 Auf dem Entwicklungsrechner:
 
 ```bash
-cd Batteriemanagement/openhab/setup
-./build-dist.sh          # erzeugt website/static/ibm/ibm-openhab.tgz + .sha256
-cd ../../../website
-./deploy-server.sh       # laedt es auf den Server
+website/deploy-server.sh
 ```
+
+Das Deploy-Skript ruft zuerst `build-dist.sh` auf (erzeugt
+`website/static/ibm/ibm-openhab.tgz` + `.sha256`), laedt dann alles auf den
+Server und baut dort den Docker-Container neu. `build-dist.sh` kann fuer
+einen lokalen Test auch weiterhin einzeln ausgefuehrt werden.
 
 `build-dist.sh` legt das Paket in `website/static/ibm/` ab; SvelteKit liefert
 alles unter `static/` an der Wurzel aus, das Paket ist danach unter
@@ -187,8 +189,10 @@ Haushalt nachts mehr, als kommandiert ist, faellt die Schaetzung etwas zu
 klein aus. Das ist gewollt konservativ: die abgeleitete Leistung ist dann eher
 zu niedrig als zu hoch.
 
-Das Ladestands-Item wird **nicht** angelegt — es entsteht beim Verknuepfen des
-Channels in der Main UI und wird ueber `SOC_ITEM` nur referenziert.
+Das Ladestands-Item und das Batterieleistungs-Item werden **nicht** angelegt —
+sie entstehen beim Verknuepfen der Channels in der Main UI und werden ueber
+`SOC_ITEM` bzw. `BATTERY_POWER_ITEM` nur referenziert (letzteres zeigt auf der
+Overview-Seite die aktuelle Einspeiseleistung der Batterie).
 
 Die Startwerte dieser Items stehen in `ibm.conf` (`DEFAULT_*`) und werden von
 `ibm_init.js` gesetzt, solange ein Item noch `NULL` ist. Danach ist alles in

@@ -46,8 +46,14 @@ for src in "${pages[@]}"; do
   uid="${uid#page-}"
   uid="${uid%.json}"
 
-  # Anlagenspezifisches Ladestands-Item eintragen
-  sed "s/${INVERTER_SOC_PLACEHOLDER}/${SOC_ITEM}/g" "$src" > "$tmp"
+  # Anlagenspezifische Items eintragen. BATTERY_POWER_ITEM ist optional -
+  # ohne Wert bleibt der Platzhalter stehen (er ist zugleich der
+  # Standard-Itemname beim Verknuepfen des Channels).
+  sed_script="s/${INVERTER_SOC_PLACEHOLDER}/${SOC_ITEM}/g"
+  if [ -n "$INVERTER_BATTERY_POWER_PLACEHOLDER" ] && [ -n "$BATTERY_POWER_ITEM" ]; then
+    sed_script="${sed_script};s/${INVERTER_BATTERY_POWER_PLACEHOLDER}/${BATTERY_POWER_ITEM}/g"
+  fi
+  sed "$sed_script" "$src" > "$tmp"
 
   # Bestehende Seite sichern (eine nie gespeicherte Seite liegt nicht in der
   # JSONDB - dann antwortet die API mit 404 und es gibt nichts zu sichern).

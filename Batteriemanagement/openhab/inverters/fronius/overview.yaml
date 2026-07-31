@@ -8,8 +8,9 @@ version: 1
 #
 # Wird von setup/05-install-overview.sh per REST API installiert; dafuer
 # wandelt build-dist.sh jede Seite unter `pages:` nach page-<uid>.json.
-# Das Ladestands-Item (INVERTER_SOC_PLACEHOLDER aus profile.sh) wird dabei
-# durch das SOC_ITEM der Anlage ersetzt.
+# Die Platzhalter-Items aus profile.sh (INVERTER_SOC_PLACEHOLDER und
+# INVERTER_BATTERY_POWER_PLACEHOLDER) werden dabei durch das SOC_ITEM bzw.
+# BATTERY_POWER_ITEM der Anlage ersetzt.
 #
 # Manuell einspielen geht weiterhin: je Eintrag unter `pages:` eine Seite in
 # der Main UI anlegen (Settings -> Pages) und den Inhalt in der Code-Ansicht
@@ -110,11 +111,16 @@ pages:
                         default:
                           - component: oh-label-card
                             config:
-                              title: Bewölkung am Vormittag
-                              item: Ischlstrom_Wolkenvorschau
+                              title: Einspeiseleistung der Batterie
+                              item: Fronius_Symo_Inverter_Battery_Power
                               footer: >-
-                                Vorhersage in Prozent: 0 % = wolkenlos,
-                                100 % = bedeckt.
+                                Mit dieser Leistung gibt die Batterie gerade
+                                Strom ab - an Haushalt und Netz. Negative
+                                Werte: die Batterie lädt. Tippen zeigt den
+                                Verlauf.
+                              action: analyzer
+                              actionAnalyzerItems:
+                                - Fronius_Symo_Inverter_Battery_Power
               - component: oh-grid-row
                 config: {}
                 slots:
