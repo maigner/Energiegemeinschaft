@@ -86,9 +86,7 @@ if [ -f "$items_db" ]; then
               IBM_LADESPERRE_START \
               IBM_LADESPERRE_ENDE \
               IBM_LADESPERRE_WOLKEN_SCHWELLE \
-              IBM_ENTLADUNG_AKTIV \
-              IBM_ENTLADUNG_START \
-              IBM_ENTLADUNG_ENDE; do
+              IBM_ENTLADUNG_AKTIV; do
     if grep -q "\"$item\"" "$items_db"; then
       fail "Item '$item' existiert bereits in der Main UI und wuerde mit $OPENHAB_CONF/items/ibm.items kollidieren - bitte in der UI loeschen."
     fi

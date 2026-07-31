@@ -130,13 +130,13 @@ Assistent listet automatisch auf, was dort liegt. Ein neuer Hersteller braucht
 | `IBM_LADESPERRE_START` / `_ENDE` | Number | Zeitfenster, Stunde 0-23 |
 | `IBM_LADESPERRE_WOLKEN_SCHWELLE` | Number | Bewoelkungsgrad in % |
 | `IBM_ENTLADUNG_AKTIV` | Switch | Teilfunktion Entladung ein/aus |
-| `IBM_ENTLADUNG_START` / `_ENDE` | Number | Rueckfall-Zeitfenster, Stunde 0-23 |
 
 Das Entladefenster folgt den Crossover-Zeiten der Gemeinschaft
 (`Ischlstrom_Crossover_Start`/`_Ende`): entladen wird vom abendlichen bis zum
 morgendlichen Crossover, also solange die Gemeinschaft mehr verbraucht als
-erzeugt. `IBM_ENTLADUNG_START`/`_ENDE` greifen nur, wenn keine plausiblen
-Crossover-Zeiten vorliegen. Die Wolkenvorschau gilt als veraltet, wenn ihr
+erzeugt. Liegen keine plausiblen Crossover-Zeiten vor (ischlstrom.org nie
+erreichbar gewesen oder Werte unbrauchbar), wird **nicht** entladen - ein
+Ersatz-Zeitfenster gibt es nicht. Die Wolkenvorschau gilt als veraltet, wenn ihr
 letzter Abruf (`Ischlstrom_Wolkenvorschau_Zeit`) laenger als drei Stunden
 zurueckliegt — die Steuerung sperrt dann kein Laden und entlaedt nur mit
 minimaler Leistung.

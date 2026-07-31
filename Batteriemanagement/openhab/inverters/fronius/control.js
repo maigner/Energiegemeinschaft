@@ -7,9 +7,9 @@
 //
 // Das Entladefenster folgt den taeglich von der API geholten Crossover-Zeiten
 // (Zeitpunkt, an dem die gemeinschaftliche Erzeugung den Verbrauch kreuzt):
-// entladen wird vom abendlichen bis zum morgendlichen Crossover. Die
-// Stunden-Items IBM_ENTLADUNG_START/_ENDE dienen als Rueckfallwert, wenn
-// keine plausiblen Crossover-Zeiten vorliegen.
+// entladen wird vom abendlichen bis zum morgendlichen Crossover. Liegen keine
+// plausiblen Crossover-Zeiten vor (ischlstrom.org nie erreichbar gewesen oder
+// Daten unbrauchbar), wird NICHT entladen - es gibt kein Ersatzfenster.
 //
 // Dieses Skript ist die Vorlage fuer alle Anlagen und wird pro Kunde NICHT
 // veraendert. Alles Anlagenspezifische kommt aus Items - siehe Abschnitt
@@ -29,8 +29,6 @@ var FALLBACK_CHARGE_LOCK_END_HOUR = 11;
 var FALLBACK_CLOUD_THRESHOLD = 75;
 
 var FALLBACK_DISCHARGE_ACTIVE = true;
-var FALLBACK_DISCHARGE_START_HOUR = 21;
-var FALLBACK_DISCHARGE_END_HOUR = 7;
 
 var FALLBACK_MIN_DISCHARGE_W = 1000;
 var FALLBACK_MAX_DISCHARGE_W = 3000;
@@ -97,7 +95,7 @@ function timeItemMinutes(name, minHour, maxHour) {
   var m = parseInt(match[2], 10);
   if (h > 23 || m > 59) return null;
   if (h < minHour || h >= maxHour) {
-    console.log('[IBM][Konfig] ' + name + '=' + state + ' unplausibel (erwartet ' + minHour + '-' + maxHour + ' Uhr) - verwende Stunden-Item');
+    console.log('[IBM][Konfig] ' + name + '=' + state + ' unplausibel (erwartet ' + minHour + '-' + maxHour + ' Uhr) - wird ignoriert');
     return null;
   }
   return h * 60 + m;
@@ -111,11 +109,9 @@ var CHARGE_LOCK_END_HOUR   = hour('IBM_LADESPERRE_ENDE', FALLBACK_CHARGE_LOCK_EN
 var CLOUD_THRESHOLD        = num('IBM_LADESPERRE_WOLKEN_SCHWELLE', FALLBACK_CLOUD_THRESHOLD, 0, 100);
 
 var DISCHARGE_ACTIVE       = onOff('IBM_ENTLADUNG_AKTIV', FALLBACK_DISCHARGE_ACTIVE);
-var DISCHARGE_START_HOUR   = hour('IBM_ENTLADUNG_START', FALLBACK_DISCHARGE_START_HOUR);
-var DISCHARGE_END_HOUR     = hour('IBM_ENTLADUNG_ENDE', FALLBACK_DISCHARGE_END_HOUR);
 
 // Crossover-Zeiten der Gemeinschaft: morgens 03-12 Uhr, abends 12-24 Uhr
-// plausibel. Ausserhalb (oder ohne Daten) greifen die Stunden-Items.
+// plausibel. Ausserhalb (oder ohne Daten) wird nicht entladen.
 var MORNING_CROSSOVER_MIN  = timeItemMinutes('Ischlstrom_Crossover_Start', 3, 12);
 var EVENING_CROSSOVER_MIN  = timeItemMinutes('Ischlstrom_Crossover_Ende', 12, 24);
 
@@ -142,12 +138,10 @@ var chargeLockStart = CHARGE_LOCK_START_HOUR * 60;
 var chargeLockEnd   = CHARGE_LOCK_END_HOUR * 60;
 
 // Entladung: vom abendlichen bis zum morgendlichen Crossover - solange die
-// Gemeinschaft mehr verbraucht als erzeugt. Ohne Crossover-Daten die
-// Stunden-Items.
-var dischargeStart = (EVENING_CROSSOVER_MIN !== null) ? EVENING_CROSSOVER_MIN : DISCHARGE_START_HOUR * 60;
-var dischargeEnd   = (MORNING_CROSSOVER_MIN !== null) ? MORNING_CROSSOVER_MIN : DISCHARGE_END_HOUR * 60;
-var dischargeSource = (EVENING_CROSSOVER_MIN !== null && MORNING_CROSSOVER_MIN !== null) ? 'Crossover'
-  : (EVENING_CROSSOVER_MIN !== null || MORNING_CROSSOVER_MIN !== null) ? 'Crossover/Stunden-Item' : 'Stunden-Item';
+// Gemeinschaft mehr verbraucht als erzeugt. Ohne plausible Crossover-Daten
+// bleibt die Entladung aus (null).
+var dischargeStart = EVENING_CROSSOVER_MIN;
+var dischargeEnd   = MORNING_CROSSOVER_MIN;
 
 // Wolkenvorschau lesen: Wert 0-100 oder null, wenn ungueltig oder veraltet.
 // Veraltete Werte (API-Ausfall) duerfen die Steuerung nicht treiben.
@@ -287,8 +281,10 @@ function handleForcedDischarge() {
 if (CHARGE_LOCK_ACTIVE && inWindow(chargeLockStart, chargeLockEnd)) {
   console.log('[IBM] Zeitfenster Vormittag (' + fmtMinutes(nowMinutes) + ', ' + fmtMinutes(chargeLockStart) + '-' + fmtMinutes(chargeLockEnd) + ') - pruefe Ladesperre');
   handleChargeLock();
+} else if (DISCHARGE_ACTIVE && (dischargeStart === null || dischargeEnd === null)) {
+  console.log('[IBM] Keine plausiblen Crossover-Zeiten von ischlstrom.org - Entladung bleibt aus');
 } else if (DISCHARGE_ACTIVE && inWindow(dischargeStart, dischargeEnd)) {
-  console.log('[IBM] Zeitfenster Nacht (' + fmtMinutes(nowMinutes) + ', ' + fmtMinutes(dischargeStart) + '-' + fmtMinutes(dischargeEnd) + ', Quelle: ' + dischargeSource + ') - pruefe forcierte Entladung');
+  console.log('[IBM] Zeitfenster Nacht (' + fmtMinutes(nowMinutes) + ', ' + fmtMinutes(dischargeStart) + '-' + fmtMinutes(dischargeEnd) + ') - pruefe forcierte Entladung');
   handleForcedDischarge();
 } else {
   console.log('[IBM] Ausserhalb beider Zeitfenster (' + fmtMinutes(nowMinutes) + ') - keine Aktion');

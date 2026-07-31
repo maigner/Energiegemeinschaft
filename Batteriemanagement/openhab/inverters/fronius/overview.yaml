@@ -237,7 +237,7 @@ pages:
                               title: Entladung verwenden
                               item: IBM_ENTLADUNG_AKTIV
                               color: blue
-                              footer: "=items.IBM_ENTLADUNG_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - Die Batterie speist am Abend ins Netz ein, solange die Gemeinschaft mehr verbraucht als erzeugt (Überschuss-Zeiten oben).' : (items.IBM_ENTLADUNG_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Es wird nicht automatisch eingespeist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
+                              footer: "=items.IBM_ENTLADUNG_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - Die Batterie speist am Abend ins Netz ein, solange die Gemeinschaft mehr verbraucht als erzeugt (Überschuss-Zeiten oben). Liegen keine Überschuss-Zeiten vor, wird nicht eingespeist.' : (items.IBM_ENTLADUNG_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Es wird nicht automatisch eingespeist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -256,38 +256,6 @@ pages:
                               footer: >-
                                 Unter diesem Ladestand stoppt die Einspeisung -
                                 diese Reserve bleibt für den eigenen Haushalt.
-              - component: oh-grid-row
-                config: {}
-                slots:
-                  default:
-                    - component: oh-grid-col
-                      config: {}
-                      slots:
-                        default:
-                          - component: oh-stepper-card
-                            config:
-                              title: Ersatzfenster ab (Uhr)
-                              item: IBM_ENTLADUNG_START
-                              min: 0
-                              max: 23
-                              step: 1
-                              footer: >-
-                                Gilt nur, wenn keine Überschuss-Zeiten von
-                                ischlstrom.org vorliegen.
-                    - component: oh-grid-col
-                      config: {}
-                      slots:
-                        default:
-                          - component: oh-stepper-card
-                            config:
-                              title: Ersatzfenster bis (Uhr)
-                              item: IBM_ENTLADUNG_ENDE
-                              min: 0
-                              max: 23
-                              step: 1
-                              footer: >-
-                                Gilt nur, wenn keine Überschuss-Zeiten von
-                                ischlstrom.org vorliegen.
 
         # --- Fuer Experten ---------------------------------------------------
         - component: oh-block

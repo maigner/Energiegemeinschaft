@@ -59,7 +59,6 @@ inverters/
    | `IBM_LADESPERRE_START` / `_ENDE` | Number | Stunde 0-23 |
    | `IBM_LADESPERRE_WOLKEN_SCHWELLE` | Number | Bewoelkung in % |
    | `IBM_ENTLADUNG_AKTIV` | Switch | Teilfunktion Entladung ein/aus |
-   | `IBM_ENTLADUNG_START` / `_ENDE` | Number | Stunde 0-23 |
 
 4. Alle Logausgaben mit `[IBM]` praefixieren.
 

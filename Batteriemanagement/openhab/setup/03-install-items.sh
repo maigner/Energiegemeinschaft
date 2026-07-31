@@ -44,10 +44,8 @@ Number IBM_LADESPERRE_START            "Ladesperre ab [%.0f Uhr]"           <tim
 Number IBM_LADESPERRE_ENDE             "Ladesperre bis [%.0f Uhr]"          <time>   (IBM)
 Number IBM_LADESPERRE_WOLKEN_SCHWELLE  "Wolken-Schwelle Ladesperre [%.0f %%]" <sun>  (IBM)
 
-// Forcierte Entladung in der Nacht
+// Forcierte Entladung in der Nacht (Fenster kommt aus den Crossover-Zeiten)
 Switch IBM_ENTLADUNG_AKTIV             "Forcierte Entladung nachts"         <switch> (IBM)
-Number IBM_ENTLADUNG_START             "Entladung ab [%.0f Uhr]"            <time>   (IBM)
-Number IBM_ENTLADUNG_ENDE              "Entladung bis [%.0f Uhr]"           <time>   (IBM)
 EOF
 
 # --- Persistence ------------------------------------------------------------
@@ -81,9 +79,7 @@ Items {
     IBM_LADESPERRE_START,
     IBM_LADESPERRE_ENDE,
     IBM_LADESPERRE_WOLKEN_SCHWELLE,
-    IBM_ENTLADUNG_AKTIV,
-    IBM_ENTLADUNG_START,
-    IBM_ENTLADUNG_ENDE
+    IBM_ENTLADUNG_AKTIV
         : strategy = everyChange, restoreOnStartup
 }
 EOF
