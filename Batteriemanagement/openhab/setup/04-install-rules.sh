@@ -119,7 +119,8 @@ rules.JSRule({
       'Maximale_Entladeleistung_Batterieeinspeisung': ${DEFAULT_MAX_DISCHARGE_W},
       'IBM_LADESPERRE_AKTIV': '${DEFAULT_LADESPERRE_AKTIV}',
       'IBM_LADESPERRE_WOLKEN_SCHWELLE': ${DEFAULT_WOLKEN_SCHWELLE},
-      'IBM_ENTLADUNG_AKTIV': '${DEFAULT_ENTLADUNG_AKTIV}'
+      'IBM_ENTLADUNG_AKTIV': '${DEFAULT_ENTLADUNG_AKTIV}',
+      'IBM_DYNAMISCHE_LEISTUNG': '${DEFAULT_DYNAMISCHE_LEISTUNG}'
     };
 
     Object.keys(defaults).forEach(function (name) {

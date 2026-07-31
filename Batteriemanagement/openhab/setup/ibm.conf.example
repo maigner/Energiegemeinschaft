@@ -66,6 +66,13 @@ DEFAULT_WOLKEN_SCHWELLE=75       # unter diesem Bewoelkungsgrad wird gesperrt
 # entladen.
 DEFAULT_ENTLADUNG_AKTIV=ON
 
+# Entladeleistung automatisch an die Batteriegroesse anpassen. Die Steuerung
+# schaetzt die Kapazitaet aus der Ladestandsaenderung waehrend der Entladung;
+# solange keine belastbare Schaetzung vorliegt (oder bei OFF), gelten die
+# Werte DEFAULT_MIN/MAX_DISCHARGE_W. Eine harte Obergrenze von 5000 W im
+# Steuerungsskript wird in keinem Fall ueberschritten.
+DEFAULT_DYNAMISCHE_LEISTUNG=ON
+
 # --- Optionen ---------------------------------------------------------------
 
 # Addons ueber addons.cfg installieren.

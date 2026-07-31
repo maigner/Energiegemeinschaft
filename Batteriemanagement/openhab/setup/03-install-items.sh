@@ -47,6 +47,13 @@ Number IBM_LADESPERRE_WOLKEN_SCHWELLE  "Wolken-Schwelle Ladesperre [%.0f %%]" <s
 
 // Forcierte Entladung in der Nacht (Fenster kommt aus den Crossover-Zeiten)
 Switch IBM_ENTLADUNG_AKTIV             "Forcierte Entladung nachts"         <switch> (IBM)
+
+// Dynamische Entladeleistung: die Steuerung schaetzt die Batteriekapazitaet
+// aus der Ladestandsaenderung waehrend der Entladung und leitet daraus die
+// Entladeleistung ab. IBM_KAPAZITAET_MESSUNG ist interner Zustand (JSON).
+Switch IBM_DYNAMISCHE_LEISTUNG   "Entladeleistung an Batteriegroesse anpassen" <switch>  (IBM)
+Number IBM_BATTERIE_KAPAZITAET   "Geschaetzte Batteriekapazitaet [%.1f kWh]"   <battery> (IBM)
+String IBM_KAPAZITAET_MESSUNG    "Kapazitaetsschaetzung (intern) [%s]"         <settings> (IBM)
 EOF
 
 # --- Persistence ------------------------------------------------------------
@@ -81,7 +88,10 @@ Items {
     Maximale_Entladeleistung_Batterieeinspeisung,
     IBM_LADESPERRE_AKTIV,
     IBM_LADESPERRE_WOLKEN_SCHWELLE,
-    IBM_ENTLADUNG_AKTIV
+    IBM_ENTLADUNG_AKTIV,
+    IBM_DYNAMISCHE_LEISTUNG,
+    IBM_BATTERIE_KAPAZITAET,
+    IBM_KAPAZITAET_MESSUNG
         : strategy = everyChange, restoreOnStartup
 }
 EOF

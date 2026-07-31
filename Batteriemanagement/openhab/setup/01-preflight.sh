@@ -87,7 +87,10 @@ if [ -f "$items_db" ]; then
               Maximale_Entladeleistung_Batterieeinspeisung \
               IBM_LADESPERRE_AKTIV \
               IBM_LADESPERRE_WOLKEN_SCHWELLE \
-              IBM_ENTLADUNG_AKTIV; do
+              IBM_ENTLADUNG_AKTIV \
+              IBM_DYNAMISCHE_LEISTUNG \
+              IBM_BATTERIE_KAPAZITAET \
+              IBM_KAPAZITAET_MESSUNG; do
     if grep -q "\"$item\"" "$items_db"; then
       fail "Item '$item' existiert bereits in der Main UI und wuerde mit $OPENHAB_CONF/items/ibm.items kollidieren - bitte in der UI loeschen."
     fi

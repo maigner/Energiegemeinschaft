@@ -6,7 +6,11 @@
 //           Sonnenschein bis Vormittags-Crossover) und gilt nur fuer das
 //           mitgelieferte Datum - ohne gueltiges Fenster wird nicht gesperrt.
 //   Teil B: Forcierte Batterieentladung (Nacht), abhaengig von Toggle,
-//           Ladestand und Wolkenvorschau
+//           Ladestand und Wolkenvorschau. Die Entladeleistung passt sich
+//           automatisch an die Batteriegroesse an, die das Skript aus der
+//           Ladestandsaenderung waehrend der Entladung schaetzt (Abschnitt
+//           "Dynamische Entladeleistung"); eine harte Obergrenze
+//           (ABSOLUTE_MAX_DISCHARGE_W) wird nie ueberschritten.
 //
 // Das Entladefenster folgt den taeglich von der API geholten Crossover-Zeiten
 // (Zeitpunkt, an dem die gemeinschaftliche Erzeugung den Verbrauch kreuzt):
@@ -33,6 +37,27 @@ var FALLBACK_DISCHARGE_ACTIVE = true;
 
 var FALLBACK_MIN_DISCHARGE_W = 1000;
 var FALLBACK_MAX_DISCHARGE_W = 3000;
+
+// Harte Sicherheits-Obergrenze der Entladeleistung. Wird NIE ueberschritten -
+// weder durch Einstellungen noch durch die Kapazitaetsschaetzung.
+var ABSOLUTE_MAX_DISCHARGE_W = 5000;
+
+// --- Dynamische Entladeleistung ---------------------------------------------
+// Die Anlagen haben unterschiedlich grosse Batterien, deren Kapazitaet bei der
+// Einrichtung nicht bekannt ist. Waehrend der forcierten Entladung ist die
+// Batterieleistung aber bekannt (sie wird kommandiert); aus entnommener
+// Energie und Ladestandsaenderung schaetzt das Skript daher die Kapazitaet
+// und leitet die Entladeleistung als C-Rate daraus ab.
+var FALLBACK_DYNAMIC_POWER_ACTIVE = true;
+var DYNAMIC_MIN_C_RATE = 0.10;   // 10-kWh-Batterie -> 1000 W (wie Vorgabe)
+var DYNAMIC_MAX_C_RATE = 0.30;   // 10-kWh-Batterie -> 3000 W (wie Vorgabe)
+var DYNAMIC_MIN_SAMPLES = 3;     // erst ab so vielen Stichproben verwenden
+
+var CAPACITY_MIN_KWH = 1;        // Plausibilitaetsfenster einer Stichprobe
+var CAPACITY_MAX_KWH = 100;
+var CAPACITY_SAMPLE_MIN_SOC_DROP = 8;  // Prozentpunkte je Stichprobe
+var CAPACITY_MAX_STEP_GAP_MIN = 12;    // laengere Luecke -> Messung neu aufsetzen
+var CAPACITY_EMA_WEIGHT = 0.3;   // Gewicht einer neuen Stichprobe
 
 // Wolkenvorschau aelter als so viele Stunden gilt als veraltet (sie wird
 // stuendlich abgeholt; drei ausgefallene Abrufe in Folge sind ein Ausfall).
@@ -114,6 +139,118 @@ var DISCHARGE_ACTIVE       = onOff('IBM_ENTLADUNG_AKTIV', FALLBACK_DISCHARGE_ACT
 // plausibel. Ausserhalb (oder ohne Daten) wird nicht entladen.
 var MORNING_CROSSOVER_MIN  = timeItemMinutes('Ischlstrom_Crossover_Start', 3, 12);
 var EVENING_CROSSOVER_MIN  = timeItemMinutes('Ischlstrom_Crossover_Ende', 12, 24);
+
+// --- Kapazitaetsschaetzung --------------------------------------------------
+// Zustand der Schaetzung als JSON in einem String-Item (persistiert):
+//   kwh         geschaetzte Kapazitaet
+//   messungen   Anzahl akzeptierter Stichproben
+//   basisSoc    Ladestand zu Beginn der laufenden Messstrecke (%)
+//   basisWh     seither entnommene Energie (Wh, aus kommandierter Leistung)
+//   schrittZeit Zeitpunkt des letzten Entladelaufs
+//   schrittW    dabei kommandierte Leistung (gilt bis zum naechsten Lauf)
+
+function readCapacityState() {
+  var item = readItem('IBM_KAPAZITAET_MESSUNG');
+  if (item === null) return null;
+  var state = String(item.state);
+  if (state === 'NULL' || state === 'UNDEF' || state === '') return {};
+  try {
+    var parsed = JSON.parse(state);
+    return (parsed !== null && typeof parsed === 'object') ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function writeCapacityState(st) {
+  var item = readItem('IBM_KAPAZITAET_MESSUNG');
+  if (item !== null) item.postUpdate(JSON.stringify(st));
+  var display = readItem('IBM_BATTERIE_KAPAZITAET');
+  if (display !== null && typeof st.kwh === 'number') {
+    display.postUpdate(Math.round(st.kwh * 10) / 10);
+  }
+}
+
+// Geschaetzte Kapazitaet in kWh - oder null, solange die Schaetzung noch
+// nicht belastbar ist (Items fehlen, zu wenige oder unplausible Messungen).
+function estimatedCapacityKwh() {
+  var st = readCapacityState();
+  if (st === null) return null;
+  if (typeof st.kwh !== 'number' || st.kwh < CAPACITY_MIN_KWH || st.kwh > CAPACITY_MAX_KWH) return null;
+  if (!(typeof st.messungen === 'number' && st.messungen >= DYNAMIC_MIN_SAMPLES)) return null;
+  return st.kwh;
+}
+
+// Schreibt die Kapazitaetsschaetzung nach jedem Entladelauf fort. Die seit dem
+// letzten Lauf entnommene Energie (damals kommandierte Leistung x Zeit) wird
+// aufsummiert; ist der Ladestand um CAPACITY_SAMPLE_MIN_SOC_DROP Prozentpunkte
+// gefallen, ergibt Energie / Ladestandsdifferenz eine Stichprobe der
+// Kapazitaet, die gleitend in die Schaetzung einfliesst.
+function updateCapacityEstimate(soc, commandedW, scheduleOk) {
+  var st = readCapacityState();
+  if (st === null) {
+    console.log('[IBM][Kapazitaet] Item IBM_KAPAZITAET_MESSUNG fehlt - Schaetzung uebersprungen');
+    return;
+  }
+
+  function restartMeasurement(reason) {
+    if (reason !== null) console.log('[IBM][Kapazitaet] ' + reason + ' - Messung neu aufgesetzt');
+    st.basisSoc = soc;
+    st.basisWh = 0;
+    st.schrittZeit = now.toString();
+    st.schrittW = scheduleOk ? commandedW : 0;
+    writeCapacityState(st);
+  }
+
+  // Ohne angewendeten Schedule ist die tatsaechliche Leistung unbekannt.
+  if (!scheduleOk) { restartMeasurement(null); return; }
+
+  var prevTime = null;
+  try {
+    if (st.schrittZeit) prevTime = time.ZonedDateTime.parse(String(st.schrittZeit));
+  } catch (e) {
+    prevTime = null;
+  }
+  if (typeof st.basisSoc !== 'number' || typeof st.basisWh !== 'number' || prevTime === null) {
+    restartMeasurement('Keine laufende Messung');
+    return;
+  }
+
+  var gapMin = time.Duration.between(prevTime, now).toMinutes();
+  if (gapMin <= 0 || gapMin > CAPACITY_MAX_STEP_GAP_MIN) {
+    restartMeasurement('Letzter Entladelauf ' + gapMin + ' min her');
+    return;
+  }
+  if (soc > st.basisSoc) {
+    restartMeasurement('Ladestand gestiegen (' + st.basisSoc + '% -> ' + soc + '%)');
+    return;
+  }
+
+  var stepW = (typeof st.schrittW === 'number' && st.schrittW > 0) ? st.schrittW : 0;
+  st.basisWh += stepW * (gapMin / 60);
+
+  var drop = st.basisSoc - soc;
+  if (drop >= CAPACITY_SAMPLE_MIN_SOC_DROP) {
+    // Wh -> kWh und Prozentpunkte -> Anteil: kWh = (Wh/1000) / (drop/100)
+    var sampleKwh = Math.round(st.basisWh * 10 / drop) / 100;
+    if (sampleKwh >= CAPACITY_MIN_KWH && sampleKwh <= CAPACITY_MAX_KWH) {
+      var count = (typeof st.messungen === 'number') ? st.messungen : 0;
+      st.kwh = (typeof st.kwh === 'number' && count > 0)
+        ? Math.round(((1 - CAPACITY_EMA_WEIGHT) * st.kwh + CAPACITY_EMA_WEIGHT * sampleKwh) * 100) / 100
+        : sampleKwh;
+      st.messungen = count + 1;
+      console.log('[IBM][Kapazitaet] Stichprobe ' + sampleKwh + ' kWh (' + Math.round(st.basisWh) + ' Wh je ' + drop + ' Prozentpunkte) -> Schaetzung ' + st.kwh + ' kWh (' + st.messungen + '. Messung)');
+    } else {
+      console.log('[IBM][Kapazitaet] Stichprobe ' + sampleKwh + ' kWh unplausibel - verworfen');
+    }
+    st.basisSoc = soc;
+    st.basisWh = 0;
+  }
+
+  st.schrittZeit = now.toString();
+  st.schrittW = commandedW;
+  writeCapacityState(st);
+}
 
 // --- Skript-Logik -----------------------------------------------------------
 var now = time.ZonedDateTime.now();
@@ -269,6 +406,27 @@ function handleForcedDischarge() {
     dischargeMinW = FALLBACK_MIN_DISCHARGE_W;
     dischargeMaxW = FALLBACK_MAX_DISCHARGE_W;
   }
+
+  // Dynamische Entladeleistung: liegt eine belastbare Kapazitaetsschaetzung
+  // vor, ersetzen C-Raten-basierte Werte die eingestellten Grenzen. Die
+  // eingestellten Werte bleiben der Rueckfall, solange nichts geschaetzt ist.
+  var dynamicActive = onOff('IBM_DYNAMISCHE_LEISTUNG', FALLBACK_DYNAMIC_POWER_ACTIVE);
+  var capacityKwh = dynamicActive ? estimatedCapacityKwh() : null;
+  if (capacityKwh !== null) {
+    dischargeMinW = Math.round(capacityKwh * 1000 * DYNAMIC_MIN_C_RATE);
+    dischargeMaxW = Math.round(capacityKwh * 1000 * DYNAMIC_MAX_C_RATE);
+    console.log('[IBM][Entladung] Dynamische Leistung: Kapazitaet ~' + capacityKwh + ' kWh -> min=' + dischargeMinW + 'W, max=' + dischargeMaxW + 'W');
+  } else if (dynamicActive) {
+    console.log('[IBM][Entladung] Noch keine belastbare Kapazitaetsschaetzung - verwende eingestellte Entladeleistung');
+  }
+
+  // Harte Sicherheits-Obergrenze - gilt fuer eingestellte UND dynamische Werte.
+  if (dischargeMaxW > ABSOLUTE_MAX_DISCHARGE_W) {
+    console.log('[IBM][Entladung] maxW=' + dischargeMaxW + 'W ueber der harten Obergrenze - begrenzt auf ' + ABSOLUTE_MAX_DISCHARGE_W + 'W');
+    dischargeMaxW = ABSOLUTE_MAX_DISCHARGE_W;
+  }
+  if (dischargeMinW > dischargeMaxW) dischargeMinW = dischargeMaxW;
+
   console.log('[IBM][Entladung] Entladeleistung: min=' + dischargeMinW + 'W, max=' + dischargeMaxW + 'W');
 
   var clouds = cloudForecast();
@@ -287,6 +445,8 @@ function handleForcedDischarge() {
   var from = now;
   var until = now.plusMinutes(5);
   var ok = fa.addForcedBatteryDischargingSchedule(from, until, Quantity(dischargeW + 'W'));
+
+  updateCapacityEstimate(soc, dischargeW, ok === true || String(ok) === 'true');
 
   console.log('[IBM][Entladung] SoC=' + soc + '% | Schedule applied: ' + ok);
   console.log('[IBM][Entladung] From:  ' + from);

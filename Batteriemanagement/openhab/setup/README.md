@@ -131,6 +131,9 @@ Assistent listet automatisch auf, was dort liegt. Ein neuer Hersteller braucht
 | `IBM_LADESPERRE_AKTIV` | Switch | Teilfunktion Ladesperre ein/aus |
 | `IBM_LADESPERRE_WOLKEN_SCHWELLE` | Number | Bewoelkungsgrad in % |
 | `IBM_ENTLADUNG_AKTIV` | Switch | Teilfunktion Entladung ein/aus |
+| `IBM_DYNAMISCHE_LEISTUNG` | Switch | Entladeleistung automatisch an die Batteriegroesse anpassen |
+| `IBM_BATTERIE_KAPAZITAET` | Number | Geschaetzte Batteriekapazitaet in kWh (von der Steuerung befuellt) |
+| `IBM_KAPAZITAET_MESSUNG` | String | Interner Zustand der Kapazitaetsschaetzung (JSON) |
 
 Das Entladefenster folgt den Crossover-Zeiten der Gemeinschaft
 (`Ischlstrom_Crossover_Start`/`_Ende`): entladen wird vom abendlichen bis zum
@@ -153,6 +156,35 @@ bei sonniger Vorschau. Die Wolkenvorschau gilt als veraltet, wenn ihr
 letzter Abruf (`Ischlstrom_Wolkenvorschau_Zeit`) laenger als drei Stunden
 zurueckliegt — die Steuerung sperrt dann kein Laden und entlaedt nur mit
 minimaler Leistung.
+
+### Dynamische Entladeleistung (Batteriegroesse wird geschaetzt)
+
+Die Anlagen haben unterschiedlich grosse Batterien, und die Kapazitaet ist bei
+der Einrichtung nicht bekannt. Die Steuerung schaetzt sie deshalb selbst:
+waehrend der forcierten Entladung ist die Batterieleistung bekannt (sie wird
+kommandiert), und das Skript summiert die entnommene Energie ueber die
+5-Minuten-Laeufe auf. Ist der Ladestand um mindestens 8 Prozentpunkte
+gefallen, ergibt Energie / Ladestandsdifferenz eine Stichprobe der Kapazitaet;
+die Stichproben fliessen gleitend in die Schaetzung ein
+(`IBM_BATTERIE_KAPAZITAET`, interner Zustand in `IBM_KAPAZITAET_MESSUNG`).
+Unplausible Stichproben (unter 1 oder ueber 100 kWh) werden verworfen, und
+nach Luecken, nicht angewendeten Schedules oder steigendem Ladestand setzt die
+Messung neu auf. Eine typische Nacht liefert mehrere Stichproben — die
+Schaetzung ist also meist schon nach der ersten Nacht belastbar.
+
+Ab drei akzeptierten Stichproben leitet die Steuerung die Entladeleistung als
+C-Rate aus der Schaetzung ab: minimal 0,1 C, maximal 0,3 C (eine
+10-kWh-Batterie speist also wie bisher mit 1000–3000 W ein, eine 5-kWh-Batterie
+mit 500–1500 W). Die Items `Minimale_/Maximale_Entladeleistung_...` bleiben der
+Rueckfall, solange keine belastbare Schaetzung vorliegt oder
+`IBM_DYNAMISCHE_LEISTUNG` auf `OFF` steht. Unabhaengig davon gilt eine **harte
+Obergrenze von 5000 W** (`ABSOLUTE_MAX_DISCHARGE_W` im Steuerungsskript), die
+weder durch Einstellungen noch durch die Schaetzung ueberschritten werden kann.
+
+Die Schaetzung nutzt die kommandierte Leistung, nicht eine Messung — zieht der
+Haushalt nachts mehr, als kommandiert ist, faellt die Schaetzung etwas zu
+klein aus. Das ist gewollt konservativ: die abgeleitete Leistung ist dann eher
+zu niedrig als zu hoch.
 
 Das Ladestands-Item wird **nicht** angelegt — es entsteht beim Verknuepfen des
 Channels in der Main UI und wird ueber `SOC_ITEM` nur referenziert.

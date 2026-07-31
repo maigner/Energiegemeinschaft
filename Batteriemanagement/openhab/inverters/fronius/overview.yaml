@@ -420,6 +420,36 @@ pages:
                       config: {}
                       slots:
                         default:
+                          - component: oh-toggle-card
+                            config:
+                              title: Automatische Entladeleistung
+                              item: IBM_DYNAMISCHE_LEISTUNG
+                              color: blue
+                              footer: >-
+                                Passt die Einspeiseleistung automatisch an die
+                                geschätzte Batteriegröße an. Solange keine
+                                Schätzung vorliegt (oder ausgeschaltet), gelten
+                                die unten eingestellten Werte.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Geschätzte Batteriegröße
+                              item: IBM_BATTERIE_KAPAZITAET
+                              footer: >-
+                                Wird während der nächtlichen Einspeisung aus
+                                der Ladestandsänderung geschätzt und mit jeder
+                                Nacht genauer.
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
                           - component: oh-stepper-card
                             config:
                               title: Minimale Entladeleistung (W)
@@ -430,6 +460,7 @@ pages:
                               footer: >-
                                 Kleinste Leistung, mit der eingespeist wird -
                                 auch wenn die Wolkenvorschau veraltet ist.
+                                Gilt nur ohne automatische Entladeleistung.
                     - component: oh-grid-col
                       config: {}
                       slots:
@@ -444,3 +475,4 @@ pages:
                               footer: >-
                                 Obergrenze fürs Einspeisen. Die Vorgabe passt
                                 für die meisten Anlagen.
+                                Gilt nur ohne automatische Entladeleistung.

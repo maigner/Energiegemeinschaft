@@ -275,6 +275,10 @@ DEFAULT_LADESPERRE_AKTIV=ON
 DEFAULT_WOLKEN_SCHWELLE=75
 DEFAULT_ENTLADUNG_AKTIV=ON
 
+# Entladeleistung automatisch an die geschaetzte Batteriegroesse anpassen;
+# die MIN/MAX-Werte oben bleiben der Rueckfall ohne belastbare Schaetzung.
+DEFAULT_DYNAMISCHE_LEISTUNG=ON
+
 # --- Optionen ---------------------------------------------------------------
 INSTALL_ADDONS=${INSTALL_ADDONS}
 INSTALL_PERSISTENCE=1
