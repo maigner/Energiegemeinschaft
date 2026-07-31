@@ -132,13 +132,13 @@ if [ "$INSTALL_WATCHDOG" = "1" ]; then
   fi
 fi
 
-# --- Overview-Seite ---------------------------------------------------------
+# --- Main-UI-Seiten ---------------------------------------------------------
 if [ "$INSTALL_OVERVIEW" = "1" ]; then
-  ov="$IBM_INVERTER_DIR/$INVERTER_TYPE/overview.page.json"
+  ov="$IBM_INVERTER_DIR/$INVERTER_TYPE/page-overview.json"
   if [ -f "$ov" ]; then
     log "gefunden: $ov"
   else
-    fail "Overview-Seite fehlt: $ov - Paket mit aktuellem build-dist.sh gebaut?"
+    fail "Main-UI-Seiten fehlen: $ov - Paket mit aktuellem build-dist.sh gebaut?"
   fi
   [ -n "$OH_API_TOKEN" ] || fail "OH_API_TOKEN fehlt in ibm.conf (Overview-Seite)."
 

@@ -82,8 +82,8 @@ INSTALL_PERSISTENCE=1
 # Secret fuer die Registrierung des Kontos auf myopenhab.org an.
 INSTALL_CLOUD=1
 
-# Overview-Seite der Main UI per REST API installieren (braucht OH_API_TOKEN).
-# Eine bestehende Overview-Seite wird vorher nach /var/lib/openhab/ibm/
+# Main-UI-Seiten (Overview + Unterseiten) per REST API installieren (braucht
+# OH_API_TOKEN). Bestehende Seiten werden vorher nach /var/lib/openhab/ibm/
 # gesichert.
 INSTALL_OVERVIEW=1
 

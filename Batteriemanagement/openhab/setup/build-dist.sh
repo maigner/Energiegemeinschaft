@@ -34,24 +34,26 @@ python3 -c 'import yaml' 2>/dev/null || die "PyYAML fehlt: sudo apt install pyth
 
 mkdir -p "$dist_dir"
 
-# Overview-Seiten der Profile in das REST-Format wandeln - die Main UI
+# Main-UI-Seiten der Profile in das REST-Format wandeln - die Main UI
 # speichert Seiten in der JSONDB, 05-install-overview.sh schreibt sie daher
-# per REST API und braucht die Seite als JSON.
+# per REST API und braucht jede Seite als page-<uid>.json.
 generated_pages=()
 for ov in "$openhab_dir"/inverters/*/overview.yaml; do
   [ -f "$ov" ] || continue
-  out="${ov%.yaml}.page.json"
-  python3 - "$ov" "$out" <<'PY' || die "Overview-Konvertierung fehlgeschlagen: $ov"
-import json, sys, yaml
-src, dst = sys.argv[1], sys.argv[2]
+  dir="$(dirname "$ov")"
+  python3 - "$ov" "$dir" <<'PY' || die "Seiten-Konvertierung fehlgeschlagen: $ov"
+import json, os, sys, yaml
+src, dstdir = sys.argv[1], sys.argv[2]
 with open(src) as f:
     data = yaml.safe_load(f)
-page = {"uid": "overview", **data["pages"]["overview"]}
-with open(dst, "w") as f:
-    json.dump(page, f, ensure_ascii=False, indent=2)
+for uid, page in data["pages"].items():
+    with open(os.path.join(dstdir, "page-" + uid + ".json"), "w") as f:
+        json.dump({"uid": uid, **page}, f, ensure_ascii=False, indent=2)
 PY
-  generated_pages+=("$out")
-  log "erzeugt: $out"
+  for p in "$dir"/page-*.json; do
+    generated_pages+=("$p")
+    log "erzeugt: $p"
+  done
 done
 
 # Build-Information mit ins Paket, damit auf dem Pi nachvollziehbar ist,

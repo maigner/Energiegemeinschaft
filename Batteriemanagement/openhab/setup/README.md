@@ -89,7 +89,7 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 | `02-install-addons.sh` | Traegt Binding, `jsscripting`, `mapdb` und (falls gewuenscht) `openhabcloud` in `addons.cfg` ein. |
 | `03-install-items.sh` | Schreibt `items/ibm.items` und `persistence/mapdb.persist`. |
 | `04-install-rules.sh` | Erzeugt die zeitgesteuerten Regeln in `automation/js/` und (falls gewuenscht) den Netzwerk-Watchdog. |
-| `05-install-overview.sh` | Schreibt die IBM-Uebersichtsseite per REST API in die Main UI (braucht `OH_API_TOKEN`; eine bestehende Seite wird vorher gesichert). |
+| `05-install-overview.sh` | Schreibt die IBM-Seiten (Overview + Unterseiten) per REST API in die Main UI (braucht `OH_API_TOKEN`; bestehende Seiten werden vorher gesichert). |
 | `06-verify.sh` | Prueft das Ergebnis, zeigt die letzten `[IBM]`-Logzeilen. Aendert nichts. |
 | `07-myopenhab.sh` | Zeigt UUID und Secret fuer die Registrierung auf myopenhab.org an (wartet ggf. auf das Cloud-Addon). Aendert nichts. |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
@@ -143,8 +143,9 @@ Das Ladesperre-Fenster kommt aus der Tagesprognose
 (`/api/eeginfo/ladefenster/v1`, berechnet aus den Kurven von `/vorhersage`):
 gesperrt wird vom ersten Sonnenschein bis zum prognostizierten
 Vormittags-Crossover. Die morgendliche Verbrauchsspitze der Gemeinschaft wird
-so direkt aus der PV gedeckt, die Batterie laedt erst aus dem
-Mittags-Ueberschuss. Das Fenster gilt nur fuer das mitgelieferte Datum
+so direkt aus der PV gedeckt; die Batterie laedt erst danach - und wie immer
+ausschliesslich aus der eigenen PV-Anlage, nie aus dem Netz oder von anderen
+Mitgliedern. Das Fenster gilt nur fuer das mitgelieferte Datum
 (`Ischlstrom_Ladesperre_Datum`); ist es veraltet, unplausibel oder liefert
 die Prognose keinen Ueberschuss (`-`), wird nicht gesperrt. Die
 Wolken-Schwelle bleibt als zusaetzliche Bedingung bestehen: gesperrt wird nur
@@ -160,14 +161,17 @@ Die Startwerte dieser Items stehen in `ibm.conf` (`DEFAULT_*`) und werden von
 `ibm_init.js` gesetzt, solange ein Item noch `NULL` ist. Danach ist alles in
 der Main UI aenderbar — **das Steuerungsskript wird pro Kunde nie angepasst**.
 
-**Overview-Seite:** Eine passende Uebersichtsseite fuer die Main UI liegt in
-`../inverters/fronius/overview.yaml`. Main-UI-Seiten liegen in der JSONDB,
-deshalb installiert `05-install-overview.sh` sie per REST API — dafuer wird
-das openHAB-API-Token gebraucht (`OH_API_TOKEN`, fragt der Assistent ab), und
-`build-dist.sh` wandelt die Seite beim Paketbau nach `overview.page.json`.
-Eine bestehende Overview-Seite wird vorher nach `/var/lib/openhab/ibm/`
-gesichert. Ohne Token bleibt der manuelle Weg: `Settings -> Pages ->
-Overview -> Code-Ansicht` und den Inhalt von `pages.overview` einfuegen.
+**Main-UI-Seiten:** Die Seiten fuer die Main UI liegen in
+`../inverters/fronius/overview.yaml` — fuer die Bedienung am Handy aufgeteilt
+in eine kompakte Overview (Zustand, Hauptschalter, Navigation) und drei
+Unterseiten (`ibm_laden`, `ibm_einspeisen`, `ibm_experten`). Main-UI-Seiten
+liegen in der JSONDB, deshalb installiert `05-install-overview.sh` sie per
+REST API — dafuer wird das openHAB-API-Token gebraucht (`OH_API_TOKEN`, fragt
+der Assistent ab), und `build-dist.sh` wandelt jede Seite beim Paketbau nach
+`page-<uid>.json`. Bestehende Seiten werden vorher nach
+`/var/lib/openhab/ibm/` gesichert. Ohne Token bleibt der manuelle Weg: je
+Eintrag unter `pages:` eine Seite anlegen (`Settings -> Pages`) und den
+Inhalt in der Code-Ansicht einfuegen.
 
 **Regeln** (`/etc/openhab/automation/js/`, Tag `IBM`):
 

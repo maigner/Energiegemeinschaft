@@ -1,21 +1,41 @@
 version: 1
 # ============================================================================
-# IBM - Uebersichtsseite fuer die Main UI
+# IBM - Seiten fuer die Main UI
+#
+# Fuer die Bedienung am Handy aufgeteilt: die Seite "overview" zeigt kompakt
+# Zustand und Hauptschalter und verlinkt auf drei Unterseiten (Laden,
+# Einspeisen, Experten) - so bleibt jede Seite ohne Scrollen erfassbar.
 #
 # Wird von setup/05-install-overview.sh per REST API installiert; dafuer
-# wandelt build-dist.sh diese Datei beim Paketbau nach overview.page.json.
+# wandelt build-dist.sh jede Seite unter `pages:` nach page-<uid>.json.
 # Das Ladestands-Item (INVERTER_SOC_PLACEHOLDER aus profile.sh) wird dabei
 # durch das SOC_ITEM der Anlage ersetzt.
 #
-# Manuell einspielen geht weiterhin:
-#   Settings -> Pages -> Overview -> Code-Ansicht -> Inhalt von
-#   pages.overview einfuegen
+# Manuell einspielen geht weiterhin: je Eintrag unter `pages:` eine Seite in
+# der Main UI anlegen (Settings -> Pages) und den Inhalt in der Code-Ansicht
+# einfuegen; die Seite "overview" ersetzt die vorhandene Overview.
 #
-# Zeigt und bedient alle Items, die das Batteriemanagement steuert. Jede
-# Karte traegt eine Erklaerung (footer), damit die Seite ohne Vorwissen
-# verstaendlich ist; Feineinstellungen stehen unter "Fuer Experten".
+# Jede Karte traegt eine Erklaerung (footer), damit die Seiten ohne
+# Vorwissen verstaendlich sind.
 # ============================================================================
 pages:
+  # --- Home-Konfiguration: nur der Overview-Tab ------------------------------
+  # Blendet die Modell-Tabs (Standorte, Geraete, Eigenschaften) aus - sie
+  # sind fuer Mitglieder nur verwirrend. Damit verschwindet auch die
+  # Tab-Leiste und die Overview fuellt den ganzen Bildschirm.
+  home:
+    tags: []
+    props:
+      parameters: []
+      parameterGroups: []
+    component: oh-home-page
+    config:
+      hiddenModelTabs:
+        - locations
+        - equipment
+        - properties
+
+  # --- Startseite: Zustand, Hauptschalter, Navigation ------------------------
   overview:
     tags: []
     props:
@@ -26,7 +46,6 @@ pages:
       label: Overview
     slots:
       default:
-        # --- Was macht IBM? -------------------------------------------------
         - component: oh-block
           config: {}
           slots:
@@ -49,21 +68,19 @@ pages:
                                     text: >-
                                       IBM steuert die Batterie so, dass möglichst
                                       viel Sonnenstrom in der Energiegemeinschaft
-                                      bleibt: Vor sonnigen Vormittagen wird nachts
-                                      nicht unnötig aus dem Netz geladen, und am
-                                      Abend speist die Batterie ein, solange die
-                                      Gemeinschaft mehr Strom verbraucht als
-                                      erzeugt. Wettervorhersage und
-                                      Überschuss-Zeiten holt sich die Anlage
-                                      automatisch von ischlstrom.org. Die
-                                      Voreinstellungen passen für die meisten
-                                      Anlagen.
+                                      bleibt: Geladen wird die Batterie
+                                      ausschließlich aus der eigenen PV-Anlage -
+                                      nie aus dem Netz. IBM bestimmt nur, WANN
+                                      das passiert: erst ab Mittag, wenn die
+                                      Gemeinschaft Überschuss hat; am Abend
+                                      speist die Batterie ein. Alle Daten kommen
+                                      automatisch von ischlstrom.org - Details
+                                      und Einstellungen auf den Unterseiten.
                                     style:
                                       padding: 16px
                                       white-space: normal
                                       line-height: 1.5
 
-        # --- Aktueller Zustand ----------------------------------------------
         - component: oh-block
           config:
             title: Aktueller Zustand
@@ -84,8 +101,7 @@ pages:
                               footer: >-
                                 Wie voll die Batterie gerade ist. Tippen zeigt
                                 den Verlauf.
-                              action:
-                                - analyzer
+                              action: analyzer
                               actionAnalyzerItems:
                                 - Fronius_Symo_Inverter_Battery_State_of_Charge
                     - component: oh-grid-col
@@ -98,8 +114,7 @@ pages:
                               item: Ischlstrom_Wolkenvorschau
                               footer: >-
                                 Vorhersage in Prozent: 0 % = wolkenlos,
-                                100 % = bedeckt. Kommt stündlich von
-                                ischlstrom.org.
+                                100 % = bedeckt.
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -114,8 +129,7 @@ pages:
                               item: Ischlstrom_Crossover_Start
                               footer: >-
                                 Ab dieser Uhrzeit erzeugt die Gemeinschaft mehr
-                                Strom, als sie verbraucht - die Einspeisung aus
-                                der Batterie endet.
+                                Strom, als sie verbraucht.
                     - component: oh-grid-col
                       config: {}
                       slots:
@@ -126,10 +140,8 @@ pages:
                               item: Ischlstrom_Crossover_Ende
                               footer: >-
                                 Ab dieser Uhrzeit verbraucht die Gemeinschaft
-                                wieder mehr, als sie erzeugt - die Batterie
-                                beginnt am Abend einzuspeisen.
+                                wieder mehr, als sie erzeugt.
 
-        # --- Hauptschalter ---------------------------------------------------
         - component: oh-block
           config:
             title: Steuerung
@@ -150,10 +162,88 @@ pages:
                               color: green
                               footer: "=items.Schalte_ISCHLSTROM_Empfehlung_einaus.state === 'ON' ? '🟢 EINGESCHALTET - IBM steuert die Batterie automatisch.' : (items.Schalte_ISCHLSTROM_Empfehlung_einaus.state === 'OFF' ? '⚪ AUSGESCHALTET - IBM greift nicht ein, der Wechselrichter arbeitet wie ab Werk.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
 
-        # --- Laden bei Sonnenprognose ----------------------------------------
         - component: oh-block
           config:
-            title: Laden bei Sonnenprognose
+            title: Einstellungen
+          slots:
+            default:
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: ☀️ Laden bei Sonnenprognose
+                                    action: navigate
+                                    actionPage: page:ibm_laden
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: 🌙 Einspeisen am Abend
+                                    action: navigate
+                                    actionPage: page:ibm_einspeisen
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: 🔧 Für Experten
+                                    action: navigate
+                                    actionPage: page:ibm_experten
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+
+  # --- Unterseite: Laden bei Sonnenprognose ----------------------------------
+  ibm_laden:
+    tags: []
+    props:
+      parameters: []
+      parameterGroups: []
+    component: oh-layout-page
+    config:
+      label: Laden bei Sonnenprognose
+    slots:
+      default:
+        - component: oh-block
+          config: {}
           slots:
             default:
               - component: oh-grid-row
@@ -169,7 +259,7 @@ pages:
                               title: Ladesperre verwenden
                               item: IBM_LADESPERRE_AKTIV
                               color: blue
-                              footer: "=items.IBM_LADESPERRE_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - An sonnigen Tagen wird zwischen den unten angezeigten Zeiten nicht geladen; die Batterie füllt sich danach aus dem Mittags-Überschuss der Gemeinschaft.' : (items.IBM_LADESPERRE_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Das Laden wird nie gesperrt.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
+                              footer: "=items.IBM_LADESPERRE_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - An sonnigen Tagen lädt die Batterie zwischen den unten angezeigten Zeiten nicht: Der eigene PV-Strom geht am Vormittag an Haushalt und Gemeinschaft. Danach lädt die Batterie wie immer aus der eigenen PV-Anlage.' : (items.IBM_LADESPERRE_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Die Batterie lädt aus der eigenen PV, sobald Sonne da ist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -197,11 +287,24 @@ pages:
                               footer: >-
                                 Ab dieser Uhrzeit erzeugt die Gemeinschaft laut
                                 Prognose mehr, als sie verbraucht - dann darf
-                                die Batterie den Überschuss aufnehmen.
+                                die Batterie wieder aus der eigenen PV-Anlage
+                                laden.
               - component: oh-grid-row
                 config: {}
                 slots:
                   default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Bewölkung am Vormittag
+                              item: Ischlstrom_Wolkenvorschau
+                              footer: >-
+                                Vorhersage in Prozent: 0 % = wolkenlos,
+                                100 % = bedeckt. Kommt stündlich von
+                                ischlstrom.org.
                     - component: oh-grid-col
                       config: {}
                       slots:
@@ -218,10 +321,19 @@ pages:
                                 Wert liegt (also genug Sonne kommt), wird das
                                 Laden gesperrt.
 
-        # --- Einspeisen am Abend ---------------------------------------------
+  # --- Unterseite: Einspeisen am Abend ---------------------------------------
+  ibm_einspeisen:
+    tags: []
+    props:
+      parameters: []
+      parameterGroups: []
+    component: oh-layout-page
+    config:
+      label: Einspeisen am Abend
+    slots:
+      default:
         - component: oh-block
-          config:
-            title: Einspeisen am Abend
+          config: {}
           slots:
             default:
               - component: oh-grid-row
@@ -237,7 +349,35 @@ pages:
                               title: Entladung verwenden
                               item: IBM_ENTLADUNG_AKTIV
                               color: blue
-                              footer: "=items.IBM_ENTLADUNG_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - Die Batterie speist am Abend ins Netz ein, solange die Gemeinschaft mehr verbraucht als erzeugt (Überschuss-Zeiten oben). Liegen keine Überschuss-Zeiten vor, wird nicht eingespeist.' : (items.IBM_ENTLADUNG_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Es wird nicht automatisch eingespeist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
+                              footer: "=items.IBM_ENTLADUNG_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - Die Batterie speist am Abend ins Netz ein, solange die Gemeinschaft mehr verbraucht als erzeugt (Überschuss-Zeiten unten). Liegen keine Überschuss-Zeiten vor, wird nicht eingespeist.' : (items.IBM_ENTLADUNG_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Es wird nicht automatisch eingespeist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Überschuss ab
+                              item: Ischlstrom_Crossover_Start
+                              footer: >-
+                                Ab dieser Uhrzeit erzeugt die Gemeinschaft mehr,
+                                als sie verbraucht - die Einspeisung aus der
+                                Batterie endet.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Überschuss bis
+                              item: Ischlstrom_Crossover_Ende
+                              footer: >-
+                                Ab dieser Uhrzeit verbraucht die Gemeinschaft
+                                wieder mehr, als sie erzeugt - die Batterie
+                                beginnt am Abend einzuspeisen.
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -257,10 +397,19 @@ pages:
                                 Unter diesem Ladestand stoppt die Einspeisung -
                                 diese Reserve bleibt für den eigenen Haushalt.
 
-        # --- Fuer Experten ---------------------------------------------------
+  # --- Unterseite: Fuer Experten ---------------------------------------------
+  ibm_experten:
+    tags: []
+    props:
+      parameters: []
+      parameterGroups: []
+    component: oh-layout-page
+    config:
+      label: Für Experten
+    slots:
+      default:
         - component: oh-block
-          config:
-            title: Für Experten
+          config: {}
           slots:
             default:
               - component: oh-grid-row
