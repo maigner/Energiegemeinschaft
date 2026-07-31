@@ -70,7 +70,16 @@
                 Mitglieder
             </NavLi>
 
-            
+            <NavLi
+                href="/board/openhab"
+                onclick={() => toggle()}
+                activeClass="text-green-600 bg-secundary-100"
+                nonActiveClass="text-green-800"
+                class="hover:text-green-600"
+            >
+                Anlagen
+            </NavLi>
+
             <NavLi
                 href="/board/map"
                 onclick={() => toggle()}

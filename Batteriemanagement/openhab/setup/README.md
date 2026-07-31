@@ -214,8 +214,45 @@ Inhalt in der Code-Ansicht einfuegen.
 | `ibm_crossover.js` | `../eeg-api/crossover.js` | taeglich 04:05 |
 | `ibm_ladesperre.js` | `../eeg-api/ladefenster.js` | stuendlich :50 |
 | `ibm_battery_control.js` | aus dem Wechselrichter-Profil | alle 5 Minuten |
+| `ibm_status_push.js` (optional) | `../eeg-api/status_push.js` | alle 5 Minuten |
 | `ibm_init.js` | generiert | alle 10 Minuten |
 | `ibm_watchdog.js` (optional) | generiert | bei Bridge-OFFLINE + alle 15 Minuten |
+
+## Status-Push (Vorstands-Dashboard)
+
+Auf Wunsch (Frage im Assistenten, `INSTALL_STATUS_PUSH=1`) meldet die Anlage
+alle 5 Minuten ihren Zustand an `<IBM_API_BASE>/api/ibm/status/v1` — der
+Vorstand sieht alle Anlagen dann live unter
+<https://ischlstrom.org/board/openhab> (Ladestand, Wechselrichter-Status,
+Schalterstellungen, geschaetzte Kapazitaet, letzte Meldung). Uebertragen
+werden ausschliesslich die IBM-Betriebsdaten aus der Tabelle oben, keine
+Verbrauchsdaten des Haushalts.
+
+Die Anlage authentifiziert sich mit einem **Status-Token**, das der Vorstand
+**vor der Installation** auf <https://ischlstrom.org/board/openhab> fuer das
+Mitglied erzeugt (Abschnitt "Tokens"). Der Assistent fragt das Token ab und
+legt es als `IBM_STATUS_TOKEN` in der `ibm.conf` ab; dazu kommt der
+Anzeigename `IBM_ANLAGE_NAME` (Vorgabe: Hostname). Meldungen mit unbekanntem
+Token weist der Server ab. Auf dem Server liegen die Tokens in der Tabelle
+`members_openhabstatus`; **Loeschen auf dem Dashboard widerruft das Token**,
+die Anlage kann dann nicht mehr melden, bis ein neues Token eingetragen wird.
+
+**Nachruesten** bei bestehender Installation: Token auf dem Dashboard
+erzeugen und einfach das Paket-Update einspielen (`curl ... install.sh`,
+siehe oben). Fehlt der Status-Abschnitt in der uebernommenen `ibm.conf`,
+fragt `04-install-rules.sh` beim Lauf selbst nach Token und Anlagenname und
+traegt die Antworten in die `ibm.conf` ein. Eine bewusste Ablehnung
+(`INSTALL_STATUS_PUSH=0`) wird bei spaeteren Updates nicht erneut gefragt;
+zum Aktivieren dann `INSTALL_STATUS_PUSH=1` und `IBM_STATUS_TOKEN` in
+`ibm.conf` eintragen und `04-install-rules.sh` erneut ausfuehren (bei
+unattended Updates mit `IBM_ASSUME_YES=1` wird nie gefragt und der Push
+bleibt aus). Abschalten: `INSTALL_STATUS_PUSH=0` in `ibm.conf` eintragen,
+`04-install-rules.sh` erneut ausfuehren und die Datei
+`automation/js/ibm_status_push.js` loeschen.
+
+Ausbleibende Meldungen zeigt das Dashboard an (gelb nach 15 Minuten, rot
+nach einer Stunde) — es eignet sich damit auch als einfache
+Ausfallueberwachung der openhabians.
 
 ## Netzwerk-Watchdog (wechselnde IP des Wechselrichters)
 

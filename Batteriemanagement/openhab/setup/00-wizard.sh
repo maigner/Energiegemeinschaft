@@ -138,6 +138,30 @@ ask SOC_ITEM "Item mit dem Batterie-Ladestand" "$soc_default"
 # --- 4. API -----------------------------------------------------------------
 ask IBM_API_BASE "Basis-URL der ischlstrom API" "https://ischlstrom.org"
 
+# --- 4b. Status-Push (Vorstands-Dashboard) ----------------------------------
+INSTALL_STATUS_PUSH=0
+IBM_ANLAGE_NAME=""
+IBM_STATUS_TOKEN=""
+
+echo "[IBM]"
+echo "[IBM] Die Anlage kann alle 5 Minuten ihren Zustand (Ladestand, Status des"
+echo "[IBM] Wechselrichters, Einstellungen) an ischlstrom.org melden. Der"
+echo "[IBM] Vorstand sieht alle Anlagen dann auf einem Dashboard und erkennt"
+echo "[IBM] Ausfaelle frueh. Es werden nur die IBM-Betriebsdaten uebertragen."
+echo "[IBM] Dafuer wird das Status-Token dieser Anlage benoetigt - der Vorstand"
+echo "[IBM] erzeugt es auf ischlstrom.org unter /board/openhab (je Mitglied)."
+if confirm "Anlagenstatus an ischlstrom.org melden?"; then
+  ask IBM_STATUS_TOKEN "Status-Token dieser Anlage (leer = Status-Push ueberspringen)" ""
+  if [ -n "$IBM_STATUS_TOKEN" ]; then
+    ask IBM_ANLAGE_NAME "Name der Anlage (erscheint am Dashboard)" "$(hostname)"
+    INSTALL_STATUS_PUSH=1
+  else
+    warn "Kein Token - Status-Push wird uebersprungen. Spaeter nachruestbar:"
+    warn "INSTALL_STATUS_PUSH=1 und IBM_STATUS_TOKEN in ibm.conf eintragen,"
+    warn "dann 04-install-rules.sh erneut ausfuehren."
+  fi
+fi
+
 # --- 5. Batterieeinstellungen ----------------------------------------------
 echo "[IBM]"
 echo "[IBM] Startwerte - koennen spaeter jederzeit in der Main UI geaendert werden."
@@ -285,6 +309,7 @@ CRON_CLOUD="0 40 * * * ?"
 CRON_CROSSOVER="0 5 4 * * ?"
 CRON_LADESPERRE="0 50 * * * ?"
 CRON_INIT="0 */10 * * * ?"
+CRON_STATUS="0 2/5 * * * ?"
 
 # --- Startwerte -------------------------------------------------------------
 DEFAULT_MIN_BATTERY_CHARGE=${DEFAULT_MIN_BATTERY_CHARGE}
@@ -300,6 +325,14 @@ DEFAULT_ENTLADUNG_AKTIV=ON
 # Entladeleistung automatisch an die geschaetzte Batteriegroesse anpassen;
 # die MIN/MAX-Werte oben bleiben der Rueckfall ohne belastbare Schaetzung.
 DEFAULT_DYNAMISCHE_LEISTUNG=ON
+
+# --- Status-Push ------------------------------------------------------------
+# Meldet den Anlagenzustand alle 5 Minuten an <IBM_API_BASE>/api/ibm/status/v1
+# (Vorstands-Dashboard unter /board/openhab). Das Token erzeugt der Vorstand
+# dort je Mitglied; ohne gueltiges Token weist der Server die Meldung ab.
+INSTALL_STATUS_PUSH=${INSTALL_STATUS_PUSH}
+IBM_ANLAGE_NAME="${IBM_ANLAGE_NAME}"
+IBM_STATUS_TOKEN="${IBM_STATUS_TOKEN}"
 
 # --- Optionen ---------------------------------------------------------------
 INSTALL_ADDONS=${INSTALL_ADDONS}
@@ -337,6 +370,7 @@ cat <<ZUSAMMENFASSUNG
 [IBM]   Thing-UID      : ${INVERTER_THING_UID}
 [IBM]   Ladestand-Item : ${SOC_ITEM}
 [IBM]   API            : ${IBM_API_BASE}
+[IBM]   Status-Push    : $([ "$INSTALL_STATUS_PUSH" = "1" ] && echo "ja (${IBM_ANLAGE_NAME})" || echo "nein")
 [IBM]   Ladestand min. : ${DEFAULT_MIN_BATTERY_CHARGE} %
 [IBM]   Entladung      : ${DEFAULT_MIN_DISCHARGE_W} - ${DEFAULT_MAX_DISCHARGE_W} W
 [IBM]   Addons         : $([ "$INSTALL_ADDONS" = "1" ] && echo "ueber addons.cfg" || echo "manuell in der Main UI")

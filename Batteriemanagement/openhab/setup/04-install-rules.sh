@@ -15,6 +15,71 @@ require_root
 require_openhab
 load_config
 
+# --- Status-Push: bei Bedarf nachfragen (aeltere ibm.conf) -------------------
+# Das Token erzeugt der Vorstand auf ischlstrom.org unter /board/openhab.
+# Stammt die ibm.conf von vor dem Status-Push (INSTALL_STATUS_PUSH fehlt)
+# oder ist der Push gewollt, aber ohne Token, wird hier einmalig nachgefragt
+# und die Antwort in die ibm.conf uebernommen - ein Paket-Update genuegt so
+# zum Nachruesten. Eine bewusste Ablehnung (INSTALL_STATUS_PUSH=0) bleibt
+# unangetastet.
+status_unconfigured=0
+[ -z "${INSTALL_STATUS_PUSH:-}" ] && status_unconfigured=1
+INSTALL_STATUS_PUSH="${INSTALL_STATUS_PUSH:-0}"
+IBM_ANLAGE_NAME="${IBM_ANLAGE_NAME:-}"
+IBM_STATUS_TOKEN="${IBM_STATUS_TOKEN:-}"
+CRON_STATUS="${CRON_STATUS:-0 2/5 * * * ?}"
+
+# NAME=VALUE in der ibm.conf setzen (bestehende Zeile ersetzen, sonst anhaengen).
+conf_set() {
+  local name="$1" value="$2" repl
+  repl="$(printf '%s=%s' "$name" "$value" | sed -e 's/[\\&|]/\\&/g')"
+  if grep -q "^${name}=" "$IBM_CONF"; then
+    sed -i "s|^${name}=.*|${repl}|" "$IBM_CONF"
+  else
+    printf '%s=%s\n' "$name" "$value" >> "$IBM_CONF"
+  fi
+}
+
+status_needs_input=0
+if [ "$status_unconfigured" = "1" ] || { [ "$INSTALL_STATUS_PUSH" = "1" ] && [ -z "$IBM_STATUS_TOKEN" ]; }; then
+  status_needs_input=1
+fi
+
+if [ "$status_needs_input" = "1" ] && [ "${IBM_ASSUME_YES:-0}" = "1" ]; then
+  # Unbeaufsichtigtes Update: nichts festschreiben, damit ein spaeterer
+  # interaktiver Lauf die Frage stellen kann. Ohne Token laeuft kein Push.
+  log "Status-Push nicht konfiguriert (kein Token) - uebersprungen (IBM_ASSUME_YES=1)."
+  INSTALL_STATUS_PUSH=0
+elif [ "$status_needs_input" = "1" ]; then
+  echo "[IBM]"
+  echo "[IBM] Die Anlage kann alle 5 Minuten ihren Zustand (Ladestand, Status des"
+  echo "[IBM] Wechselrichters, Einstellungen) an ischlstrom.org melden. Der"
+  echo "[IBM] Vorstand sieht alle Anlagen dann auf einem Dashboard und erkennt"
+  echo "[IBM] Ausfaelle frueh. Dafuer wird das Status-Token dieser Anlage"
+  echo "[IBM] benoetigt - der Vorstand erzeugt es auf ischlstrom.org unter"
+  echo "[IBM] /board/openhab (je Mitglied)."
+  if confirm "Anlagenstatus an ischlstrom.org melden?"; then
+    ask IBM_STATUS_TOKEN "Status-Token dieser Anlage (leer = ueberspringen)" "$IBM_STATUS_TOKEN"
+  fi
+  if [ -n "$IBM_STATUS_TOKEN" ]; then
+    INSTALL_STATUS_PUSH=1
+    ask IBM_ANLAGE_NAME "Name der Anlage (erscheint am Dashboard)" "${IBM_ANLAGE_NAME:-$(hostname)}"
+  else
+    INSTALL_STATUS_PUSH=0
+    warn "Kein Token - Status-Push bleibt aus. Nachruesten: Token am Dashboard"
+    warn "erzeugen, INSTALL_STATUS_PUSH=1 und IBM_STATUS_TOKEN in ibm.conf"
+    warn "eintragen und dieses Skript erneut ausfuehren."
+  fi
+  conf_set INSTALL_STATUS_PUSH "$INSTALL_STATUS_PUSH"
+  conf_set IBM_STATUS_TOKEN "\"$IBM_STATUS_TOKEN\""
+  conf_set IBM_ANLAGE_NAME "\"$IBM_ANLAGE_NAME\""
+  log "Status-Push-Einstellungen in ibm.conf uebernommen."
+fi
+
+if [ "$INSTALL_STATUS_PUSH" = "1" ] && [ -z "$IBM_ANLAGE_NAME" ]; then
+  IBM_ANLAGE_NAME="$(hostname)"
+fi
+
 js_dir="$OPENHAB_CONF/automation/js"
 mkdir -p "$js_dir"
 chown "$OPENHAB_USER:$OPENHAB_GROUP" "$js_dir" 2>/dev/null || true
@@ -25,16 +90,26 @@ sed_escape() { printf '%s' "$1" | sed -e 's/[\\&|]/\\&/g'; }
 api_base_esc="$(sed_escape "$IBM_API_BASE")"
 thing_uid_esc="$(sed_escape "$INVERTER_THING_UID")"
 soc_item_esc="$(sed_escape "$SOC_ITEM")"
+anlage_name_esc="$(sed_escape "$IBM_ANLAGE_NAME")"
+status_token_esc="$(sed_escape "$IBM_STATUS_TOKEN")"
+inverter_type_esc="$(sed_escape "$INVERTER_TYPE")"
 
 # Suchmuster aus dem Wechselrichter-Profil (linke Seite eines sed-Ausdrucks).
 thing_prefix_pat="$(printf '%s' "$INVERTER_THING_PREFIX" | sed -e 's/[][\.*^$|]/\\&/g')"
 soc_placeholder_pat="$(printf '%s' "$INVERTER_SOC_PLACEHOLDER" | sed -e 's/[][\.*^$|]/\\&/g')"
 
-# Skriptkoerper einlesen und anlagenspezifische Werte einsetzen.
+# Skriptkoerper einlesen und anlagenspezifische Werte einsetzen. Neben den
+# gewachsenen Mustern (URL, Thing-UID, SoC-Platzhalter des Profils) werden
+# auch die expliziten @...@-Platzhalter ersetzt.
 render_payload() {
   sed -e "s|https://ischlstrom\.org|${api_base_esc}|g" \
       -e "s|${thing_prefix_pat}:[^']*|${thing_uid_esc}|g" \
       -e "s|${soc_placeholder_pat}|${soc_item_esc}|g" \
+      -e "s|@IBM_THING_UID@|${thing_uid_esc}|g" \
+      -e "s|@IBM_SOC_ITEM@|${soc_item_esc}|g" \
+      -e "s|@IBM_ANLAGE_NAME@|${anlage_name_esc}|g" \
+      -e "s|@IBM_STATUS_TOKEN@|${status_token_esc}|g" \
+      -e "s|@IBM_INVERTER_TYPE@|${inverter_type_esc}|g" \
       "$1"
 }
 
@@ -95,6 +170,19 @@ generate_rule \
   "IBM - Batteriesteuerung (${INVERTER_TYPE})" \
   "Ladesperre am Vormittag und forcierte Entladung in der Nacht" \
   "$CRON_BATTERY"
+
+# --- Status-Push an das Vorstands-Dashboard ---------------------------------
+if [ "$INSTALL_STATUS_PUSH" = "1" ]; then
+  generate_rule \
+    "$IBM_SCRIPT_DIR/eeg-api/status_push.js" \
+    "$js_dir/ibm_status_push.js" \
+    "ibm_status_push" \
+    "IBM - Status an ischlstrom melden" \
+    "Meldet den Anlagenzustand an das Vorstands-Dashboard auf ischlstrom.org" \
+    "$CRON_STATUS"
+else
+  log "INSTALL_STATUS_PUSH=0 - Status-Push uebersprungen."
+fi
 
 # --- Initialisierung der Konfigurations-Items -------------------------------
 # Setzt Startwerte, solange ein Item noch NULL/UNDEF ist. Damit ist eine

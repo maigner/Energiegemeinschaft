@@ -31,6 +31,26 @@ class OpenhabDb(models.Model):
         return f"{self.member} -> {self.user}@{self.host}:{self.port}/{self.database}"
 
 
+class OpenhabStatus(models.Model):
+    """Token and live status of an openHABian installation (IBM). The board
+    creates the token for a member on /board/openhab; during setup it is
+    stored on the pi (ibm.conf) and authenticates the status pushes of rule
+    ibm_status_push.js to /api/ibm/status/v1. Deleting a row revokes the
+    token."""
+    member = models.ForeignKey(Member, on_delete=models.CASCADE)
+    token = models.CharField(max_length=200, unique=True)
+    name = models.CharField(max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(null=True, blank=True)
+    data = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        verbose_name_plural = "Openhab statuses"
+
+    def __str__(self):
+        return f"{self.member}: {self.name or 'ohne Namen'} (last seen {self.last_seen})"
+
+
 class BoardApproval(models.Model):
     member = models.ForeignKey(Member, on_delete=models.CASCADE)
     date_time = models.DateTimeField(auto_now_add=True)
