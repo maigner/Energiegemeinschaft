@@ -69,6 +69,7 @@ inverters/
    | `IBM_LADESPERRE_AKTIV` | Switch | Teilfunktion Ladesperre ein/aus |
    | `IBM_LADESPERRE_WOLKEN_SCHWELLE` | Number | Bewoelkung in % |
    | `IBM_ENTLADUNG_AKTIV` | Switch | Teilfunktion Entladung ein/aus |
+   | `IBM_PAUSE_TAGE` | Number | Verbleibende Pausentage: solange > 0 darf das Skript nichts planen (nach dem Reset sofort beenden) |
 
 4. Alle Logausgaben mit `[IBM]` praefixieren.
 

@@ -47,6 +47,7 @@ var payload = {
     ladesperre_aktiv: stateOf('IBM_LADESPERRE_AKTIV'),
     entladung_aktiv: stateOf('IBM_ENTLADUNG_AKTIV'),
     dynamische_leistung: stateOf('IBM_DYNAMISCHE_LEISTUNG'),
+    pause_tage: numberOf('IBM_PAUSE_TAGE'),
     batterie_kapazitaet: numberOf('IBM_BATTERIE_KAPAZITAET'),
     min_battery_charge: numberOf('IBM_MIN_BATTERY_CHARGE'),
     min_entladeleistung_w: numberOf('Minimale_Entladeleistung_Batterieeinspeisung'),

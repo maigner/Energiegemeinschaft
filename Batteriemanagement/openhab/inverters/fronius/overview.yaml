@@ -3,8 +3,8 @@ version: 1
 # IBM - Seiten fuer die Main UI
 #
 # Fuer die Bedienung am Handy aufgeteilt: die Seite "overview" zeigt kompakt
-# Zustand und Hauptschalter und verlinkt auf drei Unterseiten (Laden,
-# Einspeisen, Experten) - so bleibt jede Seite ohne Scrollen erfassbar.
+# Zustand und Hauptschalter und verlinkt auf vier Unterseiten (Laden,
+# Einspeisen, Pause, Experten) - so bleibt jede Seite ohne Scrollen erfassbar.
 #
 # Wird von setup/05-install-overview.sh per REST API installiert; dafuer
 # wandelt build-dist.sh jede Seite unter `pages:` nach page-<uid>.json.
@@ -229,6 +229,27 @@ pages:
                               content:
                                 - component: oh-button
                                   config:
+                                    text: "=items.IBM_PAUSE_TAGE.state > 0 ? '⏸️ Pausiert - noch ' + items.IBM_PAUSE_TAGE.state + (items.IBM_PAUSE_TAGE.state == 1 ? ' Tag' : ' Tage') : '⏸️ IBM pausieren'"
+                                    action: navigate
+                                    actionPage: page:ibm_pause
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
                                     text: 🔧 Für Experten
                                     action: navigate
                                     actionPage: page:ibm_experten
@@ -402,6 +423,127 @@ pages:
                               footer: >-
                                 Unter diesem Ladestand stoppt die Einspeisung -
                                 diese Reserve bleibt für den eigenen Haushalt.
+
+  # --- Unterseite: IBM pausieren ---------------------------------------------
+  ibm_pause:
+    tags: []
+    props:
+      parameters: []
+      parameterGroups: []
+    component: oh-layout-page
+    config:
+      label: IBM pausieren
+    slots:
+      default:
+        - component: oh-block
+          config: {}
+          slots:
+            default:
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config:
+                              title: IBM eine Weile aussetzen
+                            slots:
+                              content:
+                                - component: Label
+                                  config:
+                                    text: >-
+                                      Praktisch bei Urlaub, Wartung oder wenn
+                                      der Strom gerade selbst gebraucht wird:
+                                      Solange die Pause läuft, greift IBM nicht
+                                      ein - der Wechselrichter arbeitet wie ab
+                                      Werk, alle Einstellungen bleiben
+                                      erhalten. Jede Nacht zählt die Pause um
+                                      einen Tag herunter; danach arbeitet IBM
+                                      von selbst weiter.
+                                    style:
+                                      padding: 16px
+                                      white-space: normal
+                                      line-height: 1.5
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: ⏸️ 3 Tage
+                                    action: command
+                                    actionItem: IBM_PAUSE_TAGE
+                                    actionCommand: "3"
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: ⏸️ 5 Tage
+                                    action: command
+                                    actionItem: IBM_PAUSE_TAGE
+                                    actionCommand: "5"
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-stepper-card
+                            config:
+                              title: Verbleibende Pausentage
+                              item: IBM_PAUSE_TAGE
+                              min: 0
+                              max: 14
+                              step: 1
+                              footer: >-
+                                Feineinstellung: 0 = keine Pause, IBM arbeitet
+                                normal. Zählt jede Nacht automatisch um 1
+                                herunter.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: ▶️ Pause beenden
+                                    action: command
+                                    actionItem: IBM_PAUSE_TAGE
+                                    actionCommand: "0"
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
 
   # --- Unterseite: Fuer Experten ---------------------------------------------
   ibm_experten:

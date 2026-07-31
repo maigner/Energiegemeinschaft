@@ -336,7 +336,7 @@ function cloudForecast() {
 }
 
 // ----------------------------------------------------------------------------
-// Gemeinsamer Schritt: Toggle-abhaengiger Reset
+// Gemeinsamer Schritt: Toggle-abhaengiger Reset und Pause
 // ----------------------------------------------------------------------------
 var toggleOn = onOff('Schalte_ISCHLSTROM_Empfehlung_einaus', false);
 
@@ -345,6 +345,16 @@ if (toggleOn) {
   console.log('[IBM] Toggle=ON - Battery control reset');
 } else {
   console.log('[IBM] Toggle=OFF - Tue nichts');
+  return;
+}
+
+// Pause (Unterseite "IBM pausieren"): solange Pausentage uebrig sind, wird
+// nichts geplant - der Reset oben ist bereits passiert, der Wechselrichter
+// arbeitet also wie ab Werk. Die Regel ibm_pause.js zaehlt das Item jede
+// Nacht um 1 herunter; bei 0 laeuft die Steuerung von selbst wieder an.
+var pauseDays = num('IBM_PAUSE_TAGE', 0, 0, 365);
+if (pauseDays >= 1) {
+  console.log('[IBM] Pausiert (noch ' + pauseDays + ' Tag' + (pauseDays === 1 ? '' : 'e') + ') - Tue nichts');
   return;
 }
 

@@ -131,6 +131,7 @@ Assistent listet automatisch auf, was dort liegt. Ein neuer Hersteller braucht
 | `IBM_MIN_BATTERY_CHARGE` | Number | Einstellung |
 | `Minimale_Entladeleistung_Batterieeinspeisung` | Number | Einstellung |
 | `Maximale_Entladeleistung_Batterieeinspeisung` | Number | Einstellung |
+| `IBM_PAUSE_TAGE` | Number | Verbleibende Pausentage: solange > 0 setzt IBM aus; `ibm_pause.js` zaehlt jede Nacht um 1 herunter |
 | `IBM_LADESPERRE_AKTIV` | Switch | Teilfunktion Ladesperre ein/aus |
 | `IBM_LADESPERRE_WOLKEN_SCHWELLE` | Number | Bewoelkungsgrad in % |
 | `IBM_ENTLADUNG_AKTIV` | Switch | Teilfunktion Entladung ein/aus |
@@ -200,8 +201,9 @@ der Main UI aenderbar — **das Steuerungsskript wird pro Kunde nie angepasst**.
 
 **Main-UI-Seiten:** Die Seiten fuer die Main UI liegen in
 `../inverters/fronius/overview.yaml` — fuer die Bedienung am Handy aufgeteilt
-in eine kompakte Overview (Zustand, Hauptschalter, Navigation) und drei
-Unterseiten (`ibm_laden`, `ibm_einspeisen`, `ibm_experten`). Main-UI-Seiten
+in eine kompakte Overview (Zustand, Hauptschalter, Navigation) und vier
+Unterseiten (`ibm_laden`, `ibm_einspeisen`, `ibm_pause`, `ibm_experten`).
+Main-UI-Seiten
 liegen in der JSONDB, deshalb installiert `05-install-overview.sh` sie per
 REST API — dafuer wird das openHAB-API-Token gebraucht (`OH_API_TOKEN`, fragt
 der Assistent ab), und `build-dist.sh` wandelt jede Seite beim Paketbau nach
@@ -220,6 +222,7 @@ Inhalt in der Code-Ansicht einfuegen.
 | `ibm_battery_control.js` | aus dem Wechselrichter-Profil | alle 5 Minuten |
 | `ibm_status_push.js` (optional) | `../eeg-api/status_push.js` | alle 5 Minuten |
 | `ibm_init.js` | generiert | alle 10 Minuten |
+| `ibm_pause.js` | generiert | taeglich 00:30 |
 | `ibm_watchdog.js` (optional) | generiert | bei Bridge-OFFLINE + alle 15 Minuten |
 
 ## Status-Push (Vorstands-Dashboard)

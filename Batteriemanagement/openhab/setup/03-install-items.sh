@@ -41,6 +41,10 @@ Number IBM_MIN_BATTERY_CHARGE                       "Minimaler Ladestand Batteri
 Number Minimale_Entladeleistung_Batterieeinspeisung "Minimale Entladeleistung [%.0f W]"      <energy>       (IBM)
 Number Maximale_Entladeleistung_Batterieeinspeisung "Maximale Entladeleistung [%.0f W]"      <energy>       (IBM)
 
+// Pause: solange > 0 setzt IBM aus (der Wechselrichter arbeitet wie ab
+// Werk); die Regel ibm_pause.js zaehlt den Wert jede Nacht um 1 herunter
+Number IBM_PAUSE_TAGE "IBM-Pause (verbleibende Tage) [%.0f]" <calendar> (IBM)
+
 // Ladesperre am Vormittag (Fenster kommt aus der Tagesprognose der API)
 Switch IBM_LADESPERRE_AKTIV            "Ladesperre bei Sonnenprognose"      <switch> (IBM)
 Number IBM_LADESPERRE_WOLKEN_SCHWELLE  "Wolken-Schwelle Ladesperre [%.0f %%]" <sun>  (IBM)
@@ -86,6 +90,7 @@ Items {
     IBM_MIN_BATTERY_CHARGE,
     Minimale_Entladeleistung_Batterieeinspeisung,
     Maximale_Entladeleistung_Batterieeinspeisung,
+    IBM_PAUSE_TAGE,
     IBM_LADESPERRE_AKTIV,
     IBM_LADESPERRE_WOLKEN_SCHWELLE,
     IBM_ENTLADUNG_AKTIV,

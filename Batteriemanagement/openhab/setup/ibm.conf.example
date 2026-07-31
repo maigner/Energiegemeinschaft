@@ -53,6 +53,10 @@ CRON_LADESPERRE="0 50 * * * ?"
 # Initialisierung der Konfigurations-Items (setzt nur NULL/UNDEF-Werte).
 CRON_INIT="0 */10 * * * ?"
 
+# Pause herunterzaehlen: IBM_PAUSE_TAGE (Unterseite "IBM pausieren") wird
+# jede Nacht um 1 verringert; bei 0 arbeitet die Steuerung wieder.
+CRON_PAUSE="0 30 0 * * ?"
+
 # --- Startwerte der Konfigurations-Items ------------------------------------
 
 # Ladestand, unterhalb dessen nicht mehr entladen wird (Prozent)

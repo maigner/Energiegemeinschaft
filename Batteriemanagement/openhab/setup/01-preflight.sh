@@ -85,6 +85,7 @@ if [ -f "$items_db" ]; then
               IBM_MIN_BATTERY_CHARGE \
               Minimale_Entladeleistung_Batterieeinspeisung \
               Maximale_Entladeleistung_Batterieeinspeisung \
+              IBM_PAUSE_TAGE \
               IBM_LADESPERRE_AKTIV \
               IBM_LADESPERRE_WOLKEN_SCHWELLE \
               IBM_ENTLADUNG_AKTIV \

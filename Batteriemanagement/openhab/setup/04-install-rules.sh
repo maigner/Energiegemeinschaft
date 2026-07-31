@@ -208,7 +208,8 @@ rules.JSRule({
       'IBM_LADESPERRE_AKTIV': '${DEFAULT_LADESPERRE_AKTIV}',
       'IBM_LADESPERRE_WOLKEN_SCHWELLE': ${DEFAULT_WOLKEN_SCHWELLE},
       'IBM_ENTLADUNG_AKTIV': '${DEFAULT_ENTLADUNG_AKTIV}',
-      'IBM_DYNAMISCHE_LEISTUNG': '${DEFAULT_DYNAMISCHE_LEISTUNG}'
+      'IBM_DYNAMISCHE_LEISTUNG': '${DEFAULT_DYNAMISCHE_LEISTUNG}',
+      'IBM_PAUSE_TAGE': 0
     };
 
     Object.keys(defaults).forEach(function (name) {
@@ -228,6 +229,41 @@ rules.JSRule({
         console.log('[IBM][Init] ' + name + ' initialisiert: ' + defaults[name]);
       }
     });
+  }
+});
+EOF
+
+# --- Pause herunterzaehlen --------------------------------------------------
+# Die Unterseite "IBM pausieren" setzt IBM_PAUSE_TAGE; solange der Wert > 0
+# ist, plant die Batteriesteuerung nichts. Diese Regel zaehlt ihn jede Nacht
+# um 1 herunter - bei 0 laeuft die Steuerung von selbst wieder an.
+install_file "$js_dir/ibm_pause.js" <<EOF
+// ===========================================================================
+// GENERIERT von 04-install-rules.sh - nicht direkt bearbeiten.
+// Zaehlt die IBM-Pause (IBM_PAUSE_TAGE) jede Nacht um 1 herunter.
+// ===========================================================================
+rules.JSRule({
+  id: 'ibm_pause_countdown',
+  name: 'IBM - Pause herunterzaehlen',
+  description: 'Zaehlt die verbleibenden Pausentage jede Nacht um 1 herunter',
+  tags: ['IBM'],
+  triggers: [triggers.GenericCronTrigger('${CRON_PAUSE}')],
+  execute: (event) => {
+    var item = null;
+    try {
+      item = items.getItem('IBM_PAUSE_TAGE');
+    } catch (e) {
+      item = null;
+    }
+    if (item === null || item === undefined) {
+      console.error('[IBM][Pause] Item fehlt: IBM_PAUSE_TAGE');
+      return;
+    }
+    var days = parseFloat(item.numericState);
+    if (isNaN(days) || days <= 0) return;
+    var next = Math.max(0, Math.round(days) - 1);
+    item.postUpdate(next);
+    console.log('[IBM][Pause] Verbleibende Pausentage: ' + next + (next === 0 ? ' - IBM arbeitet wieder' : ''));
   }
 });
 EOF

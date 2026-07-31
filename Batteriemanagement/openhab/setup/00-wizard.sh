@@ -335,6 +335,7 @@ CRON_CLOUD="0 40 * * * ?"
 CRON_CROSSOVER="0 5 4 * * ?"
 CRON_LADESPERRE="0 50 * * * ?"
 CRON_INIT="0 */10 * * * ?"
+CRON_PAUSE="0 30 0 * * ?"
 CRON_STATUS="0 2/5 * * * ?"
 
 # --- Startwerte -------------------------------------------------------------
