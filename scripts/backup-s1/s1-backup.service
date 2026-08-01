@@ -1,0 +1,8 @@
+[Unit]
+Description=Naechtliches Backup (PostgreSQL, mailcow, Configs)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/s1-backup.sh
+Nice=10
+IOSchedulingClass=idle

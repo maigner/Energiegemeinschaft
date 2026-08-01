@@ -1,0 +1,9 @@
+[Unit]
+Description=Naechtliches Backup, taeglich 03:14
+
+[Timer]
+OnCalendar=*-*-* 03:14:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

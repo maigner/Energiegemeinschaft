@@ -56,5 +56,28 @@ export-server-db-*.sh, restore-s1-db-*.sh). Dumps immer mit
 `--no-owner --no-privileges` ziehen, sonst scheitert das Einspielen als
 normaler Benutzer an ALTER-OWNER-Befehlen.
 
-Noch offen: naechtlicher `pg_dump` auf s1 - bis dahin gibt es von den
-Datenbanken keine automatischen Backups.
+## Backups (eingerichtet am 1. August 2026)
+
+Skripte in `scripts/backup-s1/`:
+
+- **s1, taeglich 03:14** (`s1-backup.timer` -> `/usr/local/bin/s1-backup.sh`):
+  `pg_dump -Fc` aller Datenbanken + Globals (das Host-PostgreSQL traegt
+  neben der Website auch die OpenHAB-DBs der Mitglieder, keila und KEM),
+  mailcow-Backup (7 Tage Rotation - Vollkopien der Maildaten), Config-Tar
+  (`/etc/caddy`, `/etc/wireguard` = Anlagen-Registry, `/etc/postgresql`).
+  Ziel `/var/backups/s1/`, 14 Tage Rotation. Log: `journalctl -u s1-backup`.
+- **Heimserver, taeglich 05:30** (crontab martin): `pull-backups-home.sh`
+  spiegelt `/var/backups/s1/` nach `~/backups-s1/` (Offsite-Kopie; Pull,
+  s1 erreicht den Heimserver nicht). Log: `~/backups-s1/pull.log`.
+- Restore: `pg_restore -d <db> <datei>.dump`; Globals sind plain SQL.
+
+Noch offen:
+
+1. Nextcloud AIO: Borg-Backup im Master-UI pruefen/aktivieren und die
+   **Borg-Passphrase sicher ablegen**.
+2. Gitignorte Secrets (`website/.env*`, `notebooks/.pgpass`,
+   `.pg_service.conf`) existieren nur auf Workstation und Servern -
+   separat privat sichern.
+3. Restore-Test einplanen (Dump in eine Scratch-DB einspielen).
+4. Plattenplatz beobachten: `journalctl -u s1-backup` zeigt Belegung und
+   freien Platz nach jedem Lauf.
