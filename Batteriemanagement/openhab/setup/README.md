@@ -100,6 +100,7 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 | `08-install-wireguard.sh` | Richtet den WireGuard-Tunnel zum Wartungsserver ein (siehe [Fernwartung](#fernwartung-wireguard)). |
 | `09-harden-ssh.sh` | Traegt den SSH-Wartungsschluessel (und eine optionale Benutzer-CA) ein und schaltet die Passwort-Anmeldung von sshd ab (siehe [SSH absichern](#ssh-absichern-nur-schluessel-anmeldung)). |
 | `10-change-passwords.sh` | Aendert die Standardpasswoerter des Linux-Benutzers `openhabian` und der Karaf-Konsole (siehe [Standardpasswoerter aendern](#standardpasswoerter-aendern)). |
+| `purge-ibm.sh` | Entfernt das Batteriemanagement komplett wieder (Things, Regeln, Items, Seiten, Token, WireGuard, `/opt/ischlstrom`) und setzt die Anlage auf "frisches openHABian + Admin-Konto" zurueck - fuer Test-Wiederholungen oder Ausserbetriebnahme. Admin-Konto, Linux-Passwort, Zeitzone und myopenhab-Identitaet bleiben. |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
 
 `install-ibm.sh` setzt ausserdem die Regionaleinstellungen - das, was sonst

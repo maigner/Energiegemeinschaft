@@ -378,7 +378,15 @@ echo "[IBM] Anlage aus der Ferne warten (Updates, Fehlersuche). Der Pi baut die"
 echo "[IBM] Verbindung selbst nach aussen auf - am Router ist nichts zu tun,"
 echo "[IBM] und der normale Internetverkehr bleibt unberuehrt."
 if confirm "WireGuard-Fernwartung einrichten?"; then
-  ask WG_ADDRESS "Tunnel-IP dieser Anlage (vergibt der Wartungsserver, z. B. 10.88.0.11)" ""
+  # Kein Vorgabewert: die Tunnel-IP vergibt der Wartungsserver, und zwei
+  # Anlagen mit derselben IP wuerden sich stumm gegenseitig verdraengen.
+  # Leere Eingabe heisst ueberspringen - aber nur nach Rueckfrage, damit
+  # ein versehentliches Enter die Fernwartung nicht still abwaehlt.
+  while :; do
+    ask WG_ADDRESS "Tunnel-IP dieser Anlage (vergibt der Wartungsserver, z. B. 10.88.0.11; leer = ueberspringen)" ""
+    [ -n "$WG_ADDRESS" ] && break
+    confirm "Wirklich ohne Fernwartung fortfahren?" && break
+  done
   if [ -n "$WG_ADDRESS" ]; then
     ask WG_SERVER_ENDPOINT "Wartungsserver (Host:Port)" "$WG_SERVER_ENDPOINT"
     INSTALL_WIREGUARD=1
