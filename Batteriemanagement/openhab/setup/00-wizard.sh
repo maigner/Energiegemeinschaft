@@ -312,7 +312,20 @@ if confirm "WireGuard-Fernwartung einrichten?"; then
   fi
 fi
 
-# --- 12. Schreiben ----------------------------------------------------------
+# --- 12. SSH absichern ------------------------------------------------------
+INSTALL_SSH_HARDENING=0
+
+echo "[IBM]"
+echo "[IBM] openHABian kommt mit dem allgemein bekannten Standardpasswort"
+echo "[IBM] 'openhabian'. Das Setup kann die SSH-Anmeldung auf Schluessel"
+echo "[IBM] umstellen (Wartungsschluessel von ischlstrom.org) und die"
+echo "[IBM] Passwort-Anmeldung abschalten. Abgeschaltet wird nur, wenn ein"
+echo "[IBM] Schluessel eingetragen ist - ausgesperrt wird niemand."
+if confirm "SSH absichern (Anmeldung nur noch per Schluessel)?"; then
+  INSTALL_SSH_HARDENING=1
+fi
+
+# --- 13. Schreiben ----------------------------------------------------------
 umask 022
 cat > "$IBM_CONF" <<EOF
 # ============================================================================
@@ -387,6 +400,13 @@ WATCHDOG_COOLDOWN_MIN=10
 INSTALL_WIREGUARD=${INSTALL_WIREGUARD}
 WG_ADDRESS="${WG_ADDRESS}"
 WG_SERVER_ENDPOINT="${WG_SERVER_ENDPOINT}"
+
+# --- SSH-Haertung -----------------------------------------------------------
+# 09-harden-ssh.sh traegt den Wartungsschluessel (und eine optionale
+# Benutzer-CA) fuer WG_SSH_USER ein und schaltet danach die Passwort-
+# Anmeldung von sshd ab. Abgeschaltet wird nur, wenn mindestens ein
+# Schluessel eingerichtet ist.
+INSTALL_SSH_HARDENING=${INSTALL_SSH_HARDENING}
 EOF
 
 log "Konfiguration geschrieben: $IBM_CONF"
@@ -406,5 +426,6 @@ cat <<ZUSAMMENFASSUNG
 [IBM]   Watchdog       : $([ "$INSTALL_WATCHDOG" = "1" ] && echo "ja (${INVERTER_HOST_THING_UID})" || echo "nein")
 [IBM]   Overview-Seite : $([ "$INSTALL_OVERVIEW" = "1" ] && echo "ja" || echo "nein")
 [IBM]   Fernwartung    : $([ "$INSTALL_WIREGUARD" = "1" ] && echo "ja (${WG_ADDRESS} -> ${WG_SERVER_ENDPOINT})" || echo "nein")
+[IBM]   SSH-Haertung   : $([ "$INSTALL_SSH_HARDENING" = "1" ] && echo "ja (nur Schluessel-Anmeldung)" || echo "nein")
 [IBM]
 ZUSAMMENFASSUNG

@@ -179,6 +179,9 @@ load_config() {
   WG_SERVER_PUBLIC_KEY="${WG_SERVER_PUBLIC_KEY:-}"
   WG_SSH_USER="${WG_SSH_USER:-openhabian}"
 
+  # SSH-Haertung (aeltere ibm.conf kennt die Option noch nicht)
+  INSTALL_SSH_HARDENING="${INSTALL_SSH_HARDENING:-0}"
+
   load_profile "$INVERTER_TYPE"
 }
 

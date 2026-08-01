@@ -10,8 +10,8 @@
 #
 # Braucht in ibm.conf: INSTALL_WIREGUARD=1 und WG_ADDRESS (die eindeutige
 # Tunnel-IP der Anlage, vergibt der Wartungsserver). Den Public Key des
-# Servers und den SSH-Wartungsschluessel laedt das Skript von
-# <IBM_API_BASE>/ibm/, falls nicht in ibm.conf gesetzt.
+# Servers laedt das Skript von <IBM_API_BASE>/ibm/, falls nicht in ibm.conf
+# gesetzt. Den SSH-Wartungsschluessel traegt 09-harden-ssh.sh ein.
 #
 # Am Ende wird der Public Key des Pi angezeigt - er muss auf dem
 # Wartungsserver als Peer eingetragen werden (siehe README, Abschnitt
@@ -126,37 +126,9 @@ else
   log "Tunnel gestartet."
 fi
 
-# --- SSH-Wartungsschluessel -------------------------------------------------
-# Damit die Fernwartung nicht am Passwort scheitert, wird der unter
-# <IBM_API_BASE>/ibm/ssh-maintainer.pub veroeffentlichte Schluessel in die
-# authorized_keys des Wartungsbenutzers eingetragen (WG_SSH_USER, Vorgabe
-# 'openhabian'; leer = ueberspringen).
-if [ -n "$WG_SSH_USER" ]; then
-  ssh_home="$(getent passwd "$WG_SSH_USER" | cut -d: -f6 || true)"
-  if [ -z "$ssh_home" ]; then
-    warn "Benutzer '$WG_SSH_USER' nicht gefunden - SSH-Wartungsschluessel nicht eingetragen."
-  else
-    ssh_key="$(curl -fsSL "$IBM_API_BASE/ibm/ssh-maintainer.pub" 2>/dev/null | head -n1 || true)"
-    if [ -z "$ssh_key" ]; then
-      log "Kein SSH-Wartungsschluessel unter $IBM_API_BASE/ibm/ssh-maintainer.pub - uebersprungen."
-    else
-      akfile="$ssh_home/.ssh/authorized_keys"
-      mkdir -p "$ssh_home/.ssh"
-      chmod 700 "$ssh_home/.ssh"
-      touch "$akfile"
-      chmod 600 "$akfile"
-      chown -R "$WG_SSH_USER:" "$ssh_home/.ssh" 2>/dev/null || true
-      if grep -qxF "$ssh_key" "$akfile"; then
-        log "SSH-Wartungsschluessel bereits eingetragen: $akfile"
-      else
-        printf '%s\n' "$ssh_key" >> "$akfile"
-        log "SSH-Wartungsschluessel eingetragen: $akfile"
-      fi
-    fi
-  fi
-fi
-
 # --- Ergebnis ---------------------------------------------------------------
+# Den SSH-Wartungsschluessel (und die Abschaltung der Passwort-Anmeldung)
+# uebernimmt 09-harden-ssh.sh.
 cat <<INFO
 [IBM]
 [IBM] ===========================================================

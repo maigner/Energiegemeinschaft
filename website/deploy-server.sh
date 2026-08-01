@@ -1,15 +1,42 @@
 #!/bin/bash
-# Deploy der Website auf den Server:
+# Deploy der Website:
 #   1. IBM-Paket bauen (landet in static/ibm/)
-#   2. Dateien per rsync auf den Server kopieren
-#   3. Docker-Container auf dem Server neu bauen und starten
+#   2. Dateien per rsync auf den Zielserver kopieren
+#   3. Docker-Container auf dem Zielserver neu bauen und starten
+#
+# Ziele:
+#   ./deploy-server.sh          Heimserver ("server", bisheriges Verhalten)
+#   ./deploy-server.sh s1       s1.ischlstrom.org (Wartungsserver, Hetzner)
+#
+# Je Ziel kann eine eigene Umgebungsdatei liegen (.env.s1 usw.) - sie wird
+# auf dem Server als .env abgelegt. Ohne ziel-spezifische Datei gilt .env.
+# Abweichender SSH-Benutzer: DEPLOY_USER=<name> ./deploy-server.sh s1
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 remote_dir="~/Container/ischlstrom/website"
 
+target="${1:-server}"
+case "$target" in
+  server) ssh_dest="${DEPLOY_USER:-martin}@server" ;;
+  s1)     ssh_dest="${DEPLOY_USER:-martin}@s1.ischlstrom.org" ;;
+  *)      echo "Unbekanntes Ziel: $target (moeglich: server, s1)" >&2; exit 1 ;;
+esac
+
+env_file="$here/.env"
+if [ -f "$here/.env.$target" ]; then
+  env_file="$here/.env.$target"
+fi
+[ -f "$env_file" ] || { echo "Umgebungsdatei fehlt: $env_file" >&2; exit 1; }
+
+echo "Deploy nach $ssh_dest (Umgebung: $(basename "$env_file"))"
+
 "$here/../Batteriemanagement/openhab/setup/build-dist.sh"
 
-rsync -av --delete "$here/" "martin@server:$remote_dir/"
+# .env-Dateien werden nicht mitsynchronisiert - unten landet genau die
+# passende Datei als .env auf dem Server (--delete loescht Ausgeschlossenes
+# auf der Gegenseite nicht).
+rsync -av --delete --exclude='.env' --exclude='.env.*' "$here/" "$ssh_dest:$remote_dir/"
+rsync -av "$env_file" "$ssh_dest:$remote_dir/.env"
 
-ssh martin@server "cd $remote_dir && ./update-docker-container.sh"
+ssh "$ssh_dest" "cd $remote_dir && ./update-docker-container.sh"

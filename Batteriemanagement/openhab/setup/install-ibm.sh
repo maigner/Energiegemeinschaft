@@ -16,7 +16,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 require_root
 require_openhab
 
-log "=== Schritt 1/10: Konfiguration ==="
+log "=== Schritt 1/11: Konfiguration ==="
 if [ -f "$IBM_CONF" ]; then
   log "Konfiguration vorhanden: $IBM_CONF"
   log "Neu erfassen mit: sudo $here/00-wizard.sh"
@@ -26,36 +26,40 @@ fi
 
 load_config
 
-log "=== Schritt 2/10: Zeitzone ==="
+log "=== Schritt 2/11: Zeitzone ==="
 ensure_timezone
 
-log "=== Schritt 3/10: Preflight ==="
+log "=== Schritt 3/11: Preflight ==="
 if ! "$here/01-preflight.sh"; then
   warn "Preflight meldet Probleme."
   confirm "Trotzdem fortfahren?" || die "Abgebrochen."
 fi
 
-log "=== Schritt 4/10: Addons ==="
+log "=== Schritt 4/11: Addons ==="
 "$here/02-install-addons.sh"
 
-log "=== Schritt 5/10: Items und Persistence ==="
+log "=== Schritt 5/11: Items und Persistence ==="
 "$here/03-install-items.sh"
 
-log "=== Schritt 6/10: Regeln ==="
+log "=== Schritt 6/11: Regeln ==="
 "$here/04-install-rules.sh"
 
-log "=== Schritt 7/10: Overview-Seite ==="
+log "=== Schritt 7/11: Overview-Seite ==="
 "$here/05-install-overview.sh" \
   || warn "Overview-Seite nicht installiert - spaeter erneut: sudo $here/05-install-overview.sh"
 
-log "=== Schritt 8/10: Verify ==="
+log "=== Schritt 8/11: Verify ==="
 "$here/06-verify.sh" || warn "Verify meldet Probleme - siehe oben."
 
-log "=== Schritt 9/10: WireGuard-Fernwartung ==="
+log "=== Schritt 9/11: WireGuard-Fernwartung ==="
 "$here/08-install-wireguard.sh" \
   || warn "Fernwartung nicht eingerichtet - spaeter erneut: sudo $here/08-install-wireguard.sh"
 
-log "=== Schritt 10/10: openHAB Cloud (myopenhab.org) ==="
+log "=== Schritt 10/11: SSH absichern ==="
+"$here/09-harden-ssh.sh" \
+  || warn "SSH nicht abgesichert - spaeter erneut: sudo $here/09-harden-ssh.sh"
+
+log "=== Schritt 11/11: openHAB Cloud (myopenhab.org) ==="
 "$here/07-myopenhab.sh" \
   || warn "openHAB Cloud noch nicht abgeschlossen - spaeter erneut: sudo $here/07-myopenhab.sh"
 

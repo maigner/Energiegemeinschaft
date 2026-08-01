@@ -147,7 +147,16 @@ WG_SERVER_ENDPOINT="s1.ischlstrom.org:51820"
 # <IBM_API_BASE>/ibm/wg-server.pub geladen.
 WG_SERVER_PUBLIC_KEY=""
 
-# Benutzer, in dessen authorized_keys der veroeffentlichte
-# SSH-Wartungsschluessel (<IBM_API_BASE>/ibm/ssh-maintainer.pub)
-# eingetragen wird. Leer = keinen Schluessel eintragen.
+# Benutzer, in dessen authorized_keys 09-harden-ssh.sh den veroeffentlichten
+# SSH-Wartungsschluessel (<IBM_API_BASE>/ibm/ssh-maintainer.pub) eintraegt.
 WG_SSH_USER="openhabian"
+
+# --- SSH-Haertung -----------------------------------------------------------
+# 09-harden-ssh.sh traegt den Wartungsschluessel fuer WG_SSH_USER ein,
+# uebernimmt eine optionale Benutzer-CA (<IBM_API_BASE>/ibm/ssh-user-ca.pub,
+# TrustedUserCAKeys) und schaltet danach die Passwort-Anmeldung von sshd ab -
+# das openHABian-Standardpasswort 'openhabian' ist allgemein bekannt.
+# Aussperrschutz: abgeschaltet wird nur, wenn mindestens ein Schluessel oder
+# die CA eingerichtet ist; vorher prueft 'sshd -t' die neue Konfiguration.
+# Die Konsole (Tastatur/Monitor) ist nicht betroffen.
+INSTALL_SSH_HARDENING=1
