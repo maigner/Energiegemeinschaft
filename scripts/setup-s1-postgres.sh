@@ -27,9 +27,16 @@ sql_escape() { printf %s "$1" | sed "s/'/''/g"; }
 mw_pwd="$(sql_escape "$MIDDLEWARE_DB_PASSWORD")"
 aj_pwd="$(sql_escape "$AUTHJS_DB_PASSWORD")"
 
-echo "Lege Rollen und Datenbanken auf $S1 an ..."
+echo "Lege Rollen und Datenbanken auf $S1 an (sudo fragt gleich nach dem Passwort) ..."
 
-ssh "$S1" 'sudo -u postgres psql -v ON_ERROR_STOP=1' <<SQL
+# Das SQL enthaelt die Passwoerter und darf deshalb weder auf die
+# Kommandozeile (ps!) noch auf die Standardeingabe von ssh - dort haengt
+# sonst die Passwortabfrage von sudo ("a terminal is required").
+# Also: als 0600-Datei hochladen, mit TTY (-t) ausfuehren, wieder loeschen.
+# Die Umleitung '<' oeffnet die Datei als SSH-Benutzer, nicht als postgres.
+sql_tmp="$(mktemp)"
+trap 'rm -f "$sql_tmp"' EXIT
+cat > "$sql_tmp" <<SQL
 SELECT 'CREATE ROLE ischlstrom_middleware LOGIN'
   WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ischlstrom_middleware')\gexec
 ALTER ROLE ischlstrom_middleware WITH LOGIN PASSWORD '${mw_pwd}';
@@ -48,5 +55,8 @@ SELECT 'CREATE DATABASE ischlstrom_authjs_website OWNER ischlstrom_authjs_websit
 ALTER DATABASE ischlstrom_middleware SET timezone TO 'Europe/Vienna';
 ALTER DATABASE ischlstrom_authjs_website SET timezone TO 'Europe/Vienna';
 SQL
+
+scp -q "$sql_tmp" "$S1:.setup-s1-postgres.sql"
+ssh -t "$S1" 'sudo -u postgres psql -v ON_ERROR_STOP=1 < ~/.setup-s1-postgres.sql; rc=$?; rm -f ~/.setup-s1-postgres.sql; exit $rc'
 
 echo "Fertig. Naechster Schritt: export-server-db-*.sh, dann restore-s1-db-*.sh"

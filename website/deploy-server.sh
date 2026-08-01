@@ -18,8 +18,9 @@ remote_dir="~/Container/ischlstrom/website"
 
 target="${1:-server}"
 case "$target" in
-  server) ssh_dest="${DEPLOY_USER:-martin}@server" ;;
-  s1)     ssh_dest="${DEPLOY_USER:-martin}@s1.ischlstrom.org" ;;
+  server) ssh_dest="${DEPLOY_USER:-martin}@server";            host_port=3000 ;;
+  # 3001: auf s1 belegt openHAB Cloud den Port 3000
+  s1)     ssh_dest="${DEPLOY_USER:-martin}@s1.ischlstrom.org"; host_port=3001 ;;
   *)      echo "Unbekanntes Ziel: $target (moeglich: server, s1)" >&2; exit 1 ;;
 esac
 
@@ -39,4 +40,4 @@ echo "Deploy nach $ssh_dest (Umgebung: $(basename "$env_file"))"
 rsync -av --delete --exclude='.env' --exclude='.env.*' "$here/" "$ssh_dest:$remote_dir/"
 rsync -av "$env_file" "$ssh_dest:$remote_dir/.env"
 
-ssh "$ssh_dest" "cd $remote_dir && ./update-docker-container.sh"
+ssh "$ssh_dest" "cd $remote_dir && HOST_PORT=$host_port ./update-docker-container.sh"
