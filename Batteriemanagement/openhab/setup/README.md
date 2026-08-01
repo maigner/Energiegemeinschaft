@@ -96,6 +96,7 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 | `07-myopenhab.sh` | Zeigt UUID und Secret fuer die Registrierung auf myopenhab.org an (wartet ggf. auf das Cloud-Addon). Aendert nichts. |
 | `08-install-wireguard.sh` | Richtet den WireGuard-Tunnel zum Wartungsserver ein (siehe [Fernwartung](#fernwartung-wireguard)). |
 | `09-harden-ssh.sh` | Traegt den SSH-Wartungsschluessel (und eine optionale Benutzer-CA) ein und schaltet die Passwort-Anmeldung von sshd ab (siehe [SSH absichern](#ssh-absichern-nur-schluessel-anmeldung)). |
+| `10-change-passwords.sh` | Aendert die Standardpasswoerter des Linux-Benutzers `openhabian` und der Karaf-Konsole (siehe [Standardpasswoerter aendern](#standardpasswoerter-aendern)). |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
 
 `install-ibm.sh` setzt ausserdem die Zeitzone auf `Europe/Vienna` — sowohl die
@@ -450,8 +451,9 @@ Schluessel in den `authorized_keys` steht oder die Benutzer-CA installiert
 ist; ausserdem prueft `sshd -t` die neue Konfiguration und bei einem Fehler
 wird sie zurueckgerollt. Vor dem Bestaetigen die Schluessel-Anmeldung am
 besten in einem zweiten Terminal testen. Die Konsole (Tastatur/Monitor am
-Pi) ist nicht betroffen — dort gilt das Passwort weiter, deshalb trotzdem
-`passwd` ausfuehren und das Standardpasswort aendern.
+Pi) ist nicht betroffen — dort gilt das Passwort weiter, deshalb zusaetzlich
+das Standardpasswort aendern lassen (siehe
+[Standardpasswoerter aendern](#standardpasswoerter-aendern)).
 
 ### Einmalig auf dem Wartungsserver
 
@@ -492,6 +494,36 @@ einzutragen. Abgelaufene Zertifikate verlieren ihre Gueltigkeit von selbst.
 `sudo /opt/ischlstrom/openhab/setup/09-harden-ssh.sh` ausfuehren.
 Rueckgaengig machen: `/etc/ssh/sshd_config.d/90-ibm-hardening.conf` loeschen
 und `sudo systemctl reload ssh`.
+
+## Standardpasswoerter aendern
+
+Auf Wunsch (Frage im Assistenten, `INSTALL_PASSWORD_CHANGE=1`) aendert
+`10-change-passwords.sh` die allgemein bekannten Standardpasswoerter von
+openHABian - und zwar nur dort, wo sie noch gelten; selbst gesetzte
+Passwoerter bleiben unangetastet, ein erneuter Lauf ist gefahrlos:
+
+- **Linux-Benutzer `openhabian`** (Passwort `openhabian`; gilt fuer SSH,
+  Konsole und Samba): Das neue Passwort wird bei der Installation abgefragt
+  oder aus der Umgebungsvariable `IBM_NEW_PASSWORD` uebernommen (mindestens
+  8 Zeichen). Ist der Benutzer bei Samba eingerichtet, wird das
+  Samba-Passwort mitgeaendert. Ohne Eingabe und ohne `IBM_NEW_PASSWORD`
+  (z. B. bei `IBM_ASSUME_YES=1`) bleibt das Passwort unveraendert - es wird
+  nichts erraten und nichts ins Log geschrieben, nur gewarnt.
+- **Karaf-Konsole, Benutzer `openhab`** (Passwort `habopen`, in
+  `/var/lib/openhab/etc/users.properties` je nach openHAB-Version im
+  Klartext oder als SHA-256-Hash abgelegt - beides wird erkannt): Wird
+  durch ein zufaellig
+  erzeugtes Passwort ersetzt und einmalig angezeigt (alternativ
+  `IBM_NEW_CONSOLE_PASSWORD`, nur Buchstaben und Ziffern). Die Konsole ist
+  nur von localhost erreichbar; geht das Passwort verloren, laesst es sich
+  als root in `users.properties` jederzeit neu setzen.
+
+Passwoerter stehen nie in `ibm.conf` - das Skript fragt zur Laufzeit bzw.
+liest die genannten Umgebungsvariablen.
+
+**Nachruesten** bei bestehender Installation: `INSTALL_PASSWORD_CHANGE=1` in
+`ibm.conf` eintragen, dann
+`sudo /opt/ischlstrom/openhab/setup/10-change-passwords.sh` ausfuehren.
 
 ## Warum die Skripte umgebaut werden
 

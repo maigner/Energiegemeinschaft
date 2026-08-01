@@ -325,7 +325,21 @@ if confirm "SSH absichern (Anmeldung nur noch per Schluessel)?"; then
   INSTALL_SSH_HARDENING=1
 fi
 
-# --- 13. Schreiben ----------------------------------------------------------
+# --- 13. Standardpasswoerter --------------------------------------------------
+INSTALL_PASSWORD_CHANGE=0
+
+echo "[IBM]"
+echo "[IBM] Die Standardpasswoerter gelten auch abseits von SSH: fuer die"
+echo "[IBM] Anmeldung an der Konsole (Tastatur/Monitor), fuer Samba und fuer"
+echo "[IBM] die Karaf-Konsole von openHAB. Das Setup kann sie aendern: das"
+echo "[IBM] Passwort des Linux-Benutzers wird bei der Installation abgefragt,"
+echo "[IBM] das der Karaf-Konsole zufaellig erzeugt und einmalig angezeigt."
+echo "[IBM] Geaendert wird nur, was noch auf dem Standardwert steht."
+if confirm "Standardpasswoerter aendern (Linux-Benutzer und Karaf-Konsole)?"; then
+  INSTALL_PASSWORD_CHANGE=1
+fi
+
+# --- 14. Schreiben ----------------------------------------------------------
 umask 022
 cat > "$IBM_CONF" <<EOF
 # ============================================================================
@@ -407,6 +421,13 @@ WG_SERVER_ENDPOINT="${WG_SERVER_ENDPOINT}"
 # Anmeldung von sshd ab. Abgeschaltet wird nur, wenn mindestens ein
 # Schluessel eingerichtet ist.
 INSTALL_SSH_HARDENING=${INSTALL_SSH_HARDENING}
+
+# --- Standardpasswoerter ------------------------------------------------------
+# 10-change-passwords.sh aendert die Standardpasswoerter des Linux-Benutzers
+# 'openhabian' (wird bei der Installation abgefragt bzw. IBM_NEW_PASSWORD;
+# Samba wird mitgeaendert) und der Karaf-Konsole (wird zufaellig erzeugt und
+# einmalig angezeigt). Passwoerter selbst stehen nie in dieser Datei.
+INSTALL_PASSWORD_CHANGE=${INSTALL_PASSWORD_CHANGE}
 EOF
 
 log "Konfiguration geschrieben: $IBM_CONF"
@@ -427,5 +448,6 @@ cat <<ZUSAMMENFASSUNG
 [IBM]   Overview-Seite : $([ "$INSTALL_OVERVIEW" = "1" ] && echo "ja" || echo "nein")
 [IBM]   Fernwartung    : $([ "$INSTALL_WIREGUARD" = "1" ] && echo "ja (${WG_ADDRESS} -> ${WG_SERVER_ENDPOINT})" || echo "nein")
 [IBM]   SSH-Haertung   : $([ "$INSTALL_SSH_HARDENING" = "1" ] && echo "ja (nur Schluessel-Anmeldung)" || echo "nein")
+[IBM]   Passwoerter    : $([ "$INSTALL_PASSWORD_CHANGE" = "1" ] && echo "Standardpasswoerter werden geaendert" || echo "unveraendert")
 [IBM]
 ZUSAMMENFASSUNG

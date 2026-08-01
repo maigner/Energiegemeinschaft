@@ -213,5 +213,6 @@ if [ "$ca_installed" = "1" ]; then
 fi
 log ""
 log "An der Konsole (Tastatur/Monitor) gilt das Passwort weiterhin -"
-log "das Standardpasswort daher trotzdem aendern: passwd"
+log "das Standardpasswort aendert 10-change-passwords.sh"
+log "(INSTALL_PASSWORD_CHANGE=1 in ibm.conf) oder von Hand: passwd"
 log ""

@@ -182,6 +182,9 @@ load_config() {
   # SSH-Haertung (aeltere ibm.conf kennt die Option noch nicht)
   INSTALL_SSH_HARDENING="${INSTALL_SSH_HARDENING:-0}"
 
+  # Standardpasswoerter (aeltere ibm.conf kennt die Option noch nicht)
+  INSTALL_PASSWORD_CHANGE="${INSTALL_PASSWORD_CHANGE:-0}"
+
   load_profile "$INVERTER_TYPE"
 }
 
