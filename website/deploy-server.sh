@@ -5,23 +5,23 @@
 #   3. Docker-Container auf dem Zielserver neu bauen und starten
 #
 # Ziele:
-#   ./deploy-server.sh          Heimserver ("server", bisheriges Verhalten)
-#   ./deploy-server.sh s1       s1.ischlstrom.org (Wartungsserver, Hetzner)
+#   ./deploy-server.sh          s1.ischlstrom.org (Produktivserver, Hetzner)
+#   ./deploy-server.sh server   Heimserver (nur Notfall, falls s1 ausfaellt)
 #
 # Je Ziel kann eine eigene Umgebungsdatei liegen (.env.s1 usw.) - sie wird
 # auf dem Server als .env abgelegt. Ohne ziel-spezifische Datei gilt .env.
-# Abweichender SSH-Benutzer: DEPLOY_USER=<name> ./deploy-server.sh s1
+# Abweichender SSH-Benutzer: DEPLOY_USER=<name> ./deploy-server.sh
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 remote_dir="~/Container/ischlstrom/website"
 
-target="${1:-server}"
+target="${1:-s1}"
 case "$target" in
-  server) ssh_dest="${DEPLOY_USER:-martin}@server";            host_port=3000 ;;
   # 3001: auf s1 belegt openHAB Cloud den Port 3000
   s1)     ssh_dest="${DEPLOY_USER:-martin}@s1.ischlstrom.org"; host_port=3001 ;;
-  *)      echo "Unbekanntes Ziel: $target (moeglich: server, s1)" >&2; exit 1 ;;
+  server) ssh_dest="${DEPLOY_USER:-martin}@server";            host_port=3000 ;;
+  *)      echo "Unbekanntes Ziel: $target (moeglich: s1, server)" >&2; exit 1 ;;
 esac
 
 env_file="$here/.env"

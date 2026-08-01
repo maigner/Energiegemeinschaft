@@ -28,13 +28,13 @@ IBM-Anlagen (10.88.0.11 ff.) und der SSH-Sprungpunkt zu ihnen
 
 ```bash
 cd website
-./deploy-server.sh s1        # rsync + Docker-Build + Start auf s1
+./deploy-server.sh           # rsync + Docker-Build + Start auf s1 (Standard)
 ```
 
 Je Ziel gilt eine eigene Umgebungsdatei: `.env.s1` (gitignored) landet auf
 s1 als `.env`; darin zeigen die DB-Hosts auf `172.17.0.1` (Docker-Bridge,
-also das PostgreSQL des Hosts). Das alte Ziel `./deploy-server.sh` (ohne
-Argument) deployt weiterhin auf den Heimserver.
+also das PostgreSQL des Hosts). `./deploy-server.sh server` deployt auf
+den Heimserver - nur fuer den Notfall, falls s1 ausfaellt.
 
 ## Datenbanken
 
