@@ -1,7 +1,20 @@
 # Energiegemeinschaft
 
-## digital infrastructure of ischlstrom.org
+Digital infrastructure of [ischlstrom.org](https://ischlstrom.org), an Austrian energy community (Energiegemeinschaft / EEG).
 
-* middleware: database model
-* motebooks: analysis, accounting...
-* website: our website
+## Repository layout
+
+* **website/** - SvelteKit 5 app: public site plus authenticated member, board and finance portals. The main deployed application (Docker, adapter-node).
+* **middleware/** - Django project that owns and migrates the shared "middleware" PostgreSQL schema and provides the Django admin. The website reads and writes this database directly.
+* **notebooks/** - Jupyter notebooks for accounting and SEPA XML generation (`finance/`), energy data import and analysis (`energyData/`, `eegfaktura/`), energy forecasting (`forecast/`) and weather import (`weather/`). See `notebooks/README.md`.
+* **Batteriemanagement/** - OpenHAB scripts for battery control.
+* **scripts/** - Shell scripts for database export, restore and backup.
+* **docs/** - Server setup documentation.
+
+## Architecture notes
+
+* Two shared PostgreSQL databases: the middleware DB (schema managed by Django, used directly by the website via `pg`) and a separate Auth.js DB for sessions and users. In addition, per-member OpenHAB databases hold smart-meter and battery time series.
+* Secrets and DB credentials live in gitignored files: `website/.env`, `.pg_service.conf`, `.pgpass`.
+* Timezone is Europe/Vienna throughout.
+
+See `CLAUDE.md` for a more detailed developer overview and common commands.
