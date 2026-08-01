@@ -16,8 +16,9 @@ INVERTER_BINDING="fronius"
 # Praefix der Thing-UID, an dem der Wechselrichter in der JSONDB erkannt wird
 INVERTER_THING_PREFIX="fronius:powerinverter"
 
-# Channel, der den Batterie-Ladestand liefert
-INVERTER_SOC_CHANNEL="soc"
+# Channel, der den Batterie-Ladestand liefert ("Battery State of Charge";
+# bis openHAB 4 hiess der Channel "soc")
+INVERTER_SOC_CHANNEL="powerflowinvertersoc"
 
 # Channel, der die aktuelle Batterieleistung liefert (+ entladen, - laden)
 INVERTER_BATTERY_POWER_CHANNEL="powerflowchannelpakku"
@@ -47,4 +48,29 @@ INVERTER_SOC_PLACEHOLDER="Fronius_Symo_Inverter_Battery_State_of_Charge"
 INVERTER_BATTERY_POWER_PLACEHOLDER="Fronius_Symo_Inverter_Battery_Power"
 
 # Hinweis, der im Assistenten und am Ende der Installation angezeigt wird
-INVERTER_NOTES="Im Fronius Thing muessen Benutzername und Passwort des Wechselrichters hinterlegt sein - ohne Credentials stellt das Binding die Batterie-Actions nicht bereit."
+INVERTER_NOTES="Im Fronius Thing muessen Benutzername und Passwort des Wechselrichters hinterlegt sein - ohne Credentials stellt das Binding die Batterie-Actions nicht bereit. Bei der automatischen Einrichtung traegt das Setup beides selbst ein."
+
+# --- Automatisches Anlegen der Things (02b-install-things.sh) ----------------
+
+# Vorgabe fuer den Benutzernamen am Wechselrichter (Batteriesteuerung)
+INVERTER_DEFAULT_USERNAME="customer"
+
+# Namen der Config-Parameter fuer die Zugangsdaten im Bridge-Thing
+INVERTER_USER_PARAM="username"
+INVERTER_PASSWORD_PARAM="password"
+
+# Zusaetzliche Konfiguration des Wechselrichter-Things (JSON-Objektinhalt)
+INVERTER_THING_EXTRA_CONFIG='"deviceId": 1'
+
+# Sucht Fronius-Geraete im eigenen /24-Netz (Solar-API-Endpunkt), eine IP je
+# Zeile. Gleiche Erkennung wie rediscover.sh.
+inverter_scan_hosts() {
+  local own_cidr base
+  own_cidr="$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4; exit}')"
+  [ -n "$own_cidr" ] || return 0
+  base="${own_cidr%/*}"; base="${base%.*}"
+  seq 1 254 | xargs -P 32 -I'{}' sh -c '
+    if curl -sf -m 2 --connect-timeout 1 "http://$1/solar_api/GetAPIVersion.cgi" 2>/dev/null | grep -q "\"APIVersion\""; then
+      echo "$1"
+    fi' _ "${base}.{}"
+}

@@ -57,6 +57,64 @@ load_profile "$inverter_type"
 # --- 2. Thing-UID -----------------------------------------------------------
 mapfile -t thing_candidates < <(detect_thing_uids)
 
+# --- 2a. Automatisches Anlegen ------------------------------------------------
+# Gibt es noch kein Thing, kann das Setup den Wechselrichter selbst anlegen:
+# Adresse im Netz suchen, Bridge- und Wechselrichter-Thing per REST anlegen
+# (02b-install-things.sh) und die Batterie-Items in ibm.items verknuepfen
+# (03-install-items.sh) - die Main UI wird dafuer nicht gebraucht.
+AUTO_CREATE_THING=0
+INVERTER_HOST=""
+INVERTER_USERNAME=""
+INVERTER_PASSWORD=""
+
+if [ "${#thing_candidates[@]}" -eq 0 ] && [ -n "$INVERTER_HOST_THING_PREFIX" ]; then
+  echo "[IBM]"
+  echo "[IBM] Kein Wechselrichter-Thing gefunden. Das Setup kann den"
+  echo "[IBM] Wechselrichter komplett selbst anlegen: es sucht ihn im lokalen"
+  echo "[IBM] Netz, legt Bridge- und Wechselrichter-Thing in openHAB an und"
+  echo "[IBM] verknuepft die Batterie-Items - ohne einen Schritt in der Main UI."
+  if confirm "Wechselrichter automatisch anlegen (empfohlen)?"; then
+    AUTO_CREATE_THING=1
+
+    if type inverter_scan_hosts >/dev/null 2>&1; then
+      log "Suche ${INVERTER_LABEL} im lokalen Netz (dauert einen Moment) ..."
+      mapfile -t scan_hosts < <(inverter_scan_hosts 2>/dev/null || true)
+    else
+      scan_hosts=()
+    fi
+    host_scan_default="${scan_hosts[0]:-}"
+    if [ "${#scan_hosts[@]}" -gt 1 ]; then
+      echo "[IBM] Mehrere Geraete gefunden:"
+      printf '[IBM]   %s\n' "${scan_hosts[@]}"
+    elif [ "${#scan_hosts[@]}" -eq 1 ]; then
+      log "Wechselrichter gefunden: $host_scan_default"
+    else
+      warn "Kein Geraet im Netz gefunden - Adresse bitte von Hand angeben."
+    fi
+    ask INVERTER_HOST "IP-Adresse/Hostname des Wechselrichters" "$host_scan_default"
+    [ -n "$INVERTER_HOST" ] || die "Ohne Adresse kann das Thing nicht angelegt werden."
+
+    if [ -n "$INVERTER_USER_PARAM" ]; then
+      echo "[IBM] Fuer die Batteriesteuerung braucht das Binding die Zugangsdaten"
+      echo "[IBM] des Wechselrichters (Anmeldung an dessen Weboberflaeche)."
+      ask INVERTER_USERNAME "Benutzername am Wechselrichter" "$INVERTER_DEFAULT_USERNAME"
+      ask_secret INVERTER_PASSWORD "Passwort am Wechselrichter (leer = spaeter im Bridge-Thing nachtragen)"
+      [ -n "$INVERTER_PASSWORD" ] \
+        || warn "Ohne Passwort stellt das Binding keine Batterie-Actions bereit."
+    fi
+
+    INVERTER_THING_UID="${INVERTER_THING_PREFIX}:ibm:inverter1"
+    SOC_ITEM="$INVERTER_SOC_PLACEHOLDER"
+    BATTERY_POWER_ITEM="$INVERTER_BATTERY_POWER_PLACEHOLDER"
+    log "Thing-UID: $INVERTER_THING_UID"
+    log "Ladestands-Item: $SOC_ITEM"
+  fi
+fi
+
+# Ohne automatisches Anlegen: bestehendes Thing und Items suchen bzw. den
+# klassischen Weg ueber die Main UI anbieten (Abschnitte 2, 3 und 3b).
+if [ "$AUTO_CREATE_THING" != "1" ]; then
+
 if [ "${#thing_candidates[@]}" -eq 1 ]; then
   thing_default="${thing_candidates[0]}"
   log "Wechselrichter erkannt: $thing_default"
@@ -160,6 +218,8 @@ if [ -n "$INVERTER_BATTERY_POWER_PLACEHOLDER" ]; then
   ask BATTERY_POWER_ITEM "Item mit der Batterieleistung" "$power_default"
 fi
 
+fi # Ende des manuellen Wegs (AUTO_CREATE_THING != 1)
+
 # --- 4. API -----------------------------------------------------------------
 ask IBM_API_BASE "Basis-URL der ischlstrom API" "https://ischlstrom.org"
 
@@ -224,12 +284,22 @@ fi
 
 # --- 8. openHAB-API-Token ---------------------------------------------------
 OH_API_TOKEN=""
-echo "[IBM]"
-echo "[IBM] Netzwerk-Watchdog und Overview-Seite schreiben ueber die REST API."
-echo "[IBM] Dafuer wird ein openHAB-API-Token eines Admin-Benutzers benoetigt"
-echo "[IBM] (Main UI -> links unten auf den Benutzernamen klicken ->"
-echo "[IBM] 'Create new API token')."
-ask OH_API_TOKEN "openHAB-API-Token (leer = Watchdog und Overview ueberspringen)" ""
+if [ "$AUTO_CREATE_THING" = "1" ]; then
+  # Bei der automatischen Einrichtung erzeugt das Setup das Token selbst
+  # ueber die Karaf-Konsole (ensure_api_token in 02b-install-things.sh).
+  OH_API_TOKEN="auto"
+  echo "[IBM]"
+  log "openHAB-API-Token wird bei der Installation automatisch erzeugt."
+else
+  echo "[IBM]"
+  echo "[IBM] Netzwerk-Watchdog und Overview-Seite schreiben ueber die REST API."
+  echo "[IBM] Dafuer wird ein openHAB-API-Token eines Admin-Benutzers benoetigt."
+  echo "[IBM] 'auto' = das Setup erzeugt selbst eines (ueber die Karaf-Konsole,"
+  echo "[IBM] braucht einen Admin-Benutzer in openHAB); alternativ ein Token aus"
+  echo "[IBM] der Main UI eintragen (Benutzername links unten ->"
+  echo "[IBM] 'Create new API token')."
+  ask OH_API_TOKEN "openHAB-API-Token (leer = Watchdog und Overview ueberspringen)" "auto"
+fi
 
 # --- 9. Netzwerk-Watchdog ---------------------------------------------------
 INSTALL_WATCHDOG=0
@@ -246,6 +316,12 @@ elif [ -n "$INVERTER_REDISCOVER_SCRIPT" ] && [ -n "$INVERTER_HOST_THING_PREFIX" 
   echo "[IBM] openHAB die Verbindung. Der Netzwerk-Watchdog sucht in dem Fall das"
   echo "[IBM] lokale Netz ab und traegt die neue Adresse selbst in das Thing ein."
   if confirm "Netzwerk-Watchdog einrichten?"; then
+    if [ "$AUTO_CREATE_THING" = "1" ]; then
+      # Die Bridge legt 02b-install-things.sh unter dieser UID an.
+      INVERTER_HOST_THING_UID="${INVERTER_HOST_THING_PREFIX}:ibm"
+      INSTALL_WATCHDOG=1
+      log "Bridge-Thing: $INVERTER_HOST_THING_UID"
+    else
     mapfile -t host_candidates < <(detect_thing_uids "$INVERTER_HOST_THING_PREFIX")
 
     # Rueckfalloption: Bridge-Segment aus der Wechselrichter-UID ableiten
@@ -275,6 +351,7 @@ elif [ -n "$INVERTER_REDISCOVER_SCRIPT" ] && [ -n "$INVERTER_HOST_THING_PREFIX" 
       warn "Werte in ibm.conf eintragen (INVERTER_HOST_THING_UID,"
       warn "INSTALL_WATCHDOG=1) und 04-install-rules.sh erneut ausfuehren."
     fi
+    fi # Ende der manuellen Bridge-Erkennung (AUTO_CREATE_THING != 1)
   fi
 fi
 
@@ -340,7 +417,12 @@ if confirm "Standardpasswoerter aendern (Linux-Benutzer und Karaf-Konsole)?"; th
 fi
 
 # --- 14. Schreiben ----------------------------------------------------------
-umask 022
+# Zugangsdaten fuer die Bash-Doppelquotes in ibm.conf entschaerfen
+esc() { printf '%s' "$1" | sed -e 's/[\\"$`]/\\&/g'; }
+INVERTER_USERNAME_ESC="$(esc "$INVERTER_USERNAME")"
+INVERTER_PASSWORD_ESC="$(esc "$INVERTER_PASSWORD")"
+
+umask 077
 cat > "$IBM_CONF" <<EOF
 # ============================================================================
 # Konfiguration fuer das ISCHLSTROM Batteriemanagement (IBM)
@@ -352,6 +434,16 @@ INVERTER_TYPE="${INVERTER_TYPE}"
 INVERTER_THING_UID="${INVERTER_THING_UID}"
 SOC_ITEM="${SOC_ITEM}"
 BATTERY_POWER_ITEM="${BATTERY_POWER_ITEM}"
+
+# --- Automatische Einrichtung -------------------------------------------------
+# 02b-install-things.sh legt Bridge- und Wechselrichter-Thing selbst an
+# (Adresse und Zugangsdaten unten), 03-install-items.sh verknuepft die
+# Batterie-Items direkt in ibm.items. Wegen INVERTER_PASSWORD ist diese
+# Datei nur fuer root lesbar.
+AUTO_CREATE_THING=${AUTO_CREATE_THING}
+INVERTER_HOST="${INVERTER_HOST}"
+INVERTER_USERNAME="${INVERTER_USERNAME_ESC}"
+INVERTER_PASSWORD="${INVERTER_PASSWORD_ESC}"
 
 # --- ischlstrom API ---------------------------------------------------------
 IBM_API_BASE="${IBM_API_BASE}"
@@ -430,12 +522,14 @@ INSTALL_SSH_HARDENING=${INSTALL_SSH_HARDENING}
 INSTALL_PASSWORD_CHANGE=${INSTALL_PASSWORD_CHANGE}
 EOF
 
+chmod 600 "$IBM_CONF"
 log "Konfiguration geschrieben: $IBM_CONF"
 cat <<ZUSAMMENFASSUNG
 [IBM]
 [IBM] Zusammenfassung
 [IBM]   Wechselrichter : ${INVERTER_LABEL}
 [IBM]   Thing-UID      : ${INVERTER_THING_UID}
+[IBM]   Anlegen        : $([ "$AUTO_CREATE_THING" = "1" ] && echo "automatisch (${INVERTER_HOST})" || echo "vorhandenes Thing wird verwendet")
 [IBM]   Ladestand-Item : ${SOC_ITEM}
 [IBM]   Leistungs-Item : ${BATTERY_POWER_ITEM:-"(keins - Karte bleibt leer)"}
 [IBM]   API            : ${IBM_API_BASE}

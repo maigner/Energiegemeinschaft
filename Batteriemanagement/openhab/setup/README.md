@@ -7,12 +7,9 @@ Richtet eine openHABian-Installation fuer das **ISCHLSTROM Batteriemanagement
 
 1. openHABian-Image auf die SD-Karte flashen, Pi starten, Ersteinrichtung
    abwarten (dauert beim ersten Boot einige Minuten).
-2. Wechselrichter in der Main UI anlegen (`Settings -> Things`), Credentials
-   hinterlegen und den Ladestands-Channel mit einem Item verknuepfen.
-   Dieser Schritt kann auch uebersprungen und waehrend der Installation
-   nachgeholt werden: fehlt das Thing, bietet der Assistent an, das Binding
-   selbst ueber `addons.cfg` zu installieren, und wartet dann, bis der
-   Wechselrichter in der Main UI angelegt ist.
+2. In der Main UI (http://openhabian:8080) das Admin-Konto anlegen; die
+   restlichen Fragen des UI-Assistenten koennen uebersprungen werden -
+   Sprache, Region und Zeitzone setzt die Installation selbst.
 3. Per SSH einloggen und:
 
    ```bash
@@ -21,10 +18,15 @@ Richtet eine openHABian-Installation fuer das **ISCHLSTROM Batteriemanagement
    ```
 
 Der Rest laeuft von selbst: das Paket wird geladen und gegen seine Pruefsumme
-verifiziert, der Assistent erkennt Wechselrichter und Ladestands-Item und
-fragt nur noch nach, was er nicht selbst herausfinden kann. Wurde openHAB
-Cloud gewuenscht, zeigt die Installation am Ende UUID und Secret fuer die
-Registrierung auf myopenhab.org an (siehe
+verifiziert, der Assistent sucht den Wechselrichter im lokalen Netz, legt
+Bridge- und Wechselrichter-Thing samt Zugangsdaten in openHAB an und
+verknuepft die Batterie-Items - abgefragt wird nur, was das Setup nicht
+selbst herausfinden kann (im Normalfall: die Zugangsdaten des
+Wechselrichters und die gewuenschten Optionen). Ein bereits vorhandenes
+Thing wird erkannt und weiterverwendet (siehe
+[Wechselrichter automatisch anlegen](#wechselrichter-automatisch-anlegen)).
+Wurde openHAB Cloud gewuenscht, zeigt die Installation am Ende UUID und
+Secret fuer die Registrierung auf myopenhab.org an (siehe
 [openHAB Cloud](#openhab-cloud-myopenhaborg)).
 
 Die Kurzform funktioniert ebenfalls — die Abfragen lesen von `/dev/tty`, nicht
@@ -86,10 +88,11 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 
 | Skript | Wirkung |
 | --- | --- |
-| `00-wizard.sh` | Fragt die Anlagendaten ab und schreibt `ibm.conf`. Erkennt Wechselrichter und Ladestands-Item selbst; fehlt das Thing, installiert er auf Wunsch das Binding und wartet auf das Anlegen in der Main UI. |
+| `00-wizard.sh` | Fragt die Anlagendaten ab und schreibt `ibm.conf`. Erkennt ein vorhandenes Thing samt Items selbst; fehlt das Thing, sucht er den Wechselrichter im Netz und laesst ihn von `02b` automatisch anlegen. |
 | `01-preflight.sh` | Prueft Dienst, Quellskripte, API, Thing, Item und Item-Kollisionen. Aendert nichts. |
 | `02-install-addons.sh` | Traegt Binding, `jsscripting`, `mapdb` und (falls gewuenscht) `openhabcloud` in `addons.cfg` ein. |
-| `03-install-items.sh` | Schreibt `items/ibm.items` und `persistence/mapdb.persist`. |
+| `02b-install-things.sh` | Legt Bridge- und Wechselrichter-Thing per REST API an und erzeugt bei Bedarf das API-Token ueber die Karaf-Konsole (siehe [Wechselrichter automatisch anlegen](#wechselrichter-automatisch-anlegen)). |
+| `03-install-items.sh` | Schreibt `items/ibm.items` und `persistence/mapdb.persist`; bei der automatischen Einrichtung inklusive der Batterie-Items samt Channel-Verknuepfung. |
 | `04-install-rules.sh` | Erzeugt die zeitgesteuerten Regeln in `automation/js/` und (falls gewuenscht) den Netzwerk-Watchdog. |
 | `05-install-overview.sh` | Schreibt die IBM-Seiten (Overview + Unterseiten) per REST API in die Main UI (braucht `OH_API_TOKEN`; bestehende Seiten werden vorher gesichert). |
 | `06-verify.sh` | Prueft das Ergebnis, zeigt die letzten `[IBM]`-Logzeilen. Aendert nichts. |
@@ -111,6 +114,43 @@ Umgebungsvariable `IBM_TIMEZONE`, `IBM_LANGUAGE`, `IBM_REGION`.
 Die Skripte sind **idempotent** — ein erneuter Lauf ist jederzeit gefahrlos.
 Geaenderte Dateien werden vorher als `*.bak-<zeitstempel>` gesichert,
 unveraenderte bleiben unangetastet.
+
+## Wechselrichter automatisch anlegen
+
+Findet der Assistent kein Wechselrichter-Thing, bietet er an, den
+Wechselrichter komplett automatisch einzurichten - die Main UI wird dann
+nur noch fuer das Anlegen des Admin-Kontos gebraucht:
+
+1. Der Assistent sucht den Wechselrichter im lokalen /24-Netz (gleiche
+   Erkennung wie der Netzwerk-Watchdog, bei Fronius der Solar-API-Endpunkt)
+   und fragt die Zugangsdaten des Geraets ab (bei Fronius noetig fuer die
+   Batteriesteuerung). Ergebnis in `ibm.conf`: `AUTO_CREATE_THING=1`,
+   `INVERTER_HOST`, `INVERTER_USERNAME`, `INVERTER_PASSWORD`.
+2. `02b-install-things.sh` wartet, bis das Binding installiert ist, und legt
+   dann Bridge (`fronius:bridge:ibm`) und Wechselrichter
+   (`fronius:powerinverter:ibm:inverter1`) per REST API an.
+3. Das dafuer noetige **API-Token** erzeugt das Setup selbst: ueber die
+   Karaf-Konsole (`openhab:users addApiToken <admin> ibm admin`). Das
+   Konsolen-Passwort muss dafuer niemand wissen - als root wird in
+   `users.properties` voruebergehend ein Zufallspasswort gesetzt und danach
+   der alte Eintrag wiederhergestellt. Das Token landet als `OH_API_TOKEN`
+   in `ibm.conf` und wird auch von Watchdog und Overview-Seite verwendet.
+   Voraussetzung: das Admin-Konto in der Main UI existiert bereits.
+4. `03-install-items.sh` legt die Batterie-Items (Ladestand, Leistung) mit
+   ihrer Channel-Verknuepfung direkt in `ibm.items` an - das Verknuepfen in
+   der Main UI entfaellt.
+
+Weil `ibm.conf` damit die Zugangsdaten des Wechselrichters und das API-Token
+enthaelt, schreibt der Assistent die Datei mit `chmod 600` (nur root).
+
+Der klassische Weg bleibt erhalten: existiert schon ein Thing, wird es
+erkannt und unveraendert weiterverwendet; wer die automatische Einrichtung
+ablehnt, bekommt wie bisher die Anleitung fuer die Main UI.
+
+**Nachruesten** bei bestehender Installation: `AUTO_CREATE_THING=1` und
+`INVERTER_HOST` (plus Zugangsdaten) in `ibm.conf` eintragen, dann
+`sudo /opt/ischlstrom/openhab/setup/02b-install-things.sh` und
+`sudo /opt/ischlstrom/openhab/setup/03-install-items.sh` ausfuehren.
 
 ## Andere Wechselrichter
 

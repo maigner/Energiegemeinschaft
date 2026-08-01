@@ -56,6 +56,8 @@ things_db="$OPENHAB_USERDATA/jsondb/org.openhab.core.thing.Thing.json"
 if [ -f "$things_db" ]; then
   if grep -q "$INVERTER_THING_UID" "$things_db"; then
     log "Thing gefunden: $INVERTER_THING_UID"
+  elif [ "$AUTO_CREATE_THING" = "1" ]; then
+    log "Thing '$INVERTER_THING_UID' existiert noch nicht - legt 02b-install-things.sh an."
   else
     fail "Thing '$INVERTER_THING_UID' nicht in der JSONDB. Wechselrichter in der Main UI anlegen und den Assistenten erneut ausfuehren."
   fi
@@ -68,6 +70,9 @@ items_db="$OPENHAB_USERDATA/jsondb/org.openhab.core.items.Item.json"
 if [ -f "$items_db" ]; then
   if grep -q "\"$SOC_ITEM\"" "$items_db"; then
     log "Ladestands-Item gefunden: $SOC_ITEM"
+  elif [ "$AUTO_CREATE_THING" = "1" ] \
+       || grep -qE "[[:space:]]${SOC_ITEM}[[:space:]]" "$OPENHAB_CONF/items/ibm.items" 2>/dev/null; then
+    log "Ladestands-Item '$SOC_ITEM' kommt aus ibm.items (automatische Einrichtung)."
   else
     fail "Ladestands-Item '$SOC_ITEM' nicht gefunden. Channel '${INVERTER_SOC_CHANNEL}' in der Main UI mit einem Item verknuepfen."
   fi
@@ -96,6 +101,16 @@ if [ -f "$items_db" ]; then
       fail "Item '$item' existiert bereits in der Main UI und wuerde mit $OPENHAB_CONF/items/ibm.items kollidieren - bitte in der UI loeschen."
     fi
   done
+
+  # Bei der automatischen Einrichtung kommen auch die Batterie-Items aus
+  # ibm.items - gleichnamige UI-Items wuerden genauso kollidieren.
+  if [ "$AUTO_CREATE_THING" = "1" ]; then
+    for item in "$SOC_ITEM" ${BATTERY_POWER_ITEM:+"$BATTERY_POWER_ITEM"}; do
+      if grep -q "\"$item\"" "$items_db"; then
+        fail "Item '$item' existiert bereits in der Main UI und wuerde mit $OPENHAB_CONF/items/ibm.items kollidieren - bitte in der UI loeschen."
+      fi
+    done
+  fi
 fi
 
 # --- Netzwerk-Watchdog ------------------------------------------------------
@@ -113,6 +128,8 @@ if [ "$INSTALL_WATCHDOG" = "1" ]; then
   if [ -f "$things_db" ] && [ -n "$INVERTER_HOST_THING_UID" ]; then
     if grep -q "$INVERTER_HOST_THING_UID" "$things_db"; then
       log "Bridge-Thing gefunden: $INVERTER_HOST_THING_UID"
+    elif [ "$AUTO_CREATE_THING" = "1" ]; then
+      log "Bridge-Thing '$INVERTER_HOST_THING_UID' existiert noch nicht - legt 02b-install-things.sh an."
     else
       fail "Bridge-Thing '$INVERTER_HOST_THING_UID' nicht in der JSONDB."
     fi
@@ -123,7 +140,9 @@ if [ "$INSTALL_WATCHDOG" = "1" ]; then
   done
 
   # Token gegen die REST API pruefen (Thing-Endpunkte brauchen Admin-Rechte).
-  if command -v curl >/dev/null 2>&1 && [ -n "$OH_API_TOKEN" ] && [ -n "$INVERTER_HOST_THING_UID" ]; then
+  if [ "$OH_API_TOKEN" = "auto" ]; then
+    log "API-Token wird bei der Installation automatisch erzeugt - Pruefung uebersprungen."
+  elif command -v curl >/dev/null 2>&1 && [ -n "$OH_API_TOKEN" ] && [ -n "$INVERTER_HOST_THING_UID" ]; then
     code="$(curl -s -o /dev/null -w '%{http_code}' -m 10 \
       -H "Authorization: Bearer $OH_API_TOKEN" \
       "http://127.0.0.1:8080/rest/things/$INVERTER_HOST_THING_UID" || true)"
@@ -146,7 +165,9 @@ if [ "$INSTALL_OVERVIEW" = "1" ]; then
   fi
   [ -n "$OH_API_TOKEN" ] || fail "OH_API_TOKEN fehlt in ibm.conf (Overview-Seite)."
 
-  if command -v curl >/dev/null 2>&1 && [ -n "$OH_API_TOKEN" ]; then
+  if [ "$OH_API_TOKEN" = "auto" ]; then
+    log "API-Token wird bei der Installation automatisch erzeugt - Pruefung uebersprungen."
+  elif command -v curl >/dev/null 2>&1 && [ -n "$OH_API_TOKEN" ]; then
     code="$(curl -s -o /dev/null -w '%{http_code}' -m 10 \
       -H "Authorization: Bearer $OH_API_TOKEN" \
       "http://127.0.0.1:8080/rest/ui/components/ui%3Apage" || true)"

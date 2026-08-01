@@ -24,8 +24,11 @@ if [ "$INSTALL_OVERVIEW" != "1" ]; then
   exit 0
 fi
 
-if [ -z "$OH_API_TOKEN" ]; then
-  warn "OH_API_TOKEN fehlt in ibm.conf - Main-UI-Seiten uebersprungen."
+if [ "$OH_API_TOKEN" = "auto" ]; then
+  ensure_api_token || true
+fi
+if [ -z "$OH_API_TOKEN" ] || [ "$OH_API_TOKEN" = "auto" ]; then
+  warn "Kein brauchbares OH_API_TOKEN in ibm.conf - Main-UI-Seiten uebersprungen."
   warn "Nachruesten: Token eintragen und dieses Skript erneut ausfuehren."
   exit 0
 fi

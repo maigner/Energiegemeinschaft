@@ -16,7 +16,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 require_root
 require_openhab
 
-log "=== Schritt 1/12: Konfiguration ==="
+log "=== Schritt 1/13: Konfiguration ==="
 if [ -f "$IBM_CONF" ]; then
   log "Konfiguration vorhanden: $IBM_CONF"
   log "Neu erfassen mit: sudo $here/00-wizard.sh"
@@ -26,44 +26,48 @@ fi
 
 load_config
 
-log "=== Schritt 2/12: Zeitzone und Regionaleinstellungen ==="
+log "=== Schritt 2/13: Zeitzone und Regionaleinstellungen ==="
 ensure_regional_settings
 
-log "=== Schritt 3/12: Preflight ==="
+log "=== Schritt 3/13: Preflight ==="
 if ! "$here/01-preflight.sh"; then
   warn "Preflight meldet Probleme."
   confirm "Trotzdem fortfahren?" || die "Abgebrochen."
 fi
 
-log "=== Schritt 4/12: Addons ==="
+log "=== Schritt 4/13: Addons ==="
 "$here/02-install-addons.sh"
 
-log "=== Schritt 5/12: Items und Persistence ==="
+log "=== Schritt 5/13: Wechselrichter-Thing ==="
+"$here/02b-install-things.sh" \
+  || warn "Wechselrichter-Thing nicht angelegt - spaeter erneut: sudo $here/02b-install-things.sh"
+
+log "=== Schritt 6/13: Items und Persistence ==="
 "$here/03-install-items.sh"
 
-log "=== Schritt 6/12: Regeln ==="
+log "=== Schritt 7/13: Regeln ==="
 "$here/04-install-rules.sh"
 
-log "=== Schritt 7/12: Overview-Seite ==="
+log "=== Schritt 8/13: Overview-Seite ==="
 "$here/05-install-overview.sh" \
   || warn "Overview-Seite nicht installiert - spaeter erneut: sudo $here/05-install-overview.sh"
 
-log "=== Schritt 8/12: Verify ==="
+log "=== Schritt 9/13: Verify ==="
 "$here/06-verify.sh" || warn "Verify meldet Probleme - siehe oben."
 
-log "=== Schritt 9/12: WireGuard-Fernwartung ==="
+log "=== Schritt 10/13: WireGuard-Fernwartung ==="
 "$here/08-install-wireguard.sh" \
   || warn "Fernwartung nicht eingerichtet - spaeter erneut: sudo $here/08-install-wireguard.sh"
 
-log "=== Schritt 10/12: SSH absichern ==="
+log "=== Schritt 11/13: SSH absichern ==="
 "$here/09-harden-ssh.sh" \
   || warn "SSH nicht abgesichert - spaeter erneut: sudo $here/09-harden-ssh.sh"
 
-log "=== Schritt 11/12: Standardpasswoerter ==="
+log "=== Schritt 12/13: Standardpasswoerter ==="
 "$here/10-change-passwords.sh" \
   || warn "Passwoerter nicht geaendert - spaeter erneut: sudo $here/10-change-passwords.sh"
 
-log "=== Schritt 12/12: openHAB Cloud (myopenhab.org) ==="
+log "=== Schritt 13/13: openHAB Cloud (myopenhab.org) ==="
 "$here/07-myopenhab.sh" \
   || warn "openHAB Cloud noch nicht abgeschlossen - spaeter erneut: sudo $here/07-myopenhab.sh"
 
@@ -77,6 +81,13 @@ cat <<ENDE
 [IBM] Thing-UID:      ${INVERTER_THING_UID}
 [IBM]
 [IBM] Naechste Schritte in der Main UI (http://<pi>:8080):
+ENDE
+
+if [ "$AUTO_CREATE_THING" = "1" ]; then
+  log "  (Thing, Zugangsdaten und Batterie-Items wurden automatisch angelegt.)"
+fi
+
+cat <<ENDE
 [IBM]   1. Settings -> Add-ons pruefen (${INVERTER_BINDING}, JS Scripting, mapdb)
 [IBM]   2. ${INVERTER_NOTES}
 [IBM]   3. Settings -> Rules: die Regeln mit dem Tag "IBM" pruefen und

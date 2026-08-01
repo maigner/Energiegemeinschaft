@@ -286,8 +286,11 @@ install_watchdog() {
     warn "INVERTER_HOST_THING_UID fehlt in ibm.conf - Watchdog uebersprungen."
     return 0
   fi
-  if [ -z "$OH_API_TOKEN" ]; then
-    warn "OH_API_TOKEN fehlt in ibm.conf - Watchdog uebersprungen."
+  if [ "$OH_API_TOKEN" = "auto" ]; then
+    ensure_api_token || true
+  fi
+  if [ -z "$OH_API_TOKEN" ] || [ "$OH_API_TOKEN" = "auto" ]; then
+    warn "Kein brauchbares OH_API_TOKEN in ibm.conf - Watchdog uebersprungen."
     return 0
   fi
 

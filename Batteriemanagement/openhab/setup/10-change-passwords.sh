@@ -133,7 +133,7 @@ elif ! console_is_default; then
 else
   console_password="${IBM_NEW_CONSOLE_PASSWORD:-}"
   if [ -z "$console_password" ]; then
-    console_password="$(head -c 512 /dev/urandom | tr -dc 'A-Za-z0-9' | head -c 20)"
+    console_password="$(od -An -tx1 -N12 /dev/urandom | tr -d ' \n')"
   fi
   [ "${#console_password}" -ge 8 ] || die "Konsolen-Passwort zu kurz (mindestens 8 Zeichen)."
   case "$console_password" in

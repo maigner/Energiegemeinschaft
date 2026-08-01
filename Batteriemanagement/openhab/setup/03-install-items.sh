@@ -13,6 +13,27 @@ require_root
 require_openhab
 load_config
 
+# --- Batterie-Items -----------------------------------------------------------
+# Bei der automatischen Einrichtung (Thing-UID *:ibm:*) verwaltet IBM auch die
+# Batterie-Items samt Channel-Verknuepfung - ganz ohne Main UI. Beim
+# klassischen Weg entstehen sie dort beim Verknuepfen der Channels und werden
+# hier nur referenziert.
+battery_items=""
+battery_note="// Nicht enthalten: ${SOC_ITEM}
+// Dieses Item entsteht beim Verknuepfen des Ladestands-Channels in der Main UI."
+case "$INVERTER_THING_UID" in
+  *:ibm:*)
+    battery_note="// Enthalten sind auch die Batterie-Items (automatische Einrichtung)."
+    battery_items="
+// Batterie-Items - verknuepft mit dem automatisch angelegten Thing
+Number:Dimensionless ${SOC_ITEM} \"Ladestand Batterie [%.0f %%]\" <batterylevel> (IBM) { channel=\"${INVERTER_THING_UID}:${INVERTER_SOC_CHANNEL}\", unit=\"%\" }"
+    if [ -n "$BATTERY_POWER_ITEM" ] && [ -n "$INVERTER_BATTERY_POWER_CHANNEL" ]; then
+      battery_items="${battery_items}
+Number:Power ${BATTERY_POWER_ITEM} \"Batterieleistung [%.0f W]\" <energy> (IBM) { channel=\"${INVERTER_THING_UID}:${INVERTER_BATTERY_POWER_CHANNEL}\", unit=\"W\" }"
+    fi
+    ;;
+esac
+
 # --- Items ------------------------------------------------------------------
 install_file "$OPENHAB_CONF/items/ibm.items" <<EOF
 // ============================================================================
@@ -20,9 +41,9 @@ install_file "$OPENHAB_CONF/items/ibm.items" <<EOF
 // GENERIERT von 03-install-items.sh - Aenderungen gehen beim naechsten Lauf
 // verloren. Anpassungen stattdessen im Setup-Skript vornehmen.
 //
-// Nicht enthalten: ${SOC_ITEM}
-// Dieses Item entsteht beim Verknuepfen des soc-Channels in der Main UI.
+${battery_note}
 // ============================================================================
+${battery_items}
 
 // Hauptschalter - ohne ON tut die Steuerung nichts
 Switch Schalte_ISCHLSTROM_Empfehlung_einaus "Batteriemanagement aktivieren" <switch> (IBM)

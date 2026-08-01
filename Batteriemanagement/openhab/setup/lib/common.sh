@@ -69,6 +69,31 @@ ask() {
   printf -v "$__var" '%s' "$__input"
 }
 
+# ask_secret VARNAME "Frage" - verdeckte Eingabe mit Wiederholung.
+# Laesst leere Eingabe zu (Aufrufer entscheidet, was dann passiert).
+# Ohne Terminal oder mit IBM_ASSUME_YES=1 bleibt die Variable leer.
+ask_secret() {
+  local __var="$1" __question="$2" __p1="" __p2="" __tries=0
+  printf -v "$__var" '%s' ""
+  if [ "${IBM_ASSUME_YES:-0}" = "1" ] || ! has_tty; then
+    return 0
+  fi
+  while [ "$__tries" -lt 3 ]; do
+    read -rs -p "[IBM] ${__question}: " __p1 < /dev/tty || true
+    echo
+    [ -z "$__p1" ] && return 0
+    read -rs -p "[IBM] Wiederholung: " __p2 < /dev/tty || true
+    echo
+    if [ "$__p1" = "$__p2" ]; then
+      printf -v "$__var" '%s' "$__p1"
+      return 0
+    fi
+    warn "Die Eingaben stimmen nicht ueberein."
+    __tries=$((__tries + 1))
+  done
+  return 0
+}
+
 # Rueckfrage vor heiklen Schritten. Mit IBM_ASSUME_YES=1 uebersprungen.
 confirm() {
   local prompt="$1" answer=""
@@ -129,6 +154,13 @@ load_profile() {
   INVERTER_HOST_PARAM="${INVERTER_HOST_PARAM:-hostname}"
   INVERTER_REDISCOVER_SCRIPT="${INVERTER_REDISCOVER_SCRIPT:-}"
 
+  # Optional: automatisches Anlegen der Things (02b-install-things.sh);
+  # braucht INVERTER_HOST_THING_PREFIX als Bridge-Thing-Typ
+  INVERTER_DEFAULT_USERNAME="${INVERTER_DEFAULT_USERNAME:-}"
+  INVERTER_USER_PARAM="${INVERTER_USER_PARAM:-}"
+  INVERTER_PASSWORD_PARAM="${INVERTER_PASSWORD_PARAM:-}"
+  INVERTER_THING_EXTRA_CONFIG="${INVERTER_THING_EXTRA_CONFIG:-}"
+
   log "Wechselrichter-Profil geladen: $INVERTER_LABEL ($type)"
 }
 
@@ -185,7 +217,25 @@ load_config() {
   # Standardpasswoerter (aeltere ibm.conf kennt die Option noch nicht)
   INSTALL_PASSWORD_CHANGE="${INSTALL_PASSWORD_CHANGE:-0}"
 
+  # Automatisches Anlegen des Wechselrichter-Things (02b-install-things.sh)
+  AUTO_CREATE_THING="${AUTO_CREATE_THING:-0}"
+  INVERTER_HOST="${INVERTER_HOST:-}"
+  INVERTER_USERNAME="${INVERTER_USERNAME:-}"
+  INVERTER_PASSWORD="${INVERTER_PASSWORD:-}"
+
   load_profile "$INVERTER_TYPE"
+}
+
+# Setzt einen Schluessel in der bestehenden ibm.conf (Wert in Anfuehrungs-
+# zeichen). Nur fuer Werte ohne '|', '&' und '"' verwenden (Tokens, Flags).
+conf_set() {
+  local key="$1" value="$2"
+  [ -f "$IBM_CONF" ] || die "conf_set: $IBM_CONF fehlt."
+  if grep -qE "^${key}=" "$IBM_CONF"; then
+    sed -i -E "s|^${key}=.*|${key}=\"${value}\"|" "$IBM_CONF"
+  else
+    printf '%s="%s"\n' "$key" "$value" >> "$IBM_CONF"
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -232,6 +282,13 @@ detect_soc_items() {
              | sed -e 's/^"//' -e 's/ ->.*//' | sort -u || true)"
   fi
 
+  # Datei-Items: bei der automatischen Einrichtung schreibt
+  # 03-install-items.sh das SoC-Item mit Channel-Verknuepfung in ibm.items.
+  if [ -z "$found" ] && [ -f "$OPENHAB_CONF/items/ibm.items" ]; then
+    found="$(grep -E "channel=\"[^\"]*:${INVERTER_SOC_CHANNEL}\"" "$OPENHAB_CONF/items/ibm.items" 2>/dev/null \
+             | awk '{print $2}' | sort -u || true)"
+  fi
+
   if [ -z "$found" ] && [ -f "$itemdb" ]; then
     found="$(grep -o '"[A-Za-z0-9_]*"' "$itemdb" 2>/dev/null \
              | tr -d '"' \
@@ -254,6 +311,11 @@ detect_battery_power_items() {
   if [ -n "$thing_uid" ] && [ -n "$INVERTER_BATTERY_POWER_CHANNEL" ] && [ -f "$linkdb" ]; then
     found="$(grep -o "\"[^\"]* -> ${thing_uid}:${INVERTER_BATTERY_POWER_CHANNEL}\"" "$linkdb" 2>/dev/null \
              | sed -e 's/^"//' -e 's/ ->.*//' | sort -u || true)"
+  fi
+
+  if [ -z "$found" ] && [ -n "$INVERTER_BATTERY_POWER_CHANNEL" ] && [ -f "$OPENHAB_CONF/items/ibm.items" ]; then
+    found="$(grep -E "channel=\"[^\"]*:${INVERTER_BATTERY_POWER_CHANNEL}\"" "$OPENHAB_CONF/items/ibm.items" 2>/dev/null \
+             | awk '{print $2}' | sort -u || true)"
   fi
 
   if [ -z "$found" ] && [ -f "$itemdb" ]; then
@@ -334,6 +396,94 @@ wait_for_addon() {
   warn "Keine Installationsbestaetigung fuer '${feature}' im Log gefunden -"
   warn "Status in der Main UI pruefen: Settings -> Add-ons."
   return 1
+}
+
+# ---------------------------------------------------------------------------
+# Karaf-Konsole und openHAB REST API
+# ---------------------------------------------------------------------------
+
+sha256_upper() { printf '%s' "$1" | sha256sum | cut -d' ' -f1 | tr 'a-z' 'A-Z'; }
+
+# Wie muss ein Konsolen-Passwort in users.properties abgelegt werden?
+# Gibt den Speicherwert aus: gehasht ({CRYPT}SHA-256{CRYPT}), wenn die
+# Verschluesselung an ist, sonst Klartext.
+karaf_stored_password() {
+  local password="$1" jaas_cfg="$OPENHAB_USERDATA/etc/org.apache.karaf.jaas.cfg"
+  if grep -qE '^[[:space:]]*encryption\.enabled[[:space:]]*=[[:space:]]*true' "$jaas_cfg" 2>/dev/null \
+     && grep -qE '^[[:space:]]*encryption\.algorithm[[:space:]]*=[[:space:]]*SHA-256' "$jaas_cfg" 2>/dev/null; then
+    printf '{CRYPT}%s{CRYPT}' "$(sha256_upper "$password")"
+  else
+    printf '%s' "$password"
+  fi
+}
+
+# Fuehrt ein Kommando auf der Karaf-Konsole aus, ohne das Konsolen-Passwort
+# zu kennen: als root wird in users.properties voruebergehend ein zufaelliges
+# Passwort gesetzt und danach der alte Eintrag unveraendert wiederhergestellt.
+# Die Konsole ist nur von localhost erreichbar; root kann den Eintrag ohnehin
+# jederzeit aendern - das hier ist also keine Rechteausweitung.
+console_exec() {
+  local cmd="$1" up="$OPENHAB_USERDATA/etc/users.properties"
+  local tmppw stored out rc
+  [ -f "$up" ] || { warn "users.properties nicht gefunden: $up"; return 1; }
+  command -v openhab-cli >/dev/null 2>&1 || { warn "openhab-cli nicht gefunden."; return 1; }
+
+  tmppw="$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
+  stored="$(karaf_stored_password "$tmppw")"
+
+  cp -a "$up" "$up.ibm-console-tmp"
+  sed -i -E "s|^([[:space:]]*openhab[[:space:]]*=[[:space:]]*)[^,]*|\1${stored}|" "$up"
+
+  # Das Kommando ueber stdin in eine Konsolensitzung geben statt als
+  # Argument: im Exec-Modus verschluckt der Karaf-Client die Ausgabe
+  # mancher Kommandos (z. B. 'openhab:users addApiToken' - das Token wird
+  # dann zwar erzeugt, aber nie angezeigt). Die Sitzung liefert alles
+  # zuverlaessig; Farbcodes und Prompts werden herausgefiltert.
+  out="$(printf '%s\nlogout\n' "$cmd" | timeout 120 openhab-cli console -p "$tmppw" 2>&1)"
+  rc=$?
+
+  mv "$up.ibm-console-tmp" "$up"
+  printf '%s\n' "$out" | sed -e 's/\x1b\[[0-9;]*m//g'
+  return "$rc"
+}
+
+# Sorgt fuer ein brauchbares openHAB-API-Token in OH_API_TOKEN und ibm.conf.
+# Steht dort bereits ein echtes Token, passiert nichts. Bei "auto" oder leer
+# wird ueber die Karaf-Konsole ein Token des ersten Admin-Benutzers erzeugt
+# (Name "ibm"; ein vorhandenes Token dieses Namens wird ersetzt).
+ensure_api_token() {
+  case "${OH_API_TOKEN:-}" in
+    oh.*) return 0 ;;
+    ""|auto) ;;
+    *) return 0 ;;
+  esac
+
+  local out admin_user token
+  out="$(console_exec "openhab:users list")" \
+    || { warn "Karaf-Konsole nicht erreichbar - kein API-Token erzeugt."; return 1; }
+  admin_user="$(printf '%s\n' "$out" | grep -i 'administrator' | head -n1 | awk '{print $1}')"
+  if [ -z "$admin_user" ]; then
+    warn "Kein Admin-Benutzer in openHAB gefunden. Zuerst in der Main UI"
+    warn "(http://<pi>:8080) das Admin-Konto anlegen, dann erneut ausfuehren."
+    return 1
+  fi
+
+  console_exec "openhab:users rmApiToken $admin_user ibm" >/dev/null 2>&1 || true
+  out="$(console_exec "openhab:users addApiToken $admin_user ibm admin")" || true
+  token="$(printf '%s\n' "$out" | grep -oE 'oh\.[A-Za-z0-9._~/+-]+' | head -n1)"
+  if [ -z "$token" ]; then
+    warn "API-Token konnte nicht erzeugt werden. Konsolen-Ausgabe:"
+    printf '%s\n' "$out" | sed 's/^/[IBM]   /' >&2
+    warn "Ersatzweise in der Main UI ein Token erzeugen (Benutzername links"
+    warn "unten -> 'Create new API token') und als OH_API_TOKEN in ibm.conf"
+    warn "eintragen."
+    return 1
+  fi
+
+  OH_API_TOKEN="$token"
+  conf_set OH_API_TOKEN "$token"
+  chmod 600 "$IBM_CONF" 2>/dev/null || true
+  log "openHAB-API-Token 'ibm' fuer Benutzer '$admin_user' erzeugt und in ibm.conf eingetragen."
 }
 
 # ---------------------------------------------------------------------------
