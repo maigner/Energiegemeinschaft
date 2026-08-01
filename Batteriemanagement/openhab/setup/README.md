@@ -99,11 +99,14 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 | `10-change-passwords.sh` | Aendert die Standardpasswoerter des Linux-Benutzers `openhabian` und der Karaf-Konsole (siehe [Standardpasswoerter aendern](#standardpasswoerter-aendern)). |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
 
-`install-ibm.sh` setzt ausserdem die Zeitzone auf `Europe/Vienna` — sowohl die
-Systemzeitzone (`timedatectl`) als auch die Regionaleinstellung von openHAB
-(`org.openhab.i18n:timezone` in `services/runtime.cfg`; dieser Eintrag geht der
-Main-UI-Einstellung vor). Abweichende Zeitzone: `IBM_TIMEZONE` als
-Umgebungsvariable setzen.
+`install-ibm.sh` setzt ausserdem die Regionaleinstellungen - das, was sonst
+der Ersteinrichtungs-Assistent der Main UI erledigt (der kann also samt
+seinen Fragen einfach uebersprungen werden; nur das Admin-Konto muss dort
+angelegt werden): die Systemzeitzone (`timedatectl`) sowie Zeitzone, Sprache,
+Region und Masssystem von openHAB (`org.openhab.i18n:*` in
+`services/runtime.cfg`; diese Eintraege gehen der Main-UI-Einstellung vor).
+Vorgaben: `Europe/Vienna`, `de`, `AT`, `SI` - abweichend per
+Umgebungsvariable `IBM_TIMEZONE`, `IBM_LANGUAGE`, `IBM_REGION`.
 
 Die Skripte sind **idempotent** — ein erneuter Lauf ist jederzeit gefahrlos.
 Geaenderte Dateien werden vorher als `*.bak-<zeitstempel>` gesichert,

@@ -9,13 +9,11 @@ import { createTransport } from "nodemailer";
 export const authorizationHandle = async({ event, resolve }) => {
 
   if (!event.route.id) {
-    console.log("invalid route");
+    console.log(`404 ${event.getClientAddress()} ${event.url.pathname}`);
     error(404, {
       message: 'Not found'
     });
   }
-
-  console.log(event.route.id);
 
   if (event.route.id?.startsWith('/(website)/board')) {
     //console.log("Requires authentication");

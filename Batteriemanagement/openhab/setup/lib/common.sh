@@ -340,6 +340,27 @@ wait_for_addon() {
 # System
 # ---------------------------------------------------------------------------
 
+# Setzt einen Schluessel in services/runtime.cfg. Eintraege dort gehen der
+# Main-UI-Einstellung vor. Idempotent; geaenderte Datei wird gesichert.
+runtime_cfg_set() {
+  local key="$1" value="$2" cfg="$OPENHAB_CONF/services/runtime.cfg"
+  if [ -f "$cfg" ] && grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$cfg"; then
+    if grep -qE "^[[:space:]]*${key}[[:space:]]*=[[:space:]]*${value}[[:space:]]*$" "$cfg"; then
+      log "${key} bereits ${value} ($cfg)."
+    else
+      cp -a "$cfg" "$cfg.bak-$(date +%Y%m%d%H%M%S)"
+      sed -i -E "s|^[[:space:]]*${key}[[:space:]]*=.*|${key}=${value}|" "$cfg"
+      log "${key}=${value} gesetzt ($cfg)."
+    fi
+  else
+    mkdir -p "$(dirname "$cfg")"
+    [ -f "$cfg" ] || : > "$cfg"
+    printf '%s=%s\n' "$key" "$value" >> "$cfg"
+    chown "$OPENHAB_USER:$OPENHAB_GROUP" "$cfg" 2>/dev/null || true
+    log "${key}=${value} gesetzt ($cfg)."
+  fi
+}
+
 # Setzt System- und openHAB-Zeitzone, damit die zeitgesteuerten Regeln in
 # lokaler Zeit laufen. Idempotent; Vorgabe ueberschreibbar mit IBM_TIMEZONE.
 ensure_timezone() {
@@ -360,24 +381,18 @@ ensure_timezone() {
     warn "timedatectl nicht gefunden - Systemzeitzone nicht gesetzt."
   fi
 
-  # Regionaleinstellung von openHAB. Der Eintrag in runtime.cfg geht der
-  # Main-UI-Einstellung (Settings -> Regional Settings) vor.
-  local cfg="$OPENHAB_CONF/services/runtime.cfg" key="org.openhab.i18n:timezone"
-  if [ -f "$cfg" ] && grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$cfg"; then
-    if grep -qE "^[[:space:]]*${key}[[:space:]]*=[[:space:]]*${tz}[[:space:]]*$" "$cfg"; then
-      log "openHAB-Zeitzone bereits $tz ($cfg)."
-    else
-      cp -a "$cfg" "$cfg.bak-$(date +%Y%m%d%H%M%S)"
-      sed -i -E "s|^[[:space:]]*${key}[[:space:]]*=.*|${key}=${tz}|" "$cfg"
-      log "openHAB-Zeitzone gesetzt: $tz ($cfg)."
-    fi
-  else
-    mkdir -p "$(dirname "$cfg")"
-    [ -f "$cfg" ] || : > "$cfg"
-    printf '%s=%s\n' "$key" "$tz" >> "$cfg"
-    chown "$OPENHAB_USER:$OPENHAB_GROUP" "$cfg" 2>/dev/null || true
-    log "openHAB-Zeitzone gesetzt: $tz ($cfg)."
-  fi
+  runtime_cfg_set "org.openhab.i18n:timezone" "$tz"
+}
+
+# Setzt Zeitzone, Sprache, Region und Masssystem - das, was sonst der
+# Ersteinrichtungs-Assistent der Main UI erledigt; der kann damit einfach
+# uebersprungen werden. Vorgaben ueberschreibbar mit IBM_TIMEZONE,
+# IBM_LANGUAGE und IBM_REGION.
+ensure_regional_settings() {
+  ensure_timezone
+  runtime_cfg_set "org.openhab.i18n:language" "${IBM_LANGUAGE:-de}"
+  runtime_cfg_set "org.openhab.i18n:region" "${IBM_REGION:-AT}"
+  runtime_cfg_set "org.openhab.i18n:measurementSystem" "SI"
 }
 
 # ---------------------------------------------------------------------------

@@ -26,8 +26,8 @@ fi
 
 load_config
 
-log "=== Schritt 2/12: Zeitzone ==="
-ensure_timezone
+log "=== Schritt 2/12: Zeitzone und Regionaleinstellungen ==="
+ensure_regional_settings
 
 log "=== Schritt 3/12: Preflight ==="
 if ! "$here/01-preflight.sh"; then
