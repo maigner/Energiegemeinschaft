@@ -11,7 +11,13 @@
 # Braucht in ibm.conf: INSTALL_WIREGUARD=1 und WG_ADDRESS (die eindeutige
 # Tunnel-IP der Anlage, vergibt der Wartungsserver). Den Public Key des
 # Servers laedt das Skript von <IBM_API_BASE>/ibm/, falls nicht in ibm.conf
-# gesetzt. Den SSH-Wartungsschluessel traegt 09-harden-ssh.sh ein.
+# gesetzt.
+#
+# Die SSH-Anmeldung durch den Tunnel laeuft per PASSWORT des Benutzers
+# WG_SSH_USER - deshalb das Standardpasswort aendern lassen
+# (10-change-passwords.sh, INSTALL_PASSWORD_CHANGE=1). Fruehere Versionen
+# stellten sshd auf Schluessel-Anmeldung um; solche Reste baut dieses
+# Skript wieder zurueck.
 #
 # Am Ende wird der Public Key des Pi angezeigt - er muss auf dem
 # Wartungsserver als Peer eingetragen werden (siehe README, Abschnitt
@@ -126,9 +132,31 @@ else
   log "Tunnel gestartet."
 fi
 
+# --- Rueckbau der frueheren SSH-Haertung ------------------------------------
+# Fruehere Versionen schalteten die Passwort-Anmeldung von sshd ab und
+# trugen einen SSH-Wartungsschluessel (bzw. eine Benutzer-CA) ein. Die
+# Fernwartung laeuft jetzt wieder per Passwort durch den Tunnel - was von
+# der Haertung noch da ist, wird entfernt. Idempotent.
+SSHD_DROPIN="/etc/ssh/sshd_config.d/90-ibm-hardening.conf"
+SSH_CA_FILE="/etc/ssh/ibm-user-ca.pub"
+if [ -f "$SSHD_DROPIN" ]; then
+  rm -f "$SSHD_DROPIN"
+  systemctl reload-or-restart ssh 2>/dev/null \
+    || systemctl reload-or-restart sshd 2>/dev/null \
+    || warn "sshd konnte nicht neu geladen werden - bitte manuell: sudo systemctl reload ssh"
+  log "Fruehere sshd-Haertung entfernt - SSH-Anmeldung wieder per Passwort."
+fi
+rm -f "$SSH_CA_FILE" "$SSH_CA_FILE".bak-*
+maintainer_key="$(curl -fsSL "$IBM_API_BASE/ibm/ssh-maintainer.pub" 2>/dev/null | head -n1 || true)"
+ssh_home="$(getent passwd "$WG_SSH_USER" | cut -d: -f6 || true)"
+akfile="$ssh_home/.ssh/authorized_keys"
+if [ -n "$maintainer_key" ] && [ -n "$ssh_home" ] && [ -f "$akfile" ] \
+   && grep -qxF "$maintainer_key" "$akfile"; then
+  grep -vxF "$maintainer_key" "$akfile" > "$akfile.tmp" && mv "$akfile.tmp" "$akfile"
+  log "Frueheren SSH-Wartungsschluessel aus authorized_keys entfernt."
+fi
+
 # --- Ergebnis ---------------------------------------------------------------
-# Den SSH-Wartungsschluessel (und die Abschaltung der Passwort-Anmeldung)
-# uebernimmt 09-harden-ssh.sh.
 cat <<INFO
 [IBM]
 [IBM] ===========================================================
@@ -145,7 +173,8 @@ cat <<INFO
 [IBM] Danach dort neu laden (bestehende Tunnel bleiben verbunden):
 [IBM]   sudo bash -c 'wg syncconf wg0 <(wg-quick strip wg0)'
 [IBM]
-[IBM] Zugriff vom Wartungsserver aus: ssh ${WG_SSH_USER:-openhabian}@${WG_ADDRESS}
+[IBM] Zugriff vom Wartungsserver aus (Passwort-Anmeldung):
+[IBM]   ssh ${WG_SSH_USER:-openhabian}@${WG_ADDRESS}
 [IBM]
 INFO
 

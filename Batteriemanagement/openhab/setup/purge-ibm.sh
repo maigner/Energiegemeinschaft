@@ -12,7 +12,7 @@
 #   4. Regeln, Items, Persistence-Konfiguration und mapdb-Daten
 #   5. addons.cfg (Backup von vor der Installation wird wiederhergestellt)
 #   6. WireGuard-Tunnel und Schluessel
-#   7. sshd-Haertung und SSH-Wartungsschluessel
+#   7. Reste der sshd-Haertung aelterer Versionen (Drop-in, Wartungsschluessel)
 #   8. Konsolen-Passwort zurueck auf den openHAB-Standard (habopen)
 #   9. /opt/ischlstrom selbst
 #
@@ -139,13 +139,16 @@ if [ -f /etc/wireguard/wg0.conf ] || [ -f /etc/wireguard/ibm-pi.key ]; then
   log "Peer-Eintrag auf dem Wartungsserver nicht vergessen (wg0.conf auf s1)."
 fi
 
-# --- 7. SSH-Haertung -------------------------------------------------------------
+# --- 7. SSH-Haertung (Altlast aelterer Versionen) --------------------------------
+# Aeltere Versionen schalteten die Passwort-Anmeldung ab und trugen einen
+# Wartungsschluessel ein; aktuelle Installationen haben beides nicht mehr.
 dropin="/etc/ssh/sshd_config.d/90-ibm-hardening.conf"
 if [ -f "$dropin" ]; then
   rm -f "$dropin"
   systemctl reload-or-restart ssh 2>/dev/null || systemctl reload-or-restart sshd 2>/dev/null || true
   log "sshd-Haertung entfernt - Passwort-Anmeldung wieder moeglich."
 fi
+rm -f /etc/ssh/ibm-user-ca.pub /etc/ssh/ibm-user-ca.pub.bak-*
 maintainer_key="$(curl -fsSL "${IBM_API_BASE:-https://ischlstrom.org}/ibm/ssh-maintainer.pub" 2>/dev/null | head -n1 || true)"
 akfile="$(getent passwd "${WG_SSH_USER:-openhabian}" | cut -d: -f6)/.ssh/authorized_keys"
 if [ -n "$maintainer_key" ] && [ -f "$akfile" ] && grep -qxF "$maintainer_key" "$akfile"; then

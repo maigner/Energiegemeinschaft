@@ -397,26 +397,15 @@ if confirm "WireGuard-Fernwartung einrichten?"; then
   fi
 fi
 
-# --- 12. SSH absichern ------------------------------------------------------
-INSTALL_SSH_HARDENING=0
-
-echo "[IBM]"
-echo "[IBM] openHABian kommt mit dem allgemein bekannten Standardpasswort"
-echo "[IBM] 'openhabian'. Das Setup kann die SSH-Anmeldung auf Schluessel"
-echo "[IBM] umstellen (Wartungsschluessel von ischlstrom.org) und die"
-echo "[IBM] Passwort-Anmeldung abschalten. Abgeschaltet wird nur, wenn ein"
-echo "[IBM] Schluessel eingetragen ist - ausgesperrt wird niemand."
-if confirm "SSH absichern (Anmeldung nur noch per Schluessel)?"; then
-  INSTALL_SSH_HARDENING=1
-fi
-
-# --- 13. Standardpasswoerter --------------------------------------------------
+# --- 12. Standardpasswoerter --------------------------------------------------
 INSTALL_PASSWORD_CHANGE=0
 
 echo "[IBM]"
-echo "[IBM] Die Standardpasswoerter gelten auch abseits von SSH: fuer die"
-echo "[IBM] Anmeldung an der Konsole (Tastatur/Monitor), fuer Samba und fuer"
-echo "[IBM] die Karaf-Konsole von openHAB. Das Setup kann sie aendern: das"
+echo "[IBM] openHABian kommt mit allgemein bekannten Standardpasswoertern -"
+echo "[IBM] und die SSH-Anmeldung (auch die Fernwartung durch den Tunnel)"
+echo "[IBM] laeuft per Passwort. Sie gelten auch fuer die Konsole"
+echo "[IBM] (Tastatur/Monitor), fuer Samba und fuer die Karaf-Konsole von"
+echo "[IBM] openHAB. Das Setup kann sie aendern: das"
 echo "[IBM] Passwort des Linux-Benutzers wird bei der Installation abgefragt,"
 echo "[IBM] das der Karaf-Konsole zufaellig erzeugt und einmalig angezeigt."
 echo "[IBM] Geaendert wird nur, was noch auf dem Standardwert steht."
@@ -424,7 +413,7 @@ if confirm "Standardpasswoerter aendern (Linux-Benutzer und Karaf-Konsole)?"; th
   INSTALL_PASSWORD_CHANGE=1
 fi
 
-# --- 14. Schreiben ----------------------------------------------------------
+# --- 13. Schreiben ----------------------------------------------------------
 # Zugangsdaten fuer die Bash-Doppelquotes in ibm.conf entschaerfen
 esc() { printf '%s' "$1" | sed -e 's/[\\"$`]/\\&/g'; }
 INVERTER_USERNAME_ESC="$(esc "$INVERTER_USERNAME")"
@@ -509,18 +498,11 @@ WATCHDOG_COOLDOWN_MIN=10
 
 # --- WireGuard-Fernwartung --------------------------------------------------
 # Ausgehender Tunnel zum Wartungsserver fuer Updates und Fehlersuche.
-# Server-Public-Key und SSH-Wartungsschluessel laedt 08-install-wireguard.sh
-# von <IBM_API_BASE>/ibm/; Details siehe README.
+# Den Server-Public-Key laedt 08-install-wireguard.sh von <IBM_API_BASE>/ibm/;
+# die SSH-Anmeldung durch den Tunnel laeuft per Passwort (siehe README).
 INSTALL_WIREGUARD=${INSTALL_WIREGUARD}
 WG_ADDRESS="${WG_ADDRESS}"
 WG_SERVER_ENDPOINT="${WG_SERVER_ENDPOINT}"
-
-# --- SSH-Haertung -----------------------------------------------------------
-# 09-harden-ssh.sh traegt den Wartungsschluessel (und eine optionale
-# Benutzer-CA) fuer WG_SSH_USER ein und schaltet danach die Passwort-
-# Anmeldung von sshd ab. Abgeschaltet wird nur, wenn mindestens ein
-# Schluessel eingerichtet ist.
-INSTALL_SSH_HARDENING=${INSTALL_SSH_HARDENING}
 
 # --- Standardpasswoerter ------------------------------------------------------
 # 10-change-passwords.sh aendert die Standardpasswoerter des Linux-Benutzers
@@ -549,7 +531,6 @@ cat <<ZUSAMMENFASSUNG
 [IBM]   Watchdog       : $([ "$INSTALL_WATCHDOG" = "1" ] && echo "ja (${INVERTER_HOST_THING_UID})" || echo "nein")
 [IBM]   Overview-Seite : $([ "$INSTALL_OVERVIEW" = "1" ] && echo "ja" || echo "nein")
 [IBM]   Fernwartung    : $([ "$INSTALL_WIREGUARD" = "1" ] && echo "ja (${WG_ADDRESS} -> ${WG_SERVER_ENDPOINT})" || echo "nein")
-[IBM]   SSH-Haertung   : $([ "$INSTALL_SSH_HARDENING" = "1" ] && echo "ja (nur Schluessel-Anmeldung)" || echo "nein")
 [IBM]   Passwoerter    : $([ "$INSTALL_PASSWORD_CHANGE" = "1" ] && echo "Standardpasswoerter werden geaendert" || echo "unveraendert")
 [IBM]
 ZUSAMMENFASSUNG

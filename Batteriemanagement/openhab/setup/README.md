@@ -97,8 +97,7 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 | `05-install-overview.sh` | Schreibt die IBM-Seiten (Overview + Unterseiten) per REST API in die Main UI (braucht `OH_API_TOKEN`; bestehende Seiten werden vorher gesichert). |
 | `06-verify.sh` | Prueft das Ergebnis, zeigt die letzten `[IBM]`-Logzeilen. Aendert nichts. |
 | `07-myopenhab.sh` | Zeigt UUID und Secret fuer die Registrierung auf myopenhab.org an (wartet ggf. auf das Cloud-Addon). Aendert nichts. |
-| `08-install-wireguard.sh` | Richtet den WireGuard-Tunnel zum Wartungsserver ein (siehe [Fernwartung](#fernwartung-wireguard)). |
-| `09-harden-ssh.sh` | Traegt den SSH-Wartungsschluessel (und eine optionale Benutzer-CA) ein und schaltet die Passwort-Anmeldung von sshd ab (siehe [SSH absichern](#ssh-absichern-nur-schluessel-anmeldung)). |
+| `08-install-wireguard.sh` | Richtet den WireGuard-Tunnel zum Wartungsserver ein und baut die SSH-Haertung aelterer Versionen zurueck - die Anmeldung durch den Tunnel laeuft per Passwort (siehe [Fernwartung](#fernwartung-wireguard)). |
 | `10-change-passwords.sh` | Aendert die Standardpasswoerter des Linux-Benutzers `openhabian` und der Karaf-Konsole (siehe [Standardpasswoerter aendern](#standardpasswoerter-aendern)). |
 | `purge-ibm.sh` | Entfernt das Batteriemanagement komplett wieder (Things, Regeln, Items, Seiten, Token, WireGuard, `/opt/ischlstrom`) und setzt die Anlage auf "frisches openHABian + Admin-Konto" zurueck - fuer Test-Wiederholungen oder Ausserbetriebnahme. Admin-Konto, Linux-Passwort, Zeitzone und myopenhab-Identitaet bleiben. |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
@@ -424,14 +423,15 @@ PrivateKey = <Inhalt von server.key>
 # je Anlage ein [Peer]-Block, siehe unten
 ```
 
-Danach zwei Dateien nach `website/static/ibm/` legen und deployen — beide
-sind oeffentlich und werden vom Setup auf dem Pi geladen:
+Danach den Public Key des Wartungsservers (`server.pub`) als
+`website/static/ibm/wg-server.pub` veroeffentlichen (Datei nach
+`website/static/ibm/` legen und deployen); das Setup auf dem Pi laedt ihn
+von dort.
 
-| Datei | Inhalt |
-| --- | --- |
-| `wg-server.pub` | Public Key des Wartungsservers (`server.pub`) |
-| `ssh-maintainer.pub` | SSH-Public-Key fuer die Fernwartung; `09-harden-ssh.sh` traegt ihn in die `authorized_keys` des Benutzers `WG_SSH_USER` (Vorgabe `openhabian`) ein. Fehlt die Datei, wird kein Schluessel eingetragen. |
-| `ssh-user-ca.pub` | Optional: Public Key einer SSH-Benutzer-CA fuer zertifikatsbasierte Anmeldung (siehe [SSH absichern](#ssh-absichern-nur-schluessel-anmeldung)). |
+Ein frueher veroeffentlichter `ssh-maintainer.pub` wird nur noch fuer den
+Rueckbau gebraucht: `08-install-wireguard.sh` erkennt daran den alten
+Wartungsschluessel in den `authorized_keys` und entfernt ihn. Die Datei erst
+loeschen, wenn alle Anlagen das Setup einmal neu durchlaufen haben.
 
 ### Je Anlage
 
@@ -469,75 +469,26 @@ Server-Firewall pruefen (UDP 51820 muss offen sein); der klassische Fehler
 sind vertauschte Public Keys (jede Seite traegt den Key der **Gegenseite**
 ein). Status auf dem Pi: `sudo wg show wg0`.
 
-## SSH absichern (nur Schluessel-Anmeldung)
+## SSH-Zugang (Passwort-Anmeldung)
 
-openHABian kommt mit dem allgemein bekannten Standardpasswort
-`openhabian:openhabian`. Auf Wunsch (Frage im Assistenten,
-`INSTALL_SSH_HARDENING=1`) stellt `09-harden-ssh.sh` die SSH-Anmeldung auf
-Schluessel um und schaltet die Passwort-Anmeldung ab:
-
-1. Der **SSH-Wartungsschluessel** (`<IBM_API_BASE>/ibm/ssh-maintainer.pub`)
-   wird in die `authorized_keys` des Benutzers `WG_SSH_USER` (Vorgabe
-   `openhabian`) eingetragen — derselbe Schritt, den frueher das
-   WireGuard-Setup miterledigt hat.
-2. Liegt zusaetzlich `<IBM_API_BASE>/ibm/ssh-user-ca.pub` auf dem Server,
-   wird der Key als **Benutzer-CA** nach `/etc/ssh/ibm-user-ca.pub`
-   uebernommen (`TrustedUserCAKeys`) — dann gelten auf allen Anlagen auch
-   SSH-Zertifikate, die das Wartungsteam signiert hat (siehe unten).
-3. Die Passwort-Anmeldung wird per Drop-in
-   `/etc/ssh/sshd_config.d/90-ibm-hardening.conf` abgeschaltet
-   (`PasswordAuthentication no`, `ChallengeResponseAuthentication no`,
-   `PermitRootLogin no`); danach wird sshd neu geladen — bestehende
-   Sitzungen bleiben verbunden.
-
-**Aussperrschutz:** Abgeschaltet wird nur, wenn mindestens ein gueltiger
-Schluessel in den `authorized_keys` steht oder die Benutzer-CA installiert
-ist; ausserdem prueft `sshd -t` die neue Konfiguration und bei einem Fehler
-wird sie zurueckgerollt. Vor dem Bestaetigen die Schluessel-Anmeldung am
-besten in einem zweiten Terminal testen. Die Konsole (Tastatur/Monitor am
-Pi) ist nicht betroffen — dort gilt das Passwort weiter, deshalb zusaetzlich
-das Standardpasswort aendern lassen (siehe
+Die SSH-Anmeldung auf den Anlagen laeuft per **Passwort** des Benutzers
+`WG_SSH_USER` (Vorgabe `openhabian`), auch fuer die Fernwartung durch den
+WireGuard-Tunnel. Der Tunnel selbst ist von aussen nicht erreichbar; das
+Passwort ist die zweite Huerde. Deshalb unbedingt das allgemein bekannte
+Standardpasswort `openhabian:openhabian` aendern lassen (siehe
 [Standardpasswoerter aendern](#standardpasswoerter-aendern)).
 
-### Einmalig auf dem Wartungsserver
-
-Wartungsschluessel erzeugen und den Public Key veroeffentlichen (nach
-`website/static/ibm/` legen und deployen):
-
-```bash
-ssh-keygen -t ed25519 -f ~/.ssh/ischlstrom-wartung -C "wartung@ischlstrom"
-cp ~/.ssh/ischlstrom-wartung.pub website/static/ibm/ssh-maintainer.pub
-```
-
-Der private Schluessel bleibt auf dem Wartungsrechner; in `~/.ssh/config`
-beim ProxyJump-Eintrag `IdentityFile ~/.ssh/ischlstrom-wartung` ergaenzen.
-
-### Optional: SSH-Zertifikate (Benutzer-CA)
-
-Sollen mehrere Personen warten, ohne dass je Anlage neue Schluessel
-eingetragen werden, lohnt sich eine Benutzer-CA: die Anlagen vertrauen der
-CA, und die CA signiert die Schluessel der Wartenden — auf Wunsch befristet.
-
-```bash
-# CA erzeugen (Passphrase setzen, Datei gut sichern)
-ssh-keygen -t ed25519 -f ~/.ssh/ischlstrom-user-ca -C "user-ca@ischlstrom"
-cp ~/.ssh/ischlstrom-user-ca.pub website/static/ibm/ssh-user-ca.pub
-
-# Schluessel eines Wartenden fuer 26 Wochen signieren
-# (-n openhabian: das Zertifikat gilt fuer den Benutzer 'openhabian')
-ssh-keygen -s ~/.ssh/ischlstrom-user-ca -I "martin" -n openhabian \
-  -V +26w ~/.ssh/id_ed25519.pub
-```
-
-Das erzeugte `id_ed25519-cert.pub` liegt neben dem eigenen Schluessel und
-wird von `ssh` automatisch mitgeschickt — auf den Anlagen ist nichts weiter
-einzutragen. Abgelaufene Zertifikate verlieren ihre Gueltigkeit von selbst.
-
-**Nachruesten** bei bestehender Installation: `INSTALL_SSH_HARDENING=1` in
-`ibm.conf` eintragen, dann
-`sudo /opt/ischlstrom/openhab/setup/09-harden-ssh.sh` ausfuehren.
-Rueckgaengig machen: `/etc/ssh/sshd_config.d/90-ibm-hardening.conf` loeschen
-und `sudo systemctl reload ssh`.
+**Frueher** stellte ein eigenes Skript (`09-harden-ssh.sh`) die SSH-Anmeldung
+auf Schluessel bzw. SSH-Zertifikate um und schaltete die Passwort-Anmeldung
+ab. Das ist zurueckgebaut: `08-install-wireguard.sh` entfernt bei jedem Lauf
+die Reste der Haertung, also das Drop-in
+`/etc/ssh/sshd_config.d/90-ibm-hardening.conf`, die Benutzer-CA
+`/etc/ssh/ibm-user-ca.pub` und den Wartungsschluessel aus den
+`authorized_keys` (erkannt ueber das noch veroeffentlichte
+`<IBM_API_BASE>/ibm/ssh-maintainer.pub`). Bestehende Anlagen kehren damit
+beim naechsten Setup-Lauf zur Passwort-Anmeldung zurueck; von Hand geht es
+mit `sudo rm /etc/ssh/sshd_config.d/90-ibm-hardening.conf` und
+`sudo systemctl reload ssh`.
 
 ## Standardpasswoerter aendern
 
