@@ -121,6 +121,54 @@ Items {
         : strategy = everyChange, restoreOnStartup
 }
 EOF
+
+  # rrd4j: Zeitreihen fuer Analyze/Diagramme in der Main UI. Nur Zahlenwerte;
+  # everyMinute ist fuer rrd4j Pflicht (die Archive erwarten lueckenlose
+  # Minutenwerte). Kein restoreOnStartup - das erledigt mapdb, und die
+  # Batteriewerte kommen ohnehin frisch vom Binding. Ein hier gelistetes,
+  # (noch) nicht vorhandenes Item ist unschaedlich - beim klassischen Weg
+  # entsteht das SoC-Item erst in der Main UI.
+  battery_persist="    ${SOC_ITEM},"
+  if [ -n "$BATTERY_POWER_ITEM" ]; then
+    battery_persist="${battery_persist}
+    ${BATTERY_POWER_ITEM},"
+  fi
+  install_file "$OPENHAB_CONF/persistence/rrd4j.persist" <<EOF
+// ============================================================================
+// ISCHLSTROM Batteriemanagement (IBM)
+// GENERIERT von 03-install-items.sh
+//
+// Zeitreihen fuer Analyze/Diagramme in der Main UI (rrd4j ist der
+// Standard-Persistence-Dienst, siehe runtime.cfg). Die Einstellungen
+// selbst sichert mapdb.persist.
+// ============================================================================
+
+Strategies {
+    everyMinute : "0 * * * * ?"
+    default = everyChange
+}
+
+Items {
+${battery_persist}
+    Ischlstrom_Wolkenvorschau,
+    IBM_MIN_BATTERY_CHARGE,
+    Minimale_Entladeleistung_Batterieeinspeisung,
+    Maximale_Entladeleistung_Batterieeinspeisung,
+    IBM_PAUSE_TAGE,
+    IBM_LADESPERRE_WOLKEN_SCHWELLE,
+    IBM_BATTERIE_KAPAZITAET
+        : strategy = everyChange, everyMinute
+}
+EOF
+
+  # rrd4j als Standard-Dienst: Analyze/Diagramme fragen ohne explizite Wahl
+  # den Standard ab, und mapdb kann nicht charten (nur letzter Wert).
+  # restoreOnStartup haengt nicht vom Standard ab.
+  runtime_cfg_set "org.openhab.persistence:default" "rrd4j"
+
+  # Ohne das hier bleiben frisch geschriebene .persist-Modelle wirkungslos,
+  # wenn openHAB die Persistence-Addons noch installiert - siehe Helfer.
+  persistence_activate mapdb rrd4j
 else
   log "INSTALL_PERSISTENCE=0 - Persistence uebersprungen."
   warn "Ohne Persistence stehen die Einstellungen nach einem Neustart auf NULL."

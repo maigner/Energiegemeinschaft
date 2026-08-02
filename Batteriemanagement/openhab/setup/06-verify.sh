@@ -22,9 +22,21 @@ for f in "$OPENHAB_CONF/items/ibm.items" \
 done
 
 if [ "$INSTALL_PERSISTENCE" = "1" ]; then
-  [ -f "$OPENHAB_CONF/persistence/mapdb.persist" ] \
-    && log "vorhanden: $OPENHAB_CONF/persistence/mapdb.persist" \
-    || fail "fehlt: $OPENHAB_CONF/persistence/mapdb.persist"
+  for svc in mapdb rrd4j; do
+    [ -f "$OPENHAB_CONF/persistence/$svc.persist" ] \
+      && log "vorhanden: $OPENHAB_CONF/persistence/$svc.persist" \
+      || fail "fehlt: $OPENHAB_CONF/persistence/$svc.persist"
+    # Datei vorhanden heisst nicht angewendet: wurde sie geschrieben, bevor
+    # der Dienst installiert war, kennt openHAB die Konfiguration nicht -
+    # dann kein restoreOnStartup und keine Diagramme.
+    if [ -n "$OH_API_TOKEN" ]; then
+      if persistence_config_loaded "$svc"; then
+        log "Persistence-Konfiguration '$svc' ist aktiv."
+      else
+        fail "openHAB kennt keine Persistence-Konfiguration fuer '$svc' - beheben mit: sudo $IBM_SETUP_DIR/03-install-items.sh"
+      fi
+    fi
+  done
 fi
 
 # --- openHAB Cloud ----------------------------------------------------------

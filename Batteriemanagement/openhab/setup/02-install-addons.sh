@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
-# 02 - Addons: Wechselrichter-Binding, JS Scripting, mapdb und - falls
-# gewuenscht - der openHAB Cloud Connector, alles ueber addons.cfg.
+# 02 - Addons: Wechselrichter-Binding, JS Scripting, mapdb, rrd4j und -
+# falls gewuenscht - der openHAB Cloud Connector, alles ueber addons.cfg.
 #
 # ACHTUNG: Sobald in addons.cfg eine Kategorie gesetzt ist, ist die Datei
 # fuer diese Kategorie massgeblich. Addons derselben Kategorie, die ueber die
@@ -29,7 +29,8 @@ cat <<HINWEIS
 [IBM] Es werden folgende Addons in addons.cfg eingetragen:
 [IBM]   binding     = ${INVERTER_BINDING}
 [IBM]   automation  = jsscripting      (JS-Regeln, zwingend erforderlich)
-[IBM]   persistence = mapdb            (Einstellungen ueberleben Neustart)
+[IBM]   persistence = mapdb, rrd4j     (Einstellungen ueberleben Neustart;
+[IBM]                                   rrd4j liefert die Daten fuer Analyze/Diagramme)
 HINWEIS
 if [ "$INSTALL_CLOUD" = "1" ]; then
   echo "[IBM]   misc        = openhabcloud    (Fernzugriff ueber myopenhab.org)"
@@ -52,6 +53,7 @@ addons_cfg_add "binding" "$INVERTER_BINDING"
 addons_cfg_add "automation" "jsscripting"
 if [ "$INSTALL_PERSISTENCE" = "1" ]; then
   addons_cfg_add "persistence" "mapdb"
+  addons_cfg_add "persistence" "rrd4j"
 fi
 if [ "$INSTALL_CLOUD" = "1" ]; then
   addons_cfg_add "misc" "openhabcloud"

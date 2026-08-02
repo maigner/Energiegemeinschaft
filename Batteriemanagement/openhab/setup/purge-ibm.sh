@@ -109,9 +109,16 @@ rm -rf /var/lib/openhab/ibm && log "entfernt: /var/lib/openhab/ibm"
 rm -f "$OPENHAB_CONF"/automation/js/ibm_*.js \
       "$OPENHAB_CONF"/scripts/ibm_rediscover.sh \
       "$OPENHAB_CONF"/items/ibm.items \
-      "$OPENHAB_CONF"/persistence/mapdb.persist
+      "$OPENHAB_CONF"/persistence/mapdb.persist \
+      "$OPENHAB_CONF"/persistence/rrd4j.persist
 log "Regeln, Items und Persistence-Konfiguration entfernt."
-rm -rf /var/lib/openhab/persistence/mapdb && log "mapdb-Daten entfernt."
+rm -rf /var/lib/openhab/persistence/mapdb /var/lib/openhab/persistence/rrd4j \
+  && log "mapdb- und rrd4j-Daten entfernt."
+# Der Standard-Dienst zeigt sonst auf das dann deinstallierte rrd4j.
+if [ -f "$OPENHAB_CONF/services/runtime.cfg" ]; then
+  sed -i '/^org\.openhab\.persistence:default=/d' "$OPENHAB_CONF/services/runtime.cfg" \
+    && log "Standard-Persistence-Dienst aus runtime.cfg entfernt."
+fi
 
 # --- 5. addons.cfg -------------------------------------------------------------
 oldest_bak="$(ls -tr "$OPENHAB_CONF"/services/addons.cfg.bak-* 2>/dev/null | head -n1 || true)"

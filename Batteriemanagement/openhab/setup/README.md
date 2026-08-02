@@ -90,9 +90,9 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 | --- | --- |
 | `00-wizard.sh` | Fragt die Anlagendaten ab und schreibt `ibm.conf`. Erkennt ein vorhandenes Thing samt Items selbst; fehlt das Thing, sucht er den Wechselrichter im Netz und laesst ihn von `02b` automatisch anlegen. |
 | `01-preflight.sh` | Prueft Dienst, Quellskripte, API, Thing, Item und Item-Kollisionen. Aendert nichts. |
-| `02-install-addons.sh` | Traegt Binding, `jsscripting`, `mapdb` und (falls gewuenscht) `openhabcloud` in `addons.cfg` ein. |
+| `02-install-addons.sh` | Traegt Binding, `jsscripting`, `mapdb`, `rrd4j` und (falls gewuenscht) `openhabcloud` in `addons.cfg` ein. |
 | `02b-install-things.sh` | Legt Bridge- und Wechselrichter-Thing per REST API an und erzeugt bei Bedarf das API-Token ueber die Karaf-Konsole (siehe [Wechselrichter automatisch anlegen](#wechselrichter-automatisch-anlegen)). |
-| `03-install-items.sh` | Schreibt `items/ibm.items` und `persistence/mapdb.persist`; bei der automatischen Einrichtung inklusive der Batterie-Items samt Channel-Verknuepfung. |
+| `03-install-items.sh` | Schreibt `items/ibm.items` sowie `persistence/mapdb.persist` (Einstellungen, `restoreOnStartup`) und `persistence/rrd4j.persist` (Zeitreihen fuer Analyze/Diagramme), setzt `rrd4j` als Standard-Persistence-Dienst und wartet, bis openHAB die Dienste installiert und die Modelle wirklich angewendet hat. Bei der automatischen Einrichtung inklusive der Batterie-Items samt Channel-Verknuepfung. |
 | `04-install-rules.sh` | Erzeugt die zeitgesteuerten Regeln in `automation/js/` und (falls gewuenscht) den Netzwerk-Watchdog. |
 | `05-install-overview.sh` | Schreibt die IBM-Seiten (Overview + Unterseiten) per REST API in die Main UI (braucht `OH_API_TOKEN`; bestehende Seiten werden vorher gesichert). |
 | `06-verify.sh` | Prueft das Ergebnis, zeigt die letzten `[IBM]`-Logzeilen. Aendert nichts. |
@@ -609,6 +609,16 @@ wurden.
 die Steuerung bricht mit "invalid value" ab. Deshalb richtet `03` `mapdb` mit
 `restoreOnStartup` ein. `ibm_init.js` setzt zusaetzlich Startwerte, solange ein
 Item noch `NULL`/`UNDEF` ist, damit eine frische Installation sofort laeuft.
+Fuer Analyze/Diagramme in der Main UI kommt `rrd4j` dazu (Minutenwerte der
+Zahlen-Items, Standard-Persistence-Dienst).
+
+**Ein `.persist` wirkt erst, wenn der Dienst installiert ist.** openHAB
+installiert die in `addons.cfg` eingetragenen Addons asynchron; eine vorher
+geschriebene `.persist`-Datei bleibt dann stumm wirkungslos (kein
+`restoreOnStartup`, keine Diagramme, `GET /rest/persistence/<dienst>` liefert
+404). `03` wartet deshalb auf die Installation, stoesst das Modell danach per
+`touch` neu an und prueft ueber die REST API, ob die Konfiguration angekommen
+ist; `06-verify.sh` prueft dasselbe.
 
 **Die Steuerung greift in die Hardware ein.** Der Hauptschalter
 `Schalte_ISCHLSTROM_Empfehlung_einaus` steht nach der Installation auf `OFF` —

@@ -256,7 +256,7 @@ ask DEFAULT_MAX_DISCHARGE_W    "Maximale Entladeleistung in Watt" "3000"
 
 # --- 6. Addons --------------------------------------------------------------
 echo "[IBM]"
-echo "[IBM] Die Addons (${INVERTER_BINDING}, jsscripting, mapdb) koennen ueber addons.cfg"
+echo "[IBM] Die Addons (${INVERTER_BINDING}, jsscripting, mapdb, rrd4j) koennen ueber addons.cfg"
 echo "[IBM] installiert werden. Bei einer bereits eingerichteten Anlage kann das"
 echo "[IBM] Addons entfernen, die nur ueber die Main UI installiert wurden."
 if confirm "Addons ueber addons.cfg verwalten?"; then

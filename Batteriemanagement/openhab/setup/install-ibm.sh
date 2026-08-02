@@ -88,7 +88,7 @@ if [ "$AUTO_CREATE_THING" = "1" ]; then
 fi
 
 cat <<ENDE
-[IBM]   1. Settings -> Add-ons pruefen (${INVERTER_BINDING}, JS Scripting, mapdb)
+[IBM]   1. Settings -> Add-ons pruefen (${INVERTER_BINDING}, JS Scripting, mapdb, rrd4j)
 [IBM]   2. ${INVERTER_NOTES}
 [IBM]   3. Settings -> Rules: die Regeln mit dem Tag "IBM" pruefen und
 [IBM]      zum Testen einmal manuell ausfuehren.

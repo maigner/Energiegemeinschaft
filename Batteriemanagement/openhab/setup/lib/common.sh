@@ -398,6 +398,66 @@ wait_for_addon() {
   return 1
 }
 
+# Liefert 0, wenn openHAB eine Persistence-Konfiguration fuer den Dienst
+# geladen hat. Braucht OH_API_TOKEN (der Endpunkt verlangt Admin-Rechte);
+# ohne Token 1 - Aufrufer behandeln das als "unbekannt".
+persistence_config_loaded() {
+  local svc="$1" code
+  case "${OH_API_TOKEN:-}" in oh.*) ;; *) return 1 ;; esac
+  code="$(curl -s -o /dev/null -w '%{http_code}' -m 5 \
+    -H "Authorization: Bearer $OH_API_TOKEN" \
+    "http://127.0.0.1:8080/rest/persistence/$svc" || true)"
+  [ "$code" = "200" ]
+}
+
+# Stellt sicher, dass openHAB geschriebene .persist-Modelle wirklich anwendet.
+# 02 traegt die Persistence-Addons nur in addons.cfg ein und openHAB
+# installiert sie asynchron - ein .persist, das vor dem Dienst geschrieben
+# wurde, bleibt sonst stumm wirkungslos: kein restoreOnStartup, keine
+# Diagramme, und /rest/persistence/<dienst> liefert 404 (beobachtet auf
+# openHAB 5.2). Deshalb: auf die Feature-Installation warten und die Datei
+# per touch neu einlesen lassen, sobald der Dienst da ist. Mit OH_API_TOKEN
+# wird zum Schluss geprueft, ob die Konfiguration angekommen ist.
+persistence_activate() {
+  local svc pfile waited
+  for svc in "$@"; do
+    pfile="$OPENHAB_CONF/persistence/${svc}.persist"
+    [ -f "$pfile" ] || continue
+
+    if persistence_config_loaded "$svc"; then
+      log "Persistence-Konfiguration '${svc}' ist aktiv."
+      continue
+    fi
+
+    wait_for_addon "openhab-persistence-${svc}" || true
+    touch "$pfile"
+    log "${svc}.persist neu eingelesen lassen (touch)."
+
+    case "${OH_API_TOKEN:-}" in
+      oh.*)
+        waited=0
+        until persistence_config_loaded "$svc"; do
+          if [ "$waited" -ge 60 ]; then
+            warn "openHAB meldet keine Persistence-Konfiguration fuer '${svc}'."
+            warn "openHAB neu starten (sudo systemctl restart openhab.service)"
+            warn "und danach pruefen: sudo $IBM_SETUP_DIR/06-verify.sh"
+            break
+          fi
+          sleep 5
+          waited=$((waited + 5))
+        done
+        [ "$waited" -lt 60 ] && log "Persistence-Konfiguration '${svc}' ist aktiv."
+        ;;
+      *)
+        log "Kein API-Token - ob '${svc}' die Konfiguration geladen hat, prueft 06-verify.sh."
+        ;;
+    esac
+  done
+  # Probleme wurden bereits als Warnung gemeldet - den Installationslauf
+  # brechen sie nicht ab.
+  return 0
+}
+
 # ---------------------------------------------------------------------------
 # Karaf-Konsole und openHAB REST API
 # ---------------------------------------------------------------------------
