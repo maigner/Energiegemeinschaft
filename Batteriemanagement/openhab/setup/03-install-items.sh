@@ -93,11 +93,10 @@ if [ "$INSTALL_PERSISTENCE" = "1" ]; then
 // Sichert die Einstellungen und die zuletzt geholten API-Werte, damit sie
 // einen Neustart ueberleben. Die Wolkenvorschau ist trotzdem sicher: die
 // Steuerung prueft ueber Ischlstrom_Wolkenvorschau_Zeit, ob sie veraltet ist.
+//
+// Kein Strategies-Block: everyChange und restoreOnStartup sind eingebaut,
+// und Default-Strategien versteht openHAB seit 5.1 nicht mehr.
 // ============================================================================
-
-Strategies {
-    default = everyChange
-}
 
 Items {
     Schalte_ISCHLSTROM_Empfehlung_einaus,
@@ -143,9 +142,10 @@ EOF
 // selbst sichert mapdb.persist.
 // ============================================================================
 
+// Default-Strategien ('default = ...') versteht openHAB seit 5.1 nicht mehr -
+// jede Item-Zeile nennt ihre Strategien deshalb selbst.
 Strategies {
     everyMinute : "0 * * * * ?"
-    default = everyChange
 }
 
 Items {

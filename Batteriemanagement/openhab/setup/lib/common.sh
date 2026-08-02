@@ -589,6 +589,26 @@ ensure_timezone() {
   fi
 
   runtime_cfg_set "org.openhab.i18n:timezone" "$tz"
+
+  # JVM-Zeitzone des openHAB-Dienstes: das openHABian-Image liefert in
+  # /etc/default/openhab ein hartes -Duser.timezone=Europe/London mit.
+  # Damit laufen Logs und zeitgesteuerte Regeln eine Stunde daneben, egal
+  # was Systemzeitzone und org.openhab.i18n sagen - deshalb hier ersetzen.
+  local defaults="/etc/default/openhab"
+  if [ -f "$defaults" ] && grep -qE '^[^#]*-Duser\.timezone=' "$defaults"; then
+    if grep -qE "^[^#]*-Duser\.timezone=$tz([\" ]|\$)" "$defaults"; then
+      log "JVM-Zeitzone bereits $tz ($defaults)."
+    else
+      cp -a "$defaults" "$defaults.bak-$(date +%Y%m%d%H%M%S)"
+      sed -i -E "/^[^#]*EXTRA_JAVA_OPTS=/ s#-Duser\.timezone=[^\" ]+#-Duser.timezone=$tz#" "$defaults"
+      log "JVM-Zeitzone in $defaults auf $tz gesetzt."
+      if systemctl is-active --quiet openhab.service 2>/dev/null; then
+        systemctl restart openhab.service \
+          && log "openHAB neu gestartet, damit die JVM-Zeitzone greift." \
+          || warn "openHAB-Neustart fehlgeschlagen - bitte manuell: sudo systemctl restart openhab.service"
+      fi
+    fi
+  fi
 }
 
 # Setzt Zeitzone, Sprache, Region und Masssystem - das, was sonst der
