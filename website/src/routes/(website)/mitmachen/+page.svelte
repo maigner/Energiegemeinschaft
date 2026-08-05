@@ -39,11 +39,39 @@
 </div>
 
 <div class="flex place-content-center">
-    <Project img="/smart_meter.webp" showMore={false} title="1. eService-Portal der Netz Oberösterreich aktivieren">
+    <Project img="/pen_writing.webp" showMore={false} title="1. Mitglied werden">
         <div>
 
             <p class="mb-4">
-                Registrieren Sie sich dazu im eService-Portal der Netz
+                Melden Sie sich mit Ihrer E-Mail-Adresse bei ISCHLSTROM an.
+            </p>
+
+
+            <p class="mb-4">
+                Füllen Sie danach einfach unser Bewerbungsformular aus.
+            </p>
+            <p class="mb-4">
+                Bitte beachten Sie, dass Ihre Dateneingabe noch keine automatische Mitgliedschaft
+                bedeutet. Es fallen bis zur Aufnahme in die Energiegemeinschaft auch keine Kosten für Sie an.
+            </p>
+            <p class="mb-4">
+                Details zur Mitgliedschaft
+                entnehmen Sie bitte unseren <a
+                target="_blank"
+                href="https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf"
+                >Statuten</a>.
+            </p>
+        </div>
+    </Project>
+</div>
+
+
+<div class="flex place-content-center">
+    <Project img="/smart_meter.webp" showMore={false} title="2. eService-Portal der Netz Oberösterreich aktivieren">
+        <div>
+
+            <p class="mb-4">
+                Registrieren Sie sich danach im eService-Portal der Netz
                 Oberösterreich unter <a
                     href="https://eservice.netzooe.at/app/login"
                     target="_blank">https://eservice.netzooe.at/app/login</a
@@ -51,7 +79,7 @@
             </p>
 
             <p class="mb-4">
-                Im eService-Portals können Sie Ihre Zählpunkte einsehen, Ihren Verbrauch bzw. Ihre Produktion überblicken und 
+                Im eService-Portals können Sie Ihre Zählpunkte einsehen, Ihren Verbrauch bzw. Ihre Produktion überblicken und
                 die Datenfreigabe für ISCHLSTROM aktivieren.
             </p>
 
@@ -63,34 +91,6 @@
 
             <p class="mb-4">
                 Hilfe bekommen Sie bei NetzOÖ unter der Service-Hotline 05 9070
-            </p>
-        </div>
-    </Project>
-</div>
-
-
-<div class="flex place-content-center">
-    <Project img="/pen_writing.webp" showMore={false} title="2. Mitglied werden">
-        <div>
-
-            <p class="mb-4">
-                Melden Sie sich mit Ihrer E-Mail-Adresse bei ISCHLSTROM an.
-            </p>
-            
-
-            <p class="mb-4">
-                Füllen Sie danach einfach unser Bewerbungsformular aus.
-            </p>
-            <p class="mb-4">
-                Bitte beachten Sie, dass Ihre Dateneingabe noch keine automatische Mitgliedschaft
-                bedeutet. Es fallen bis zur Aufnahme in die Energiegemeinschaft auch keine Kosten für Sie an.
-            </p>
-            <p class="mb-4"> 
-                Details zur Mitgliedschaft
-                entnehmen Sie bitte unseren <a 
-                target="_blank" 
-                href="https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf"
-                >Statuten</a>.
             </p>
         </div>
     </Project>
