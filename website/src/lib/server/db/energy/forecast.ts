@@ -116,6 +116,52 @@ export const getTodayChargeWindow = async (runId: number) => {
 };
 
 /**
+ * Durchschnittlicher nächtlicher Strombedarf laut Prognose, für die
+ * IBM-Seite: je vollständigem Prognosetag die Summe von Verbrauch minus
+ * Eigendeckung in den Intervallen ohne nennenswerte Sonne (Erzeugung unter
+ * 5 % des Tagesmaximums, gleiche Schwelle wie beim Ladesperre-Fenster),
+ * gemittelt über alle Tage des Laufs. Das ist die Energiemenge, die die
+ * Batterien der Mitglieder decken müssten, damit nachts kein Mitglied
+ * einzeln Strom vom eigenen Anbieter beziehen muss (die EEG selbst kauft
+ * nie Strom zu).
+ */
+export const getForecastNightDeficit = async (runId: number) => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        WITH slots AS (
+            SELECT
+                (timestamp AT TIME ZONE 'Europe/Vienna')::date AS day,
+                generation_kwh,
+                consumption_kwh,
+                self_coverage_kwh,
+                MAX(generation_kwh) OVER (
+                    PARTITION BY (timestamp AT TIME ZONE 'Europe/Vienna')::date
+                ) AS day_peak
+            FROM metering_energyforecast
+            WHERE run_id = $1
+        ),
+        nights AS (
+            SELECT
+                day,
+                SUM(GREATEST(consumption_kwh - self_coverage_kwh, 0)) FILTER (
+                    WHERE generation_kwh <= 0.05 * day_peak
+                ) AS night_deficit_kwh
+            FROM slots
+            GROUP BY day
+            HAVING COUNT(*) = 96
+        )
+        SELECT
+            COUNT(*)::int AS days,
+            AVG(night_deficit_kwh)::float AS avg_night_deficit_kwh
+        FROM nights
+    `, [runId]);
+    sql.release();
+    const row = result?.rows?.[0];
+    if (!row?.days || row.avg_night_deficit_kwh == null) return null;
+    return row;
+};
+
+/**
  * Prognose gegen tatsächlich gemessene Werte. Je Tag zählt der Lauf, der ihm am
  * nächsten lag.
  *

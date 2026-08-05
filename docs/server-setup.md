@@ -2,8 +2,9 @@
 
 Website und Datenbanken laufen auf **s1.ischlstrom.org** (Hetzner,
 94.130.9.254 / 2a01:4f8:10b:e1a::2). Der fruehere Heimserver ("server",
-85.127.127.139) ist ausser Betrieb; sein PostgreSQL bleibt vorerst als
-kalte Kopie mit dem Stand der Migration liegen.
+85.127.127.139) dient seither als **Dev-Datenbank** der Website; sein
+PostgreSQL wird jede Nacht aus den s1-Backups aufgefrischt
+(siehe [db-setup.md](db-setup.md)).
 
 ## Dienste auf s1
 
@@ -69,7 +70,14 @@ Skripte in `scripts/backup-s1/`:
 - **Heimserver, taeglich 05:30** (crontab martin): `pull-backups-home.sh`
   spiegelt `/var/backups/s1/` nach `~/backups-s1/` (Offsite-Kopie; Pull,
   s1 erreicht den Heimserver nicht). Log: `~/backups-s1/pull.log`.
+- **Heimserver, taeglich 06:00** (crontab martin): `refresh-dev-db.sh`
+  spielt die neuesten Dumps der beiden Website-DBs in das lokale
+  PostgreSQL ein - der Heimserver ist damit die taeglich aufgefrischte
+  Dev-DB **und** ein staendiger Restore-Test der Backups
+  (siehe [db-setup.md](db-setup.md)).
 - Restore: `pg_restore -d <db> <datei>.dump`; Globals sind plain SQL.
+  Achtung: die Dumps von s1 (PostgreSQL 16, Archivformat 1.15) brauchen
+  einen pg_restore ab Version 16.
 
 Noch offen:
 
@@ -78,6 +86,9 @@ Noch offen:
 2. Gitignorte Secrets (`website/.env*`, `notebooks/.pgpass`,
    `.pg_service.conf`) existieren nur auf Workstation und Servern -
    separat privat sichern.
-3. Restore-Test einplanen (Dump in eine Scratch-DB einspielen).
+3. Restore-Test einplanen (Dump in eine Scratch-DB einspielen). Die
+   beiden Website-DBs sind durch den taeglichen Dev-Refresh abgedeckt;
+   offen bleiben die uebrigen DBs (openhabian*, keila, KEM), mailcow und
+   die Config-Tarballs.
 4. Plattenplatz beobachten: `journalctl -u s1-backup` zeigt Belegung und
    freien Platz nach jedem Lauf.

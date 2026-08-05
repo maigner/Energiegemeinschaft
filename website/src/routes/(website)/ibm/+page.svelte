@@ -1,12 +1,23 @@
 <script>
     import Fab from "$lib/Fab.svelte";
-    import { Blockquote, Heading, Hr, List, Li } from "flowbite-svelte";
+    import {
+        Blockquote,
+        Heading,
+        Hr,
+        List,
+        Li,
+        Progressbar,
+    } from "flowbite-svelte";
 
     let { data } = $props();
 
     /** @param {number} kwh */
     const formatMwh = (kwh) =>
         (kwh / 1000).toLocaleString("de-AT", { maximumFractionDigits: 0 });
+
+    /** @param {number} kwh */
+    const formatKwh = (kwh) =>
+        kwh.toLocaleString("de-AT", { maximumFractionDigits: 0 });
 
     // Kennzahlen nur anzeigen, wenn sie wirklich vorliegen
     let tiles = $derived.by(() => {
@@ -95,15 +106,16 @@
             Untertags erzeugen die Photovoltaikanlagen unserer Mitglieder oft
             mehr Strom, als die Gemeinschaft gerade braucht. Am Abend ist es
             umgekehrt: Die Sonne ist weg, aber in den Haushalten wird gekocht,
-            gewaschen und ferngesehen. Dann muss Strom von außerhalb der
-            Gemeinschaft zugekauft werden.
+            gewaschen und ferngesehen. Dann deckt jedes Mitglied seinen
+            Verbrauch wieder einzeln über den eigenen Stromanbieter.
         </p>
         <p class="mb-4">
             Viele Mitglieder haben aber einen Heimspeicher, der am Abend noch
             gut gefüllt ist. Genau hier setzt das ISCHLSTROM Batteriemanagement
             (kurz IBM) an: Was die eigene Batterie am Abend übrig hat, gibt sie
             an die Gemeinschaft weiter. So bleibt der Sonnenstrom aus Bad Ischl
-            in Bad Ischl, statt dass wir ihn von weit her zukaufen.
+            in Bad Ischl, statt dass ihn jedes Mitglied einzeln von weit her
+            zukauft.
         </p>
         <p class="mb-4 font-medium text-gray-900 dark:text-white">
             Der eigene Haushalt hat dabei immer Vorrang. Die Batterie lädt wie
@@ -153,6 +165,80 @@
     </section>
 
     <Hr divClass="my-10" />
+
+    {#if data.batteryGoal}
+        <section>
+            <Heading
+                tag="h3"
+                class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white mb-4"
+            >
+                Unser Ziel: durch die Nacht mit Sonnenstrom
+            </Heading>
+            <p class="mb-4">
+                Laut unserer <a
+                    href="/vorhersage"
+                    class="text-primary-600 dark:text-primary-500 hover:underline"
+                    >Energieprognose</a
+                > braucht die Gemeinschaft in einer typischen Nacht rund
+                <strong
+                    >{formatKwh(data.batteryGoal.nightKwh)} kWh</strong
+                > Strom, den sich derzeit jedes Mitglied einzeln vom eigenen
+                Stromanbieter holt. Genau diese Menge wollen wir mit den
+                Heimspeichern unserer Mitglieder decken.
+            </p>
+            <div class="mb-2 flex justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">
+                    {#if data.batteryGoal.plants > 0}
+                        {data.batteryGoal.plants === 1
+                            ? "1 Batterie liefert"
+                            : `${data.batteryGoal.plants.toLocaleString("de-AT")} Batterien liefern`}
+                        derzeit rund {formatKwh(
+                            data.batteryGoal.usableFleetKwh,
+                        )} kWh pro Nacht
+                    {:else}
+                        Noch liefert keine Batterie mit
+                    {/if}
+                </span>
+                <span
+                    class="font-medium text-primary-600 dark:text-primary-500"
+                >
+                    {data.batteryGoal.progressPercent}%
+                </span>
+            </div>
+            <Progressbar
+                progress={data.batteryGoal.progressPercent}
+                size="h-4"
+                animate
+            />
+            <p class="mt-4 mb-4">
+                {#if data.batteryGoal.additionalBatteries > 0}
+                    Mit etwa <strong
+                        >{data.batteryGoal.additionalBatteries} weiteren
+                        {data.batteryGoal.additionalBatteries === 1
+                            ? "Batterie"
+                            : "Batterien"}</strong
+                    > wäre eine typische Nacht rechnerisch vollständig mit
+                    Sonnenstrom aus der Gemeinschaft versorgt. Jede einzelne
+                    Anlage bringt uns diesem Ziel ein Stück näher.
+                {:else}
+                    Damit ist eine typische Nacht rechnerisch bereits
+                    vollständig gedeckt. Jede weitere Batterie macht die
+                    Versorgung robuster, etwa nach trüben Tagen.
+                {/if}
+            </p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                Eine grobe Schätzung: Wir nehmen an, dass etwa die Hälfte der
+                Speicherkapazität am Abend für die Gemeinschaft übrig ist
+                (der eigene Haushalt hat Vorrang), und rechnen mit einer
+                Batteriegröße von rund {formatKwh(
+                    data.batteryGoal.avgBatteryKwh,
+                )} kWh. Der Nachtbedarf ist der Mittelwert der {data
+                    .batteryGoal.forecastDays} Tage der aktuellen Prognose.
+            </p>
+        </section>
+
+        <Hr divClass="my-10" />
+    {/if}
 
     {#if tiles.length > 0}
         <section>
@@ -211,9 +297,10 @@
                 arbeitet sie dann, wenn sie der Gemeinschaft wirklich hilft.
             </Li>
             <Li>
-                Die Gemeinschaft muss am Abend weniger Strom zukaufen, und
-                Mitglieder ohne eigene Anlage bekommen auch nach
-                Sonnenuntergang Sonnenstrom aus der Nachbarschaft.
+                Die Mitglieder müssen am Abend weniger Strom einzeln beim
+                eigenen Anbieter zukaufen, und wer keine eigene Anlage hat,
+                bekommt auch nach Sonnenuntergang Sonnenstrom aus der
+                Nachbarschaft.
             </Li>
         </List>
         <p class="mb-4">

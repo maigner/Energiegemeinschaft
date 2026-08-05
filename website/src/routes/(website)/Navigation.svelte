@@ -10,6 +10,7 @@
         ChartMixedDollarOutline,
         AwardOutline,
         ChartLineUpOutline,
+        BatteryOutline,
     } from "flowbite-svelte-icons";
 
     import {
@@ -73,6 +74,16 @@
                 class="hover:text-green-600"
             >
                 <ChartLineUpOutline />Vorhersage</NavLi
+            >
+
+            <NavLi
+                href="/ibm"
+                onclick={() => toggle()}
+                activeClass="text-green-600 bg-secundary-100"
+                nonActiveClass="text-green-800"
+                class="hover:text-green-600"
+            >
+                <BatteryOutline />Speicher</NavLi
             >
 
             <NavLi
