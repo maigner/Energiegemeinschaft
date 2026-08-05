@@ -1,49 +1,43 @@
 <script>
-
-    // https://docs.mapbox.com/mapbox-gl-js/example/simple-map/
-
-    // https://docs.mapbox.com/help/tutorials/use-mapbox-gl-js-with-svelte/
-
-    import mapboxgl from 'mapbox-gl';
-
+    import mapboxgl from "mapbox-gl";
     import "mapbox-gl/dist/mapbox-gl.css";
     import { onMount, onDestroy } from "svelte";
+    import { Heading } from "flowbite-svelte";
 
-    export let data;
+    let { data } = $props();
 
+    /** @type {mapboxgl.Map | undefined} */
     let map;
-    /**
-     * @type {HTMLDivElement}
-     */
+    /** @type {HTMLDivElement} */
     let mapContainer;
-    let lng, lat, zoom;
-
-    lng = 13.605;
-    lat = 47.69;
-    zoom = 11.5;
 
     onMount(() => {
-        const initialState = { lng: lng, lat: lat, zoom: zoom };
-
         map = new mapboxgl.Map({
             container: mapContainer,
             accessToken: data.mapboxToken,
-            style: `mapbox://styles/mapbox/outdoors-v11`,
-            center: [initialState.lng, initialState.lat],
-            zoom: initialState.zoom,
+            style: "mapbox://styles/mapbox/outdoors-v11",
+            center: [13.605, 47.69],
+            zoom: 11.5,
+            // Ein Finger scrollt die Seite weiter, erst zwei Finger bewegen
+            // die Karte -- sonst bleibt man am Handy in der Karte haengen.
+            cooperativeGestures: true,
+            locale: {
+                "TouchPanBlocker.Message":
+                    "Karte mit zwei Fingern verschieben",
+                "ScrollZoomBlocker.CtrlMessage":
+                    "Karte mit Strg + Scrollen zoomen",
+                "ScrollZoomBlocker.CmdMessage":
+                    "Karte mit ⌘ + Scrollen zoomen",
+            },
         });
+        map.addControl(new mapboxgl.NavigationControl());
 
-        console.log(data.memberLocations);
-
-        data.memberLocations.forEach((location) => {
-            //console.log(location);
-            const el = document.createElement("div");
-            el.className = "marker";
+        for (const location of data.memberLocations) {
             new mapboxgl.Marker()
                 .setLngLat([location.longitude, location.latitude])
-                .setPopup(new mapboxgl.Popup().setHTML(`<p>${location.name}</p>`))
+                .setPopup(new mapboxgl.Popup().setText(location.name))
                 .addTo(map);
-        });
+        }
     });
 
     onDestroy(() => {
@@ -51,37 +45,16 @@
     });
 </script>
 
-<div class="">
-    <div class="map" bind:this={mapContainer} />
+<svelte:head>
+    <title>ISCHLSTROM - Mitgliederkarte</title>
+</svelte:head>
 
-    <!--
-    <div class="sidebar">
-        Longitude: {lng.toFixed(4)} | Latitude: {lat.toFixed(4)} | Zoom:
-        {zoom.toFixed(2)}
-    </div>
--->
+<div class="px-4 mt-4">
+    <Heading tag="h2" class="text-xl font-semibold mb-3">
+        Mitgliederkarte
+    </Heading>
+    <div
+        bind:this={mapContainer}
+        class="h-[65dvh] md:h-[75dvh] w-full rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+    ></div>
 </div>
-
-<style>
-    .map {
-        position: absolute;
-        width: 95%;
-        height: 95%;
-        left: 0;
-        right: 0;
-        border-radius: 10px;
-        border-color: rgb(35 55 75 / 90%);
-    }
-    .sidebar {
-        background-color: rgb(35 55 75 / 90%);
-        color: #fff;
-        padding: 6px 12px;
-        font-family: monospace;
-        z-index: 1;
-        position: absolute;
-        top: 16em;
-        left: 0;
-        margin: 12px;
-        border-radius: 4px;
-    }
-</style>
