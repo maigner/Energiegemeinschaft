@@ -457,6 +457,17 @@ export const setActivationReminderSent = async (id) => {
     return result?.rows[0];
 };
 
+export const getMemberCount = async () => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        SELECT count(*)::int AS count
+        FROM members_member
+        WHERE member_since IS NOT NULL
+    `);
+    sql.release();
+    return result?.rows[0]?.count ?? null;
+};
+
 export const getMembersWithPendingMeasurementPointsForSecondReminder = async () => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`

@@ -156,6 +156,27 @@ export const getOpenhabStatus = async (statusId) => {
 };
 
 /**
+ * Anonyme Kennzahlen fuer die oeffentliche IBM-Seite: Anzahl der Anlagen,
+ * die schon melden, davon aktuell online, und die Summe der geschaetzten
+ * Batteriekapazitaeten. Keine Namen, keine Mitgliedsdaten.
+ */
+export const getPublicIbmStats = async () => {
+    const db = await middlewareDbConnection();
+    try {
+        const result = await db.query(
+            `SELECT count(*) FILTER (WHERE last_seen IS NOT NULL)::int AS plants,
+                    count(*) FILTER (WHERE last_seen > now() - interval '1 hour')::int AS online,
+                    round(sum(CASE WHEN jsonb_typeof(data->'batterie_kapazitaet') = 'number'
+                                   THEN (data->>'batterie_kapazitaet')::numeric END))::int AS capacity_kwh
+               FROM members_openhabstatus`
+        );
+        return result.rows[0] ?? null;
+    } finally {
+        db.release();
+    }
+};
+
+/**
  * Alle Tokens/Anlagen mit letztem Status, fuer das Vorstands-Dashboard.
  */
 export const getOpenhabStatuses = async () => {

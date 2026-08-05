@@ -68,6 +68,22 @@ export const getDailySums = async (numberOfDays: number) => {
     return result?.rows.length > 0 ? result.rows : null;
 };
 
+// Gesamtsummen seit Beginn der Aufzeichnung, fuer die oeffentliche IBM-Seite.
+// Eigendeckung (195) ist der tatsaechlich innerhalb der Gemeinschaft genutzte
+// Sonnenstrom, Gesamterzeugung (196) die gesamte Erzeugung der Mitglieder.
+export const getCommunityEnergyTotals = async () => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        SELECT sum(sum_in_kwh) FILTER (WHERE meter_code_id = 195) AS self_use_kwh,
+               sum(sum_in_kwh) FILTER (WHERE meter_code_id = 196) AS total_production_kwh,
+               min(day) AS first_day
+        FROM daily_metering_summary
+        WHERE meter_code_id IN (195, 196)
+    `);
+    sql.release();
+    return result?.rows[0] ?? null;
+};
+
 // the view holds one row per calendar week, so the current week yields a single entry
 export const getCurrentWeekCrossoverTime = async () => {
     const sql = await middlewareDbConnection();
