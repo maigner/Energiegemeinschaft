@@ -1,23 +1,32 @@
 <script>
     import { Checkbox, Helper } from "flowbite-svelte";
 
-    let { dataProcessing = $bindable() } = $props();
+    let { privacyNotice = $bindable() } = $props();
 
     let boxColor = $state("bg-yellow-300");
 
     $effect(() => {
-        boxColor = dataProcessing ? "bg-green-300" : "bg-yellow-300";
+        boxColor = privacyNotice ? "bg-green-300" : "bg-yellow-300";
     });
 </script>
 
 <div class={boxColor + " rounded-md p-4 mt-4"}>
-    <Checkbox bind:checked={dataProcessing}
-        >Ich stimme der Verarbeitung meiner Daten zu</Checkbox
+    <Checkbox bind:checked={privacyNotice}
+        >Ich habe die <a
+            class="underline"
+            href="/datenschutz"
+            target="_blank">Datenschutzerklärung</a
+        > gelesen und zur Kenntnis genommen.</Checkbox
     >
-    {#if dataProcessing === false}
+    <Helper class="mt-2">
+        Wir verarbeiten Ihre Angaben zur Begründung und Durchführung Ihrer
+        Mitgliedschaft in der Energiegemeinschaft (Art. 6 Abs. 1 lit. b DSGVO).
+    </Helper>
+    {#if privacyNotice === false}
         <Helper class="mt-2" color="red">
             <span class="font-medium"
-                >Eine Teilname ohne Ihrer Zustimmung ist leider nicht möglich.</span
+                >Bitte bestätigen Sie, dass Sie die Datenschutzerklärung gelesen
+                haben.</span
             >
         </Helper>
     {/if}

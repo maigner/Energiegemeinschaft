@@ -12,11 +12,7 @@ export async function load({ params, parent }) {
     });
 
     if (validUser.length === 0) {
-        console.log("Unauthorized: " + session?.user?.email);
-        //signOut(event);
-        console.log("Logging out");
-        console.log({ session });
-        console.log({ params });
+        console.log(`unauthorized access attempt on /user/${params.memberId}`);
         return error(403, 'not a valid user');
     }
 

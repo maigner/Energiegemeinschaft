@@ -54,15 +54,32 @@ export const importMemberDataFromNextcloud = async () => {
 
 
 
+/**
+ * Identifier von nach Art. 17 DSGVO geloeschten Mitgliedern. Der Import darf
+ * diese Zeilen nicht wieder anlegen, solange sie noch im Masterdata-Sheet
+ * stehen (sonst wuerde eine Loeschung beim naechsten Import rueckgaengig
+ * gemacht). Pflege der Liste: Django-Admin, Tabelle members_membertombstone.
+ */
+const getTombstonedIdentifiers = async (sql) => {
+    const result = await sql.query(`SELECT identifier FROM members_membertombstone`);
+    return new Set(result.rows.map((row) => Number(row.identifier)));
+};
+
 export const upsertMembersFromSpreadsheet = async (rows) => {
     const sql = await middlewareDbConnection();
 
     let messages = [];
 
     try {
+        const tombstoned = await getTombstonedIdentifiers(sql);
+
         for (const row of rows) {
             const identifier = row["Mit. Nr."];
             if (!identifier) continue;
+            if (tombstoned.has(Number(identifier))) {
+                messages.push(`[SKIPPED] ${identifier}: tombstoned (geloeschtes Mitglied)`);
+                continue;
+            }
 
             const firstName = row["Name 1"] ?? null;
             const lastName = row["Name 2"] ?? null;
@@ -121,9 +138,14 @@ export const upsertMeasurementPointsFromSpreadsheet = async (rows) => {
     let messages = [];
 
     try {
+        const tombstoned = await getTombstonedIdentifiers(sql);
+
         for (const row of rows) {
             const identifier = row["Zählpunkt"];
             if (!identifier) continue;
+            if (tombstoned.has(Number(row["Mit. Nr."]))) {
+                continue;
+            }
 
             // Look up member by identifier
             const memberResult = await sql.query(

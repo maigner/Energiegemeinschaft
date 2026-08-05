@@ -10,7 +10,9 @@ import { createTransport } from "nodemailer";
 export const authorizationHandle = async({ event, resolve }) => {
 
   if (!event.route.id) {
-    console.log(`404 ${event.getClientAddress()} ${event.url.pathname}`);
+    // bewusst ohne Client-IP: Anwendungslogs sollen keine personenbezogenen
+    // Daten enthalten (siehe /datenschutz)
+    console.log(`404 ${event.url.pathname}`);
     error(404, {
       message: 'Not found'
     });

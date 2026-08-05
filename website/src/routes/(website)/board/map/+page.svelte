@@ -1,41 +1,46 @@
 <script>
-    import mapboxgl from "mapbox-gl";
-    import "mapbox-gl/dist/mapbox-gl.css";
+    import maplibregl from "maplibre-gl";
+    import "maplibre-gl/dist/maplibre-gl.css";
     import { onMount, onDestroy } from "svelte";
     import { Heading } from "flowbite-svelte";
 
     let { data } = $props();
 
-    /** @type {mapboxgl.Map | undefined} */
+    /** @type {maplibregl.Map | undefined} */
     let map;
     /** @type {HTMLDivElement} */
     let mapContainer;
 
     onMount(() => {
-        map = new mapboxgl.Map({
+        // OpenFreeMap: EU-gehostete OSM-Kacheln, kein API-Key, kein Tracking.
+        // Ersetzt Mapbox (US-Anbieter mit Telemetrie), siehe /datenschutz.
+        map = new maplibregl.Map({
             container: mapContainer,
-            accessToken: data.mapboxToken,
-            style: "mapbox://styles/mapbox/outdoors-v11",
+            style: "https://tiles.openfreemap.org/styles/liberty",
             center: [13.605, 47.69],
             zoom: 11.5,
+            attributionControl: { compact: true },
             // Ein Finger scrollt die Seite weiter, erst zwei Finger bewegen
             // die Karte -- sonst bleibt man am Handy in der Karte haengen.
             cooperativeGestures: true,
             locale: {
-                "TouchPanBlocker.Message":
+                "CooperativeGesturesHandler.MobileHelpText":
                     "Karte mit zwei Fingern verschieben",
-                "ScrollZoomBlocker.CtrlMessage":
+                "CooperativeGesturesHandler.WindowsHelpText":
                     "Karte mit Strg + Scrollen zoomen",
-                "ScrollZoomBlocker.CmdMessage":
+                "CooperativeGesturesHandler.MacHelpText":
                     "Karte mit ⌘ + Scrollen zoomen",
             },
         });
-        map.addControl(new mapboxgl.NavigationControl());
+        map.addControl(new maplibregl.NavigationControl());
 
         for (const location of data.memberLocations) {
-            new mapboxgl.Marker()
+            if (location.latitude == null || location.longitude == null) {
+                continue;
+            }
+            new maplibregl.Marker()
                 .setLngLat([location.longitude, location.latitude])
-                .setPopup(new mapboxgl.Popup().setText(location.name))
+                .setPopup(new maplibregl.Popup().setText(location.name))
                 .addTo(map);
         }
     });

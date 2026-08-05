@@ -22,7 +22,7 @@
 
 <div class="flex items-center justify-center mt-2">
     <Fab
-        href="https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf"
+        href="/statuten-ischlstrom.pdf"
         label="Statuten herunterladen"
         target="_blank"
     ></Fab>

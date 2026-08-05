@@ -25,8 +25,7 @@ export async function load({ parent, locals }) {
                 checkBoxes: {
                     terms: false,
                     sepa: false,
-                    dataProcessing: false,
-                    newsletter: false
+                    privacyNotice: false
                 },
                 measurementPoints: [
                     {
@@ -52,8 +51,7 @@ export async function load({ parent, locals }) {
                 checkBoxes: {
                     terms: false,
                     sepa: false,
-                    dataProcessing: false,
-                    newsletter: false
+                    privacyNotice: false
                 },
                 measurementPoints: [
                     {

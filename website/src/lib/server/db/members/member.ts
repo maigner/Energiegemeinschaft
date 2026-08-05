@@ -98,7 +98,6 @@ export const answerToMembershipApproval = async (
         const selectValues = [boardMemberId, newMemberEmail];
         const { rows } = await client.query(selectQuery, selectValues);
 
-        console.log(rows);
         if (!rows[0]) {
 
             await client.query(`

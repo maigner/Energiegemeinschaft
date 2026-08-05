@@ -7,6 +7,7 @@ import { fetchAndStoreWeatherData } from "$lib/server/db/weather/openmeteo";
 import { checkActivationReminders, sendActivationReminders } from "$lib/server/mail/reminders/memberReminders";
 import { refreshMaterializedViewCrossoverTimes } from "$lib/server/db/energy/overview";
 import { pruneOpenhabStatusHistory } from "$lib/server/db/members/openhabStatus";
+import { pruneExpiredAuthData, pruneMemberDataAccessLog } from "$lib/server/db/retention";
 import { dev } from "$app/environment";
 
 
@@ -26,11 +27,9 @@ export async function handleError({ error, event }) {
 	});
 	*/
 
-	console.log("Server ERROR: ");
-
-	console.log(event.url.href);
-
-	console.log({ error });
+	// nur Pfad und Fehlermeldung protokollieren, keine Query-Parameter
+	// und keine kompletten Objekte (koennten personenbezogene Daten enthalten)
+	console.log(`Server ERROR ${errorId} at ${event.url.pathname}:`, error instanceof Error ? error.message : error);
 
 
 	//throw redirect(307, '/');
@@ -78,6 +77,15 @@ export async function cronHandle({ event, resolve }) {
 			if (dev) return;
 			console.log('Runs daily at 03:23: pruneOpenhabStatusHistory');
 			pruneOpenhabStatusHistory();
+		});
+
+		// Datenminimierung: abgelaufene Login-Tokens/Sitzungen und alte
+		// Zugriffsprotokolle taeglich loeschen (siehe /datenschutz)
+		cron.schedule('41 3 * * *', () => {
+			if (dev) return;
+			console.log('Runs daily at 03:41: pruneExpiredAuthData + pruneMemberDataAccessLog');
+			pruneExpiredAuthData();
+			pruneMemberDataAccessLog();
 		});
 
 		// refreshMaterializedViewCrossoverTimes

@@ -1,8 +1,5 @@
 import { cashierSession } from '$lib/server/db/members/authorization';
 import { nextcloudClient } from '$lib/server/nextcloud/client';
-import { tmpdir } from 'os';
-import path from 'path';
-import fs from 'fs';
 import { getAttachment } from '$lib/server/db/finance/bookings.js';
 
 /** @type {import('../../$types').RequestHandler} */
@@ -17,11 +14,6 @@ export async function GET(event) {
     if (!authorized) {
         return new Response(null, { status: 401, statusText: "Unauthorized" })
     }
-
-
-    // Step 2: Define the path for the temporary file based on attachmentId
-    // You can customize this logic based on attachmentId (e.g., different files for different IDs)
-    const tempDir = tmpdir();
 
 
     // @ts-ignore
@@ -44,21 +36,10 @@ export async function GET(event) {
 
     const baseFileName = attachment.filename.split("/").slice(-1)[0];
     const outputFileName = `${attachmentId}-${baseFileName}`;
-    const tempFilePath = path.join(tempDir, outputFileName);
-
-    const writeStream = fs.createWriteStream(tempFilePath);
-
-
 
     try {
-        nextcloud.createReadStream(attachment.filename).pipe(writeStream);
-
-        await new Promise((resolve, reject) => {
-            writeStream.on('finish', resolve);
-            writeStream.on('error', reject);
-        });
-
-        const file = fs.readFileSync(tempFilePath);
+        // Bankbelege nicht auf Platte zwischenspeichern, direkt durchreichen
+        const file = await nextcloud.getFileContents(attachment.filename, { format: "binary" });
 
         return new Response(file, {
             status: 200,

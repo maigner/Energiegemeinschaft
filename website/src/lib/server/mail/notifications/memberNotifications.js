@@ -45,26 +45,16 @@ export async function sendWelcomeEmails(pendingActiveNotifications) {
             `,
         };
 
-        console.log({ mailOptions });
-
-
         try {
-            //await transporter.sendMail(mailOptions);
-            console.log(`Welcome email sending to ${member.email}`);
-
-            //export async function relayHtml(originEmail, recipientEmail, subject, html) {
             const result = await relayHtml(mailOptions.from, mailOptions.to, mailOptions.subject, mailOptions.html);
-            console.log(`Email relay result for ${member.email}:`, result);
+            console.log(`welcome email for point ${member.pointId}: ${result.message}`);
 
             if (result.message === "OK") {
-                const r = await setWelcomeMessageSent(member.pointId);
-                console.log({r});
+                await setWelcomeMessageSent(member.pointId);
             }
 
-            // on success, update the member's welcomeEmailSent status in the database
-
         } catch (error) {
-            console.error(`Failed to send email to ${member.email}:`, error);
+            console.error(`Failed to send welcome email for point ${member.pointId}:`, error?.message ?? error);
         }
     }
 }

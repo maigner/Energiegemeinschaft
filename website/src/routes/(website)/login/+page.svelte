@@ -37,9 +37,16 @@
                 Wir überprüfen Ihre Identität anhand Ihrer E-Mail-Adresse. Sie müssen dafür kein Passwort für ischlstrom.org festlegen.
             </p>
 
-            <p class="mt-4 mb-8">
+            <p class="mt-4 mb-4">
                 Geben Sie bitte Ihre E-Mail-Adresse ein und klicken Sie auf "Senden".
-                Sie finden danach einen Zugangslink in Ihren Postfach.
+                Sie finden danach einen Zugangslink in Ihrem Postfach.
+            </p>
+
+            <p class="mb-8 text-xs text-gray-500 dark:text-gray-400">
+                Für die Anmeldung speichern wir Ihre E-Mail-Adresse, einen
+                zeitlich begrenzten Anmelde-Token und Ihre Sitzung (Cookie,
+                30 Tage). Details finden Sie in unserer
+                <a class="underline" href="/datenschutz">Datenschutzerklärung</a>.
             </p>
 
             <p

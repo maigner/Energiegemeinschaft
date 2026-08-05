@@ -7,7 +7,6 @@
     import CheckSepa from "./CheckSepa.svelte";
     import CheckTerms from "./CheckTerms.svelte";
     import CheckDataProcessing from "./CheckDataProcessing.svelte";
-    import CheckNewsletter from "./CheckNewsletter.svelte";
     import MeasurementPoints from "./MeasurementPoints.svelte";
 
     let { applicationData = $bindable() } = $props();
@@ -25,6 +24,5 @@
     bind:measurementPoints={applicationData.measurementPoints}
 />
 <CheckDataProcessing
-    bind:dataProcessing={applicationData.checkBoxes.dataProcessing}
+    bind:privacyNotice={applicationData.checkBoxes.privacyNotice}
 />
-<CheckNewsletter bind:checkNewsletter={applicationData.checkBoxes.newsletter} />

@@ -3,7 +3,7 @@
 // Katalog und erzeugt daraus auch das FAQPage-JSON-LD fuer Suchmaschinen.
 
 const STATUTEN_URL =
-    "https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf";
+    "/statuten-ischlstrom.pdf";
 
 /**
  * @param {{progressPercent: number} | null} batteryGoal - Fortschritt zum

@@ -67,25 +67,17 @@ export async function sendActivationReminders() {
             `,
         };
 
-        //console.log({ mailOptions });
-
         try {
-            //await transporter.sendMail(mailOptions);
-            console.log(`Reminder email sending to ${member.email}`);
-
-            // testing
-            //const result = await relayHtml(mailOptions.from, "martin.aigner@ischlstrom.org", mailOptions.subject, mailOptions.html);
             const result = await relayHtml(mailOptions.from, mailOptions.to, mailOptions.subject, mailOptions.html);
 
-            console.log(`Email relay result for ${member.email}:`, result);
+            console.log(`reminder email for point ${member.pointId}: ${result.message}`);
 
             if (result.message === "OK") {
-                const r = await setActivationReminderSent(member.pointId);
-                console.log({ r });
+                await setActivationReminderSent(member.pointId);
             }
 
         } catch (error) {
-            console.error(`Failed to send email to ${member.email}:`, error);
+            console.error(`Failed to send reminder email for point ${member.pointId}:`, error?.message ?? error);
         }
     }
 }
@@ -120,20 +112,13 @@ export async function checkActivationReminders() {
             `,
         };
 
-        //console.log({ mailOptions });
-
         try {
-            //await transporter.sendMail(mailOptions);
-            console.log(`Check Reminder email sending to ${member.email}`);
-
-            // testing
-            //const result = await relayHtml(mailOptions.from, "martin.aigner@ischlstrom.org", mailOptions.subject, mailOptions.html);
             const result = await relayHtml(mailOptions.from, mailOptions.to, mailOptions.subject, mailOptions.html);
 
-            console.log(`Email relay result for ${member.email}:`, result);
+            console.log(`check reminder for point ${member.pointId}: ${result.message}`);
 
         } catch (error) {
-            console.error(`Failed to send email to ${member.email}:`, error);
+            console.error(`Failed to send check reminder for point ${member.pointId}:`, error?.message ?? error);
         }
     }
 }

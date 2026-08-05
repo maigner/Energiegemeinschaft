@@ -22,7 +22,7 @@ export async function POST(event) {
 
     const { userId, startDate, endDate } = await event?.request?.json();
 
-    if (!(await canAccessMemberData(session, { memberIdentifier: Number(userId) }))) {
+    if (!(await canAccessMemberData(session, { memberIdentifier: Number(userId), endpoint: "/api/user/data/byDay" }))) {
         return new Response(null, { status: 403, statusText: "Forbidden" });
     }
 
@@ -56,7 +56,7 @@ export async function GET({ url, locals }) {
 		return json({ error: 'Invalid memberId' }, { status: 400 });
 	}
 
-	if (!(await canAccessMemberData(session, { memberId: memberIdInt }))) {
+	if (!(await canAccessMemberData(session, { memberId: memberIdInt, endpoint: "/api/user/data/byDay" }))) {
 		return new Response(null, { status: 403, statusText: "Forbidden" });
 	}
 

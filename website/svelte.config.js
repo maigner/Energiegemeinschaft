@@ -4,10 +4,8 @@ import adapter from '@sveltejs/adapter-node';
 const config = {
   kit: {
     adapter: adapter(),
-    // for contact form. TODO: fix
-    csrf: {
-      checkOrigin: false,
-    }
+    // checkOrigin (default true) braucht hinter dem Reverse-Proxy die
+    // PROTOCOL_HEADER/HOST_HEADER-Umgebungsvariablen, siehe "start" in package.json
   },
 };
 

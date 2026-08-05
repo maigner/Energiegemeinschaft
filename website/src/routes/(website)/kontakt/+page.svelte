@@ -73,6 +73,29 @@
                         />
                     </div>
 
+                    <!-- Honeypot gegen Spam-Bots, fuer Menschen unsichtbar -->
+                    <div class="hidden" aria-hidden="true">
+                        <label
+                            >Bitte dieses Feld leer lassen
+                            <input
+                                type="text"
+                                name="website"
+                                tabindex="-1"
+                                autocomplete="off"
+                            />
+                        </label>
+                    </div>
+
+                    <p class="mb-6 text-xs text-gray-500 dark:text-gray-400">
+                        Wir verwenden Ihre E-Mail-Adresse und Ihre Nachricht
+                        ausschließlich zur Bearbeitung Ihrer Anfrage. Die
+                        Nachricht wird an unser Postfach info@ischlstrom.org
+                        zugestellt. Weitere Informationen finden Sie in unserer
+                        <a class="underline" href="/datenschutz"
+                            >Datenschutzerklärung</a
+                        >.
+                    </p>
+
                     <Button type="submit">Abschicken</Button>
                 </form>
             </div>

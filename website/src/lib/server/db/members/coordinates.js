@@ -1,5 +1,4 @@
 import { middlewareDbConnection } from "$lib/server/db/db";
-import { MAPBOX_QUERY_TOKEN } from "$env/static/private";
 
 
 export const getMembersWithoutCoordinates = async () => {
@@ -40,6 +39,14 @@ export const updateMemberCoordinates = async (id, latitude, longitude) => {
     return result?.rows[0];
 };
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Geokodiert Mitglieder ohne Koordinaten ueber OSM Nominatim (Betreiber:
+ * OpenStreetMap Foundation, UK -- Angemessenheitsbeschluss der EU-Kommission).
+ * Ersetzt das fruehere Mapbox-Geocoding (US-Anbieter). Usage Policy von
+ * Nominatim: max. 1 Request pro Sekunde, aussagekraeftiger User-Agent.
+ */
 export const updateMissingMemberCoordinates = async () => {
 
     let messages = [];
@@ -48,26 +55,41 @@ export const updateMissingMemberCoordinates = async () => {
 
     for (const member of membersWithoutCoordinates) {
         const address = `${member.street} ${member.hnr}, ${member.zip} ${member.city}`;
-        console.log(`Updating coordinates for member ${member.id} with address: ${address}`);
 
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_QUERY_TOKEN}`;
-        console.log({ url });
+        const url = "https://nominatim.openstreetmap.org/search?" + new URLSearchParams({
+            q: address,
+            format: "jsonv2",
+            limit: "1",
+            countrycodes: "at",
+        });
 
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            headers: {
+                "User-Agent": "ischlstrom.org member map (info@ischlstrom.org)",
+            },
+        });
+
+        if (!response.ok) {
+            messages.push(`Geocoding failed for member ${member.id} (HTTP ${response.status})`);
+            await sleep(1100);
+            continue;
+        }
+
         const data = await response.json();
 
-        console.log({ data });
-
-        if (data.features && data.features.length > 0) {
-            // msg.payload = msg.payload.features[0].geometry.coordinates;
-
-            const [longitude, latitude] = data.features[0].center;
+        if (Array.isArray(data) && data.length > 0) {
+            const latitude = parseFloat(data[0].lat);
+            const longitude = parseFloat(data[0].lon);
 
             messages.push(`Found coordinates for member ${member.id}: ${latitude}, ${longitude}`);
 
-            const result = await updateMemberCoordinates(member.id, latitude, longitude);
-
+            await updateMemberCoordinates(member.id, latitude, longitude);
+        } else {
+            messages.push(`No coordinates found for member ${member.id}`);
         }
+
+        // Nominatim-Rate-Limit einhalten
+        await sleep(1100);
     }
     return messages;
 };

@@ -16,6 +16,7 @@ pgpass="$here/../notebooks/.pgpass"
 [ -f "$pgpass" ] || { echo "FEHLER: $pgpass fehlt." >&2; exit 1; }
 
 scp -q "$here/refresh-dev-db.sh" "$SERVER:/home/martin/refresh-dev-db.sh"
+scp -q "$here/anonymize-dev-db.sh" "$SERVER:/home/martin/anonymize-dev-db.sh"
 
 # Nur die Zeilen fuer Host "server" uebertragen; bestehende Eintraege auf dem
 # Heimserver bleiben, doppelte werden nicht angelegt.
@@ -24,7 +25,7 @@ grep '^server:' "$pgpass" | ssh "$SERVER" '
     while IFS= read -r line; do
         grep -qxF "$line" ~/.pgpass || echo "$line" >> ~/.pgpass
     done
-    chmod +x /home/martin/refresh-dev-db.sh
+    chmod +x /home/martin/refresh-dev-db.sh /home/martin/anonymize-dev-db.sh
     entry="0 6 * * * /home/martin/refresh-dev-db.sh >> /home/martin/backups-s1/refresh-dev-db.log 2>&1"
     (crontab -l 2>/dev/null | grep -vF "refresh-dev-db.sh"; echo "$entry") | crontab -
     echo "Cron auf dem Heimserver:"

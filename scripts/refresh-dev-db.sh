@@ -82,4 +82,11 @@ if [ "$fail" -ne 0 ]; then
     echo "[refresh-dev-db] $(date -Is) FEHLGESCHLAGEN" >&2
     exit 1
 fi
+
+# Produktionsdaten in der Dev-DB pseudonymisieren (DSGVO / Art. 32)
+if ! "$(dirname "$0")/anonymize-dev-db.sh"; then
+    echo "[refresh-dev-db] $(date -Is) FEHLGESCHLAGEN (Anonymisierung)" >&2
+    exit 1
+fi
+
 echo "[refresh-dev-db] $(date -Is) fertig."

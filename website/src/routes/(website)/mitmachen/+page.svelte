@@ -58,7 +58,7 @@
                 Details zur Mitgliedschaft
                 entnehmen Sie bitte unseren <a
                 target="_blank"
-                href="https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/231025+Statuten+ISCHLSTROM+FINAL+nach+Pr%C3%BCfung+Vereinsbeh%C3%B6rde.pdf"
+                href="/statuten-ischlstrom.pdf"
                 >Statuten</a>.
             </p>
         </div>
@@ -85,7 +85,7 @@
 
             <div class="flex place-content-center mb-4">
 
-                <Fab label="Anleitung herunterladen" href="https://ischlstrom-website-files-public.s3.eu-central-1.amazonaws.com/NetzO%C3%96+Anleitung-1.pdf" target="_blank" />
+                <Fab label="Anleitung herunterladen" href="/netzooe-anleitung.pdf" target="_blank" />
             </div>
 
 

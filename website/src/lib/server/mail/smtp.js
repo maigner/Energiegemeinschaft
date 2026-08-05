@@ -110,7 +110,9 @@ export async function relayHtml(originEmail, recipientEmail, subject, html) {
         console.log("Email sent: " + info.response);
         result = { message: "OK" };
     } catch (error) {
-        console.error("Error sending email: ", error);
+        // nur die Fehlermeldung loggen, Nodemailer-Fehlerobjekte enthalten den
+        // kompletten Umschlag samt Empfaengeradresse
+        console.error("Error sending email: ", error?.message ?? error);
         result = { message: "Error sending email", error: error };
     }
 

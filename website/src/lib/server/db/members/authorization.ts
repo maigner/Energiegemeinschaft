@@ -1,16 +1,44 @@
 import { CASHIER1, CASHIER2, CHAIR1, CHAIR2, CONTROLLER1 } from "$env/static/private";
 import { getBoardMemberByEmail, getCommunityMembersByEmail } from "$lib/server/db/members/member";
+import { middlewareDbConnection } from "$lib/server/db/db";
 
+
+/**
+ * Vorstands-Zugriffe auf Daten fremder Mitglieder werden protokolliert
+ * (Art. 32 DSGVO, Nachvollziehbarkeit). Eintraege aelter als ein Jahr
+ * loescht der taegliche Retention-Cron.
+ */
+const logBoardAccess = async (
+    accessorEmail: string,
+    memberIdentifier: number,
+    endpoint: string
+) => {
+    try {
+        const sql = await middlewareDbConnection();
+        try {
+            await sql.query(`
+                INSERT INTO members_memberdataaccesslog
+                    (created_at, accessor_email, member_identifier, endpoint)
+                VALUES (NOW(), $1, $2, $3)
+            `, [accessorEmail, memberIdentifier, endpoint]);
+        } finally {
+            sql.release();
+        }
+    } catch (error: any) {
+        // Protokollfehler duerfen den Zugriff nicht blockieren
+        console.error("failed to write member data access log:", error?.message ?? error);
+    }
+};
 
 /**
  * True when the session user may read data of the given member:
  * one of their own members (same login email) or any member if they are
- * on the board.
+ * on the board. Board access to other members' data is logged.
  */
 export const canAccessMemberData = async (
     session: any,
-    { memberId, memberIdentifier }:
-        { memberId?: number, memberIdentifier?: number }
+    { memberId, memberIdentifier, endpoint }:
+        { memberId?: number, memberIdentifier?: number, endpoint?: string }
 ) => {
     const email = session?.user?.email;
     if (!email) return false;
@@ -21,7 +49,15 @@ export const canAccessMemberData = async (
         (memberIdentifier !== undefined && Number(member.identifier) === memberIdentifier));
     if (isOwn) return true;
 
-    return Boolean(await getBoardMemberByEmail(email));
+    const isBoardMember = Boolean(await getBoardMemberByEmail(email));
+    if (isBoardMember) {
+        await logBoardAccess(
+            email,
+            memberIdentifier ?? memberId ?? -1,
+            endpoint ?? ""
+        );
+    }
+    return isBoardMember;
 };
 
 

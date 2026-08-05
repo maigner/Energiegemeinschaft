@@ -29,7 +29,7 @@
                 applicationData.person.accountName != "" &&
                 applicationData.person.checkBoxes.terms === true &&
                 applicationData.person.checkBoxes.sepa === true &&
-                applicationData.person.checkBoxes.dataProcessing ===
+                applicationData.person.checkBoxes.privacyNotice ===
                     true &&
                 applicationData.person.measurementPoints.length >= 1 &&
                 applicationData.person.measurementPoints.every(
@@ -50,7 +50,7 @@
                 applicationData.company.accountName != "" &&
                 applicationData.company.checkBoxes.terms === true &&
                 applicationData.company.checkBoxes.sepa === true &&
-                applicationData.company.checkBoxes.dataProcessing ===
+                applicationData.company.checkBoxes.privacyNotice ===
                     true &&
                 applicationData.company.measurementPoints.length >= 1 &&
                 applicationData.company.measurementPoints.every(
@@ -123,7 +123,6 @@
                 pill
                 onclick={async () => {
                     let _applicationData = {};
-                    console.log({applicationData});
                     if (homeOrCompany === "home") {
                         _applicationData = applicationData.person;
                     } else if (homeOrCompany === "company") {
@@ -136,16 +135,14 @@
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
-                                email: data.session?.user?.email,
                                 homeOrCompany: homeOrCompany,
                                 applicationData: _applicationData,
                             }),
                         });
 
-                        const result = await res.json();
-                        console.log({result});
-                        let responseMessage =
-                            result.message || "Error submitting form";
+                        if (!res.ok) {
+                            throw new Error("Submission failed");
+                        }
 
                         alert("Bewerbung erfolgt. Vielen Dank für Ihr Vertrauen!");
                         if (browser) {

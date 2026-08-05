@@ -21,7 +21,7 @@ export async function POST(event) {
 
     const { userId, startDate, endDate } = await event?.request?.json();
 
-    if (!(await canAccessMemberData(session, { memberIdentifier: Number(userId) }))) {
+    if (!(await canAccessMemberData(session, { memberIdentifier: Number(userId), endpoint: "/api/user/data/averageMetrics" }))) {
         return new Response(null, { status: 403, statusText: "Forbidden" });
     }
 

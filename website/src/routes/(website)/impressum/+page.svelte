@@ -33,18 +33,16 @@
                 {#snippet header()}Datenschutz{/snippet}
 
                 <p class="mb-2 text-gray-500 dark:text-gray-400">
-                    Wir sammeln keine unnötigen Daten.
-                </p>
-                <p class="mb-2 text-gray-500 dark:text-gray-400">
-                    Wir geben keine Daten unerlaubt weiter.
-                </p>
-                <p class="mb-2 text-gray-500 dark:text-gray-400">
-                    Wir achten Ihre Privatspäre.
+                    Informationen zur Verarbeitung personenbezogener Daten
+                    finden Sie in unserer
+                    <a class="underline" href="/datenschutz"
+                        >Datenschutzerklärung</a
+                    >.
                 </p>
             </AccordionItem>
 
             <AccordionItem>
-                {#snippet header()}Technische Anprechpartnerin{/snippet}
+                {#snippet header()}Technischer Ansprechpartner{/snippet}
 
                 <p class="mb-2 text-gray-500 dark:text-gray-400">
                     Erneuerbare-Energie-Gemeinschaft ISCHLSTROM
@@ -208,18 +206,15 @@
                     <p>
                         <b>ZVR-Zahl:</b> 1915125185 <br />
                         <b>Gewerbeaufsichtbehörde:</b>
-                        Bezirkshauptmannschaft Gmunden <br />
-                        <b>Mitgliedschaften:</b>
+                        Bezirkshauptmannschaft Gmunden
                     </p>
                     <p>
                         <b>Kontaktdaten:</b> <br />
-                        Email: info@ischlstrom.org <br /> Fax: was'n ein Fax?
+                        Email: info@ischlstrom.org
                     </p>
 
                     <p>
                         <b>Anwendbare Rechtsvorschrift:</b> www.ris.bka.gv.at
-                        <br />
-                        <b>Berufsbezeichnung:</b>
                     </p>
                     <p>
                         <b>Online Streitbeilegung:</b> Verbraucher mit einer Niederlassung
@@ -257,157 +252,15 @@
                         entfernen.
                     </p>
                     <p>
-                        Unsere Cloudpartner sind wie folgt: Webserver und
-                        Datenbank laufen auf AWS. E-Mail und Onboarding wird
-                        über Google Cloud Services abgewickelt. Die
-                        Rechnungslegung erfolgt via EEG-Faktura von vfeeg.org
-                    </p>
-                    <p>
-                        Sämtliche Verträge mit unseren Partnern wurden auf
-                        DSGVO-Konformität geprüft.
-                    </p>
-                    <p>
-                        Quelle: <b
-                            ><a
-                                href="https://www.rechtstexte-generator.at/dsgvo-generator-oesterreich/"
-                                >DSGVO Generator Österreich</a
-                            >
-                            in Kooperation mit
-                            <a href="https://dein-dachdecker.at/"
-                                >Dachdecker und Spenglerei Wien</a
-                            ></b
-                        >
+                        Die von uns eingesetzten Dienstleister und
+                        Auftragsverarbeiter sind in unserer
+                        <a class="underline" href="/datenschutz"
+                            >Datenschutzerklärung</a
+                        > angeführt.
                     </p>
                 </div>
             </AccordionItem>
 
-            <AccordionItem>
-                {#snippet header()}Erklärung zur Informationspflicht{/snippet}
-
-                <div class="text-xs">
-                    Datenschutzerklärung
-                    <br class="mb-1" />
-                    In folgender Datenschutzerklärung informieren wir Sie über die
-                    wichtigsten Aspekte der Datenverarbeitung im Rahmen unserer Webseite.
-                    Wir erheben und verarbeiten personenbezogene Daten nur auf Grundlage
-                    der gesetzlichen Bestimmungen (Datenschutzgrundverordnung, Telekommunikationsgesetz
-                    2003).
-                    <br class="mb-1" />
-
-                    Sobald Sie als Benutzer auf unsere Webseite zugreifen oder
-                    diese besuchen wird Ihre IP-Adresse, Beginn sowie Beginn und
-                    Ende der Sitzung erfasst. Dies ist technisch bedingt und
-                    stellt somit ein berechtigtes Interesse iSv Art 6 Abs 1 lit
-                    f DSGVO. Kontakt mit uns
-                    <br class="mb-1" />
-
-                    Wenn Sie uns, entweder über unser Kontaktformular auf
-                    unserer Webseite, oder per Email kontaktieren, dann werden
-                    die von Ihnen an uns übermittelten Daten zwecks Bearbeitung
-                    Ihrer Anfrage oder für den Fall von weiteren Anschlussfragen
-                    für sechs Monate bei uns gespeichert. Es erfolgt, ohne Ihre
-                    Einwilligung, keine Weitergabe Ihrer übermittelten Daten.
-                    Cookies
-                    <br class="mb-1" />
-
-                    Unsere Website verwendet so genannte Cookies. Dabei handelt
-                    es sich um kleine Textdateien, die mit Hilfe des Browsers
-                    auf Ihrem Endgerät abgelegt werden. Sie richten keinen
-                    Schaden an. Wir nutzen Cookies dazu, unser Angebot
-                    nutzerfreundlich zu gestalten. Einige Cookies bleiben auf
-                    Ihrem Endgerät gespeichert, bis Sie diese löschen. Sie
-                    ermöglichen es uns, Ihren Browser beim nächsten Besuch
-                    wiederzuerkennen. Wenn Sie dies nicht wünschen, so können
-                    Sie Ihren Browser so einrichten, dass er Sie über das Setzen
-                    von Cookies informiert und Sie dies nur im Einzelfall
-                    erlauben. Bei der Deaktivierung von Cookies kann die
-                    Funktionalität unserer Website eingeschränkt sein.
-
-                    <br class="mb-1" />
-
-                    Server-Log Files
-                    <br class="mb-1" />
-
-                    Diese Webseite und der damit verbundene Provider erhebt im
-                    Zuge der Webseitennutzung automatisch Informationen im
-                    Rahmen sogenannter „Server-Log Files“. Dies betrifft
-                    insbesondere:
-                    <br class="mb-1" />
-
-                    IP-Adresse oder Hostname <br class="mb-1" />
-
-                    den verwendeten Browser <br class="mb-1" />
-
-                    Aufenthaltsdauer auf der Webseite sowie Datum und Uhrzeit
-                    <br class="mb-1" />
-
-                    aufgerufene Seiten der Webseite <br class="mb-1" />
-
-                    Spracheinstellungen und Betriebssystem <br class="mb-1" />
-
-                    „Leaving-Page“ (auf welcher URL hat der Benutzer die
-                    Webseite verlassen) <br class="mb-1" />
-
-                    ISP (Internet Service Provider) <br class="mb-1" />
-
-                    <br class="mb-1" />
-
-                    Diese erhobenen Informationen werden nicht personenbezogen
-                    verarbeitet oder mit personenbezogenen Daten in Verbindung
-                    gebracht.
-                    <br class="mb-1" />
-
-                    Der Webseitenbetreiber behält es sich vor, im Falle von
-                    Bekanntwerden rechtswidriger Tätigkeiten, diese Daten
-                    auszuwerten oder zu überprüfen. Newsletter
-                    <br class="mb-1" />
-
-                    Sie haben die Möglichkeit, über unsere Website unseren
-                    Newsletter zu abonnieren. Hierfür benötigen wir Ihre
-                    E-Mail-Adresse und ihre Erklärung, dass Sie mit dem Bezug
-                    des Newsletters einverstanden sind. Ihre Rechte als
-                    Betroffener
-                    <br class="mb-1" />
-
-                    Sie als Betroffener haben bezüglich Ihrer Daten, welche bei
-                    uns gespeichert sind grundsätzlich ein Recht auf:
-                    <br class="mb-1" />
-
-                    Auskunft <br class="mb-1" />
-
-                    Löschung der Daten <br class="mb-1" />
-
-                    Berichtigung der Daten <br class="mb-1" />
-
-                    Übertragbarkeit der Daten <br class="mb-1" />
-
-                    Wiederruf und Widerspruch zur Datenverarbeitung
-                    <br class="mb-1" />
-
-                    Einschränkung <br class="mb-1" />
-
-                    <br class="mb-1" />
-
-                    Wenn sie vermuten, dass im Zuge der Verarbeitung Ihrer Daten
-                    Verstöße gegen das Datenschutzrecht passiert sind, so haben
-                    Sie die Möglichkeit sich bei uns (info@ischlstrom.org) oder
-                    der Datenschutzbehörde zu beschweren. Sie erreichen uns
-                    unter folgenden Kontaktdaten:
-                    <br class="mb-1" />
-
-                    Webseitenbetreiber: Erneuerbare-Energie-Gemeinschaft
-                    ISCHLSTROM <br class="mb-1" />
-
-                    Telefonnummer: +43 660 3555118 <br class="mb-1" />
-
-                    Email: info@ischlstrom.org <br class="mb-1" />
-
-                    <br class="mb-1" />
-
-                    Quelle: DSGVO Generator Österreich in Kooperation mit
-                    Dachdecker und Spenglerei Wien
-                </div>
-            </AccordionItem>
         </Accordion>
     </Card>
 </div>
