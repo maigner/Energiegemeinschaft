@@ -1,99 +1,34 @@
+import { getMemberCount } from "$lib/server/db/members/member";
+import { getPublicIbmStats } from "$lib/server/db/members/openhabStatus";
+import { getCommunityEnergyTotals } from "$lib/server/db/energy/overview";
+import {
+    getForecastNightDeficit,
+    getLatestForecastRun,
+} from "$lib/server/db/energy/forecast";
+import { buildBatteryGoal } from "$lib/server/db/energy/batteryGoal";
 
+/** @type {import('./$types').PageServerLoad} */
+export async function load() {
+    // Die Startseite soll auch dann funktionieren, wenn eine der Kennzahlen
+    // gerade nicht verfuegbar ist; fehlende Werte blendet die Seite aus.
+    const [memberCount, ibm, energy, run] = await Promise.all([
+        getMemberCount().catch(() => null),
+        getPublicIbmStats().catch(() => null),
+        getCommunityEnergyTotals().catch(() => null),
+        getLatestForecastRun().catch(() => null),
+    ]);
 
-/** @type {import('../$types').PageServerLoad} */
-export async function load({ fetch, params, parent, locals }) {
-
-
-    // meine rechnung 
-    // 7,41 cent / kWh
-
-    const networkNetzOOE = {
-        consumptionPriceCentPerKwh: 5.12,
-        networkLossPriceCentPerKwh: 0.5940,
-        basePriceEuroPerYear: 36.00,
-        measurementServiceFeeEuroPerYear: 26.16,
-    };
-
-    const govFees = {
-        electricityFeeCentPerKwh: 0.1,
-    };
-
-    // https://durchblicker.at/strom/vergleich/ergebnis/gegenueberstellung#calcid=849611d883edb1d456da97fe1e1d4222cf3bea0d
-    // update 2024-04-29
-    const competitorsV2 = [
-        {
-            id: 0,
-            provider: "Energie AG",
-            name: "Ökostrom Klassik",
-            source: "https://www.energieag.at/privat/strom",
-            date: "1. Jänner 2024",
-            price: {
-                network: networkNetzOOE,
-                power: {
-                    workPriceCentPerKwh: 21.78,
-                    basePriceEuroPerYear: 39.0,
-                },
-                govFees: govFees
-            }
-        },
-        {
-            id: 1,
-            provider: "Verbund",
-            name: "Strom aus 100% Wasserkraft",
-            source: "https://www.verbund.com/de-at/privatkunden/strom",
-            date: "1. Jänner 2024",
-            price: {
-                network: networkNetzOOE,
-                power: {
-                    workPriceCentPerKwh: 19.90,
-                    basePriceEuroPerYear: 47.88,
-                },
-                govFees: govFees
-            }
-        },
-
-        {
-            id: 2,
-            provider: "GoGreenEnergy",
-            name: "Stromtarif",
-            source: "https://www.gogreenenergy.at",
-            date: "1. Jänner 2024",
-            price: {
-                network: networkNetzOOE,
-                power: {
-                    workPriceCentPerKwh: 12.0,
-                    basePriceEuroPerYear: 40.0,
-                },
-                govFees: govFees
-            }
-        },
-/*
-        {
-            id: 3,
-            provider: "Phantasie AG",
-            name: "Sauteuer",
-            source: "https://www.example.com",
-            date: "1. Jänner 2024",
-            price: {
-                network: networkNetzOOE,
-                power: {
-                    workPriceCentPerKwh: 50.0,
-                    basePriceEuroPerYear: 100.0,
-                },
-                govFees: govFees
-            }
-        },
-*/
-    ]
-
-
-
+    const deficit = run
+        ? await getForecastNightDeficit(run.id).catch(() => null)
+        : null;
 
     return {
-        selfUseRatio: 0.3,
-        eegSellsCentPerKilowatt: 10.0,
-        eegBuysCentPerKilowatt: 9.5,
-        competitors: competitorsV2
-    }
-
+        memberCount,
+        ibm,
+        selfUseKwh: energy?.self_use_kwh ? Number(energy.self_use_kwh) : null,
+        firstYear: energy?.first_day
+            ? new Date(energy.first_day).getFullYear()
+            : null,
+        batteryGoal: buildBatteryGoal(deficit, ibm),
+    };
 }
