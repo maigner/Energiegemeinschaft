@@ -1,6 +1,6 @@
 #!/bin/bash
 # Spielt middleware.dmp in die Middleware-DB auf s1.ischlstrom.org ein
-# (direkt per hostssl, wie die openhabian-Datenbanken dort).
+# (direkt per hostssl).
 # Die Ziel-DB muss leer sein - vorher setup-s1-postgres.sh; fuer einen
 # zweiten Versuch die DB auf s1 droppen und neu anlegen:
 #   sudo -u postgres psql -c 'DROP DATABASE ischlstrom_middleware'

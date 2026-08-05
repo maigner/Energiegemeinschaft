@@ -15,7 +15,7 @@ Digital infrastructure for **ischlstrom.org**, an Austrian energy community (Ene
 
 Two shared PostgreSQL databases:
 
-1. **middleware DB** (`ischlstrom_middleware`) — schema is defined and migrated by the Django project in `middleware/`, but the SvelteKit app reads/writes it **directly via a `pg` pool** (`website/src/lib/server/db/db.js` → `middlewareDbPool`), *not* through Django. When changing tables, update Django models/migrations in `middleware/` AND the raw SQL in `website/src/lib/server/db/`. Each `Member` can have an `OpenhabDb` row (host/port/creds) here; it is currently only managed via Django admin, the website no longer connects to per-member OpenHAB DBs.
+1. **middleware DB** (`ischlstrom_middleware`) — schema is defined and migrated by the Django project in `middleware/`, but the SvelteKit app reads/writes it **directly via a `pg` pool** (`website/src/lib/server/db/db.js` → `middlewareDbPool`), *not* through Django. When changing tables, update Django models/migrations in `middleware/` AND the raw SQL in `website/src/lib/server/db/`.
 2. **authjs DB** — session/user store for Auth.js (`authDbPool`, `@auth/pg-adapter`). Separate from the middleware DB.
 
 DB credentials come from `website/.env` (gitignored). Notebooks and Django connect via a `.pg_service.conf` service named `eeg-middleware` (also gitignored, alongside `.pgpass`).
@@ -49,7 +49,7 @@ Commands (run from `middleware/eeg/`, using the local `middleware/.venvDjango` v
 - `python manage.py createsuperuser`
 - `python manage.py test` (test files are currently empty stubs)
 
-Apps: `members` (Member, MeasurementPoint, OpenhabDb, BoardApproval, EventRegistration), `metering` (MeterCode, Measurement), `accounting` (Booking, BookingLabel, BookingAttachment), `weather` (WeatherData). URL config exposes `members/`, `accounting/`, and `admin/`.
+Apps: `members` (Member, MeasurementPoint, OpenhabStatus, BoardApproval, EventRegistration), `metering` (MeterCode, Measurement), `accounting` (Booking, BookingLabel, BookingAttachment), `weather` (WeatherData). URL config exposes `members/`, `accounting/`, and `admin/`.
 
 The database uses `django.db.backends.postgresql` with `OPTIONS.service = "eeg-middleware"` (resolved from `.pg_service.conf`). `middleware/README.md` documents the SQL for the `weekly_metering_summary` / `daily_metering_summary` materialized views that the website charts read from.
 

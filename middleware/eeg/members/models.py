@@ -20,17 +20,6 @@ class Member(models.Model):
         return f"{self.identifier}: {self.email}"
     
 
-class OpenhabDb(models.Model):
-    member = models.ForeignKey(Member, on_delete=models.CASCADE)
-    host = models.CharField(max_length=255)
-    port = models.IntegerField(default=5432)
-    database = models.CharField(max_length=255)
-    user = models.CharField(max_length=255)
-    password = models.CharField(max_length=255)
-    def __str__(self):
-        return f"{self.member} -> {self.user}@{self.host}:{self.port}/{self.database}"
-
-
 class OpenhabStatus(models.Model):
     """Token and live status of an openHABian installation (IBM). The board
     creates the token for a member on /board/openhab; during setup it is
