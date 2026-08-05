@@ -4,6 +4,7 @@ import { SMTP_USER, SMTP_PWD, SMTP_ENDPOINT, SMTP_TLS_PORT, AUTH_SECRET, AUTH_EM
 import PostgresAdapter from "@auth/pg-adapter";
 import { error, redirect } from '@sveltejs/kit';
 import { authDbPool } from "$lib/server/db/db";
+import { getBoardMemberByEmail } from "$lib/server/db/members/member";
 import { createTransport } from "nodemailer";
 
 export const authorizationHandle = async({ event, resolve }) => {
@@ -21,6 +22,13 @@ export const authorizationHandle = async({ event, resolve }) => {
 
     if (!session) {
       throw redirect(307, `/login?source=${event.route.id.replace("/(website)", "")}`);
+    }
+
+    // board area additionally requires board_member = true;
+    // checked here so that page loads, form actions and data requests are all covered
+    const boardMember = await getBoardMemberByEmail(session.user?.email);
+    if (!boardMember) {
+      error(403, { message: 'Nicht berechtigt' });
     }
   }
 

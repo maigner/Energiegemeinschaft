@@ -1,6 +1,7 @@
 import { getMeasurementPoints } from '$lib/server/db/energy/member.js';
 import { getItems } from '$lib/server/db/members/openhab.js';
 import { getForecast } from '$lib/server/db/weather/forecast.js';
+import { SHOWCASE_MEMBER_IDENTIFIERS } from '$lib/server/db/members/authorization';
 import { error } from '@sveltejs/kit';
 
 export async function load({ params, parent }) {
@@ -34,16 +35,12 @@ export async function load({ params, parent }) {
 
     // TODO: null check
 
-    const openhabUsers = [
-        {
-            memberIdentifier: 7,
-            items: await getItems(7)
-        },
-        {
-            memberIdentifier: 3,
-            items: await getItems(3)
-        },
-    ];
+    const openhabUsers = await Promise.all(
+        SHOWCASE_MEMBER_IDENTIFIERS.map(async (memberIdentifier) => ({
+            memberIdentifier,
+            items: await getItems(memberIdentifier)
+        }))
+    );
 
     return {
         forecast: await getForecast(),

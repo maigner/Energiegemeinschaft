@@ -1,5 +1,6 @@
 import { getEnergyData } from '$lib/server/db/energy/member';
 import { getAverageMetrics } from '$lib/server/db/members/member';
+import { canAccessMemberData } from '$lib/server/db/members/authorization';
 import { json } from '@sveltejs/kit';
 
 
@@ -21,9 +22,9 @@ export async function POST(event) {
 
     const { userId, startDate, endDate } = await event?.request?.json();
 
-
-
-    //console.log({ userId, startDate, endDate });
+    if (!(await canAccessMemberData(session, { memberIdentifier: Number(userId) }))) {
+        return new Response(null, { status: 403, statusText: "Forbidden" });
+    }
 
     const result = await getAverageMetrics(userId, startDate, endDate);
 
@@ -50,8 +51,16 @@ export async function GET({ url, locals }) {
 		return json({ error: 'Missing date or memberId' }, { status: 400 });
 	}
 
-	// Your business logic here (e.g., database call)
-	const data = await getEnergyData(new Date(date), parseInt(memberId));
+	const memberIdInt = parseInt(memberId, 10);
+	if (Number.isNaN(memberIdInt)) {
+		return json({ error: 'Invalid memberId' }, { status: 400 });
+	}
+
+	if (!(await canAccessMemberData(session, { memberId: memberIdInt }))) {
+		return new Response(null, { status: 403, statusText: "Forbidden" });
+	}
+
+	const data = await getEnergyData(new Date(date), memberIdInt);
 
 	return json(data);
 }

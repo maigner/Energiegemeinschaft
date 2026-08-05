@@ -1,6 +1,7 @@
 import { getEnergyData } from '$lib/server/db/energy/member';
 import { getAverageMetrics } from '$lib/server/db/members/member';
 import { getItems, getItemStateHistory } from '$lib/server/db/members/openhab.js';
+import { canAccessMemberData } from '$lib/server/db/members/authorization';
 import { json } from '@sveltejs/kit';
 
 import { startOfDay, endOfDay } from 'date-fns';
@@ -30,6 +31,14 @@ export async function GET({ url, locals }) {
     const startDate = new Date(startDateString);
     const endDate = new Date(endDateString);
     const memberIdentifier = parseInt(memberIdentifierString, 10);
+
+    if (Number.isNaN(memberIdentifier)) {
+        return json({ error: 'Invalid memberIdentifier' }, { status: 400 });
+    }
+
+    if (!(await canAccessMemberData(session, { memberIdentifier, allowShowcase: true }))) {
+        return new Response(null, { status: 403, statusText: "Forbidden" });
+    }
 
     console.log({ startDate, endDate, memberIdentifier, itemName });
 
