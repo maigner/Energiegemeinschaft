@@ -32,6 +32,23 @@
         },
         
     ];
+    const faqElwg = [
+        {
+            question: "Was ist das ElWG und was ändert sich für ISCHLSTROM?",
+            answer: "Das neue Elektrizitätswirtschaftsgesetz (ElWG) löst die bisherigen Regeln für Energiegemeinschaften ab. Am 1. Oktober 2026 wird ISCHLSTROM automatisch in das neue System der gemeinsamen Energienutzung übergeführt. Die Gemeinschaft bleibt bestehen, es ist keine Neugründung notwendig.",
+            source: "https://energiegemeinschaften.gv.at/aenderungen-fuer-bestehende-energiegemeinschaften/",
+        },
+        {
+            question: "Muss ich als Mitglied etwas tun?",
+            answer: "Nein. Ihre Teilnahme läuft unverändert weiter und Ihr Stromliefervertrag bleibt aufrecht. Neu sind vor allem zusätzliche Informationsrechte für Mitglieder, etwa ein Informationsblatt und transparente Lieferbedingungen, die wir rechtzeitig bereitstellen.",
+        },
+        {
+            question: "Bleibt meine Teilnahme an der Energiegemeinschaft bestehen?",
+            answer: "Ja. Bestehende Energiegemeinschaften werden ohne Unterbrechung in das neue Recht übergeführt. Alle Details zu den Änderungen und unseren Vorbereitungen finden Sie auf unserer Infoseite zum ElWG.",
+            link: "/elwg",
+            linkLabel: "Zur ElWG-Infoseite",
+        },
+    ];
     const faqCommon = [
         {
             question:
@@ -109,6 +126,29 @@
                                 >
                                     {qa.answer}
                                 </p>
+                                {#if qa.source}
+                                    <a href={qa.source} target="_blank"
+                                        >Quelle</a
+                                    >
+                                {/if}
+                            </AccordionItem>
+                        {/each}
+                    </Accordion>
+                </TabItem>
+
+                <TabItem title="Neues Gesetz (ElWG)">
+                    <Accordion>
+                        {#each faqElwg as qa}
+                            <AccordionItem>
+                                {#snippet header()}{qa.question}{/snippet}
+                                <p
+                                    class="mb-2 text-gray-500 dark:text-gray-400"
+                                >
+                                    {qa.answer}
+                                </p>
+                                {#if qa.link}
+                                    <a href={qa.link}>{qa.linkLabel}</a>
+                                {/if}
                                 {#if qa.source}
                                     <a href={qa.source} target="_blank"
                                         >Quelle</a

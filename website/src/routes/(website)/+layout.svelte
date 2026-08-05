@@ -37,6 +37,8 @@
 			?.toString()
 			.startsWith("/board") == false}
 		<div class="text-center mt-20 text-xs text-primary-800">
+			<a href="/elwg">Neues Stromgesetz (ElWG)</a>
+			<span class="mx-2">|</span>
 			<a href="/impressum">Impressum</a>
 		</div>
 		<Hr />
