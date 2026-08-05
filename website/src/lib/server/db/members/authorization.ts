@@ -2,27 +2,18 @@ import { CASHIER1, CASHIER2, CHAIR1, CHAIR2, CONTROLLER1 } from "$env/static/pri
 import { getBoardMemberByEmail, getCommunityMembersByEmail } from "$lib/server/db/members/member";
 
 
-// Members whose OpenHAB data the /zukunft page shows to every logged-in member
-export const SHOWCASE_MEMBER_IDENTIFIERS = [7, 3];
-
 /**
  * True when the session user may read data of the given member:
  * one of their own members (same login email) or any member if they are
- * on the board. With allowShowcase, the /zukunft showcase members are
- * readable by every logged-in member.
+ * on the board.
  */
 export const canAccessMemberData = async (
     session: any,
-    { memberId, memberIdentifier, allowShowcase = false }:
-        { memberId?: number, memberIdentifier?: number, allowShowcase?: boolean }
+    { memberId, memberIdentifier }:
+        { memberId?: number, memberIdentifier?: number }
 ) => {
     const email = session?.user?.email;
     if (!email) return false;
-
-    if (allowShowcase && memberIdentifier !== undefined
-        && SHOWCASE_MEMBER_IDENTIFIERS.includes(memberIdentifier)) {
-        return true;
-    }
 
     const ownMembers = await getCommunityMembersByEmail(email) ?? [];
     const isOwn = ownMembers.some((member: any) =>

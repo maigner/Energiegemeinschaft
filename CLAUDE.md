@@ -13,11 +13,10 @@ Digital infrastructure for **ischlstrom.org**, an Austrian energy community (Ene
 
 ## Databases (important architecture)
 
-Two shared PostgreSQL databases plus per-member OpenHAB databases:
+Two shared PostgreSQL databases:
 
-1. **middleware DB** (`ischlstrom_middleware`) — schema is defined and migrated by the Django project in `middleware/`, but the SvelteKit app reads/writes it **directly via a `pg` pool** (`website/src/lib/server/db/db.js` → `middlewareDbPool`), *not* through Django. When changing tables, update Django models/migrations in `middleware/` AND the raw SQL in `website/src/lib/server/db/`.
+1. **middleware DB** (`ischlstrom_middleware`) — schema is defined and migrated by the Django project in `middleware/`, but the SvelteKit app reads/writes it **directly via a `pg` pool** (`website/src/lib/server/db/db.js` → `middlewareDbPool`), *not* through Django. When changing tables, update Django models/migrations in `middleware/` AND the raw SQL in `website/src/lib/server/db/`. Each `Member` can have an `OpenhabDb` row (host/port/creds) here; it is currently only managed via Django admin, the website no longer connects to per-member OpenHAB DBs.
 2. **authjs DB** — session/user store for Auth.js (`authDbPool`, `@auth/pg-adapter`). Separate from the middleware DB.
-3. **per-member OpenHAB DBs** — each `Member` can have an `OpenhabDb` row (host/port/creds) in the middleware DB. `openhabDbConnection(memberIdentifier)` in `db.js` lazily builds a connection pool per member to read their smart-meter/battery time-series.
 
 DB credentials come from `website/.env` (gitignored). Notebooks and Django connect via a `.pg_service.conf` service named `eeg-middleware` (also gitignored, alongside `.pgpass`).
 
@@ -35,7 +34,7 @@ There is no test runner and no lint script configured.
 Deploy: `./deploy-server.sh` rsyncs the tree to the server; on the server `./update-docker-container.sh` rebuilds the Docker image and `./run-docker.sh` runs it (maps host 3000 → container 8080, TZ Europe/Vienna).
 
 Key conventions:
-- **Auth & authorization** live in `src/auth.ts` + `src/hooks.server.js`. Login is passwordless magic-link email via Nodemailer (`@auth/sveltekit`). Authorization is route-prefix based in `authorizationHandle`: route groups `/(website)/board`, `/finance`, `/zukunft`, and `/user` require a session and redirect to `/login` otherwise. Adding a new protected area means adding its prefix there.
+- **Auth & authorization** live in `src/auth.ts` + `src/hooks.server.js`. Login is passwordless magic-link email via Nodemailer (`@auth/sveltekit`). Authorization is route-prefix based in `authorizationHandle`: route groups `/(website)/board`, `/finance`, and `/user` require a session and redirect to `/login` otherwise. Adding a new protected area means adding its prefix there.
 - **Scheduled jobs** are registered with `node-cron` inside `cronHandle` in `hooks.server.js` (weather fetch, activation reminders, materialized-view refresh). Every job early-returns when `dev` is true. An `initialized` guard prevents double-scheduling under HMR.
 - **Server-only DB/mail/nextcloud code** lives under `src/lib/server/` (organized by domain: `db/energy`, `db/finance`, `db/members`, `db/weather`, `mail`, `nextcloud`). Never import these from client code.
 - Routing uses the `(website)` route group; `board/*` is the admin area. Dynamic user pages are `user/[memberId]`.
@@ -64,5 +63,5 @@ Analysis and back-office notebooks (run with the repo-root `.venv`). Notable are
 
 ## Notes
 
-- Timezone is **Europe/Vienna** throughout (Docker, OpenHAB pool `options`, weather data); several past commits fixed timezone bugs — be careful with date handling.
+- Timezone is **Europe/Vienna** throughout (Docker, weather data); several past commits fixed timezone bugs — be careful with date handling.
 - Secrets/config live in gitignored files: `website/.env`, `.pg_service.conf`, `.pgpass`. `.dmp` DB dumps under `scripts/` are gitignored.
