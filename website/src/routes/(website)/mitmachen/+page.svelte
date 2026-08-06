@@ -96,8 +96,8 @@
     </Project>
 </div>
 
-<div class="flex place-content-center mt-4">
-    <Fab label="Anmelden und Bewerben" href="/user" target="_self" />
+<div class="flex place-content-center mt-8">
+    <Fab prominent label="Anmelden und Bewerben" href="/user" target="_self" />
 </div>
 
 <div class="flex place-content-center mt-4">
