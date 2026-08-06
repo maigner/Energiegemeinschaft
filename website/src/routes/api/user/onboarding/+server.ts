@@ -116,8 +116,8 @@ function summaryEmailInternal(d, applicationId) {
     <h3>Bankverbindung:</h3>
     <p><strong>IBAN:</strong> ${obfuscateIBAN(a.iban)}</p>
     <p><strong>Kontoinhaber:</strong> ${a.accountName}</p>
-    <p>Die vollständigen Daten sind in der Datenbank gespeichert
-    (Bewerbung Nr. ${applicationId}, einsehbar im Django-Admin).</p>
+    <p>Die vollständigen Daten sind in der Datenbank gespeichert:
+    <a href="https://ischlstrom.org/board/members/applications">Bewerbung Nr. ${applicationId} im Vorstandsbereich öffnen</a></p>
 
     <h3>Messpunkte:</h3>
     <ul>`;

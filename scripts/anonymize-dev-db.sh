@@ -29,7 +29,8 @@ UPDATE members_member SET
     longitude  = round(longitude::numeric, 2)
 WHERE board_member = false;
 
--- Bewerbungen
+-- Bewerbungen (der Vorstand liest sie in Produktion unter
+-- /board/members/applications, die Dev-Kopie braucht keine Echtdaten)
 UPDATE members_membershipapplication SET
     email        = 'applicant' || id || '@example.org',
     first_name   = CASE WHEN first_name <> '' THEN 'Bewerber' ELSE '' END,

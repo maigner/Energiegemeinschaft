@@ -1,6 +1,42 @@
 import { middlewareDbConnection } from "$lib/server/db/db";
 
 /**
+ * Alle Bewerbungen, neueste zuerst. Fuer die Vorstandsseite
+ * /board/members/applications (Review + Excel-Export).
+ */
+export const getMembershipApplications = async () => {
+    const sql = await middlewareDbConnection();
+    try {
+        const result = await sql.query(`
+            SELECT
+                id,
+                created_at AS "createdAt",
+                TO_CHAR(created_at AT TIME ZONE 'Europe/Vienna', 'DD.MM.YYYY HH24:MI') AS "createdAtLabel",
+                email,
+                applicant_type AS "applicantType",
+                first_name AS "firstName",
+                last_name AS "lastName",
+                company_name AS "companyName",
+                street,
+                hnr,
+                zip,
+                city,
+                iban,
+                account_name AS "accountName",
+                measurement_points AS "measurementPoints",
+                accepted_terms AS "acceptedTerms",
+                accepted_sepa AS "acceptedSepa",
+                acknowledged_privacy_notice AS "acknowledgedPrivacyNotice"
+            FROM members_membershipapplication
+            ORDER BY created_at DESC
+        `);
+        return result?.rows;
+    } finally {
+        sql.release();
+    }
+};
+
+/**
  * Speichert eine Mitgliedschafts-Bewerbung aus dem Onboarding-Formular.
  * Die Zeile ist zugleich der Nachweis der abgegebenen Erklaerungen
  * (Statuten, SEPA, Kenntnisnahme der Datenschutzerklaerung) samt Zeitpunkt

@@ -71,6 +71,16 @@
             </NavLi>
 
             <NavLi
+                href="/board/members/applications"
+                onclick={() => toggle()}
+                activeClass="text-green-600 bg-secundary-100"
+                nonActiveClass="text-green-800"
+                class="hover:text-green-600"
+            >
+                Bewerbungen
+            </NavLi>
+
+            <NavLi
                 href="/board/openhab"
                 onclick={() => toggle()}
                 activeClass="text-green-600 bg-secundary-100"
