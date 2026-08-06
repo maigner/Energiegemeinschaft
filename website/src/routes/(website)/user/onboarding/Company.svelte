@@ -25,6 +25,7 @@
 <Iban bind:iban={applicationData.iban} />
 <AccountName bind:accountName={applicationData.accountName} />
 <CheckSepa bind:checkSepa={applicationData.checkBoxes.sepa} />
+<!-- Firmen koennen nur Strom beziehen, nicht einspeisen -->
 <MeasurementPoints supportedTypes={["CONSUMPTION"]} bind:measurementPoints={applicationData.measurementPoints} />
 <CheckDataProcessing bind:privacyNotice={applicationData.checkBoxes.privacyNotice} />
 

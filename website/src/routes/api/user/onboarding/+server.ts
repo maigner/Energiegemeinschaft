@@ -1,5 +1,12 @@
 import { relayHtml } from '$lib/server/mail/smtp.js';
-import { saveMembershipApplication } from '$lib/server/db/members/applications.js';
+import { saveMembershipApplication, getMembershipApplicationsByEmail } from '$lib/server/db/members/applications.js';
+import { isValidIBAN } from '$lib/iban.js';
+import { isValidMeasurementPointIdentifier } from '$lib/measurementPointFormat.js';
+
+// Maximallaengen entsprechen dem Django-Modell MembershipApplication
+function isFilled(value: unknown, maxLength: number) {
+    return typeof value === "string" && value.trim() !== "" && value.length <= maxLength;
+}
 
 function obfuscateIBAN(iban) {
     // Remove spaces for processing
@@ -117,7 +124,7 @@ function summaryEmailInternal(d, applicationId) {
     <p><strong>IBAN:</strong> ${obfuscateIBAN(a.iban)}</p>
     <p><strong>Kontoinhaber:</strong> ${a.accountName}</p>
     <p>Die vollständigen Daten sind in der Datenbank gespeichert:
-    <a href="https://ischlstrom.org/board/members/applications">Bewerbung Nr. ${applicationId} im Vorstandsbereich öffnen</a></p>
+    <a href="https://ischlstrom.org/board/members/applications#application-${applicationId}">Bewerbung Nr. ${applicationId} im Vorstandsbereich öffnen</a></p>
 
     <h3>Messpunkte:</h3>
     <ul>`;
@@ -171,10 +178,48 @@ export async function POST(event) {
             });
         }
 
+        // Dieselben Regeln wie im Formular; hier erneut geprueft, weil der
+        // Endpunkt auch ohne das Formular erreichbar ist.
         const a = applicationData;
-        if (!a?.address || !a?.iban || !a?.accountName || !Array.isArray(a?.measurementPoints)) {
+
+        const validBase =
+            isFilled(a?.address?.street, 200) &&
+            isFilled(a?.address?.number, 20) &&
+            isFilled(a?.address?.zipCode, 10) &&
+            isFilled(a?.address?.city, 100) &&
+            isFilled(a?.accountName, 200) &&
+            isFilled(a?.iban, 42) &&
+            isValidIBAN(a.iban) &&
+            Array.isArray(a?.measurementPoints) &&
+            a.measurementPoints.length >= 1 &&
+            a.measurementPoints.every((p: { identifier?: string; type?: string }) =>
+                isValidMeasurementPointIdentifier(p?.identifier) &&
+                // Firmen koennen nur Strom beziehen, nicht einspeisen
+                (p?.type === "CONSUMPTION" ||
+                    (p?.type === "GENERATION" && homeOrCompany === "home")));
+
+        const validName = homeOrCompany === "home"
+            ? isFilled(a?.firstName, 200) && isFilled(a?.lastName, 200)
+            : isFilled(a?.companyName, 200);
+
+        // Die Erklaerungen sind Aufnahmevoraussetzung; die gespeicherte Zeile
+        // dient als Consent-Nachweis und darf daher nie "false" enthalten.
+        const validDeclarations =
+            a?.checkBoxes?.terms === true &&
+            a?.checkBoxes?.sepa === true &&
+            a?.checkBoxes?.privacyNotice === true;
+
+        if (!validBase || !validName || !validDeclarations) {
             return new Response(JSON.stringify({ error: "Invalid request" }), {
                 status: 400,
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+
+        const existing = await getMembershipApplicationsByEmail(email);
+        if (existing?.length >= 5) {
+            return new Response(JSON.stringify({ error: "Too many applications" }), {
+                status: 429,
                 headers: { "Content-Type": "application/json" }
             });
         }
@@ -198,11 +243,17 @@ export async function POST(event) {
             acknowledgedPrivacyNotice: a.checkBoxes?.privacyNotice,
         });
 
-        const htmlExternal = summaryEmailExternal({ email, homeOrCompany, applicationData });
-        const htmlInternal = summaryEmailInternal({ email, homeOrCompany, applicationData }, saved?.id);
+        // Ab hier ist die Bewerbung gespeichert; ein Mailfehler darf dem
+        // Bewerber nicht als Fehlschlag gemeldet werden (sonst Doppel-Bewerbung).
+        try {
+            const htmlExternal = summaryEmailExternal({ email, homeOrCompany, applicationData });
+            const htmlInternal = summaryEmailInternal({ email, homeOrCompany, applicationData }, saved?.id);
 
-        await relayHtml("info@ischlstrom.org", email, "Ihre Bewerbung bei der Energiegemeinschaft ISCHLSTROM", htmlExternal);
-        await relayHtml("info@ischlstrom.org", "info@ischlstrom.org", `Neue Bewerbung von ${email}`, htmlInternal);
+            await relayHtml("info@ischlstrom.org", email, "Ihre Bewerbung bei der Energiegemeinschaft ISCHLSTROM", htmlExternal);
+            await relayHtml("info@ischlstrom.org", "info@ischlstrom.org", `Neue Bewerbung von ${email}`, htmlInternal);
+        } catch (mailError) {
+            console.error(`membership application ${saved?.id} mail failed:`, mailError?.message ?? mailError);
+        }
 
         console.log(`membership application ${saved?.id} received`);
 

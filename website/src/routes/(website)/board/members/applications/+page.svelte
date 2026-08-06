@@ -46,7 +46,10 @@
             {#each data.applications as a (a.id)}
                 <AccordionItem>
                     {#snippet header()}
-                        <span class="flex items-center gap-3">
+                        <span
+                            id={"application-" + a.id}
+                            class="flex items-center gap-3"
+                        >
                             <Badge>Nr. {a.id}</Badge>
                             <span>
                                 {a.applicantType === "company"

@@ -52,11 +52,9 @@
                         <Button
                             class="p-1 bg-red-700 hover:bg-red-800"
                             onclick={() => {
-                                //alert(measurementPoint.identifier);
                                 measurementPoints = measurementPoints.filter(
-                                    (item) =>
-                                        item.identifier !==
-                                        measurementPoint.identifier,
+                                    (/** @type {any} */ item) =>
+                                        item !== measurementPoint,
                                 );
                             }}
                         >

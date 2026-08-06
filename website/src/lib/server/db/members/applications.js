@@ -37,6 +37,28 @@ export const getMembershipApplications = async () => {
 };
 
 /**
+ * Bewerbungen einer E-Mail-Adresse, neueste zuerst. Fuer die Wiedervorlage
+ * im Onboarding (bereits beworben?) und das Limit im API-Endpunkt.
+ * @param {string} email
+ */
+export const getMembershipApplicationsByEmail = async (email) => {
+    const sql = await middlewareDbConnection();
+    try {
+        const result = await sql.query(`
+            SELECT
+                id,
+                TO_CHAR(created_at AT TIME ZONE 'Europe/Vienna', 'DD.MM.YYYY HH24:MI') AS "createdAtLabel"
+            FROM members_membershipapplication
+            WHERE email = $1
+            ORDER BY created_at DESC
+        `, [email]);
+        return result?.rows;
+    } finally {
+        sql.release();
+    }
+};
+
+/**
  * Speichert eine Mitgliedschafts-Bewerbung aus dem Onboarding-Formular.
  * Die Zeile ist zugleich der Nachweis der abgegebenen Erklaerungen
  * (Statuten, SEPA, Kenntnisnahme der Datenschutzerklaerung) samt Zeitpunkt
