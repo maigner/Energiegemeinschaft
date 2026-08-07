@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 # ============================================================================
-# 02b - Wechselrichter-Thing automatisch anlegen
+# 02b - Wechselrichter-Things automatisch anlegen
 #
-# Legt Bridge- und Wechselrichter-Thing ueber die openHAB REST API an -
-# das, was sonst von Hand in der Main UI passiert (Settings -> Things).
+# Legt die Things des Wechselrichters ueber die openHAB REST API an - das,
+# was sonst von Hand in der Main UI passiert (Settings -> Things). Welche
+# Things das sind, bestimmt das Wechselrichter-Profil: liefert es ein
+# inverter_things_json() (geordnetes JSON-Array, z. B. ein Modbus-Baum
+# tcp-Bridge -> Poller -> Data-Things), wird genau dieses Manifest angelegt;
+# ohne die Funktion entsteht der klassische Zwei-Thing-Baum (Bridge mit
+# Adresse/Zugangsdaten + Wechselrichter-Thing).
+#
 # Adresse und Zugangsdaten kommen aus ibm.conf (AUTO_CREATE_THING=1,
 # INVERTER_HOST, INVERTER_USERNAME, INVERTER_PASSWORD; erfasst vom
 # Assistenten). Das dafuer noetige API-Token erzeugt das Skript bei
@@ -27,34 +33,81 @@ if [ "$AUTO_CREATE_THING" != "1" ]; then
 fi
 
 [ -n "$INVERTER_HOST" ] || die "INVERTER_HOST fehlt in ibm.conf."
-[ -n "$INVERTER_HOST_THING_PREFIX" ] \
-  || die "Profil '$INVERTER_TYPE' kennt keinen Bridge-Thing-Typ (INVERTER_HOST_THING_PREFIX)."
 command -v python3 >/dev/null 2>&1 || die "python3 fehlt (openHABian bringt es normalerweise mit)."
 
 REST="http://127.0.0.1:8080/rest"
-BRIDGE_TYPE="$INVERTER_HOST_THING_PREFIX"
-THING_TYPE="$INVERTER_THING_PREFIX"
-BRIDGE_UID="${INVERTER_HOST_THING_PREFIX}:ibm"
 
-# --- 1. Warten, bis das Binding installiert ist ------------------------------
+# --- 1. Thing-Manifest bestimmen ----------------------------------------------
+if type inverter_things_json >/dev/null 2>&1; then
+  things_manifest="$(inverter_things_json)"
+  [ -n "$things_manifest" ] || die "inverter_things_json() des Profils '$INVERTER_TYPE' liefert nichts."
+else
+  # Klassischer Zwei-Thing-Baum: Bridge (Adresse + Zugangsdaten) und daran
+  # das Wechselrichter-Thing - das bisherige Verhalten fuer Profile ohne
+  # eigenes Manifest.
+  [ -n "$INVERTER_HOST_THING_PREFIX" ] \
+    || die "Profil '$INVERTER_TYPE' kennt keinen Bridge-Thing-Typ (INVERTER_HOST_THING_PREFIX)."
+  things_manifest="$(
+    IBM_J_BRIDGE_UID="${INVERTER_HOST_THING_PREFIX}:ibm" \
+    IBM_J_BRIDGE_TYPE="$INVERTER_HOST_THING_PREFIX" \
+    IBM_J_LABEL="$INVERTER_LABEL" \
+    IBM_J_HOST_PARAM="$INVERTER_HOST_PARAM" IBM_J_HOST="$INVERTER_HOST" \
+    IBM_J_USER_PARAM="$INVERTER_USER_PARAM" IBM_J_USER="$INVERTER_USERNAME" \
+    IBM_J_PW_PARAM="$INVERTER_PASSWORD_PARAM" IBM_J_PW="$INVERTER_PASSWORD" \
+    IBM_J_UID="$INVERTER_THING_UID" IBM_J_TYPE="$INVERTER_THING_PREFIX" \
+    IBM_J_EXTRA="$INVERTER_THING_EXTRA_CONFIG" \
+    python3 - <<'PY'
+import json, os
+e = os.environ
+bridge_cfg = {e["IBM_J_HOST_PARAM"]: e["IBM_J_HOST"]}
+if e.get("IBM_J_USER_PARAM") and e.get("IBM_J_USER"):
+    bridge_cfg[e["IBM_J_USER_PARAM"]] = e["IBM_J_USER"]
+if e.get("IBM_J_PW_PARAM") and e.get("IBM_J_PW"):
+    bridge_cfg[e["IBM_J_PW_PARAM"]] = e["IBM_J_PW"]
+extra = e.get("IBM_J_EXTRA", "").strip()
+thing_cfg = json.loads("{" + extra + "}") if extra else {}
+print(json.dumps([
+    {
+        "UID": e["IBM_J_BRIDGE_UID"],
+        "thingTypeUID": e["IBM_J_BRIDGE_TYPE"],
+        "label": e["IBM_J_LABEL"] + " (Verbindung)",
+        "configuration": bridge_cfg,
+    },
+    {
+        "UID": e["IBM_J_UID"],
+        "thingTypeUID": e["IBM_J_TYPE"],
+        "bridgeUID": e["IBM_J_BRIDGE_UID"],
+        "label": e["IBM_J_LABEL"],
+        "configuration": thing_cfg,
+    },
+]))
+PY
+  )"
+fi
+
+first_thing_type="$(printf '%s' "$things_manifest" \
+  | python3 -c 'import json, sys; print(json.load(sys.stdin)[0]["thingTypeUID"])')" \
+  || die "Thing-Manifest des Profils '$INVERTER_TYPE' ist kein gueltiges JSON-Array."
+
+# --- 2. Warten, bis das Binding installiert ist ------------------------------
 # 02-install-addons.sh traegt das Binding nur in addons.cfg ein; openHAB
 # installiert es asynchron. Erst wenn der Thing-Typ per REST aufloesbar ist,
 # koennen Things dieses Typs angelegt werden.
-log "Warte auf das Binding '${INVERTER_BINDING}' (Thing-Typ ${BRIDGE_TYPE}) ..."
+log "Warte auf das Binding '${INVERTER_BINDING}' (Thing-Typ ${first_thing_type}) ..."
 waited=0
-until [ "$(curl -s -o /dev/null -w '%{http_code}' -m 5 "$REST/thing-types/$BRIDGE_TYPE" || true)" = "200" ]; do
+until [ "$(curl -s -o /dev/null -w '%{http_code}' -m 5 "$REST/thing-types/$first_thing_type" || true)" = "200" ]; do
   [ "$waited" -lt 300 ] || die "Binding nach 5 Minuten nicht verfuegbar - Status in openhab.log pruefen."
   sleep 5
   waited=$((waited + 5))
 done
 log "Binding ist installiert."
 
-# --- 2. API-Token ------------------------------------------------------------
+# --- 3. API-Token ------------------------------------------------------------
 ensure_api_token || die "Ohne API-Token koennen keine Things angelegt werden - siehe Hinweise oben."
 
 auth_curl() { curl -s -H "Authorization: Bearer $OH_API_TOKEN" "$@"; }
 
-# --- 2b. Warten, bis der Things-Endpunkt bereit ist ---------------------------
+# --- 3b. Warten, bis der Things-Endpunkt bereit ist ---------------------------
 # Waehrend openHAB noch Addons installiert, kann /rest/thing-types schon da
 # sein, /rest/things aber noch fehlen - ein GET liefert dann 404, obwohl nur
 # der Endpunkt (nicht das Thing) fehlt. Deshalb erst anlegen, wenn die
@@ -68,7 +121,7 @@ until [ "$(auth_curl -o /dev/null -w '%{http_code}' -m 5 "$REST/things" || true)
 done
 log "REST API ist bereit."
 
-# --- 3. Things anlegen -------------------------------------------------------
+# --- 4. Things anlegen -------------------------------------------------------
 # create_thing <uid> <json-payload>
 create_thing() {
   local uid="$1" payload="$2" code body
@@ -96,50 +149,13 @@ create_thing() {
   die "Thing konnte nicht angelegt werden: $uid (HTTP $code)"
 }
 
-bridge_payload="$(
-  IBM_J_UID="$BRIDGE_UID" IBM_J_TYPE="$BRIDGE_TYPE" IBM_J_LABEL="$INVERTER_LABEL (Verbindung)" \
-  IBM_J_HOST_PARAM="$INVERTER_HOST_PARAM" IBM_J_HOST="$INVERTER_HOST" \
-  IBM_J_USER_PARAM="$INVERTER_USER_PARAM" IBM_J_USER="$INVERTER_USERNAME" \
-  IBM_J_PW_PARAM="$INVERTER_PASSWORD_PARAM" IBM_J_PW="$INVERTER_PASSWORD" \
-  python3 - <<'PY'
-import json, os
-e = os.environ
-cfg = {e["IBM_J_HOST_PARAM"]: e["IBM_J_HOST"]}
-if e.get("IBM_J_USER_PARAM") and e.get("IBM_J_USER"):
-    cfg[e["IBM_J_USER_PARAM"]] = e["IBM_J_USER"]
-if e.get("IBM_J_PW_PARAM") and e.get("IBM_J_PW"):
-    cfg[e["IBM_J_PW_PARAM"]] = e["IBM_J_PW"]
-print(json.dumps({
-    "UID": e["IBM_J_UID"],
-    "thingTypeUID": e["IBM_J_TYPE"],
-    "label": e["IBM_J_LABEL"],
-    "configuration": cfg,
-}))
-PY
-)"
+# In Manifest-Reihenfolge anlegen - Bridges stehen vor ihren Kindern.
+while IFS=$'\t' read -r uid payload; do
+  [ -n "$uid" ] || continue
+  create_thing "$uid" "$payload"
+done < <(printf '%s' "$things_manifest" | things_manifest_lines)
 
-thing_payload="$(
-  IBM_J_UID="$INVERTER_THING_UID" IBM_J_TYPE="$THING_TYPE" IBM_J_BRIDGE="$BRIDGE_UID" \
-  IBM_J_LABEL="$INVERTER_LABEL" IBM_J_EXTRA="$INVERTER_THING_EXTRA_CONFIG" \
-  python3 - <<'PY'
-import json, os
-e = os.environ
-extra = e.get("IBM_J_EXTRA", "").strip()
-cfg = json.loads("{" + extra + "}") if extra else {}
-print(json.dumps({
-    "UID": e["IBM_J_UID"],
-    "thingTypeUID": e["IBM_J_TYPE"],
-    "bridgeUID": e["IBM_J_BRIDGE"],
-    "label": e["IBM_J_LABEL"],
-    "configuration": cfg,
-}))
-PY
-)"
-
-create_thing "$BRIDGE_UID" "$bridge_payload"
-create_thing "$INVERTER_THING_UID" "$thing_payload"
-
-# --- 4. Auf ONLINE warten -----------------------------------------------------
+# --- 5. Auf ONLINE warten -----------------------------------------------------
 log "Warte, bis der Wechselrichter ONLINE meldet ..."
 waited=0
 status=""

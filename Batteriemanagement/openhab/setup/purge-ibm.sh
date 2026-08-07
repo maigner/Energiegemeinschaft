@@ -82,7 +82,17 @@ fi
 
 # --- 2. Things ----------------------------------------------------------------
 if have_token; then
-  for uid in "${INVERTER_THING_UID:-}" "${INVERTER_HOST_THING_UID:-}"; do
+  # Profile mit eigenem Thing-Baum (inverter_things_json) liefern alle UIDs;
+  # geloescht wird in umgekehrter Reihenfolge (Kinder vor ihren Bridges).
+  # Die UIDs aus ibm.conf bleiben als Rueckfall und werden dedupliziert.
+  purge_uids=""
+  if type inverter_things_json >/dev/null 2>&1; then
+    purge_uids="$(inverter_things_json 2>/dev/null | things_manifest_uids_reverse 2>/dev/null || true)"
+  fi
+  purge_uids="${purge_uids}
+${INVERTER_THING_UID:-}
+${INVERTER_HOST_THING_UID:-}"
+  while IFS= read -r uid; do
     [ -n "$uid" ] || continue
     code="$(auth_curl -o /dev/null -w '%{http_code}' -X DELETE "$REST/things/$uid?force=true" || true)"
     case "$code" in
@@ -90,7 +100,7 @@ if have_token; then
       404)         log "Thing nicht vorhanden: $uid" ;;
       *)           warn "Thing '$uid' nicht entfernt (HTTP $code)." ;;
     esac
-  done
+  done <<< "$(printf '%s\n' "$purge_uids" | awk 'NF && !seen[$0]++')"
 else
   warn "Kein API-Token - Things bleiben stehen (Main UI -> Settings -> Things)."
 fi

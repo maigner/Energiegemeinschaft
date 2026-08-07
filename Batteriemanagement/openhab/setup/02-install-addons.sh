@@ -27,7 +27,7 @@ addons_cfg_prepare
 cat <<HINWEIS
 [IBM]
 [IBM] Es werden folgende Addons in addons.cfg eingetragen:
-[IBM]   binding     = ${INVERTER_BINDING}
+[IBM]   binding     = ${INVERTER_BINDINGS// /, }
 [IBM]   automation  = jsscripting      (JS-Regeln, zwingend erforderlich)
 [IBM]   persistence = mapdb, rrd4j     (Einstellungen ueberleben Neustart;
 [IBM]                                   rrd4j liefert die Daten fuer Analyze/Diagramme)
@@ -49,7 +49,9 @@ if ! confirm "addons.cfg jetzt anpassen?"; then
   exit 0
 fi
 
-addons_cfg_add "binding" "$INVERTER_BINDING"
+for binding in $INVERTER_BINDINGS; do
+  addons_cfg_add "binding" "$binding"
+done
 addons_cfg_add "automation" "jsscripting"
 if [ "$INSTALL_PERSISTENCE" = "1" ]; then
   addons_cfg_add "persistence" "mapdb"

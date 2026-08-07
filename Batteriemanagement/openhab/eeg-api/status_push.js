@@ -57,7 +57,10 @@ var payload = {
     soc: numberOf('@IBM_SOC_ITEM@'),
     // Leistungswerte (Fronius-Vorzeichen: Batterie + = Entladen,
     // Netz + = Bezug, - = Einspeisung); null wenn kein Item verknuepft ist.
-    battery_power_w: firstNumberOf(['Fronius_Symo_Inverter_Battery_Power']),
+    // Das konfigurierte Batterieleistungs-Item der Anlage kommt zuerst
+    // (Platzhalter; leer, wenn keins konfiguriert ist - firstNumberOf
+    // ueberspringt das dann), danach die ueblichen Itemnamen je Hersteller.
+    battery_power_w: firstNumberOf(['@IBM_BATTERY_POWER_ITEM@', 'Fronius_Symo_Inverter_Battery_Power']),
     grid_power_w: firstNumberOf(['Fronius_Symo_Inverter_Grid_Power']),
     pv_power_w: firstNumberOf(['Fronius_Symo_Inverter_Solar_Plant_Power']),
     load_power_w: firstNumberOf(['Fronius_Symo_Inverter_Load_Power']),

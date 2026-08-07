@@ -123,12 +123,16 @@ nur noch fuer das Anlegen des Admin-Kontos gebraucht:
 
 1. Der Assistent sucht den Wechselrichter im lokalen /24-Netz (gleiche
    Erkennung wie der Netzwerk-Watchdog, bei Fronius der Solar-API-Endpunkt)
-   und fragt die Zugangsdaten des Geraets ab (bei Fronius noetig fuer die
-   Batteriesteuerung). Ergebnis in `ibm.conf`: `AUTO_CREATE_THING=1`,
-   `INVERTER_HOST`, `INVERTER_USERNAME`, `INVERTER_PASSWORD`.
+   und fragt - wenn das Profil welche braucht - die Zugangsdaten des Geraets
+   ab (beim GEN24 noetig fuer die Batteriesteuerung). Ergebnis in
+   `ibm.conf`: `AUTO_CREATE_THING=1`, `INVERTER_HOST`, `INVERTER_USERNAME`,
+   `INVERTER_PASSWORD`.
 2. `02b-install-things.sh` wartet, bis das Binding installiert ist, und legt
-   dann Bridge (`fronius:bridge:ibm`) und Wechselrichter
-   (`fronius:powerinverter:ibm:inverter1`) per REST API an.
+   dann die Things des Profils per REST API an: den klassischen
+   Zwei-Thing-Baum (Bridge `fronius:bridge:ibm` + Wechselrichter
+   `fronius:powerinverter:ibm:inverter1`) - oder, wenn das Profil ein
+   eigenes Thing-Manifest mitbringt (`inverter_things_json`), genau diesen
+   Baum, z. B. bei Modbus tcp-Bridge -> Poller -> Data-Things.
 3. Das dafuer noetige **API-Token** erzeugt das Setup selbst: ueber die
    Karaf-Konsole (`openhab:users addApiToken <admin> ibm admin`). Das
    Konsolen-Passwort muss dafuer niemand wissen - als root wird in
@@ -154,11 +158,19 @@ ablehnt, bekommt wie bisher die Anleitung fuer die Main UI.
 
 ## Andere Wechselrichter
 
-Fronius ist die Vorgabe, aber nichts am Setup ist auf Fronius festgelegt. Alles
-Herstellerabhaengige steht in `../inverters/<hersteller>/profile.sh`; der
-Assistent listet automatisch auf, was dort liegt. Ein neuer Hersteller braucht
-**keine Aenderung an den Setup-Skripten** — siehe
-[../inverters/README.md](../inverters/README.md).
+Es gibt zwei mitgelieferte Profile: `fronius` (GEN24, Batterie-Actions des
+Fronius-Bindings) und `fronius-snapinverter` (aeltere Symo-Hybrid-Generation,
+Modbus/SunSpec Model 124). Alles Herstellerabhaengige steht in
+`../inverters/<hersteller>/profile.sh`; der Assistent listet automatisch auf,
+was dort liegt. Ein neuer Hersteller braucht **keine Aenderung an den
+Setup-Skripten** — siehe [../inverters/README.md](../inverters/README.md).
+
+Die Batteriesteuerung selbst ist zweigeteilt: die gesamte Entscheidungslogik
+(Zeitfenster, Wolken, Kapazitaetsschaetzung) liegt herstellerneutral in
+`../control/core.js`; das Profil liefert nur einen duennen Adapter
+(`INVERTER_ADAPTER_SCRIPT`) mit den drei Funktionen `ibmReset`,
+`ibmPreventCharge` und `ibmForceDischarge`. `04-install-rules.sh` setzt
+Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 
 ## Was installiert wird
 
@@ -264,7 +276,7 @@ Inhalt in der Code-Ansicht einfuegen.
 | `ibm_cloud_forecast.js` | `../eeg-api/cloud_forecast.js` | stuendlich :40 |
 | `ibm_crossover.js` | `../eeg-api/crossover.js` | taeglich 04:05 |
 | `ibm_ladesperre.js` | `../eeg-api/ladefenster.js` | stuendlich :50 |
-| `ibm_battery_control.js` | aus dem Wechselrichter-Profil | alle 5 Minuten |
+| `ibm_battery_control.js` | Adapter des Profils + `../control/core.js` | alle 5 Minuten |
 | `ibm_status_push.js` (optional) | `../eeg-api/status_push.js` | alle 5 Minuten |
 | `ibm_init.js` | generiert | alle 10 Minuten |
 | `ibm_pause.js` | generiert | taeglich 00:30 |

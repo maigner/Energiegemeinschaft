@@ -1,0 +1,610 @@
+version: 1
+# ============================================================================
+# IBM - Seiten fuer die Main UI
+#
+# Fuer die Bedienung am Handy aufgeteilt: die Seite "overview" zeigt kompakt
+# Zustand und Hauptschalter und verlinkt auf vier Unterseiten (Laden,
+# Einspeisen, Pause, Experten) - so bleibt jede Seite ohne Scrollen erfassbar.
+#
+# Wird von setup/05-install-overview.sh per REST API installiert; dafuer
+# wandelt build-dist.sh jede Seite unter `pages:` nach page-<uid>.json.
+# Die Platzhalter-Items aus profile.sh (INVERTER_SOC_PLACEHOLDER und
+# INVERTER_BATTERY_POWER_PLACEHOLDER) werden dabei durch das SOC_ITEM bzw.
+# BATTERY_POWER_ITEM der Anlage ersetzt.
+#
+# Manuell einspielen geht weiterhin: je Eintrag unter `pages:` eine Seite in
+# der Main UI anlegen (Settings -> Pages) und den Inhalt in der Code-Ansicht
+# einfuegen; die Seite "overview" ersetzt die vorhandene Overview.
+#
+# Jede Karte traegt eine Erklaerung (footer), damit die Seiten ohne
+# Vorwissen verstaendlich sind.
+# ============================================================================
+pages:
+  # --- Home-Konfiguration: nur der Overview-Tab ------------------------------
+  # Blendet die Modell-Tabs (Standorte, Geraete, Eigenschaften) aus - sie
+  # sind fuer Mitglieder nur verwirrend. Damit verschwindet auch die
+  # Tab-Leiste und die Overview fuellt den ganzen Bildschirm.
+  home:
+    tags: []
+    props:
+      parameters: []
+      parameterGroups: []
+    component: oh-home-page
+    config:
+      hiddenModelTabs:
+        - locations
+        - equipment
+        - properties
+
+  # --- Startseite: Zustand, Hauptschalter, Navigation ------------------------
+  overview:
+    tags: []
+    props:
+      parameters: []
+      parameterGroups: []
+    component: oh-layout-page
+    config:
+      label: Overview
+    slots:
+      default:
+        - component: oh-block
+          config: {}
+          slots:
+            default:
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config:
+                              title: ISCHLSTROM Batteriemanagement (IBM)
+                            slots:
+                              content:
+                                - component: Label
+                                  config:
+                                    text: >-
+                                      IBM steuert die Batterie so, dass möglichst
+                                      viel Sonnenstrom in der Energiegemeinschaft
+                                      bleibt: Geladen wird die Batterie
+                                      ausschließlich aus der eigenen PV-Anlage -
+                                      nie aus dem Netz. IBM bestimmt nur, WANN
+                                      das passiert: erst ab Mittag, wenn die
+                                      Gemeinschaft Überschuss hat; am Abend
+                                      speist die Batterie ein. Alle Daten kommen
+                                      automatisch von ischlstrom.org - Details
+                                      und Einstellungen auf den Unterseiten.
+                                    style:
+                                      padding: 16px
+                                      white-space: normal
+                                      line-height: 1.5
+
+        - component: oh-block
+          config:
+            title: Aktueller Zustand
+          slots:
+            default:
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Ladestand der Batterie
+                              item: IBM_MB_SoC
+                              footer: >-
+                                Wie voll die Batterie gerade ist. Tippen zeigt
+                                den Verlauf.
+                              action: analyzer
+                              actionAnalyzerItems:
+                                - IBM_MB_SoC
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Überschuss ab
+                              item: Ischlstrom_Crossover_Start
+                              footer: >-
+                                Ab dieser Uhrzeit erzeugt die Gemeinschaft mehr
+                                Strom, als sie verbraucht.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Überschuss bis
+                              item: Ischlstrom_Crossover_Ende
+                              footer: >-
+                                Ab dieser Uhrzeit verbraucht die Gemeinschaft
+                                wieder mehr, als sie erzeugt.
+
+        - component: oh-block
+          config:
+            title: Steuerung
+          slots:
+            default:
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-toggle-card
+                            config:
+                              title: Batteriemanagement aktivieren
+                              item: Schalte_ISCHLSTROM_Empfehlung_einaus
+                              color: green
+                              footer: "=items.Schalte_ISCHLSTROM_Empfehlung_einaus.state === 'ON' ? '🟢 EINGESCHALTET - IBM steuert die Batterie automatisch.' : (items.Schalte_ISCHLSTROM_Empfehlung_einaus.state === 'OFF' ? '⚪ AUSGESCHALTET - IBM greift nicht ein, der Wechselrichter arbeitet wie ab Werk.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
+
+        - component: oh-block
+          config:
+            title: Einstellungen
+          slots:
+            default:
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: ☀️ Laden bei Sonnenprognose
+                                    action: navigate
+                                    actionPage: page:ibm_laden
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: 🌙 Einspeisen am Abend
+                                    action: navigate
+                                    actionPage: page:ibm_einspeisen
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: "=items.IBM_PAUSE_TAGE.state > 0 ? '⏸️ Pausiert - noch ' + items.IBM_PAUSE_TAGE.state + (items.IBM_PAUSE_TAGE.state == 1 ? ' Tag' : ' Tage') : '⏸️ IBM pausieren'"
+                                    action: navigate
+                                    actionPage: page:ibm_pause
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: 🔧 Für Experten
+                                    action: navigate
+                                    actionPage: page:ibm_experten
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+
+  # --- Unterseite: Laden bei Sonnenprognose ----------------------------------
+  ibm_laden:
+    tags: []
+    props:
+      parameters: []
+      parameterGroups: []
+    component: oh-layout-page
+    config:
+      label: Laden bei Sonnenprognose
+    slots:
+      default:
+        - component: oh-block
+          config: {}
+          slots:
+            default:
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-toggle-card
+                            config:
+                              title: Ladesperre verwenden
+                              item: IBM_LADESPERRE_AKTIV
+                              color: blue
+                              footer: "=items.IBM_LADESPERRE_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - An sonnigen Tagen lädt die Batterie zwischen den unten angezeigten Zeiten nicht: Der eigene PV-Strom geht am Vormittag an Haushalt und Gemeinschaft. Danach lädt die Batterie wie immer aus der eigenen PV-Anlage.' : (items.IBM_LADESPERRE_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Die Batterie lädt aus der eigenen PV, sobald Sonne da ist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Sperre ab
+                              item: Ischlstrom_Ladesperre_Start
+                              footer: >-
+                                Erster Sonnenschein laut Tagesprognose - kommt
+                                automatisch von ischlstrom.org. "-" bedeutet:
+                                heute keine Sperre.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Sperre bis
+                              item: Ischlstrom_Ladesperre_Ende
+                              footer: >-
+                                Ab dieser Uhrzeit erzeugt die Gemeinschaft laut
+                                Prognose mehr, als sie verbraucht - dann darf
+                                die Batterie wieder aus der eigenen PV-Anlage
+                                laden.
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Bewölkung am Vormittag
+                              item: Ischlstrom_Wolkenvorschau
+                              footer: >-
+                                Vorhersage in Prozent: 0 % = wolkenlos,
+                                100 % = bedeckt. Kommt stündlich von
+                                ischlstrom.org.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-stepper-card
+                            config:
+                              title: Bewölkungs-Schwelle (%)
+                              item: IBM_LADESPERRE_WOLKEN_SCHWELLE
+                              min: 0
+                              max: 100
+                              step: 5
+                              footer: >-
+                                Nur wenn die Bewölkungsvorhersage unter diesem
+                                Wert liegt (also genug Sonne kommt), wird das
+                                Laden gesperrt.
+
+  # --- Unterseite: Einspeisen am Abend ---------------------------------------
+  ibm_einspeisen:
+    tags: []
+    props:
+      parameters: []
+      parameterGroups: []
+    component: oh-layout-page
+    config:
+      label: Einspeisen am Abend
+    slots:
+      default:
+        - component: oh-block
+          config: {}
+          slots:
+            default:
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-toggle-card
+                            config:
+                              title: Entladung verwenden
+                              item: IBM_ENTLADUNG_AKTIV
+                              color: blue
+                              footer: "=items.IBM_ENTLADUNG_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - Die Batterie speist am Abend ins Netz ein, solange die Gemeinschaft mehr verbraucht als erzeugt (Überschuss-Zeiten unten). Liegen keine Überschuss-Zeiten vor, wird nicht eingespeist.' : (items.IBM_ENTLADUNG_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Es wird nicht automatisch eingespeist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Überschuss ab
+                              item: Ischlstrom_Crossover_Start
+                              footer: >-
+                                Ab dieser Uhrzeit erzeugt die Gemeinschaft mehr,
+                                als sie verbraucht - die Einspeisung aus der
+                                Batterie endet.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Überschuss bis
+                              item: Ischlstrom_Crossover_Ende
+                              footer: >-
+                                Ab dieser Uhrzeit verbraucht die Gemeinschaft
+                                wieder mehr, als sie erzeugt - die Batterie
+                                beginnt am Abend einzuspeisen.
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-stepper-card
+                            config:
+                              title: Reserve-Ladestand (%)
+                              item: IBM_MIN_BATTERY_CHARGE
+                              min: 10
+                              max: 90
+                              step: 5
+                              footer: >-
+                                Unter diesem Ladestand stoppt die Einspeisung -
+                                diese Reserve bleibt für den eigenen Haushalt.
+
+  # --- Unterseite: IBM pausieren ---------------------------------------------
+  ibm_pause:
+    tags: []
+    props:
+      parameters: []
+      parameterGroups: []
+    component: oh-layout-page
+    config:
+      label: IBM pausieren
+    slots:
+      default:
+        - component: oh-block
+          config: {}
+          slots:
+            default:
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config:
+                              title: IBM eine Weile aussetzen
+                            slots:
+                              content:
+                                - component: Label
+                                  config:
+                                    text: >-
+                                      Praktisch bei Urlaub, Wartung oder wenn
+                                      der Strom gerade selbst gebraucht wird:
+                                      Solange die Pause läuft, greift IBM nicht
+                                      ein - der Wechselrichter arbeitet wie ab
+                                      Werk, alle Einstellungen bleiben
+                                      erhalten. Jede Nacht zählt die Pause um
+                                      einen Tag herunter; danach arbeitet IBM
+                                      von selbst weiter.
+                                    style:
+                                      padding: 16px
+                                      white-space: normal
+                                      line-height: 1.5
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: ⏸️ 3 Tage
+                                    action: command
+                                    actionItem: IBM_PAUSE_TAGE
+                                    actionCommand: "3"
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: ⏸️ 5 Tage
+                                    action: command
+                                    actionItem: IBM_PAUSE_TAGE
+                                    actionCommand: "5"
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-stepper-card
+                            config:
+                              title: Verbleibende Pausentage
+                              item: IBM_PAUSE_TAGE
+                              min: 0
+                              max: 14
+                              step: 1
+                              footer: >-
+                                Feineinstellung: 0 = keine Pause, IBM arbeitet
+                                normal. Zählt jede Nacht automatisch um 1
+                                herunter.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-card
+                            config: {}
+                            slots:
+                              content:
+                                - component: oh-button
+                                  config:
+                                    text: ▶️ Pause beenden
+                                    action: command
+                                    actionItem: IBM_PAUSE_TAGE
+                                    actionCommand: "0"
+                                    fill: true
+                                    large: true
+                                    style:
+                                      margin: 8px
+
+  # --- Unterseite: Fuer Experten ---------------------------------------------
+  ibm_experten:
+    tags: []
+    props:
+      parameters: []
+      parameterGroups: []
+    component: oh-layout-page
+    config:
+      label: Für Experten
+    slots:
+      default:
+        - component: oh-block
+          config: {}
+          slots:
+            default:
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-toggle-card
+                            config:
+                              title: Automatische Entladeleistung
+                              item: IBM_DYNAMISCHE_LEISTUNG
+                              color: blue
+                              footer: >-
+                                Passt die Einspeiseleistung automatisch an die
+                                geschätzte Batteriegröße an. Solange keine
+                                Schätzung vorliegt (oder ausgeschaltet), gelten
+                                die unten eingestellten Werte.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Geschätzte Batteriegröße
+                              item: IBM_BATTERIE_KAPAZITAET
+                              footer: >-
+                                Wird während der nächtlichen Einspeisung aus
+                                der Ladestandsänderung geschätzt und mit jeder
+                                Nacht genauer.
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-stepper-card
+                            config:
+                              title: Minimale Entladeleistung (W)
+                              item: Minimale_Entladeleistung_Batterieeinspeisung
+                              min: 0
+                              max: 1000
+                              step: 100
+                              footer: >-
+                                Kleinste Leistung, mit der eingespeist wird -
+                                auch wenn die Wolkenvorschau veraltet ist.
+                                Gilt nur ohne automatische Entladeleistung.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-stepper-card
+                            config:
+                              title: Maximale Entladeleistung (W)
+                              item: Maximale_Entladeleistung_Batterieeinspeisung
+                              min: 1000
+                              max: 4000
+                              step: 500
+                              footer: >-
+                                Obergrenze fürs Einspeisen. Die Vorgabe passt
+                                für die meisten Anlagen.
+                                Gilt nur ohne automatische Entladeleistung.

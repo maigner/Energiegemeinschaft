@@ -132,14 +132,48 @@ load_profile() {
 
   [ -f "$profile" ] || die "Unbekannter Wechselrichter-Typ '$type'. Verfuegbar: $(list_inverters | tr '\n' ' ')"
 
+  # Werte und Funktionen eines eventuell vorher geladenen Profils verwerfen -
+  # sie duerfen nicht in ein anderes Profil "durchsickern". (Keine dieser
+  # Variablen steht in ibm.conf; dort stehen nur INVERTER_TYPE, die
+  # anlagenspezifischen UIDs/Items und die Zugangsdaten.)
+  unset INVERTER_LABEL INVERTER_BINDING INVERTER_BINDINGS \
+        INVERTER_THING_PREFIX INVERTER_SOC_CHANNEL \
+        INVERTER_ADAPTER_SCRIPT INVERTER_CONTROL_SCRIPT \
+        INVERTER_SOC_PLACEHOLDER INVERTER_BATTERY_POWER_CHANNEL \
+        INVERTER_BATTERY_POWER_PLACEHOLDER INVERTER_NOTES \
+        INVERTER_HOST_THING_PREFIX INVERTER_HOST_PARAM \
+        INVERTER_REDISCOVER_SCRIPT INVERTER_DEFAULT_USERNAME \
+        INVERTER_USER_PARAM INVERTER_PASSWORD_PARAM \
+        INVERTER_THING_EXTRA_CONFIG INVERTER_AUTO_THING_UID 2>/dev/null || true
+  unset -f inverter_scan_hosts inverter_things_json inverter_battery_items inverter_verify 2>/dev/null || true
+
   # shellcheck disable=SC1090
   . "$profile"
   INVERTER_TYPE="$type"
 
-  : "${INVERTER_BINDING:?INVERTER_BINDING fehlt in $profile}"
+  # Bindings: INVERTER_BINDINGS (Leerzeichen-getrennte Liste) oder das
+  # aeltere INVERTER_BINDING (ein Addon). INVERTER_BINDING bleibt fuer
+  # Anzeigen/Meldungen auf das erste Binding gesetzt.
+  INVERTER_BINDINGS="${INVERTER_BINDINGS:-${INVERTER_BINDING:-}}"
+  [ -n "$INVERTER_BINDINGS" ] || die "INVERTER_BINDINGS (oder INVERTER_BINDING) fehlt in $profile"
+  INVERTER_BINDING="${INVERTER_BINDING:-${INVERTER_BINDINGS%% *}}"
+
   : "${INVERTER_THING_PREFIX:?INVERTER_THING_PREFIX fehlt in $profile}"
-  : "${INVERTER_CONTROL_SCRIPT:?INVERTER_CONTROL_SCRIPT fehlt in $profile}"
   : "${INVERTER_SOC_PLACEHOLDER:?INVERTER_SOC_PLACEHOLDER fehlt in $profile}"
+
+  # Steuerung: entweder Adapter + gemeinsamer Kern (control/core.js) oder -
+  # als Rueckfall fuer aeltere/fremde Profile - ein eigenstaendiges
+  # Steuerungsskript, das den ganzen Kern selbst mitbringt.
+  INVERTER_ADAPTER_SCRIPT="${INVERTER_ADAPTER_SCRIPT:-}"
+  INVERTER_CONTROL_SCRIPT="${INVERTER_CONTROL_SCRIPT:-}"
+  if [ -n "$INVERTER_ADAPTER_SCRIPT" ]; then
+    IBM_CONTROL_MODE="adapter"
+  elif [ -n "$INVERTER_CONTROL_SCRIPT" ]; then
+    IBM_CONTROL_MODE="legacy"
+  else
+    die "INVERTER_ADAPTER_SCRIPT (oder INVERTER_CONTROL_SCRIPT) fehlt in $profile"
+  fi
+
   INVERTER_LABEL="${INVERTER_LABEL:-$type}"
   INVERTER_SOC_CHANNEL="${INVERTER_SOC_CHANNEL:-soc}"
   INVERTER_NOTES="${INVERTER_NOTES:-}"
@@ -160,6 +194,17 @@ load_profile() {
   INVERTER_USER_PARAM="${INVERTER_USER_PARAM:-}"
   INVERTER_PASSWORD_PARAM="${INVERTER_PASSWORD_PARAM:-}"
   INVERTER_THING_EXTRA_CONFIG="${INVERTER_THING_EXTRA_CONFIG:-}"
+
+  # Thing-UID, die der Assistent beim automatischen Anlegen vergibt. Profile
+  # mit eigenem Thing-Baum (inverter_things_json) setzen hier ihr Haupt-Thing
+  # - das Segmentmuster *:ibm:* markiert es als "von IBM verwaltet" (03).
+  INVERTER_AUTO_THING_UID="${INVERTER_AUTO_THING_UID:-${INVERTER_THING_PREFIX}:ibm:inverter1}"
+
+  # Optionale Profilfunktionen (Kontrakt siehe inverters/README.md):
+  #   inverter_scan_hosts    - Netzsuche, eine IP je Zeile
+  #   inverter_things_json   - geordnetes JSON-Array der anzulegenden Things
+  #   inverter_battery_items - .items-Zeilen der Batterie-/Steuer-Items
+  #   inverter_verify        - zusaetzliche Pruefungen fuer 06-verify.sh
 
   log "Wechselrichter-Profil geladen: $INVERTER_LABEL ($type)"
 }
@@ -236,6 +281,33 @@ conf_set() {
 }
 
 # ---------------------------------------------------------------------------
+# Thing-Manifest
+#
+# inverter_things_json() liefert ein geordnetes JSON-Array der anzulegenden
+# Things: [{"UID","thingTypeUID","bridgeUID"?,"label","configuration"},...].
+# Diese Helfer zerlegen es fuer 02b-install-things.sh und purge-ibm.sh.
+# ---------------------------------------------------------------------------
+
+# Manifest (stdin) -> "UID<TAB>kompaktes JSON" je Thing, in Array-Reihenfolge.
+things_manifest_lines() {
+  python3 -c '
+import json, sys
+for t in json.load(sys.stdin):
+    print(t["UID"] + "\t" + json.dumps(t))
+'
+}
+
+# Manifest (stdin) -> nur die UIDs, in umgekehrter Reihenfolge (Kinder vor
+# ihren Bridges - so loescht purge-ibm.sh von unten nach oben).
+things_manifest_uids_reverse() {
+  python3 -c '
+import json, sys
+for t in reversed(json.load(sys.stdin)):
+    print(t["UID"])
+'
+}
+
+# ---------------------------------------------------------------------------
 # Erkennung in der openHAB-JSONDB (Best effort - der Assistent laesst die
 # Werte immer bestaetigen oder ueberschreiben)
 # ---------------------------------------------------------------------------
@@ -246,12 +318,13 @@ detect_thing_uids() {
   local prefix="${1:-$INVERTER_THING_PREFIX}"
   local db="$OPENHAB_USERDATA/jsondb/org.openhab.core.thing.Thing.json"
   [ -f "$db" ] || return 0
-  # Thing-UIDs haben 3 oder 4 Segmente; alles Laengere ist eine Channel-UID.
+  # Thing-UIDs haben 3 bis 5 Segmente (5 bei genesteten Bridges wie
+  # modbus:data:<bridge>:<poller>:<id>); alles Laengere ist eine Channel-UID.
   # "|| true": ohne Treffer beendet grep sich mit 1, und unter dem
   # "set -euo pipefail" der Aufrufer wuerde das die Funktion abbrechen.
   grep -o "\"${prefix}:[^\"]*\"" "$db" 2>/dev/null \
     | tr -d '"' \
-    | awk -F: 'NF>=3 && NF<=4' \
+    | awk -F: 'NF>=3 && NF<=5' \
     | sort -u || true
 }
 

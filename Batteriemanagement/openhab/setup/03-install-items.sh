@@ -24,12 +24,21 @@ battery_note="// Nicht enthalten: ${SOC_ITEM}
 case "$INVERTER_THING_UID" in
   *:ibm:*)
     battery_note="// Enthalten sind auch die Batterie-Items (automatische Einrichtung)."
-    battery_items="
+    if type inverter_battery_items >/dev/null 2>&1; then
+      # Das Profil liefert seine Item-Liste selbst - noetig, wenn die
+      # Messwerte an verschiedenen Things haengen oder zusaetzliche
+      # Steuer-Items gebraucht werden (z. B. Modbus-Register).
+      battery_items="
+// Batterie-Items - verknuepft mit den automatisch angelegten Things
+$(inverter_battery_items)"
+    else
+      battery_items="
 // Batterie-Items - verknuepft mit dem automatisch angelegten Thing
 Number:Dimensionless ${SOC_ITEM} \"Ladestand Batterie [%.0f %%]\" <batterylevel> (IBM) { channel=\"${INVERTER_THING_UID}:${INVERTER_SOC_CHANNEL}\", unit=\"%\" }"
-    if [ -n "$BATTERY_POWER_ITEM" ] && [ -n "$INVERTER_BATTERY_POWER_CHANNEL" ]; then
-      battery_items="${battery_items}
+      if [ -n "$BATTERY_POWER_ITEM" ] && [ -n "$INVERTER_BATTERY_POWER_CHANNEL" ]; then
+        battery_items="${battery_items}
 Number:Power ${BATTERY_POWER_ITEM} \"Batterieleistung [%.0f W]\" <energy> (IBM) { channel=\"${INVERTER_THING_UID}:${INVERTER_BATTERY_POWER_CHANNEL}\", unit=\"W\" }"
+      fi
     fi
     ;;
 esac

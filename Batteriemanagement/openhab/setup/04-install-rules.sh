@@ -2,10 +2,13 @@
 # ============================================================================
 # 04 - Regeln: verpackt die IBM-Skripte als zeitgesteuerte JS-Regeln.
 #
-# Die Skripte unter ../eeg-api und ../fronius sind reine Skriptkoerper, wie
-# sie in der Main UI als "Script Action" eingefuegt werden. Fuer den
-# dateibasierten Betrieb werden sie hier in rules.JSRule(...) mit einem
-# Cron-Trigger eingebettet und dabei anlagenspezifisch parametrisiert.
+# Die Skripte unter ../eeg-api, ../control und ../inverters sind reine
+# Skriptkoerper, wie sie in der Main UI als "Script Action" eingefuegt
+# werden. Fuer den dateibasierten Betrieb werden sie hier in
+# rules.JSRule(...) mit einem Cron-Trigger eingebettet und dabei
+# anlagenspezifisch parametrisiert. Die Batteriesteuerung besteht aus dem
+# Wechselrichter-Adapter des Profils gefolgt vom gemeinsamen Kern
+# (control/core.js) im selben Regel-Body.
 # ============================================================================
 set -euo pipefail
 
@@ -90,23 +93,26 @@ sed_escape() { printf '%s' "$1" | sed -e 's/[\\&|]/\\&/g'; }
 api_base_esc="$(sed_escape "$IBM_API_BASE")"
 thing_uid_esc="$(sed_escape "$INVERTER_THING_UID")"
 soc_item_esc="$(sed_escape "$SOC_ITEM")"
+battery_power_item_esc="$(sed_escape "$BATTERY_POWER_ITEM")"
 anlage_name_esc="$(sed_escape "$IBM_ANLAGE_NAME")"
 status_token_esc="$(sed_escape "$IBM_STATUS_TOKEN")"
 inverter_type_esc="$(sed_escape "$INVERTER_TYPE")"
 
 # Suchmuster aus dem Wechselrichter-Profil (linke Seite eines sed-Ausdrucks).
-thing_prefix_pat="$(printf '%s' "$INVERTER_THING_PREFIX" | sed -e 's/[][\.*^$|]/\\&/g')"
 soc_placeholder_pat="$(printf '%s' "$INVERTER_SOC_PLACEHOLDER" | sed -e 's/[][\.*^$|]/\\&/g')"
 
 # Skriptkoerper einlesen und anlagenspezifische Werte einsetzen. Neben den
-# gewachsenen Mustern (URL, Thing-UID, SoC-Platzhalter des Profils) werden
-# auch die expliziten @...@-Platzhalter ersetzt.
+# gewachsenen Mustern (URL, SoC-Platzhalter des Profils) werden die
+# expliziten @...@-Platzhalter ersetzt. Skripte referenzieren Thing-UIDs
+# ausschliesslich ueber @IBM_THING_UID@ - ein frueherer sed, der jedes
+# Literal mit dem Thing-Praefix ersetzte, wuerde Skripte mit mehreren
+# Thing-UIDs (z. B. einem Modbus-Baum) auf eine einzige UID kollabieren.
 render_payload() {
   sed -e "s|https://ischlstrom\.org|${api_base_esc}|g" \
-      -e "s|${thing_prefix_pat}:[^']*|${thing_uid_esc}|g" \
       -e "s|${soc_placeholder_pat}|${soc_item_esc}|g" \
       -e "s|@IBM_THING_UID@|${thing_uid_esc}|g" \
       -e "s|@IBM_SOC_ITEM@|${soc_item_esc}|g" \
+      -e "s|@IBM_BATTERY_POWER_ITEM@|${battery_power_item_esc}|g" \
       -e "s|@IBM_ANLAGE_NAME@|${anlage_name_esc}|g" \
       -e "s|@IBM_STATUS_TOKEN@|${status_token_esc}|g" \
       -e "s|@IBM_INVERTER_TYPE@|${inverter_type_esc}|g" \
@@ -115,15 +121,17 @@ render_payload() {
 
 # Erzeugt eine Regeldatei aus einem Skriptkoerper.
 #   $1 Quelldatei  $2 Zieldatei  $3 Regel-ID  $4 Name  $5 Beschreibung  $6 Cron
+#   $7 (optional) abweichende Quellenangabe im Kopfkommentar
 generate_rule() {
   local src="$1" target="$2" rule_id="$3" name="$4" desc="$5" cron="$6"
+  local src_display="${7:-$src}"
 
   [ -f "$src" ] || die "Quellskript fehlt: $src"
 
   {
     echo "// ==========================================================================="
     echo "// GENERIERT von 04-install-rules.sh - nicht direkt bearbeiten."
-    echo "// Quelle: ${src}"
+    echo "// Quelle: ${src_display}"
     echo "// Aenderungen im Repository vornehmen und das Setup erneut ausfuehren."
     echo "// ==========================================================================="
     echo "rules.JSRule({"
@@ -163,13 +171,44 @@ generate_rule \
   "Holt das Ladesperre-Fenster aus der Tagesprognose der ischlstrom API" \
   "$CRON_LADESPERRE"
 
-generate_rule \
-  "$IBM_SCRIPT_DIR/$INVERTER_CONTROL_SCRIPT" \
-  "$js_dir/ibm_battery_control.js" \
-  "ibm_battery_control" \
-  "IBM - Batteriesteuerung (${INVERTER_TYPE})" \
-  "Ladesperre am Vormittag und forcierte Entladung in der Nacht" \
-  "$CRON_BATTERY"
+# Batteriesteuerung: im Adapter-Modus werden der Wechselrichter-Adapter des
+# Profils und der gemeinsame Kern (control/core.js) in denselben Regel-Body
+# gesetzt - der Adapter definiert ibmReset/ibmPreventCharge/ibmForceDischarge,
+# der Kern ruft sie auf. Legacy-Profile liefern weiterhin ein einzelnes,
+# eigenstaendiges Steuerungsskript.
+if [ "$IBM_CONTROL_MODE" = "adapter" ]; then
+  adapter_src="$IBM_SCRIPT_DIR/$INVERTER_ADAPTER_SCRIPT"
+  core_src="$IBM_SCRIPT_DIR/control/core.js"
+  [ -f "$adapter_src" ] || die "Adapter-Skript fehlt: $adapter_src"
+  [ -f "$core_src" ] || die "Steuerungskern fehlt: $core_src"
+
+  control_src="$(mktemp)"
+  {
+    echo "// --- Adapter (${INVERTER_TYPE}): ${INVERTER_ADAPTER_SCRIPT} ---------------"
+    cat "$adapter_src"
+    echo ""
+    echo "// --- Kern: control/core.js ------------------------------------------------"
+    cat "$core_src"
+  } > "$control_src"
+
+  generate_rule \
+    "$control_src" \
+    "$js_dir/ibm_battery_control.js" \
+    "ibm_battery_control" \
+    "IBM - Batteriesteuerung (${INVERTER_TYPE})" \
+    "Ladesperre am Vormittag und forcierte Entladung in der Nacht" \
+    "$CRON_BATTERY" \
+    "${INVERTER_ADAPTER_SCRIPT} + control/core.js"
+  rm -f "$control_src"
+else
+  generate_rule \
+    "$IBM_SCRIPT_DIR/$INVERTER_CONTROL_SCRIPT" \
+    "$js_dir/ibm_battery_control.js" \
+    "ibm_battery_control" \
+    "IBM - Batteriesteuerung (${INVERTER_TYPE})" \
+    "Ladesperre am Vormittag und forcierte Entladung in der Nacht" \
+    "$CRON_BATTERY"
+fi
 
 # --- Status-Push an das Vorstands-Dashboard ---------------------------------
 if [ "$INSTALL_STATUS_PUSH" = "1" ]; then

@@ -29,9 +29,16 @@ for d in "$OPENHAB_CONF/items" "$OPENHAB_CONF/services" "$OPENHAB_CONF/automatio
 done
 
 # --- Quellskripte -----------------------------------------------------------
+control_sources=()
+if [ "$IBM_CONTROL_MODE" = "adapter" ]; then
+  control_sources=("$IBM_SCRIPT_DIR/$INVERTER_ADAPTER_SCRIPT" "$IBM_SCRIPT_DIR/control/core.js")
+else
+  control_sources=("$IBM_SCRIPT_DIR/$INVERTER_CONTROL_SCRIPT")
+fi
 for f in "$IBM_SCRIPT_DIR/eeg-api/cloud_forecast.js" \
          "$IBM_SCRIPT_DIR/eeg-api/crossover.js" \
-         "$IBM_SCRIPT_DIR/$INVERTER_CONTROL_SCRIPT"; do
+         "$IBM_SCRIPT_DIR/eeg-api/ladefenster.js" \
+         "${control_sources[@]}"; do
   [ -f "$f" ] && log "gefunden: $f" || fail "Quellskript fehlt: $f"
 done
 
@@ -103,13 +110,23 @@ if [ -f "$items_db" ]; then
   done
 
   # Bei der automatischen Einrichtung kommen auch die Batterie-Items aus
-  # ibm.items - gleichnamige UI-Items wuerden genauso kollidieren.
+  # ibm.items - gleichnamige UI-Items wuerden genauso kollidieren. Profile
+  # mit eigener Item-Liste (inverter_battery_items) koennen weitere Items
+  # mitbringen (z. B. Modbus-Steuerregister); deren Namen stehen in der
+  # zweiten Spalte der .items-Zeilen.
   if [ "$AUTO_CREATE_THING" = "1" ]; then
-    for item in "$SOC_ITEM" ${BATTERY_POWER_ITEM:+"$BATTERY_POWER_ITEM"}; do
+    battery_item_names="$SOC_ITEM
+${BATTERY_POWER_ITEM:-}"
+    if type inverter_battery_items >/dev/null 2>&1; then
+      battery_item_names="$battery_item_names
+$(inverter_battery_items | awk '$1 ~ /^(Number|Switch|String|Dimmer|Contact|DateTime|Group)/ {print $2}')"
+    fi
+    while IFS= read -r item; do
+      [ -n "$item" ] || continue
       if grep -q "\"$item\"" "$items_db"; then
         fail "Item '$item' existiert bereits in der Main UI und wuerde mit $OPENHAB_CONF/items/ibm.items kollidieren - bitte in der UI loeschen."
       fi
-    done
+    done <<< "$(printf '%s\n' "$battery_item_names" | sort -u)"
   fi
 fi
 

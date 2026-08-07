@@ -1,5 +1,5 @@
 // ============================================================================
-// IBM - Batteriesteuerung Fronius
+// IBM - Batteriesteuerung, herstellerneutraler Kern
 //
 //   Teil A: Batterieladen sperren bei geringer Bewoelkung (Vormittag).
 //           Das Fenster kommt aus der Tagesprognose der API (erster
@@ -18,16 +18,52 @@
 // plausiblen Crossover-Zeiten vor (ischlstrom.org nie erreichbar gewesen oder
 // Daten unbrauchbar), wird NICHT entladen - es gibt kein Ersatzfenster.
 //
+// ---------------------------------------------------------------------------
+// Adapter-Kontrakt
+//
+// Dieser Kern enthaelt KEINE Wechselrichter-Kommandos. Das Setup
+// (04-install-rules.sh) stellt ihm den Adapter des Wechselrichter-Profils
+// (INVERTER_ADAPTER_SCRIPT) im selben Rule-Body VORAN. Der Adapter muss
+// genau diese drei Funktionen definieren:
+//
+//   ibmReset()                      -> { ok: boolean }
+//     Wechselrichter sofort auf Werksverhalten zuruecksetzen. Laeuft bei
+//     Toggle=ON in JEDEM Zyklus (auch waehrend der Pause); muss idempotent
+//     sein.
+//
+//   ibmPreventCharge(minutes)       -> { ok: boolean }
+//     Batterieladen fuer `minutes` Minuten sperren. Die Sperre muss von
+//     selbst ablaufen (Schedule/Revert-Timeout); kann der Hersteller das
+//     nicht, dokumentiert das Profil-README das Restrisiko.
+//
+//   ibmForceDischarge(watts, minutes) -> { ok: boolean, appliedW?: number }
+//     Entladung mit ~`watts` fuer `minutes` Minuten erzwingen, ebenfalls
+//     selbst ablaufend. `watts` ist bereits validiert und auf
+//     ABSOLUTE_MAX_DISCHARGE_W begrenzt. `appliedW` ist die nach
+//     herstellerseitiger Quantisierung tatsaechlich kommandierte Leistung
+//     (z. B. Prozent-Rundung); fehlt sie, rechnet der Kapazitaetsschaetzer
+//     mit `watts`.
+//
+// Regeln fuer Adapter: kein rules.JSRule(...), kein Top-Level-return, alle
+// Logausgaben mit '[IBM]' praefixieren, nur @IBM_...@-Platzhalter (keine
+// Thing-UID-Literale), niemals werfen - Fehler fangen und { ok: false }
+// zurueckgeben. Adapter verlassen sich nur auf die openhab-js-Globals
+// (items, actions, time, Quantity, console), nicht auf Helfer des Kerns.
+// ---------------------------------------------------------------------------
+//
 // Dieses Skript ist die Vorlage fuer alle Anlagen und wird pro Kunde NICHT
 // veraendert. Alles Anlagenspezifische kommt aus Items - siehe Abschnitt
 // "Konfiguration". Fehlt ein Item oder steht es auf NULL, greift der jeweils
 // hier hinterlegte Rueckfallwert, das Skript laeuft also auch unvollstaendig
 // eingerichtet weiter.
 //
-// Vom Setup ersetzt: Thing-UID und der Itemname des Ladestands.
+// Vom Setup ersetzt: @IBM_SOC_ITEM@ (Itemname des Ladestands).
 // ============================================================================
 
-var fa = actions.thingActions('fronius', 'fronius:powerinverter:0cb68e8e38:273b6c06b4');
+// Laenge eines Steuer-Zeitschlitzes. Muss zum Cron der Batterie-Regel
+// (CRON_BATTERY, Vorgabe alle 5 Minuten) passen: jeder Lauf plant genau
+// einen Schlitz, der naechste Lauf verlaengert oder beendet ihn.
+var IBM_SLOT_MINUTES = 5;
 
 // --- Rueckfallwerte, falls das zugehoerige Item fehlt oder ungueltig ist ----
 var FALLBACK_CHARGE_LOCK_ACTIVE = true;
@@ -341,8 +377,8 @@ function cloudForecast() {
 var toggleOn = onOff('Schalte_ISCHLSTROM_Empfehlung_einaus', false);
 
 if (toggleOn) {
-  fa.resetBatteryControl();
-  console.log('[IBM] Toggle=ON - Battery control reset');
+  var resetResult = ibmReset();
+  console.log('[IBM] Toggle=ON - Reset (ok=' + (resetResult && resetResult.ok === true) + ')');
 } else {
   console.log('[IBM] Toggle=OFF - Tue nichts');
   return;
@@ -374,13 +410,8 @@ function handleChargeLock() {
   }
 
   // Laden sperren
-  var from = now;
-  var until = now.plusMinutes(5);
-  var ok = fa.addPreventBatteryChargingSchedule(from, until);
-
-  console.log('[IBM][Ladesperre] Wolkenvorschau=' + clouds + '% (<' + CLOUD_THRESHOLD + '%) - Laden gesperrt | Schedule applied: ' + ok);
-  console.log('[IBM][Ladesperre] From:  ' + from);
-  console.log('[IBM][Ladesperre] Until: ' + until);
+  var res = ibmPreventCharge(IBM_SLOT_MINUTES);
+  console.log('[IBM][Ladesperre] Wolkenvorschau=' + clouds + '% (<' + CLOUD_THRESHOLD + '%) - Laden gesperrt fuer ' + IBM_SLOT_MINUTES + ' min | ok=' + (res && res.ok === true));
 }
 
 // ----------------------------------------------------------------------------
@@ -388,7 +419,7 @@ function handleChargeLock() {
 // ----------------------------------------------------------------------------
 function handleForcedDischarge() {
 
-  var soc = parseFloat(items.getItem('Fronius_Symo_Inverter_Battery_State_of_Charge').numericState);
+  var soc = parseFloat(items.getItem('@IBM_SOC_ITEM@').numericState);
   var minSoc = parseFloat(items.getItem('IBM_MIN_BATTERY_CHARGE').numericState);
 
   if (isNaN(minSoc) || minSoc <= 5 || minSoc > 90) {
@@ -452,15 +483,13 @@ function handleForcedDischarge() {
   var dischargeW = Math.round(dischargeMaxW - (clouds / 100) * (dischargeMaxW - dischargeMinW));
   console.log('[IBM][Entladung] Wolkenvorschau=' + clouds + '% -> dischargeW=' + dischargeW + 'W');
 
-  var from = now;
-  var until = now.plusMinutes(5);
-  var ok = fa.addForcedBatteryDischargingSchedule(from, until, Quantity(dischargeW + 'W'));
+  var res = ibmForceDischarge(dischargeW, IBM_SLOT_MINUTES);
+  var ok = res && res.ok === true;
+  var appliedW = (res && typeof res.appliedW === 'number' && res.appliedW > 0) ? res.appliedW : dischargeW;
 
-  updateCapacityEstimate(soc, dischargeW, ok === true || String(ok) === 'true');
+  updateCapacityEstimate(soc, appliedW, ok);
 
-  console.log('[IBM][Entladung] SoC=' + soc + '% | Schedule applied: ' + ok);
-  console.log('[IBM][Entladung] From:  ' + from);
-  console.log('[IBM][Entladung] Until: ' + until);
+  console.log('[IBM][Entladung] SoC=' + soc + '% | kommandiert=' + appliedW + 'W fuer ' + IBM_SLOT_MINUTES + ' min | ok=' + ok);
 }
 
 // ----------------------------------------------------------------------------

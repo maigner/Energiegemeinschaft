@@ -103,7 +103,7 @@ if [ "${#thing_candidates[@]}" -eq 0 ] && [ -n "$INVERTER_HOST_THING_PREFIX" ]; 
         || warn "Ohne Passwort stellt das Binding keine Batterie-Actions bereit."
     fi
 
-    INVERTER_THING_UID="${INVERTER_THING_PREFIX}:ibm:inverter1"
+    INVERTER_THING_UID="$INVERTER_AUTO_THING_UID"
     SOC_ITEM="$INVERTER_SOC_PLACEHOLDER"
     BATTERY_POWER_ITEM="$INVERTER_BATTERY_POWER_PLACEHOLDER"
     log "Thing-UID: $INVERTER_THING_UID"
@@ -126,12 +126,20 @@ else
   thing_default=""
   warn "Kein Thing mit Praefix '${INVERTER_THING_PREFIX}' gefunden."
 
-  if addons_cfg_has "binding" "$INVERTER_BINDING"; then
-    log "Binding '${INVERTER_BINDING}' steht bereits in addons.cfg."
-  elif confirm "Binding '${INVERTER_BINDING}' jetzt ueber addons.cfg installieren?"; then
+  bindings_missing=""
+  for binding in $INVERTER_BINDINGS; do
+    addons_cfg_has "binding" "$binding" || bindings_missing="${bindings_missing:+$bindings_missing }$binding"
+  done
+  if [ -z "$bindings_missing" ]; then
+    log "Binding(s) '${INVERTER_BINDINGS// /, }' stehen bereits in addons.cfg."
+  elif confirm "Binding(s) '${bindings_missing// /, }' jetzt ueber addons.cfg installieren?"; then
     addons_cfg_prepare
-    addons_cfg_add "binding" "$INVERTER_BINDING"
-    wait_for_addon "openhab-binding-${INVERTER_BINDING}" || true
+    for binding in $bindings_missing; do
+      addons_cfg_add "binding" "$binding"
+    done
+    for binding in $bindings_missing; do
+      wait_for_addon "openhab-binding-${binding}" || true
+    done
   fi
 
   if [ "${IBM_ASSUME_YES:-0}" != "1" ]; then
@@ -256,7 +264,7 @@ ask DEFAULT_MAX_DISCHARGE_W    "Maximale Entladeleistung in Watt" "3000"
 
 # --- 6. Addons --------------------------------------------------------------
 echo "[IBM]"
-echo "[IBM] Die Addons (${INVERTER_BINDING}, jsscripting, mapdb, rrd4j) koennen ueber addons.cfg"
+echo "[IBM] Die Addons (${INVERTER_BINDINGS// /, }, jsscripting, mapdb, rrd4j) koennen ueber addons.cfg"
 echo "[IBM] installiert werden. Bei einer bereits eingerichteten Anlage kann das"
 echo "[IBM] Addons entfernen, die nur ueber die Main UI installiert wurden."
 if confirm "Addons ueber addons.cfg verwalten?"; then

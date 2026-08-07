@@ -10,10 +10,14 @@
 
 # --- Anlage (MUSS angepasst werden) -----------------------------------------
 
-# Wechselrichter-Typ. Entspricht einem Verzeichnis unter ../inverters/
+# Wechselrichter-Typ. Entspricht einem Verzeichnis unter ../inverters/:
+#   fronius              Fronius GEN24 (Fronius-Binding, Batterie-Actions)
+#   fronius-snapinverter Fronius Symo Hybrid, SnapINverter-Generation
+#                        (Modbus-Binding, SunSpec Model 124)
 INVERTER_TYPE="fronius"
 
-# UID des Wechselrichter-Things.
+# UID des Wechselrichter-Things (bei fronius-snapinverter: das SoC-Data-Thing
+# des automatisch angelegten Modbus-Baums, z. B. modbus:data:ibm:p124:soc).
 # Main UI -> Settings -> Things -> <Wechselrichter>
 INVERTER_THING_UID="fronius:powerinverter:0cb68e8e38:273b6c06b4"
 

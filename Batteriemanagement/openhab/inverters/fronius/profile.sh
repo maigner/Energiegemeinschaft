@@ -8,7 +8,7 @@
 # ============================================================================
 
 # Anzeigename im Assistenten
-INVERTER_LABEL="Fronius (Symo / Gen24, Hybrid mit Batterie)"
+INVERTER_LABEL="Fronius GEN24 (Hybrid mit Batterie)"
 
 # Addon-ID fuer addons.cfg (Kategorie binding)
 INVERTER_BINDING="fronius"
@@ -23,8 +23,9 @@ INVERTER_SOC_CHANNEL="powerflowinvertersoc"
 # Channel, der die aktuelle Batterieleistung liefert (+ entladen, - laden)
 INVERTER_BATTERY_POWER_CHANNEL="powerflowchannelpakku"
 
-# Steuerungsskript, relativ zu IBM_SCRIPT_DIR
-INVERTER_CONTROL_SCRIPT="inverters/fronius/control.js"
+# Wechselrichter-Adapter (Adapter-Kontrakt siehe control/core.js), relativ
+# zu IBM_SCRIPT_DIR. Das Setup setzt Adapter und Kern in dieselbe Regel.
+INVERTER_ADAPTER_SCRIPT="inverters/fronius/adapter.js"
 
 # Thing, das die Netzwerkadresse traegt (bei Fronius die Bridge, nicht der
 # Wechselrichter selbst) - Praefix zur Erkennung in der JSONDB

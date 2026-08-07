@@ -79,10 +79,36 @@ if [ "$INSTALL_WATCHDOG" = "1" ]; then
 fi
 
 # --- Parametrisierung -------------------------------------------------------
-if grep -q "$INVERTER_THING_UID" "$OPENHAB_CONF/automation/js/ibm_battery_control.js" 2>/dev/null; then
-  log "Thing-UID korrekt eingesetzt: $INVERTER_THING_UID"
+# Kein @IBM_...@-Platzhalter darf in den installierten Regeln uebrig sein.
+leftover="$(grep -ho '@IBM_[A-Z_][A-Z_]*@' "$OPENHAB_CONF"/automation/js/ibm_*.js 2>/dev/null | sort -u | tr '\n' ' ' || true)"
+if [ -n "$leftover" ]; then
+  fail "Unersetzte Platzhalter in den installierten Regeln: ${leftover}- 04-install-rules.sh erneut ausfuehren."
 else
-  fail "Thing-UID '$INVERTER_THING_UID' steht nicht in ibm_battery_control.js."
+  log "Alle Platzhalter in den installierten Regeln sind ersetzt."
+fi
+
+# Die Thing-UID-Pruefung gilt nur, wenn die Quelle sie ueberhaupt verwendet -
+# ein Adapter, der ueber Items steuert (z. B. Modbus), enthaelt keine UID.
+if [ "$IBM_CONTROL_MODE" = "adapter" ]; then
+  control_src="$IBM_SCRIPT_DIR/$INVERTER_ADAPTER_SCRIPT"
+else
+  control_src="$IBM_SCRIPT_DIR/$INVERTER_CONTROL_SCRIPT"
+fi
+if grep -q '@IBM_THING_UID@' "$control_src" 2>/dev/null; then
+  if grep -q "$INVERTER_THING_UID" "$OPENHAB_CONF/automation/js/ibm_battery_control.js" 2>/dev/null; then
+    log "Thing-UID korrekt eingesetzt: $INVERTER_THING_UID"
+  else
+    fail "Thing-UID '$INVERTER_THING_UID' steht nicht in ibm_battery_control.js."
+  fi
+fi
+
+# --- Wechselrichter-spezifische Pruefungen ----------------------------------
+if type inverter_verify >/dev/null 2>&1; then
+  if inverter_verify; then
+    log "Wechselrichter-Pruefung (inverter_verify) OK."
+  else
+    fail "Wechselrichter-Pruefung (inverter_verify) meldet Probleme - siehe oben."
+  fi
 fi
 
 # --- API --------------------------------------------------------------------
