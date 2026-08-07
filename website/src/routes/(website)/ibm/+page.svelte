@@ -322,8 +322,11 @@
         <List class="mb-4 ml-4 space-y-2">
             <Li>
                 Eine PV-Anlage mit Batteriespeicher. Derzeit unterstützen wir
-                Wechselrichter von <strong>Fronius</strong> (GEN24), weitere
-                Hersteller sind in Vorbereitung.
+                Wechselrichter von <strong>Fronius</strong> (GEN24 und Symo
+                Hybrid), <strong>Sigenergy</strong> (SigenStor),
+                <strong>Deye</strong> (Hybrid-Modelle) und
+                <strong>Victron Energy</strong> (Anlagen mit GX-Gerät).
+                Weitere Hersteller nehmen wir laufend dazu.
             </Li>
             <Li>Internet im Haus (WLAN oder Netzwerkkabel).</Li>
             <Li>Die Mitgliedschaft bei ISCHLSTROM.</Li>
