@@ -12,6 +12,7 @@ inverters/
     overview.yaml           Main-UI-Seiten
     rediscover.sh           Netzwerksuche fuer den Watchdog
   fronius-snapinverter/  <- Fronius Symo Hybrid (Modbus, SunSpec Model 124)
+  sigenergy/             <- Sigenergy SigenStor (Modbus, proprietaere Register)
 ```
 
 ## Aufbau: Kern + Adapter
@@ -47,15 +48,16 @@ Regeln fuer Adapter:
 * Nur auf die openhab-js-Globals verlassen (`items`, `actions`, `time`,
   `Quantity`, `console`), nicht auf Helfer des Kerns.
 
-Zwei Vorlagen:
+Drei Vorlagen:
 
 * **Thing-Actions eines Bindings** (GEN24): `fronius/adapter.js` - drei
   Wrapper um die Batterie-Actions, ~60 Zeilen.
 * **SunSpec Model 124 per Modbus** (jeder Hersteller mit beschreibbarem
   Storage-Model): `fronius-snapinverter/adapter.js` kopieren und nur die
   Registerkarte im Profil sowie die Geraetekonstanten anpassen.
-* **Proprietaere Register** (Kostal, Huawei, Sungrow, ...): eigene
-  Data-Thing-Map im Profil + eigener Adapter nach demselben Muster.
+* **Proprietaere Modbus-Register** (Kostal, Huawei, Sungrow, ...):
+  `sigenergy/` als Muster - eigene Data-Thing-Map im Profil
+  (`inverter_things_json`) + eigener Adapter nach demselben Kontrakt.
 
 ## Einen neuen Hersteller ergaenzen
 

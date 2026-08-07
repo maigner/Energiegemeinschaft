@@ -120,9 +120,9 @@ dagegen **bleiben stehen**. Deshalb:
 `tools/sim_datamanager.py` stellt einen Modbus-TCP-Server mit dem
 Model-124-Block bereit (SoC 55%, WChaMax 5000 W) und protokolliert jeden
 Schreibzugriff - damit laesst sich die komplette Installation inklusive
-Steuerlogik gegen einen leeren openHAB testen:
+Steuerlogik gegen einen leeren openHAB testen (nur Standardbibliothek,
+kein pip noetig):
 
-    pip install pymodbus
     python3 tools/sim_datamanager.py --port 5020
 
 Im Assistenten dann als Adresse `127.0.0.1` angeben und im Profil

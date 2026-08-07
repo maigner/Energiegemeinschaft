@@ -14,10 +14,13 @@
 #   fronius              Fronius GEN24 (Fronius-Binding, Batterie-Actions)
 #   fronius-snapinverter Fronius Symo Hybrid, SnapINverter-Generation
 #                        (Modbus-Binding, SunSpec Model 124)
+#   sigenergy            Sigenergy SigenStor (Modbus-Binding, proprietaere
+#                        Registerkarte, Remote-EMS-Steuerung)
 INVERTER_TYPE="fronius"
 
-# UID des Wechselrichter-Things (bei fronius-snapinverter: das SoC-Data-Thing
-# des automatisch angelegten Modbus-Baums, z. B. modbus:data:ibm:p124:soc).
+# UID des Wechselrichter-Things (bei den Modbus-Profilen: das SoC-Data-Thing
+# des automatisch angelegten Baums, z. B. modbus:data:ibm:p124:soc bzw.
+# modbus:data:ibm:sg:soc).
 # Main UI -> Settings -> Things -> <Wechselrichter>
 INVERTER_THING_UID="fronius:powerinverter:0cb68e8e38:273b6c06b4"
 

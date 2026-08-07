@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-"""Modbus-TCP-Simulator fuer den Fronius Datamanager (SunSpec Model 124).
+"""Modbus-TCP-Simulator fuer eine Sigenergy SigenStor (Anlagenebene).
 
-Stellt den Basic-Storage-Control-Block bereit, wie ihn das Profil
-fronius-snapinverter erwartet (int + SF, Basisadresse 40313), und
-protokolliert jeden Schreibzugriff auf stdout - damit laesst sich die
-komplette IBM-Installation ohne Anlage testen:
+Stellt die Plant-Register bereit, wie sie das Profil sigenergy erwartet
+(proprietaere Sigenergy-Registerkarte, literal adressiert, Reads per FC04
+auch fuer die beschreibbaren Register), und protokolliert jeden
+Schreibzugriff auf stdout - damit laesst sich die komplette
+IBM-Installation ohne Anlage testen:
 
-    python3 sim_datamanager.py --port 5020
+    python3 sim_sigenstor.py --port 5020
 
 Braucht nur die Python-Standardbibliothek (kein pymodbus - dessen
 Datastore-API hat sich zwischen 3.x-Versionen inkompatibel geaendert).
 Unterstuetzt FC03/FC04 (Lesen), FC06/FC16 (Schreiben).
 
-Vorgabewerte: SoC 55% (ChaState 5500, SF -2), WChaMax 5000 W (SF 0),
-InWRte/OutWRte 100% (10000, SF -2), StorCtl_Mod 0, RvrtTms 0.
+Vorgabewerte: EMS work mode 0 (Eigenverbrauch), SoC 55,0% (550, Gain 10),
+ESS power 0 W, Max active power 25000 W, Nennlade-/-entladeleistung je
+8000 W, alle Remote-EMS-Register 0.
+
+Der Simulator antwortet auf jede Slave-Adresse (also auch auf die von der
+Anlage erwartete 247).
 """
 
 import argparse
@@ -21,60 +26,47 @@ import datetime
 import socketserver
 import struct
 
-M124_BASE = 40313
-
+# Registername je Adresse (U32-Werte belegen Adresse und Adresse+1)
 POINTS = {
-    0: ("ID", 124),
-    1: ("L", 24),
-    2: ("WChaMax", 5000),
-    3: ("WChaGra", 100),
-    4: ("WDisChaGra", 100),
-    5: ("StorCtl_Mod", 0),
-    6: ("VAChaMax", 0),
-    7: ("MinRsvPct", 500),
-    8: ("ChaState", 5500),
-    9: ("StorAval", 0),
-    10: ("InBatV", 0),
-    11: ("ChaSt", 3),
-    12: ("OutWRte", 10000),
-    13: ("InWRte", 10000),
-    14: ("InOutWRte_WinTms", 0),
-    15: ("InOutWRte_RvrtTms", 0),
-    16: ("InOutWRte_RmpTms", 0),
-    17: ("ChaGriSet", 0),
-    18: ("WChaMax_SF", 0),
-    19: ("WChaDisChaGra_SF", 0),
-    20: ("VAChaMax_SF", 0),
-    21: ("MinRsvPct_SF", 0xFFFE),   # -2 (int16, Zweierkomplement)
-    22: ("ChaState_SF", 0xFFFE),    # -2
-    23: ("StorAval_SF", 0),
-    24: ("InBatV_SF", 0),
-    25: ("InOutWRte_SF", 0xFFFE),   # -2
+    30003: ("EMS work mode", 0),
+    30010: ("Max active power (hi)", 0),
+    30011: ("Max active power (lo)", 25000),
+    30014: ("Plant ESS SoC", 550),
+    30037: ("ESS power (hi)", 0),
+    30038: ("ESS power (lo)", 0),
+    30068: ("Rated ESS charging power (hi)", 0),
+    30069: ("Rated ESS charging power (lo)", 8000),
+    30070: ("Rated ESS discharging power (hi)", 0),
+    30071: ("Rated ESS discharging power (lo)", 8000),
+    40029: ("Remote EMS enable", 0),
+    40030: ("Independent phase power control", 0),
+    40031: ("Remote EMS control mode", 0),
+    40032: ("ESS max charging limit (hi)", 0),
+    40033: ("ESS max charging limit (lo)", 0),
+    40034: ("ESS max discharging limit (hi)", 0),
+    40035: ("ESS max discharging limit (lo)", 0),
+    40036: ("PV max power limit (hi)", 0),
+    40037: ("PV max power limit (lo)", 0),
 }
 
-# Adressraum wie beim echten Datamanager grosszuegig mit Nullen fuellen,
-# den Model-124-Block darueberlegen. Adressen sind 0-basiert, genau wie
-# readStart/writeStart im openHAB-Modbus-Binding.
-REGS = {addr: 0 for addr in range(40000, 40400)}
-for _offset, (_, _value) in POINTS.items():
-    REGS[M124_BASE + _offset] = _value
+# Die Poller des Profils lesen 30003..30038, 30068..30071 und 40029..40037 -
+# grosszuegig mit Nullen auffuellen, konkrete Vorgabewerte darueberlegen.
+REGS = {addr: 0 for addr in range(30000, 30090)}
+REGS.update({addr: 0 for addr in range(40000, 40060)})
+for _addr, (_, _value) in POINTS.items():
+    REGS[_addr] = _value
 
 
 def point_name(address):
-    offset = address - M124_BASE
-    if offset in POINTS:
-        return POINTS[offset][0]
+    if address in POINTS:
+        return POINTS[address][0]
     return "?"
-
-
-def as_int16(value):
-    return value - 0x10000 if value >= 0x8000 else value
 
 
 def log_write(address, value):
     stamp = datetime.datetime.now().strftime("%H:%M:%S")
-    print(f"[SIM] {stamp} WRITE {address} ({point_name(address)}) = "
-          f"{value} (int16: {as_int16(int(value))})", flush=True)
+    print(f"[SIM] {stamp} WRITE {address} ({point_name(address)}) = {value}",
+          flush=True)
 
 
 def exception_pdu(fc, code):
@@ -152,9 +144,10 @@ def main():
                         help="TCP-Port (502 braucht root; Vorgabe 5020)")
     args = parser.parse_args()
 
-    print(f"[SIM] Datamanager-Simulator auf {args.host}:{args.port}")
-    print(f"[SIM] Model 124 ab Adresse {M124_BASE} (ID={POINTS[0][1]}, "
-          f"WChaMax={POINTS[2][1]}, ChaState={POINTS[8][1]})", flush=True)
+    print(f"[SIM] SigenStor-Simulator auf {args.host}:{args.port}")
+    print(f"[SIM] SoC={POINTS[30014][1] / 10}%, "
+          f"Nennentladeleistung={POINTS[30071][1]} W, "
+          f"EMS work mode={POINTS[30003][1]}", flush=True)
     with Server((args.host, args.port), Handler) as server:
         server.serve_forever()
 
