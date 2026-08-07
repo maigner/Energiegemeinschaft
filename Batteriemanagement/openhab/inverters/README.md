@@ -15,6 +15,8 @@ inverters/
   sigenergy/             <- Sigenergy SigenStor (Modbus, proprietaere Register)
   deye/                  <- Deye Hybrid SG04LP3/SG05LP3 (Modbus RTU hinter
                             RS485-Gateway, proprietaere Register/TOU)
+  victron/               <- Victron Energy (Modbus TCP am GX-Geraet,
+                            ESS-Settings-Register)
 ```
 
 ## Aufbau: Kern + Adapter
@@ -60,6 +62,8 @@ Drei Vorlagen:
 * **Proprietaere Modbus-Register** (Kostal, Huawei, Sungrow, ...):
   `sigenergy/` als Muster - eigene Data-Thing-Map im Profil
   (`inverter_things_json`) + eigener Adapter nach demselben Kontrakt.
+  `victron/` folgt demselben Muster (GX-Geraet, ESS-Settings-Register)
+  und zeigt zusaetzlich gemerkte Werkswerte via `INVERTER_PERSIST_ITEMS`.
 
 ## Einen neuen Hersteller ergaenzen
 
@@ -101,6 +105,7 @@ Drei Vorlagen:
    | `INVERTER_AUTO_THING_UID` | UID des Haupt-Things beim automatischen Anlegen (Vorgabe `<prefix>:ibm:inverter1`). Muss das Segment `:ibm:` enthalten - daran erkennt 03-install-items.sh die automatische Einrichtung. |
    | `INVERTER_DEFAULT_USERNAME`, `INVERTER_USER_PARAM`, `INVERTER_PASSWORD_PARAM` | Zugangsdaten-Abfrage und deren Parameternamen im Bridge-Thing; leer = keine Abfrage |
    | `INVERTER_THING_EXTRA_CONFIG` | Zusaetzliche Konfiguration des Wechselrichter-Things (JSON-Objektinhalt, klassischer Zwei-Thing-Baum) |
+   | `INVERTER_PERSIST_ITEMS` | Profil-Items (Leerzeichen-getrennt), die 03-install-items.sh zusaetzlich in mapdb.persist aufnimmt (everyChange + restoreOnStartup) - fuer Werte, die einen Neustart ueberleben muessen, z. B. bei der Installation gemerkte Werkswerte (siehe `victron/`) |
 
 3. Optionale **Profilfunktionen** (Bash), wenn der Standard nicht reicht:
 

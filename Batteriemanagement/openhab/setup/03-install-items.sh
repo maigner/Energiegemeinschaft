@@ -94,7 +94,16 @@ EOF
 # Ohne restoreOnStartup stehen die Einstellungen nach einem Neustart auf NULL
 # und die Steuerung bricht mit "invalid value" ab.
 if [ "$INSTALL_PERSISTENCE" = "1" ]; then
-  install_file "$OPENHAB_CONF/persistence/mapdb.persist" <<'EOF'
+  # Optionale Profil-Items (INVERTER_PERSIST_ITEMS, Leerzeichen-getrennt),
+  # die wie die Kern-Einstellungen einen Neustart ueberleben muessen -
+  # z. B. bei der Installation gemerkte Werkswerte der Anlage.
+  profile_persist=""
+  for item in ${INVERTER_PERSIST_ITEMS:-}; do
+    profile_persist="${profile_persist}    ${item},
+"
+  done
+
+  install_file "$OPENHAB_CONF/persistence/mapdb.persist" <<EOF
 // ============================================================================
 // ISCHLSTROM Batteriemanagement (IBM)
 // GENERIERT von 03-install-items.sh
@@ -108,7 +117,7 @@ if [ "$INSTALL_PERSISTENCE" = "1" ]; then
 // ============================================================================
 
 Items {
-    Schalte_ISCHLSTROM_Empfehlung_einaus,
+${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     Ischlstrom_Wolkenvorschau,
     Ischlstrom_Wolkenvorschau_Zeit,
     Ischlstrom_Crossover_Start,
