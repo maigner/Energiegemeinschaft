@@ -158,10 +158,12 @@ ablehnt, bekommt wie bisher die Anleitung fuer die Main UI.
 
 ## Andere Wechselrichter
 
-Es gibt drei mitgelieferte Profile: `fronius` (GEN24, Batterie-Actions des
+Es gibt vier mitgelieferte Profile: `fronius` (GEN24, Batterie-Actions des
 Fronius-Bindings), `fronius-snapinverter` (aeltere Symo-Hybrid-Generation,
-Modbus/SunSpec Model 124) und `sigenergy` (SigenStor, Modbus mit
-proprietaerer Registerkarte). Alles Herstellerabhaengige steht in
+Modbus/SunSpec Model 124), `sigenergy` (SigenStor, Modbus mit
+proprietaerer Registerkarte) und `deye` (Niedervolt-Hybride
+SG04LP3/SG05LP3, Modbus RTU hinter einem RS485-Ethernet-Gateway,
+TOU-Fahrplan). Alles Herstellerabhaengige steht in
 `../inverters/<hersteller>/profile.sh`; der Assistent listet automatisch auf,
 was dort liegt. Ein neuer Hersteller braucht **keine Aenderung an den
 Setup-Skripten** — siehe [../inverters/README.md](../inverters/README.md).

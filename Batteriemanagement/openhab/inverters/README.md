@@ -13,6 +13,8 @@ inverters/
     rediscover.sh           Netzwerksuche fuer den Watchdog
   fronius-snapinverter/  <- Fronius Symo Hybrid (Modbus, SunSpec Model 124)
   sigenergy/             <- Sigenergy SigenStor (Modbus, proprietaere Register)
+  deye/                  <- Deye Hybrid SG04LP3/SG05LP3 (Modbus RTU hinter
+                            RS485-Gateway, proprietaere Register/TOU)
 ```
 
 ## Aufbau: Kern + Adapter
