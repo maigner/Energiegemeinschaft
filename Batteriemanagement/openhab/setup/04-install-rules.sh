@@ -237,6 +237,28 @@ if [ "$INSTALL_STATUS_PUSH" = "1" ]; then
     "IBM - Status an ischlstrom melden" \
     "Meldet den Anlagenzustand an das Vorstands-Dashboard auf ischlstrom.org" \
     "$CRON_STATUS"
+
+  # Der Status-Push meldet die Zahl ausstehender apt-Updates aus dem lokalen
+  # Paket-Cache; damit die stimmt, muessen die Paketlisten regelmaessig
+  # aktualisiert werden. Dafuer wird die Debian-eigene apt-daily-Mechanik
+  # aktiviert (apt-daily.timer laeuft taeglich zu einem randomisierten
+  # Zeitpunkt) - installiert wird dabei nichts, nur "apt-get update".
+  apt_periodic="/etc/apt/apt.conf.d/02ibm-periodic"
+  if command -v apt-get >/dev/null 2>&1 && [ -d /etc/apt/apt.conf.d ]; then
+    cat > "$apt_periodic" <<'EOF'
+// GENERIERT von IBM (04-install-rules.sh) - nicht direkt bearbeiten.
+// Haelt die Paketlisten taeglich aktuell, damit der Status-Push die Zahl
+// ausstehender apt-Updates korrekt an das Vorstands-Dashboard meldet.
+// Es wird nichts automatisch installiert. Entfernt von purge-ibm.sh.
+APT::Periodic::Update-Package-Lists "1";
+EOF
+    chmod 0644 "$apt_periodic"
+    systemctl enable --now apt-daily.timer >/dev/null 2>&1 \
+      || warn "apt-daily.timer konnte nicht aktiviert werden."
+    log "Taegliches apt-get update aktiviert ($apt_periodic)."
+  else
+    warn "apt-get nicht gefunden - taegliches apt-get update uebersprungen."
+  fi
 else
   log "INSTALL_STATUS_PUSH=0 - Status-Push uebersprungen."
 fi

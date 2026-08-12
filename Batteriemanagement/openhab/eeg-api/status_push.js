@@ -112,6 +112,33 @@ function collectVersions() {
   return versions;
 }
 
+// Ausstehende apt-Updates laut lokalem Paket-Cache. "apt-get -s" braucht
+// weder root noch Sperren. Wie aktuell das Ergebnis ist, haengt vom letzten
+// "apt-get update" ab - deshalb geht der Stand der Paketlisten (mtime von
+// /var/lib/apt/lists) mit ans Dashboard.
+function collectAptUpdates() {
+  var raw;
+  try {
+    raw = actions.Exec.executeCommandLine(
+      time.Duration.ofSeconds(60),
+      '/bin/sh', '-c',
+      "command -v apt-get >/dev/null 2>&1 || exit 0; " +
+      "apt-get -s -o Debug::NoLocking=1 dist-upgrade 2>/dev/null | grep -c '^Inst '; " +
+      "date -r /var/lib/apt/lists '+%F %H:%M' 2>/dev/null"
+    );
+  } catch (e) {
+    return null;
+  }
+  if (raw === null || raw === undefined) return null;
+  var lines = String(raw).trim().split('\n');
+  var pending = parseInt(lines[0], 10);
+  if (isNaN(pending) || pending < 0) return null;
+  return {
+    pending: pending,
+    lists_updated: lines.length > 1 && lines[1].trim().length > 0 ? lines[1].trim() : null
+  };
+}
+
 var payload = {
   anlage: '@IBM_ANLAGE_NAME@',
   token: '@IBM_STATUS_TOKEN@',
@@ -146,7 +173,8 @@ var payload = {
     ladesperre_ende: stateOf('Ischlstrom_Ladesperre_Ende'),
     ladesperre_datum: stateOf('Ischlstrom_Ladesperre_Datum'),
     log_entries: collectLogEntries(),
-    versions: collectVersions()
+    versions: collectVersions(),
+    apt_updates: collectAptUpdates()
   }
 };
 

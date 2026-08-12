@@ -190,7 +190,8 @@
         <Badge color={statusColor[statusOf(anlage)]}>{statusOf(anlage)}</Badge>
     </div>
     <p
-        class="text-sm text-gray-500 dark:text-gray-400 {anlage.data?.versions
+        class="text-sm text-gray-500 dark:text-gray-400 {anlage.data?.versions ||
+        anlage.data?.apt_updates
             ? 'mb-1'
             : 'mb-6'}"
     >
@@ -214,13 +215,27 @@
         {/if}
     {/snippet}
 
-    {#if anlage.data?.versions}
-        {@const v = anlage.data.versions}
+    {#if anlage.data?.versions || anlage.data?.apt_updates}
+        {@const v = anlage.data.versions ?? {}}
+        {@const apt = anlage.data.apt_updates}
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
             {@render versionPart("IBM-Paket", "ibm", v.ibm)} ·
             {@render versionPart("openHAB", "openhab", v.openhab)} ·
             {@render versionPart("Java", "java", v.java)} ·
             {v.os ?? "OS unbekannt"}
+            {#if apt}
+                ·
+                {#if apt.pending > 0}
+                    <span class="text-amber-600 dark:text-amber-400 font-medium">
+                        {apt.pending} apt-Update{apt.pending === 1 ? "" : "s"} ausstehend
+                    </span>
+                {:else}
+                    <span>apt aktuell</span>
+                {/if}
+                {#if apt.lists_updated}
+                    (Paketlisten vom {apt.lists_updated})
+                {/if}
+            {/if}
         </p>
     {/if}
 

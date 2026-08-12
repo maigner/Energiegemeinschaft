@@ -248,6 +248,17 @@
                                 {/if}
                             </span>
 
+                            <span class="text-gray-600 dark:text-gray-300">apt-Updates</span>
+                            <span class="text-right">
+                                {#if !d.apt_updates}
+                                    <span class="dark:text-white">-</span>
+                                {:else if d.apt_updates.pending > 0}
+                                    <Badge color="yellow">{d.apt_updates.pending} ausstehend</Badge>
+                                {:else}
+                                    <Badge color="green">aktuell</Badge>
+                                {/if}
+                            </span>
+
                             <span class="text-gray-600 dark:text-gray-300">Log (24 h)</span>
                             <span class="text-right">
                                 {#if counts === null}
