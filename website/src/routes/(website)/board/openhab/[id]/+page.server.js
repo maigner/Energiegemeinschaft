@@ -56,7 +56,11 @@ export async function load({ params }) {
                 batteryToGridW:
                     battery === null || grid === null
                         ? null
-                        : Math.min(Math.max(battery, 0), Math.max(-grid, 0))
+                        : Math.min(Math.max(battery, 0), Math.max(-grid, 0)),
+                cpuTempC: row.cpu_temp_c === null ? null : Number(row.cpu_temp_c),
+                diskUsedPct: row.disk_used_pct === null ? null : Number(row.disk_used_pct),
+                memUsedPct: row.mem_used_pct === null ? null : Number(row.mem_used_pct),
+                swapUsedPct: row.swap_used_pct === null ? null : Number(row.swap_used_pct)
             };
         })
     };

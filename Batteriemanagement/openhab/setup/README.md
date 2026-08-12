@@ -311,8 +311,14 @@ Debian-Standardkonfiguration — nur Pakete aus dem Debian-Security-Archiv,
 kein automatischer Reboot. openHAB selbst und die Pi-Firmware kommen aus
 anderen Repositories und werden nie automatisch aktualisiert; was das
 Dashboard als "ausstehend" zeigt, sind genau diese manuellen Updates.
+Schliesslich meldet die Anlage ihren **Systemzustand**: CPU-Temperatur und
+das throttled-Register des Pi (erkennt Unterspannung durch schwache
+Netzteile und Drosselung), Fuellstand der SD-Karte, Boot-Zeitpunkt,
+RAM-/Swap-Auslastung, ob nach einem Kernel-Update ein Reboot aussteht und
+wann unattended-upgrades zuletzt gelaufen ist.
 Uebertragen werden ausschliesslich diese IBM-Betriebsdaten, Logmeldungen,
-Versionsstaende und Update-Zaehler, keine Verbrauchsdaten des Haushalts.
+Versionsstaende, Update-Zaehler und Systemwerte, keine Verbrauchsdaten des
+Haushalts.
 
 Die Anlage authentifiziert sich mit einem **Status-Token**, das der Vorstand
 **vor der Installation** auf <https://ischlstrom.org/board/openhab> fuer das

@@ -139,6 +139,71 @@ function collectAptUpdates() {
   };
 }
 
+// Systemzustand des Pi fuer das Dashboard: CPU-Temperatur und das
+// throttled-Register (meldet Unterspannung - der Klassiker bei schwachen
+// Netzteilen, kuendigt SD-Karten-Schaeden an), Fuellstand der SD-Karte,
+// Boot-Zeitpunkt, Speicherauslastung, ob ein Reboot ansteht (nach
+// Kernel-Sicherheitsupdates) und wann unattended-upgrades zuletzt gelaufen
+// ist. Alles ohne root lesbar; was ein System nicht hergibt, bleibt null.
+function collectSystemHealth() {
+  var raw;
+  try {
+    raw = actions.Exec.executeCommandLine(
+      time.Duration.ofSeconds(10),
+      '/bin/sh', '-c',
+      'echo "temp:$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null)"; ' +
+      // vcgencmd braucht die video-Gruppe; wo sie fehlt, liefert der Kernel
+      // dasselbe Register unter /sys (dort ohne 0x-Praefix).
+      'thr="$(vcgencmd get_throttled 2>/dev/null | cut -d= -f2)"; ' +
+      '[ -n "$thr" ] || thr="0x$(cat /sys/devices/platform/soc/soc:firmware/get_throttled 2>/dev/null)"; ' +
+      'echo "throttled:$thr"; ' +
+      'echo "disk:$(df --output=pcent / 2>/dev/null | tail -n1 | tr -d " %")"; ' +
+      'echo "boot:$(uptime -s 2>/dev/null)"; ' +
+      'echo "mem:$(free -m 2>/dev/null | sed -n 2p)"; ' +
+      'echo "swap:$(free -m 2>/dev/null | sed -n 3p)"; ' +
+      'echo "reboot:$([ -e /run/reboot-required ] && echo 1 || echo 0)"; ' +
+      // Stempel des letzten unattended-upgrades-Laufs (apt.systemd.daily);
+      // das Logverzeichnis selbst ist meist nur fuer root/adm lesbar.
+      'u="$(date -r /var/lib/apt/periodic/upgrade-stamp "+%F %H:%M" 2>/dev/null)"; ' +
+      '[ -n "$u" ] || u="$(date -r /var/log/unattended-upgrades/unattended-upgrades.log "+%F %H:%M" 2>/dev/null)"; ' +
+      'echo "upgrades:$u"'
+    );
+  } catch (e) {
+    return null;
+  }
+  if (raw === null || raw === undefined) return null;
+
+  var values = {};
+  String(raw).split('\n').forEach(function (line) {
+    var sep = line.indexOf(':');
+    if (sep > 0) values[line.substring(0, sep)] = line.substring(sep + 1).trim();
+  });
+  function intOf(text) {
+    var n = parseInt(text, 10);
+    return isNaN(n) ? null : n;
+  }
+  // free-Zeile "Mem: <gesamt> <belegt> ..." -> [gesamt, belegt] in MB.
+  function memPair(key) {
+    var parts = (values[key] || '').split(/\s+/);
+    return [intOf(parts[1]), intOf(parts[2])];
+  }
+  var temp = intOf(values.temp); // Milligrad Celsius
+  var mem = memPair('mem');
+  var swap = memPair('swap');
+  return {
+    cpu_temp_c: temp === null ? null : Math.round(temp / 100) / 10,
+    throttled: /^0x[0-9a-fA-F]+$/.test(values.throttled || '') ? values.throttled : null,
+    disk_used_pct: intOf(values.disk),
+    booted_at: values.boot || null,
+    mem_total_mb: mem[0],
+    mem_used_mb: mem[1],
+    swap_total_mb: swap[0],
+    swap_used_mb: swap[1],
+    reboot_required: values.reboot === '1',
+    security_upgrades_last: values.upgrades || null
+  };
+}
+
 var payload = {
   anlage: '@IBM_ANLAGE_NAME@',
   token: '@IBM_STATUS_TOKEN@',
@@ -174,7 +239,8 @@ var payload = {
     ladesperre_datum: stateOf('Ischlstrom_Ladesperre_Datum'),
     log_entries: collectLogEntries(),
     versions: collectVersions(),
-    apt_updates: collectAptUpdates()
+    apt_updates: collectAptUpdates(),
+    system: collectSystemHealth()
   }
 };
 

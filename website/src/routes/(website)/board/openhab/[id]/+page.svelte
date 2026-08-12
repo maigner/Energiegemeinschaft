@@ -32,6 +32,40 @@
         );
     }
 
+    // Vom Pi gemeldeter Systemzustand (Temperatur, Stromversorgung, SD-Karte,
+    // Speicher, Reboot-Bedarf). undefined/null: die Anlage überträgt (noch)
+    // keine Systemwerte.
+    let system = $derived(anlage.data?.system ?? null);
+
+    const AMBER = "text-amber-600 dark:text-amber-400";
+    const RED = "text-red-600 dark:text-red-400";
+    const GREEN = "text-green-700 dark:text-green-400";
+
+    /**
+     * Warnungen aus dem throttled-Register des Pi (vcgencmd get_throttled):
+     * niedrige Bits = Zustand jetzt, Bits 16–19 = seit dem Boot aufgetreten.
+     * @param {unknown} hex z. B. "0x50005"
+     * @returns {{ text: string, now: boolean }[] | null}
+     */
+    function throttleIssues(hex) {
+        if (typeof hex !== "string") return null;
+        const bits = Number.parseInt(hex, 16);
+        if (Number.isNaN(bits)) return null;
+        /** @type {{ text: string, now: boolean }[]} */
+        const issues = [];
+        if (bits & 0x1) issues.push({ text: "Unterspannung!", now: true });
+        else if (bits & 0x10000)
+            issues.push({ text: "Unterspannung seit Boot", now: false });
+        if (bits & 0x4) issues.push({ text: "CPU gedrosselt", now: true });
+        else if (bits & 0x40000)
+            issues.push({ text: "CPU-Drosselung seit Boot", now: false });
+        if (bits & 0x8)
+            issues.push({ text: "Temperaturlimit erreicht", now: true });
+        else if (bits & 0x80000)
+            issues.push({ text: "Temperaturlimit seit Boot", now: false });
+        return issues;
+    }
+
     /** Log-Zeitstempel "2026-08-12 14:05:03" → "12.08. 14:05" */
     /** @param {string} time */
     function formatLogTime(time) {
@@ -172,6 +206,70 @@
                 r.batteryPowerW !== null,
         ),
     );
+
+    // Systemwerte im Verlauf: Temperatur auf der linken Achse (°C), die
+    // drei Belegungsgrade teilen sich die rechte Prozent-Achse (die yaxis-
+    // Einträge 3 und 4 hängen sich per seriesName an die SD-Karten-Achse).
+    /** @type {import('apexcharts').ApexOptions} */
+    let systemOptions = $derived({
+        ...baseChart,
+        chart: { ...baseChart.chart, type: "line" },
+        series: [
+            {
+                name: "CPU-Temperatur",
+                data: series(history, (r) => r.cpuTempC),
+                color: "#DC2626",
+            },
+            {
+                name: "SD-Karte belegt",
+                data: series(history, (r) => r.diskUsedPct),
+                color: "#6B7280",
+            },
+            {
+                name: "Arbeitsspeicher belegt",
+                data: series(history, (r) => r.memUsedPct),
+                color: "#7C3AED",
+            },
+            {
+                name: "Swap belegt",
+                data: series(history, (r) => r.swapUsedPct),
+                color: "#0891B2",
+            },
+        ],
+        yaxis: [
+            {
+                seriesName: "CPU-Temperatur",
+                min: 0,
+                labels: {
+                    formatter: (/** @type {number} */ v) =>
+                        `${Math.round(v)} °C`,
+                },
+            },
+            {
+                seriesName: "SD-Karte belegt",
+                opposite: true,
+                min: 0,
+                max: 100,
+                labels: {
+                    formatter: (/** @type {number} */ v) =>
+                        `${Math.round(v)} %`,
+                },
+            },
+            { seriesName: "SD-Karte belegt", show: false },
+            { seriesName: "SD-Karte belegt", show: false },
+        ],
+    });
+
+    let hasSystemHistory = $derived(
+        history.some(
+            (
+                /** @type {{ cpuTempC: number | null, diskUsedPct: number | null, memUsedPct: number | null }} */ r,
+            ) =>
+                r.cpuTempC !== null ||
+                r.diskUsedPct !== null ||
+                r.memUsedPct !== null,
+        ),
+    );
 </script>
 
 <div class="p-4 max-w-5xl mx-auto">
@@ -237,6 +335,121 @@
                 {/if}
             {/if}
         </p>
+    {/if}
+
+    {#snippet systemStat(
+        /** @type {string} */ label,
+        /** @type {string} */ value,
+        /** @type {string} */ cls,
+    )}
+        <div>
+            <dt class="text-gray-500 dark:text-gray-400">{label}</dt>
+            <dd class="font-medium {cls || 'text-gray-900 dark:text-gray-100'}">
+                {value}
+            </dd>
+        </div>
+    {/snippet}
+
+    <!-- Systemzustand des Pi; wie bei den Logmeldungen erst, wenn die
+         Anlage überhaupt schon gemeldet hat. -->
+    {#if anlage.lastSeen}
+        <Card class="max-w-none p-4 md:p-6 mb-6">
+            <Heading tag="h2" class="text-lg font-semibold mb-2">System</Heading>
+            {#if !system}
+                <p class="text-gray-600 dark:text-gray-300">
+                    Diese Anlage überträgt noch keine Systemwerte. Dafür muss
+                    das IBM-Paket auf dem openHABian aktualisiert werden.
+                </p>
+            {:else}
+                {@const issues = throttleIssues(system.throttled)}
+                {#if system.reboot_required}
+                    <p class="flex flex-wrap items-center gap-2 mb-3">
+                        <Badge color="yellow">Neustart erforderlich</Badge>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">
+                            Ein eingespieltes Update (z. B. Kernel) wird erst
+                            mit einem Reboot wirksam.
+                        </span>
+                    </p>
+                {/if}
+                <dl
+                    class="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm"
+                >
+                    {@render systemStat(
+                        "CPU-Temperatur",
+                        typeof system.cpu_temp_c === "number"
+                            ? `${system.cpu_temp_c.toLocaleString("de-AT")} °C`
+                            : "unbekannt",
+                        system.cpu_temp_c >= 80
+                            ? RED
+                            : system.cpu_temp_c >= 70
+                              ? AMBER
+                              : "",
+                    )}
+                    {@render systemStat(
+                        "Stromversorgung",
+                        issues === null
+                            ? "unbekannt"
+                            : issues.length === 0
+                              ? "in Ordnung"
+                              : issues.map((i) => i.text).join(", "),
+                        issues === null
+                            ? ""
+                            : issues.length === 0
+                              ? GREEN
+                              : issues.some((i) => i.now)
+                                ? RED
+                                : AMBER,
+                    )}
+                    {@render systemStat(
+                        "SD-Karte",
+                        typeof system.disk_used_pct === "number"
+                            ? `${system.disk_used_pct} % belegt`
+                            : "unbekannt",
+                        system.disk_used_pct >= 90
+                            ? RED
+                            : system.disk_used_pct >= 80
+                              ? AMBER
+                              : "",
+                    )}
+                    {@render systemStat(
+                        "Arbeitsspeicher",
+                        system.mem_total_mb
+                            ? `${system.mem_used_mb} / ${system.mem_total_mb} MB`
+                            : "unbekannt",
+                        system.mem_total_mb > 0 &&
+                            system.mem_used_mb / system.mem_total_mb >= 0.9
+                            ? AMBER
+                            : "",
+                    )}
+                    {@render systemStat(
+                        "Swap",
+                        system.swap_total_mb === 0
+                            ? "kein Swap"
+                            : system.swap_total_mb
+                              ? `${system.swap_used_mb} / ${system.swap_total_mb} MB`
+                              : "unbekannt",
+                        system.swap_total_mb > 0 &&
+                            system.swap_used_mb / system.swap_total_mb >= 0.5
+                            ? AMBER
+                            : "",
+                    )}
+                    {@render systemStat(
+                        "Läuft seit",
+                        system.booted_at
+                            ? formatLogTime(system.booted_at)
+                            : "unbekannt",
+                        "",
+                    )}
+                    {@render systemStat(
+                        "Sicherheitsupdates",
+                        system.security_upgrades_last
+                            ? `zuletzt ${formatLogTime(system.security_upgrades_last)}`
+                            : "kein Lauf bekannt",
+                        "",
+                    )}
+                </dl>
+            {/if}
+        </Card>
     {/if}
 
     <!-- Solange die Anlage noch nie gemeldet hat, gibt es auch keine
@@ -332,5 +545,18 @@
                 </p>
             {/if}
         </Card>
+
+        {#if hasSystemHistory}
+            <Card class="max-w-none p-4 md:p-6 mt-6">
+                <Heading tag="h2" class="text-lg font-semibold mb-2">
+                    Systemwerte
+                </Heading>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    CPU-Temperatur (linke Achse) sowie Belegung von SD-Karte,
+                    Arbeitsspeicher und Swap (rechte Achse, Prozent).
+                </p>
+                <Chart options={systemOptions} />
+            </Card>
+        {/if}
     {/if}
 </div>
