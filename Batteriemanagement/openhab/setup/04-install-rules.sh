@@ -97,6 +97,7 @@ battery_power_item_esc="$(sed_escape "$BATTERY_POWER_ITEM")"
 anlage_name_esc="$(sed_escape "$IBM_ANLAGE_NAME")"
 status_token_esc="$(sed_escape "$IBM_STATUS_TOKEN")"
 inverter_type_esc="$(sed_escape "$INVERTER_TYPE")"
+logdir_esc="$(sed_escape "$OPENHAB_LOGDIR")"
 
 # Suchmuster aus dem Wechselrichter-Profil (linke Seite eines sed-Ausdrucks).
 soc_placeholder_pat="$(printf '%s' "$INVERTER_SOC_PLACEHOLDER" | sed -e 's/[][\.*^$|]/\\&/g')"
@@ -116,6 +117,7 @@ render_payload() {
       -e "s|@IBM_ANLAGE_NAME@|${anlage_name_esc}|g" \
       -e "s|@IBM_STATUS_TOKEN@|${status_token_esc}|g" \
       -e "s|@IBM_INVERTER_TYPE@|${inverter_type_esc}|g" \
+      -e "s|@IBM_LOG_DIR@|${logdir_esc}|g" \
       "$1"
 }
 

@@ -111,6 +111,23 @@
     function copyToken(token) {
         navigator.clipboard?.writeText(token);
     }
+
+    /**
+     * Zählt die von der Anlage gemeldeten Logmeldungen (openHAB-Log der
+     * letzten 24 Stunden) je Level; null, wenn die Anlage keine überträgt.
+     * @param {any} data
+     * @returns {{ errors: number, warnings: number } | null}
+     */
+    function logCounts(data) {
+        if (!Array.isArray(data?.log_entries)) return null;
+        let errors = 0;
+        let warnings = 0;
+        for (const entry of data.log_entries) {
+            if (entry?.level === "ERROR") errors++;
+            else if (entry?.level === "WARN") warnings++;
+        }
+        return { errors, warnings };
+    }
 </script>
 
 <div class="p-4 max-w-7xl mx-auto">
@@ -138,6 +155,7 @@
                 {@const d = anlage.data}
                 {@const soc = num(d.soc, 0)}
                 {@const haupt = schalter(d.hauptschalter)}
+                {@const counts = logCounts(d)}
                 <Card
                     href={`/board/openhab/${anlage.id}`}
                     class="max-w-none p-4 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -207,6 +225,22 @@
                             <span class="text-gray-600 dark:text-gray-300">Wolkenvorschau</span>
                             <span class="text-right dark:text-white">
                                 {num(d.wolkenvorschau, 0) !== null ? `${num(d.wolkenvorschau, 0)}%` : "-"}
+                            </span>
+
+                            <span class="text-gray-600 dark:text-gray-300">Log (24 h)</span>
+                            <span class="text-right">
+                                {#if counts === null}
+                                    <span class="dark:text-white">-</span>
+                                {:else if counts.errors === 0 && counts.warnings === 0}
+                                    <Badge color="green">keine Meldungen</Badge>
+                                {:else}
+                                    {#if counts.errors > 0}
+                                        <Badge color="red">{counts.errors} Fehler</Badge>
+                                    {/if}
+                                    {#if counts.warnings > 0}
+                                        <Badge color="yellow">{counts.warnings} Warnungen</Badge>
+                                    {/if}
+                                {/if}
                             </span>
                         </div>
                     {/if}

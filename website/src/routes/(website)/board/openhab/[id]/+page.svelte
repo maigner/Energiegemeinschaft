@@ -7,6 +7,23 @@
     let anlage = $derived(data.anlage);
     let history = $derived(data.history ?? []);
 
+    // Von der Anlage mitgelieferte WARN/ERROR-Zeilen aus dem openHAB-Log
+    // (letzte 24 Stunden, Stand der letzten Meldung), neueste zuerst.
+    // undefined/null: die Anlage überträgt (noch) keine Logmeldungen.
+    /** @type {{ time: string, level: string, logger: string, message: string }[] | null} */
+    let logEntries = $derived(
+        Array.isArray(anlage.data?.log_entries)
+            ? [...anlage.data.log_entries].reverse()
+            : null,
+    );
+
+    /** Log-Zeitstempel "2026-08-12 14:05:03" → "12.08. 14:05" */
+    /** @param {string} time */
+    function formatLogTime(time) {
+        if (typeof time !== "string" || time.length < 16) return time;
+        return `${time.slice(8, 10)}.${time.slice(5, 7)}. ${time.slice(11, 16)}`;
+    }
+
     const ONLINE_SECONDS = 15 * 60;
     const WARN_SECONDS = 60 * 60;
 
@@ -163,6 +180,62 @@
         )}. Diagramme zeigen die letzten {data.historyDays} Tage, gemittelt auf
         15 Minuten.
     </p>
+
+    <!-- Solange die Anlage noch nie gemeldet hat, gibt es auch keine
+         Logmeldungen zu zeigen - die Karte wäre nur irreführend. -->
+    {#if anlage.lastSeen}
+    <Card class="max-w-none p-4 md:p-6 mb-6">
+        <Heading tag="h2" class="text-lg font-semibold mb-2">
+            Fehler und Warnungen
+        </Heading>
+        {#if logEntries === null}
+            <p class="text-gray-600 dark:text-gray-300">
+                Diese Anlage überträgt noch keine Logmeldungen. Dafür muss das
+                IBM-Paket auf dem openHABian aktualisiert werden.
+            </p>
+        {:else if logEntries.length === 0}
+            <p class="text-green-700 dark:text-green-400">
+                Keine Fehler oder Warnungen im openHAB-Log der letzten 24
+                Stunden.
+            </p>
+        {:else}
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                openHAB-Log der letzten 24 Stunden, Stand der letzten Meldung
+                (neueste zuerst, höchstens 20 Einträge).
+            </p>
+            <ul class="divide-y divide-gray-200 dark:divide-gray-700">
+                {#each logEntries as entry}
+                    <li class="py-2">
+                        <div class="flex flex-wrap items-center gap-2 mb-1">
+                            <Badge
+                                color={entry.level === "ERROR"
+                                    ? "red"
+                                    : "yellow"}
+                            >
+                                {entry.level}
+                            </Badge>
+                            <span
+                                class="text-sm text-gray-600 dark:text-gray-300"
+                            >
+                                {formatLogTime(entry.time)}
+                            </span>
+                            <span
+                                class="text-xs font-mono text-gray-400 dark:text-gray-500 break-all"
+                            >
+                                {entry.logger}
+                            </span>
+                        </div>
+                        <p
+                            class="text-sm font-mono break-all text-gray-800 dark:text-gray-200"
+                        >
+                            {entry.message}
+                        </p>
+                    </li>
+                {/each}
+            </ul>
+        {/if}
+    </Card>
+    {/if}
 
     {#if history.length === 0}
         <Card class="max-w-xl">

@@ -291,9 +291,13 @@ Auf Wunsch (Frage im Assistenten, `INSTALL_STATUS_PUSH=1`) meldet die Anlage
 alle 5 Minuten ihren Zustand an `<IBM_API_BASE>/api/ibm/status/v1` — der
 Vorstand sieht alle Anlagen dann live unter
 <https://ischlstrom.org/board/openhab> (Ladestand, Wechselrichter-Status,
-Schalterstellungen, geschaetzte Kapazitaet, letzte Meldung). Uebertragen
-werden ausschliesslich die IBM-Betriebsdaten aus der Tabelle oben, keine
-Verbrauchsdaten des Haushalts.
+Schalterstellungen, geschaetzte Kapazitaet, letzte Meldung). Zusaetzlich
+gehen die **Fehler und Warnungen** aus dem openHAB-Log der letzten
+24 Stunden mit (`WARN`/`ERROR`-Zeilen aus `/var/log/openhab/openhab.log`,
+hoechstens 20 Eintraege, Meldungstext gekuerzt) — das Dashboard zeigt sie
+auf der Detailseite der Anlage, die Uebersicht zaehlt sie je Anlage.
+Uebertragen werden ausschliesslich diese IBM-Betriebsdaten und
+Logmeldungen, keine Verbrauchsdaten des Haushalts.
 
 Die Anlage authentifiziert sich mit einem **Status-Token**, das der Vorstand
 **vor der Installation** auf <https://ischlstrom.org/board/openhab> fuer das

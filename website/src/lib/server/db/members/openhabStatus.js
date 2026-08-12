@@ -47,7 +47,7 @@ export const deleteOpenhabToken = async (id) => {
  *
  * @param {string} token
  * @param {string} name - Anlagenname aus ibm.conf, aktualisiert die Anzeige
- * @param {object} data
+ * @param {Record<string, any>} data
  * @returns {Promise<boolean>} true wenn gespeichert, false bei unbekanntem Token
  */
 export const pushOpenhabStatus = async (token, name, data) => {
@@ -67,11 +67,15 @@ export const pushOpenhabStatus = async (token, name, data) => {
         }
         // Jeder Push wird zusaetzlich als Verlauf abgelegt; daraus entstehen
         // die Diagramme auf der Detailseite. Alte Zeilen raeumt der taegliche
-        // Cron-Job auf (pruneOpenhabStatusHistory).
+        // Cron-Job auf (pruneOpenhabStatusHistory). Die Logmeldungen der
+        // Anlage (log_entries) bleiben aussen vor: sie wuerden jede
+        // 5-Minuten-Zeile um mehrere KB aufblasen und die Diagramme lesen
+        // sie nicht - angezeigt wird immer der Stand der letzten Meldung.
+        const { log_entries, ...historyData } = data;
         await db.query(
             `INSERT INTO members_openhabstatushistory (status_id, time, data)
              VALUES ($1, now(), $2)`,
-            [result.rows[0].id, JSON.stringify(data)]
+            [result.rows[0].id, JSON.stringify(historyData)]
         );
         return true;
     } finally {

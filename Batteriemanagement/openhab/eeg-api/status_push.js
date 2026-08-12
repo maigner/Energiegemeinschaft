@@ -48,6 +48,46 @@ try {
   inverterStatus = null;
 }
 
+// Fehler und Warnungen der letzten 24 Stunden aus dem openHAB-Log fuer das
+// Dashboard. Stacktrace-Folgezeilen haben keinen Zeitstempel und fallen
+// durch das Muster; von den Treffern gehen die neuesten LOG_MAX_ENTRIES
+// (gekuerzt) mit - zusammen bleibt das weit unter dem 16-KB-Limit des
+// data-Felds auf dem Server.
+var LOG_MAX_ENTRIES = 20;
+var LOG_MAX_MESSAGE = 240;
+
+function collectLogEntries() {
+  var raw;
+  try {
+    raw = actions.Exec.executeCommandLine(
+      time.Duration.ofSeconds(10),
+      '/bin/sh', '-c',
+      "grep -E '\\[(WARN |ERROR)\\]' '@IBM_LOG_DIR@/openhab.log' | tail -n 100"
+    );
+  } catch (e) {
+    return null;
+  }
+  if (raw === null || raw === undefined) return [];
+
+  // Log-Zeitstempel (Lokalzeit des Pi) sind lexikografisch sortierbar,
+  // daher genuegt fuer das 24-Stunden-Fenster ein Stringvergleich.
+  var cutoff = time.ZonedDateTime.now().minusHours(24)
+    .format(time.DateTimeFormatter.ofPattern('yyyy-MM-dd HH:mm:ss'));
+  var pattern = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\.\d+ \[(WARN |ERROR)\] \[([^\]]*?)\s*\] - (.*)$/;
+
+  var entries = [];
+  String(raw).split('\n').forEach(function (line) {
+    var m = pattern.exec(line);
+    if (m === null || m[1] < cutoff) return;
+    var message = m[4];
+    if (message.length > LOG_MAX_MESSAGE) {
+      message = message.substring(0, LOG_MAX_MESSAGE) + '…';
+    }
+    entries.push({ time: m[1], level: m[2].trim(), logger: m[3], message: message });
+  });
+  return entries.slice(-LOG_MAX_ENTRIES);
+}
+
 var payload = {
   anlage: '@IBM_ANLAGE_NAME@',
   token: '@IBM_STATUS_TOKEN@',
@@ -80,7 +120,8 @@ var payload = {
     crossover_ende: stateOf('Ischlstrom_Crossover_Ende'),
     ladesperre_start: stateOf('Ischlstrom_Ladesperre_Start'),
     ladesperre_ende: stateOf('Ischlstrom_Ladesperre_Ende'),
-    ladesperre_datum: stateOf('Ischlstrom_Ladesperre_Datum')
+    ladesperre_datum: stateOf('Ischlstrom_Ladesperre_Datum'),
+    log_entries: collectLogEntries()
   }
 };
 
