@@ -123,6 +123,24 @@
     }
 
     /**
+     * Uptime aus dem gemeldeten Boot-Zeitpunkt (Lokalzeit der Anlage,
+     * "YYYY-MM-DD HH:MM:SS"); null, wenn keiner vorliegt oder unlesbar.
+     * @param {any} data
+     */
+    function uptimeText(data) {
+        const booted = data?.system?.booted_at;
+        if (typeof booted !== "string") return null;
+        const t = new Date(booted.replace(" ", "T")).getTime();
+        if (!Number.isFinite(t)) return null;
+        const s = Math.max(0, (Date.now() - t) / 1000);
+        if (s < 90) return "1 Minute";
+        if (s < 3600) return `${Math.round(s / 60)} Minuten`;
+        if (s < 5400) return "1 Stunde";
+        if (s < 172800) return `${Math.round(s / 3600)} Stunden`;
+        return `${Math.round(s / 86400)} Tage`;
+    }
+
+    /**
      * Zählt die von der Anlage gemeldeten Logmeldungen (openHAB-Log der
      * letzten 24 Stunden) je Level; null, wenn die Anlage keine überträgt.
      * @param {any} data
@@ -236,6 +254,22 @@
                             <span class="text-right dark:text-white">
                                 {num(d.wolkenvorschau, 0) !== null ? `${num(d.wolkenvorschau, 0)}%` : "-"}
                             </span>
+
+                            <span class="text-gray-600 dark:text-gray-300">SD-Karte</span>
+                            <span class="text-right">
+                                {#if typeof d.system?.disk_used_pct !== "number"}
+                                    <span class="dark:text-white">-</span>
+                                {:else if d.system.disk_used_pct >= 90}
+                                    <Badge color="red">{Math.round(d.system.disk_used_pct)} % belegt</Badge>
+                                {:else if d.system.disk_used_pct >= 80}
+                                    <Badge color="yellow">{Math.round(d.system.disk_used_pct)} % belegt</Badge>
+                                {:else}
+                                    <span class="dark:text-white">{Math.round(d.system.disk_used_pct)} % belegt</span>
+                                {/if}
+                            </span>
+
+                            <span class="text-gray-600 dark:text-gray-300">Uptime</span>
+                            <span class="text-right dark:text-white">{uptimeText(d) ?? "-"}</span>
 
                             <span class="text-gray-600 dark:text-gray-300">IBM-Paket</span>
                             <span class="text-right">
