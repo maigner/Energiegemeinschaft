@@ -74,8 +74,9 @@ DEFAULT_MIN_DISCHARGE_W=1000
 DEFAULT_MAX_DISCHARGE_W=3000
 
 # Ladesperre am Vormittag: bei sonniger Prognose nicht laden, bis die
-# Gemeinschaft Ueberschuss hat. Das Zeitfenster kommt aus der Tagesprognose
-# von ischlstrom.org (erster Sonnenschein bis Vormittags-Crossover).
+# Gemeinschaft deutlichen Ueberschuss hat. Das Zeitfenster kommt aus der
+# Tagesprognose von ischlstrom.org (erster Sonnenschein bis in die
+# Mittagsspitze; die Batterie laedt dann mitten im Ueberschuss).
 DEFAULT_LADESPERRE_AKTIV=ON
 DEFAULT_WOLKEN_SCHWELLE=75       # unter diesem Bewoelkungsgrad wird gesperrt
 

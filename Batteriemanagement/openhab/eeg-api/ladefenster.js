@@ -1,8 +1,9 @@
 // Holt das Ladesperre-Fenster aus der Tagesprognose von ischlstrom.org:
-// vom ersten Sonnenschein bis zum prognostizierten Vormittags-Crossover
-// (ab dann erzeugt die Gemeinschaft mehr, als sie verbraucht, und die
-// Batterie darf wieder aus der eigenen PV laden - geladen wird immer nur
-// aus der eigenen PV-Anlage, nie aus dem Netz).
+// vom ersten Sonnenschein bis in die Mittagsspitze des Ueberschusses
+// (das Ende berechnet der Server aus der Prognose: fruehestens der
+// Vormittags-Crossover, meist aber spaeter, damit die Batterie mitten in
+// der Ueberschussspitze laedt - geladen wird immer nur aus der eigenen
+// PV-Anlage, nie aus dem Netz).
 //
 // An Tagen ohne erwarteten Ueberschuss liefert die API start/ende als null -
 // dann wird '-' in die Items geschrieben und die Steuerung sperrt nicht.

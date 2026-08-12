@@ -78,11 +78,21 @@ export const getForecastDays = async (runId: number, days: number = 10) => {
 
 /**
  * Ladesperre-Fenster für das Batteriemanagement (IBM): vom ersten
- * nennenswerten Sonnenschein (Erzeugung über 5 % des Tagesmaximums) bis zum
- * prognostizierten Vormittags-Crossover (Erzeugung >= Verbrauch). Die Idee:
- * die morgendliche Verbrauchsspitze soll direkt aus der PV gedeckt werden,
- * die Batterie lädt erst aus dem Mittags-Überschuss. An Tagen ohne erwarteten
- * Überschuss ist `ende` null -- dann gibt es keine Sperre.
+ * nennenswerten Sonnenschein (Erzeugung über 5 % des Tagesmaximums) bis in
+ * die Mittagsspitze. Die Idee: die morgendliche Verbrauchsspitze soll direkt
+ * aus der PV gedeckt werden, und die Batterien laden mitten in der
+ * Überschussspitze -- das vermeidet ein Zurückkippen der Gemeinschaft ins
+ * Defizit direkt nach dem Crossover, fängt beim Mitglied Abregelungsverluste
+ * und verkürzt die Standzeit bei 100 % SoC.
+ *
+ * Das Ende ist der spätere von Vormittags-Crossover (Erzeugung >= Verbrauch)
+ * und dem ersten Slot mit Überschuss >= 75 % des Tagesmaximums, aber nie
+ * später als der Spitzen-Slot selbst und nie nach 14:00 (die Steuerung am Pi
+ * ignoriert Enden ab 15:00 ganz, dann gäbe es gar keine Sperre). Verlängert
+ * wird nur, wenn der prognostizierte Rest-Überschuss danach mindestens die
+ * doppelte Batteriekapazität der IBM-Flotte deckt -- sonst gilt der nackte
+ * Crossover, damit die Batterien vor dem Abend sicher voll werden. An Tagen
+ * ohne erwarteten Überschuss ist `ende` null -- dann gibt es keine Sperre.
  */
 export const getTodayChargeWindow = async (runId: number) => {
     const sql = await middlewareDbConnection();
@@ -91,22 +101,65 @@ export const getTodayChargeWindow = async (runId: number) => {
             SELECT
                 timestamp AT TIME ZONE 'Europe/Vienna' AS ts_local,
                 generation_kwh,
-                consumption_kwh
+                consumption_kwh,
+                generation_kwh - consumption_kwh AS surplus_kwh
             FROM metering_energyforecast
             WHERE run_id = $1
               AND (timestamp AT TIME ZONE 'Europe/Vienna')::date = (now() AT TIME ZONE 'Europe/Vienna')::date
         ),
-        peak AS (SELECT MAX(generation_kwh) AS max_gen FROM slots)
+        peak AS (
+            SELECT MAX(generation_kwh) AS max_gen,
+                   MAX(surplus_kwh) AS max_surplus
+            FROM slots
+        ),
+        -- Summe der geschätzten Batteriekapazitäten der meldenden Anlagen;
+        -- Maßstab für den Energie-Guard der Verlängerung.
+        fleet AS (
+            SELECT COALESCE(SUM(CASE WHEN jsonb_typeof(data->'batterie_kapazitaet') = 'number'
+                                     THEN (data->>'batterie_kapazitaet')::float END), 0) AS capacity_kwh
+            FROM members_openhabstatus
+            WHERE last_seen IS NOT NULL
+        ),
+        crossover AS (
+            SELECT MIN(ts_local) AS t
+            FROM slots
+            WHERE generation_kwh >= consumption_kwh
+              AND EXTRACT(hour FROM ts_local) >= 3
+        ),
+        extended AS (
+            SELECT CASE WHEN (SELECT t FROM crossover) IS NULL THEN NULL
+                ELSE LEAST(
+                    GREATEST(
+                        (SELECT t FROM crossover),
+                        (SELECT MIN(ts_local) FROM slots, peak
+                          WHERE peak.max_surplus > 0
+                            AND surplus_kwh >= 0.75 * peak.max_surplus
+                            AND EXTRACT(hour FROM ts_local) >= 3)
+                    ),
+                    (SELECT MIN(ts_local) FROM slots, peak
+                      WHERE peak.max_surplus > 0
+                        AND surplus_kwh = peak.max_surplus),
+                    (now() AT TIME ZONE 'Europe/Vienna')::date + time '14:00'
+                ) END AS t
+        ),
+        guarded AS (
+            SELECT CASE
+                WHEN e.t IS NULL THEN NULL
+                WHEN (SELECT COALESCE(SUM(GREATEST(surplus_kwh, 0)), 0)
+                        FROM slots WHERE ts_local >= e.t)
+                     >= 2 * (SELECT capacity_kwh FROM fleet)
+                THEN e.t
+                ELSE (SELECT t FROM crossover)
+            END AS t
+            FROM extended e
+        )
         SELECT
             COUNT(*)::int AS intervals,
             to_char((now() AT TIME ZONE 'Europe/Vienna')::date, 'YYYY-MM-DD') AS datum,
             to_char(MIN(ts_local) FILTER (
                 WHERE generation_kwh > 0.05 * (SELECT max_gen FROM peak)
             ), 'HH24:MI') AS start,
-            to_char(MIN(ts_local) FILTER (
-                WHERE generation_kwh >= consumption_kwh
-                  AND EXTRACT(hour FROM ts_local) >= 3
-            ), 'HH24:MI') AS ende
+            to_char((SELECT t FROM guarded), 'HH24:MI') AS ende
         FROM slots
     `, [runId]);
     sql.release();

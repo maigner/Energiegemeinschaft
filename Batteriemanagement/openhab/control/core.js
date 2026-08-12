@@ -3,8 +3,9 @@
 //
 //   Teil A: Batterieladen sperren bei geringer Bewoelkung (Vormittag).
 //           Das Fenster kommt aus der Tagesprognose der API (erster
-//           Sonnenschein bis Vormittags-Crossover) und gilt nur fuer das
-//           mitgelieferte Datum - ohne gueltiges Fenster wird nicht gesperrt.
+//           Sonnenschein bis in die Mittagsspitze; das Ende berechnet der
+//           Server) und gilt nur fuer das mitgelieferte Datum - ohne
+//           gueltiges Fenster wird nicht gesperrt.
 //   Teil B: Forcierte Batterieentladung (Nacht), abhaengig von Toggle,
 //           Ladestand und Wolkenvorschau. Die Entladeleistung passt sich
 //           automatisch an die Batteriegroesse an, die das Skript aus der

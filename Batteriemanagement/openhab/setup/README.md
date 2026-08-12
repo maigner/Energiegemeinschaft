@@ -208,9 +208,16 @@ Ersatz-Zeitfenster gibt es nicht.
 
 Das Ladesperre-Fenster kommt aus der Tagesprognose
 (`/api/eeginfo/ladefenster/v1`, berechnet aus den Kurven von `/vorhersage`):
-gesperrt wird vom ersten Sonnenschein bis zum prognostizierten
-Vormittags-Crossover. Die morgendliche Verbrauchsspitze der Gemeinschaft wird
-so direkt aus der PV gedeckt; die Batterie laedt erst danach - und wie immer
+gesperrt wird vom ersten Sonnenschein bis in die Mittagsspitze des
+Ueberschusses. Das Ende ist der spaetere von Vormittags-Crossover und dem
+Zeitpunkt, an dem der Ueberschuss 75 % seines Tagesmaximums erreicht -
+gekappt am Spitzen-Slot und um 14:00, und nur, wenn der restliche
+Prognose-Ueberschuss mindestens die doppelte Batteriekapazitaet der Flotte
+deckt (sonst gilt der nackte Crossover). Die morgendliche Verbrauchsspitze
+der Gemeinschaft wird so direkt aus der PV gedeckt, und die Batterien laden
+mitten in der Ueberschussspitze statt direkt nach dem Crossover: das haelt
+die Gemeinschaft nach dem Crossover im Plus, faengt Abregelungsverluste und
+verkuerzt die Standzeit bei 100 % Ladung. Geladen wird wie immer
 ausschliesslich aus der eigenen PV-Anlage, nie aus dem Netz oder von anderen
 Mitgliedern. Das Fenster gilt nur fuer das mitgelieferte Datum
 (`Ischlstrom_Ladesperre_Datum`); ist es veraltet, unplausibel oder liefert

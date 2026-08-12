@@ -286,7 +286,7 @@ pages:
                               title: Ladesperre verwenden
                               item: IBM_LADESPERRE_AKTIV
                               color: blue
-                              footer: "=items.IBM_LADESPERRE_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - An sonnigen Tagen lädt die Batterie zwischen den unten angezeigten Zeiten nicht: Der eigene PV-Strom geht am Vormittag an Haushalt und Gemeinschaft. Danach lädt die Batterie wie immer aus der eigenen PV-Anlage.' : (items.IBM_LADESPERRE_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Die Batterie lädt aus der eigenen PV, sobald Sonne da ist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
+                              footer: "=items.IBM_LADESPERRE_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - An sonnigen Tagen lädt die Batterie zwischen den unten angezeigten Zeiten nicht: Der eigene PV-Strom geht bis in die Mittagszeit an Haushalt und Gemeinschaft. Danach lädt die Batterie wie immer aus der eigenen PV-Anlage.' : (items.IBM_LADESPERRE_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Die Batterie lädt aus der eigenen PV, sobald Sonne da ist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -312,10 +312,10 @@ pages:
                               title: Sperre bis
                               item: Ischlstrom_Ladesperre_Ende
                               footer: >-
-                                Ab dieser Uhrzeit erzeugt die Gemeinschaft laut
-                                Prognose mehr, als sie verbraucht - dann darf
-                                die Batterie wieder aus der eigenen PV-Anlage
-                                laden.
+                                Ende der Sperre laut Tagesprognose - meist
+                                mitten in der Mittags-Überschussspitze der
+                                Gemeinschaft. Ab dann lädt die Batterie aus
+                                der eigenen PV-Anlage.
               - component: oh-grid-row
                 config: {}
                 slots:
