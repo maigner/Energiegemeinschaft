@@ -1,6 +1,7 @@
 <script>
     import { Card, Badge, Indicator, Heading } from "flowbite-svelte";
     import { Chart } from "@flowbite-svelte-plugins/chart";
+    import { compareVersions } from "$lib/versions";
 
     let { data } = $props();
 
@@ -16,6 +17,20 @@
             ? [...anlage.data.log_entries].reverse()
             : null,
     );
+
+    /**
+     * Hinkt der gemeldete Stand dem neuesten Stand der Flotte hinterher?
+     * @param {"ibm" | "openhab" | "java"} key
+     * @param {string | null | undefined} value
+     */
+    function isOutdated(key, value) {
+        const newest = data.fleetNewest?.[key];
+        return (
+            typeof value === "string" &&
+            typeof newest === "string" &&
+            compareVersions(value, newest) < 0
+        );
+    }
 
     /** Log-Zeitstempel "2026-08-12 14:05:03" → "12.08. 14:05" */
     /** @param {string} time */
@@ -174,12 +189,40 @@
         </Heading>
         <Badge color={statusColor[statusOf(anlage)]}>{statusOf(anlage)}</Badge>
     </div>
-    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+    <p
+        class="text-sm text-gray-500 dark:text-gray-400 {anlage.data?.versions
+            ? 'mb-1'
+            : 'mb-6'}"
+    >
         Mitglied: {anlage.memberName}. Letzte Meldung: {formatLastSeen(
             anlage.lastSeen,
         )}. Diagramme zeigen die letzten {data.historyDays} Tage, gemittelt auf
         15 Minuten.
     </p>
+    {#snippet versionPart(
+        /** @type {string} */ label,
+        /** @type {"ibm" | "openhab" | "java"} */ key,
+        /** @type {string | null | undefined} */ value,
+    )}
+        {#if isOutdated(key, value)}
+            <span class="text-amber-600 dark:text-amber-400 font-medium">
+                {label}
+                {value} (veraltet, neueste: {data.fleetNewest?.[key]})
+            </span>
+        {:else}
+            <span>{label} {value ?? "unbekannt"}</span>
+        {/if}
+    {/snippet}
+
+    {#if anlage.data?.versions}
+        {@const v = anlage.data.versions}
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            {@render versionPart("IBM-Paket", "ibm", v.ibm)} ·
+            {@render versionPart("openHAB", "openhab", v.openhab)} ·
+            {@render versionPart("Java", "java", v.java)} ·
+            {v.os ?? "OS unbekannt"}
+        </p>
+    {/if}
 
     <!-- Solange die Anlage noch nie gemeldet hat, gibt es auch keine
          Logmeldungen zu zeigen - die Karte wäre nur irreführend. -->

@@ -18,6 +18,8 @@
         TableBodyCell,
     } from "flowbite-svelte";
 
+    import { compareVersions, newestVersion } from "$lib/versions";
+
     let { data, form } = $props();
 
     // Die Anlagen melden sich alle 5 Minuten; die Seite holt sich den
@@ -55,6 +57,14 @@
             (/** @type {{ ageSeconds: number | null }} */ s) =>
                 statusOf(s) === "online",
         ).length,
+    );
+
+    // Neuester IBM-Paketstand der Flotte; Anlagen mit aelterem Stand werden
+    // auf der Karte hervorgehoben.
+    let newestIbm = $derived(
+        newestVersion(
+            statuses.map((/** @type {any} */ s) => s.data?.versions?.ibm),
+        ),
     );
 
     let selectedMemberId = $state("");
@@ -225,6 +235,17 @@
                             <span class="text-gray-600 dark:text-gray-300">Wolkenvorschau</span>
                             <span class="text-right dark:text-white">
                                 {num(d.wolkenvorschau, 0) !== null ? `${num(d.wolkenvorschau, 0)}%` : "-"}
+                            </span>
+
+                            <span class="text-gray-600 dark:text-gray-300">IBM-Paket</span>
+                            <span class="text-right">
+                                {#if !d.versions?.ibm}
+                                    <span class="dark:text-white">-</span>
+                                {:else if newestIbm && compareVersions(d.versions.ibm, newestIbm) < 0}
+                                    <Badge color="yellow">{d.versions.ibm} · veraltet</Badge>
+                                {:else}
+                                    <span class="dark:text-white">{d.versions.ibm}</span>
+                                {/if}
                             </span>
 
                             <span class="text-gray-600 dark:text-gray-300">Log (24 h)</span>

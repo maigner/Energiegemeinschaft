@@ -90,6 +90,20 @@ chown "$OPENHAB_USER:$OPENHAB_GROUP" "$js_dir" 2>/dev/null || true
 # Sonderzeichen fuer die rechte Seite eines sed-Ausdrucks entschaerfen.
 sed_escape() { printf '%s' "$1" | sed -e 's/[\\&|]/\\&/g'; }
 
+# --- IBM-Paketversion fuer den Status-Push ----------------------------------
+# build-dist.sh legt eine BUILD-INFO ins Paket (Build-Datum, Commit); daraus
+# wird der kompakte Stand "YYYY-MM-DD (commit)", den die Anlage mitmeldet.
+# Bei einer Installation direkt aus dem Repository (Entwicklung) gibt es
+# keine BUILD-INFO - dann liefert git den Stand, sonst bleibt er unbekannt.
+ibm_version="unbekannt"
+if [ -f "$IBM_SCRIPT_DIR/BUILD-INFO" ]; then
+  build_date="$(sed -n 's/^gebaut am: \([0-9-]*\).*/\1/p' "$IBM_SCRIPT_DIR/BUILD-INFO")"
+  build_commit="$(sed -n 's/^commit: \(.*\)/\1/p' "$IBM_SCRIPT_DIR/BUILD-INFO")"
+  ibm_version="${build_date:-unbekannt}${build_commit:+ ($build_commit)}"
+elif command -v git >/dev/null 2>&1 && git -C "$IBM_SCRIPT_DIR" rev-parse --short HEAD >/dev/null 2>&1; then
+  ibm_version="dev ($(git -C "$IBM_SCRIPT_DIR" rev-parse --short HEAD))"
+fi
+
 api_base_esc="$(sed_escape "$IBM_API_BASE")"
 thing_uid_esc="$(sed_escape "$INVERTER_THING_UID")"
 soc_item_esc="$(sed_escape "$SOC_ITEM")"
@@ -98,6 +112,7 @@ anlage_name_esc="$(sed_escape "$IBM_ANLAGE_NAME")"
 status_token_esc="$(sed_escape "$IBM_STATUS_TOKEN")"
 inverter_type_esc="$(sed_escape "$INVERTER_TYPE")"
 logdir_esc="$(sed_escape "$OPENHAB_LOGDIR")"
+ibm_version_esc="$(sed_escape "$ibm_version")"
 
 # Suchmuster aus dem Wechselrichter-Profil (linke Seite eines sed-Ausdrucks).
 soc_placeholder_pat="$(printf '%s' "$INVERTER_SOC_PLACEHOLDER" | sed -e 's/[][\.*^$|]/\\&/g')"
@@ -118,6 +133,7 @@ render_payload() {
       -e "s|@IBM_STATUS_TOKEN@|${status_token_esc}|g" \
       -e "s|@IBM_INVERTER_TYPE@|${inverter_type_esc}|g" \
       -e "s|@IBM_LOG_DIR@|${logdir_esc}|g" \
+      -e "s|@IBM_PAKET_VERSION@|${ibm_version_esc}|g" \
       "$1"
 }
 

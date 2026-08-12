@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
-import { getOpenhabStatus, getOpenhabStatusHistory } from '$lib/server/db/members/openhabStatus';
+import { getOpenhabStatus, getOpenhabStatusHistory, getOpenhabStatuses } from '$lib/server/db/members/openhabStatus';
+import { newestVersion } from '$lib/versions';
 
 const HISTORY_DAYS = 7;
 
@@ -18,7 +19,20 @@ export async function load({ params }) {
 
     const history = await getOpenhabStatusHistory(statusId, HISTORY_DAYS);
 
+    // Neuester Versionsstand je Komponente ueber alle Anlagen - die Seite
+    // hebt damit hervor, wo diese Anlage hinterherhinkt. Das OS bleibt
+    // aussen vor: unterschiedliche Distributionen sind kein Rueckstand.
+    const all = await getOpenhabStatuses();
+    /** @type {Record<string, string | null>} */
+    const fleetNewest = {};
+    for (const key of ['ibm', 'openhab', 'java']) {
+        fleetNewest[key] = newestVersion(
+            all.map((/** @type {any} */ row) => row.data?.versions?.[key])
+        );
+    }
+
     return {
+        fleetNewest,
         anlage: {
             id: status.id,
             name: status.name,

@@ -88,6 +88,30 @@ function collectLogEntries() {
   return entries.slice(-LOG_MAX_ENTRIES);
 }
 
+// Versionsstaende fuer das Dashboard: das IBM-Paket stempelt
+// 04-install-rules.sh beim Rendern der Regel aus der BUILD-INFO des Pakets,
+// openHAB-Kern und Java liefert die Runtime, das Betriebssystem
+// /etc/os-release. Fehlendes bleibt null.
+function collectVersions() {
+  var versions = { ibm: '@IBM_PAKET_VERSION@', openhab: null, java: null, os: null };
+  try {
+    versions.openhab = String(Java.type('org.openhab.core.OpenHAB').getVersion());
+  } catch (e) { }
+  try {
+    versions.java = String(Java.type('java.lang.System').getProperty('java.runtime.version'));
+  } catch (e) { }
+  try {
+    var os = actions.Exec.executeCommandLine(
+      time.Duration.ofSeconds(5),
+      '/bin/sh', '-c', '. /etc/os-release 2>/dev/null && echo "$PRETTY_NAME"'
+    );
+    if (os !== null && os !== undefined && String(os).trim().length > 0) {
+      versions.os = String(os).trim();
+    }
+  } catch (e) { }
+  return versions;
+}
+
 var payload = {
   anlage: '@IBM_ANLAGE_NAME@',
   token: '@IBM_STATUS_TOKEN@',
@@ -121,7 +145,8 @@ var payload = {
     ladesperre_start: stateOf('Ischlstrom_Ladesperre_Start'),
     ladesperre_ende: stateOf('Ischlstrom_Ladesperre_Ende'),
     ladesperre_datum: stateOf('Ischlstrom_Ladesperre_Datum'),
-    log_entries: collectLogEntries()
+    log_entries: collectLogEntries(),
+    versions: collectVersions()
   }
 };
 

@@ -296,8 +296,12 @@ gehen die **Fehler und Warnungen** aus dem openHAB-Log der letzten
 24 Stunden mit (`WARN`/`ERROR`-Zeilen aus `/var/log/openhab/openhab.log`,
 hoechstens 20 Eintraege, Meldungstext gekuerzt) — das Dashboard zeigt sie
 auf der Detailseite der Anlage, die Uebersicht zaehlt sie je Anlage.
-Uebertragen werden ausschliesslich diese IBM-Betriebsdaten und
-Logmeldungen, keine Verbrauchsdaten des Haushalts.
+Ausserdem meldet die Anlage ihre **Versionsstaende**: den Stand des
+IBM-Pakets (aus der BUILD-INFO, beim Rendern der Regel gestempelt —
+so erkennt der Vorstand Anlagen mit veraltetem Paket), die
+openHAB-Version, die Java-Runtime und das Betriebssystem.
+Uebertragen werden ausschliesslich diese IBM-Betriebsdaten,
+Logmeldungen und Versionsstaende, keine Verbrauchsdaten des Haushalts.
 
 Die Anlage authentifiziert sich mit einem **Status-Token**, das der Vorstand
 **vor der Installation** auf <https://ischlstrom.org/board/openhab> fuer das
