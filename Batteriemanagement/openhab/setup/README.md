@@ -304,8 +304,13 @@ Zahl der **ausstehenden apt-Updates** (per `apt-get -s dist-upgrade`
 aus dem lokalen Paket-Cache, samt Stand der Paketlisten). Damit die Zahl
 aktuell bleibt, aktiviert das Setup ein taegliches `apt-get update` ueber
 die Debian-eigene apt-daily-Mechanik (`/etc/apt/apt.conf.d/02ibm-periodic`,
-`APT::Periodic::Update-Package-Lists`) — installiert wird dabei nichts
-automatisch, nur die Paketlisten werden aktualisiert.
+`APT::Periodic::Update-Package-Lists`). **Sicherheitsupdates spielt die
+Anlage automatisch ein**: das Setup installiert `unattended-upgrades` und
+aktiviert es (`APT::Periodic::Unattended-Upgrade`) in der
+Debian-Standardkonfiguration — nur Pakete aus dem Debian-Security-Archiv,
+kein automatischer Reboot. openHAB selbst und die Pi-Firmware kommen aus
+anderen Repositories und werden nie automatisch aktualisiert; was das
+Dashboard als "ausstehend" zeigt, sind genau diese manuellen Updates.
 Uebertragen werden ausschliesslich diese IBM-Betriebsdaten, Logmeldungen,
 Versionsstaende und Update-Zaehler, keine Verbrauchsdaten des Haushalts.
 

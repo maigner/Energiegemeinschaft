@@ -242,20 +242,43 @@ if [ "$INSTALL_STATUS_PUSH" = "1" ]; then
   # Paket-Cache; damit die stimmt, muessen die Paketlisten regelmaessig
   # aktualisiert werden. Dafuer wird die Debian-eigene apt-daily-Mechanik
   # aktiviert (apt-daily.timer laeuft taeglich zu einem randomisierten
-  # Zeitpunkt) - installiert wird dabei nichts, nur "apt-get update".
+  # Zeitpunkt). Sicherheitsupdates spielt unattended-upgrades automatisch
+  # ein (Debian-Standardkonfiguration: nur das Security-Archiv, kein
+  # automatischer Reboot - openHAB und Pi-Firmware kommen aus anderen Repos
+  # und bleiben damit Handarbeit). Alles Uebrige zeigt nur das Dashboard.
   apt_periodic="/etc/apt/apt.conf.d/02ibm-periodic"
   if command -v apt-get >/dev/null 2>&1 && [ -d /etc/apt/apt.conf.d ]; then
+    # openHABian maskiert unattended-upgrades.service, damit waehrend der
+    # Ersteinrichtung kein apt dazwischenfunkt. Die Updates selbst laufen
+    # zwar ueber apt-daily-upgrade.timer, der Dienst laesst aber ein gerade
+    # laufendes Update beim Herunterfahren fertig werden - fuer den
+    # Regelbetrieb wird die Maskierung deshalb aufgehoben.
+    systemctl unmask unattended-upgrades.service \
+      apt-daily.timer apt-daily-upgrade.timer >/dev/null 2>&1 || true
+    if ! dpkg -s unattended-upgrades >/dev/null 2>&1; then
+      log "Installiere unattended-upgrades (apt-get) ..."
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get install -y -qq unattended-upgrades \
+        || warn "unattended-upgrades konnte nicht installiert werden - Sicherheitsupdates bleiben Handarbeit."
+    fi
     cat > "$apt_periodic" <<'EOF'
 // GENERIERT von IBM (04-install-rules.sh) - nicht direkt bearbeiten.
 // Haelt die Paketlisten taeglich aktuell, damit der Status-Push die Zahl
-// ausstehender apt-Updates korrekt an das Vorstands-Dashboard meldet.
-// Es wird nichts automatisch installiert. Entfernt von purge-ibm.sh.
+// ausstehender apt-Updates korrekt an das Vorstands-Dashboard meldet, und
+// laesst unattended-upgrades Sicherheitsupdates automatisch einspielen
+// (Debian-Standard: nur das Security-Archiv, kein automatischer Reboot).
+// Entfernt von purge-ibm.sh.
 APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
 EOF
     chmod 0644 "$apt_periodic"
     systemctl enable --now apt-daily.timer >/dev/null 2>&1 \
       || warn "apt-daily.timer konnte nicht aktiviert werden."
-    log "Taegliches apt-get update aktiviert ($apt_periodic)."
+    systemctl enable --now apt-daily-upgrade.timer >/dev/null 2>&1 \
+      || warn "apt-daily-upgrade.timer konnte nicht aktiviert werden."
+    systemctl enable --now unattended-upgrades.service >/dev/null 2>&1 \
+      || warn "unattended-upgrades.service konnte nicht aktiviert werden."
+    log "Taegliches apt-get update und automatische Sicherheitsupdates aktiviert ($apt_periodic)."
   else
     warn "apt-get nicht gefunden - taegliches apt-get update uebersprungen."
   fi

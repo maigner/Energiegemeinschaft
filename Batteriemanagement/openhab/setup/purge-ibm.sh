@@ -122,10 +122,12 @@ rm -f "$OPENHAB_CONF"/automation/js/ibm_*.js \
       "$OPENHAB_CONF"/persistence/mapdb.persist \
       "$OPENHAB_CONF"/persistence/rrd4j.persist
 log "Regeln, Items und Persistence-Konfiguration entfernt."
-# Taegliches apt-get update fuer den Status-Push (apt-daily.timer selbst
-# ist Debian-Standard und bleibt unangetastet).
+# Taegliches apt-get update und automatische Sicherheitsupdates fuer den
+# Status-Push (die apt-daily-Timer und das Paket unattended-upgrades sind
+# Debian-Standard und bleiben installiert - ohne die Periodic-Eintraege
+# tun sie nichts mehr).
 rm -f /etc/apt/apt.conf.d/02ibm-periodic \
-  && log "entfernt: /etc/apt/apt.conf.d/02ibm-periodic"
+  && log "entfernt: /etc/apt/apt.conf.d/02ibm-periodic (apt-Update und Sicherheitsupdates deaktiviert)"
 rm -rf /var/lib/openhab/persistence/mapdb /var/lib/openhab/persistence/rrd4j \
   && log "mapdb- und rrd4j-Daten entfernt."
 # Der Standard-Dienst zeigt sonst auf das dann deinstallierte rrd4j.
