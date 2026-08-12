@@ -376,7 +376,7 @@ pages:
                               title: Entladung verwenden
                               item: IBM_ENTLADUNG_AKTIV
                               color: blue
-                              footer: "=items.IBM_ENTLADUNG_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - Die Batterie speist am Abend ins Netz ein, solange die Gemeinschaft mehr verbraucht als erzeugt (Überschuss-Zeiten unten). Liegen keine Überschuss-Zeiten vor, wird nicht eingespeist.' : (items.IBM_ENTLADUNG_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Es wird nicht automatisch eingespeist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
+                              footer: "=items.IBM_ENTLADUNG_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - Die Batterie speist am Abend ins Netz ein, solange die Gemeinschaft mehr verbraucht als erzeugt (Einspeise-Zeiten unten). Liegen keine Einspeise-Zeiten vor, wird nicht eingespeist.' : (items.IBM_ENTLADUNG_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Es wird nicht automatisch eingespeist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -387,24 +387,24 @@ pages:
                         default:
                           - component: oh-label-card
                             config:
-                              title: Überschuss ab
-                              item: Ischlstrom_Crossover_Start
+                              title: Einspeisung ab
+                              item: Ischlstrom_Crossover_Ende
                               footer: >-
-                                Ab dieser Uhrzeit erzeugt die Gemeinschaft mehr,
-                                als sie verbraucht - die Einspeisung aus der
-                                Batterie endet.
+                                Ab dieser Uhrzeit verbraucht die Gemeinschaft
+                                wieder mehr, als sie erzeugt - die Batterie
+                                beginnt am Abend einzuspeisen.
                     - component: oh-grid-col
                       config: {}
                       slots:
                         default:
                           - component: oh-label-card
                             config:
-                              title: Überschuss bis
-                              item: Ischlstrom_Crossover_Ende
+                              title: Einspeisung bis
+                              item: Ischlstrom_Crossover_Start
                               footer: >-
-                                Ab dieser Uhrzeit verbraucht die Gemeinschaft
-                                wieder mehr, als sie erzeugt - die Batterie
-                                beginnt am Abend einzuspeisen.
+                                Ab dieser Uhrzeit erzeugt die Gemeinschaft mehr,
+                                als sie verbraucht - die Einspeisung aus der
+                                Batterie endet.
               - component: oh-grid-row
                 config: {}
                 slots:
