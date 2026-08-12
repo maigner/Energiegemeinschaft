@@ -107,16 +107,6 @@
         return Number.isFinite(n) ? n.toFixed(digits) : null;
     }
 
-    /**
-     * @param {string | null | undefined} value
-     * @returns {{ text: string, color: "green" | "gray" | "yellow" }}
-     */
-    function schalter(value) {
-        if (value === "ON") return { text: "Ein", color: "green" };
-        if (value === "OFF") return { text: "Aus", color: "gray" };
-        return { text: "unbekannt", color: "yellow" };
-    }
-
     /** @param {string} token */
     function copyToken(token) {
         navigator.clipboard?.writeText(token);
@@ -156,7 +146,52 @@
         }
         return { errors, warnings };
     }
+
+    /**
+     * Sammelt die Auffälligkeiten einer Anlage für die Hinweis-Badges der
+     * Karte. Alles Unauffällige bleibt weg -- eine leere Liste heißt:
+     * alles in Ordnung.
+     * @param {any} d
+     * @returns {{ text: string, color: "red" | "yellow" | "gray" }[]}
+     */
+    function issuesOf(d) {
+        /** @type {{ text: string, color: "red" | "yellow" | "gray" }[]} */
+        const issues = [];
+        if (d.inverter_status && d.inverter_status !== "ONLINE") {
+            issues.push({ text: `Wechselrichter ${d.inverter_status}`, color: "red" });
+        }
+        if (d.hauptschalter === "OFF") {
+            issues.push({ text: "Batteriemanagement aus", color: "yellow" });
+        } else {
+            if (d.ladesperre_aktiv === "OFF") issues.push({ text: "Ladesperre aus", color: "gray" });
+            if (d.entladung_aktiv === "OFF") issues.push({ text: "Entladung aus", color: "gray" });
+        }
+        const counts = logCounts(d);
+        if (counts?.errors) issues.push({ text: `${counts.errors} Fehler im Log`, color: "red" });
+        if (counts?.warnings) issues.push({ text: `${counts.warnings} Warnungen im Log`, color: "yellow" });
+        if (d.versions?.ibm && newestIbm && compareVersions(d.versions.ibm, newestIbm) < 0) {
+            issues.push({ text: `IBM-Paket ${d.versions.ibm} veraltet`, color: "yellow" });
+        }
+        if (d.apt_updates?.pending > 0) {
+            issues.push({ text: `${d.apt_updates.pending} apt-Updates`, color: "yellow" });
+        }
+        if (d.system?.reboot_required) {
+            issues.push({ text: "Neustart erforderlich", color: "yellow" });
+        }
+        const disk = d.system?.disk_used_pct;
+        if (typeof disk === "number" && disk >= 80) {
+            issues.push({ text: `SD-Karte ${Math.round(disk)} % belegt`, color: disk >= 90 ? "red" : "yellow" });
+        }
+        return issues;
+    }
 </script>
+
+{#snippet stat(/** @type {string} */ value, /** @type {string} */ label)}
+    <div>
+        <p class="text-base font-semibold dark:text-white">{value}</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+    </div>
+{/snippet}
 
 <div class="p-4 max-w-7xl mx-auto">
     <div class="flex flex-wrap items-center gap-4 mb-6">
@@ -182,8 +217,7 @@
                 {@const status = statusOf(anlage)}
                 {@const d = anlage.data}
                 {@const soc = num(d.soc, 0)}
-                {@const haupt = schalter(d.hauptschalter)}
-                {@const counts = logCounts(d)}
+                {@const issues = issuesOf(d)}
                 <Card
                     href={`/board/openhab/${anlage.id}`}
                     class="max-w-none p-4 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -219,95 +253,26 @@
                             <Progressbar progress={soc ?? 0} color={Number(soc) < 20 ? "red" : "green"} />
                         </div>
 
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                            <span class="text-gray-600 dark:text-gray-300">Wechselrichter</span>
-                            <span class="text-right">
-                                <Badge color={d.inverter_status === "ONLINE" ? "green" : "red"}>
-                                    {d.inverter_status ?? "unbekannt"}
-                                </Badge>
-                            </span>
+                        <div class="grid grid-cols-3 gap-2 text-center mb-3">
+                            {@render stat(
+                                num(d.batterie_kapazitaet) !== null ? `${num(d.batterie_kapazitaet)} kWh` : "-",
+                                "Kapazität",
+                            )}
+                            {@render stat(
+                                num(d.wolkenvorschau, 0) !== null ? `${num(d.wolkenvorschau, 0)} %` : "-",
+                                "Wolkenvorschau",
+                            )}
+                            {@render stat(uptimeText(d) ?? "-", "Uptime")}
+                        </div>
 
-                            <span class="text-gray-600 dark:text-gray-300">Batteriemanagement</span>
-                            <span class="text-right">
-                                <Badge color={haupt.color}>{haupt.text}</Badge>
-                            </span>
-
-                            <span class="text-gray-600 dark:text-gray-300">Ladesperre</span>
-                            <span class="text-right dark:text-white">{schalter(d.ladesperre_aktiv).text}</span>
-
-                            <span class="text-gray-600 dark:text-gray-300">Entladung</span>
-                            <span class="text-right dark:text-white">{schalter(d.entladung_aktiv).text}</span>
-
-                            <span class="text-gray-600 dark:text-gray-300">Kapazität (geschätzt)</span>
-                            <span class="text-right dark:text-white">
-                                {num(d.batterie_kapazitaet) !== null ? `${num(d.batterie_kapazitaet)} kWh` : "-"}
-                            </span>
-
-                            <span class="text-gray-600 dark:text-gray-300">Entladeleistung</span>
-                            <span class="text-right dark:text-white">
-                                {num(d.min_entladeleistung_w, 0) !== null && num(d.max_entladeleistung_w, 0) !== null
-                                    ? `${num(d.min_entladeleistung_w, 0)} bis ${num(d.max_entladeleistung_w, 0)} W`
-                                    : "-"}
-                            </span>
-
-                            <span class="text-gray-600 dark:text-gray-300">Wolkenvorschau</span>
-                            <span class="text-right dark:text-white">
-                                {num(d.wolkenvorschau, 0) !== null ? `${num(d.wolkenvorschau, 0)}%` : "-"}
-                            </span>
-
-                            <span class="text-gray-600 dark:text-gray-300">SD-Karte</span>
-                            <span class="text-right">
-                                {#if typeof d.system?.disk_used_pct !== "number"}
-                                    <span class="dark:text-white">-</span>
-                                {:else if d.system.disk_used_pct >= 90}
-                                    <Badge color="red">{Math.round(d.system.disk_used_pct)} % belegt</Badge>
-                                {:else if d.system.disk_used_pct >= 80}
-                                    <Badge color="yellow">{Math.round(d.system.disk_used_pct)} % belegt</Badge>
-                                {:else}
-                                    <span class="dark:text-white">{Math.round(d.system.disk_used_pct)} % belegt</span>
-                                {/if}
-                            </span>
-
-                            <span class="text-gray-600 dark:text-gray-300">Uptime</span>
-                            <span class="text-right dark:text-white">{uptimeText(d) ?? "-"}</span>
-
-                            <span class="text-gray-600 dark:text-gray-300">IBM-Paket</span>
-                            <span class="text-right">
-                                {#if !d.versions?.ibm}
-                                    <span class="dark:text-white">-</span>
-                                {:else if newestIbm && compareVersions(d.versions.ibm, newestIbm) < 0}
-                                    <Badge color="yellow">{d.versions.ibm} · veraltet</Badge>
-                                {:else}
-                                    <span class="dark:text-white">{d.versions.ibm}</span>
-                                {/if}
-                            </span>
-
-                            <span class="text-gray-600 dark:text-gray-300">apt-Updates</span>
-                            <span class="text-right">
-                                {#if !d.apt_updates}
-                                    <span class="dark:text-white">-</span>
-                                {:else if d.apt_updates.pending > 0}
-                                    <Badge color="yellow">{d.apt_updates.pending} ausstehend</Badge>
-                                {:else}
-                                    <Badge color="green">aktuell</Badge>
-                                {/if}
-                            </span>
-
-                            <span class="text-gray-600 dark:text-gray-300">Log (24 h)</span>
-                            <span class="text-right">
-                                {#if counts === null}
-                                    <span class="dark:text-white">-</span>
-                                {:else if counts.errors === 0 && counts.warnings === 0}
-                                    <Badge color="green">keine Meldungen</Badge>
-                                {:else}
-                                    {#if counts.errors > 0}
-                                        <Badge color="red">{counts.errors} Fehler</Badge>
-                                    {/if}
-                                    {#if counts.warnings > 0}
-                                        <Badge color="yellow">{counts.warnings} Warnungen</Badge>
-                                    {/if}
-                                {/if}
-                            </span>
+                        <div class="flex flex-wrap gap-1.5">
+                            {#if issues.length === 0}
+                                <Badge color="green">alles in Ordnung</Badge>
+                            {:else}
+                                {#each issues as issue}
+                                    <Badge color={issue.color}>{issue.text}</Badge>
+                                {/each}
+                            {/if}
                         </div>
                     {/if}
 
