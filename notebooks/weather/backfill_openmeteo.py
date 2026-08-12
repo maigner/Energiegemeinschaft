@@ -81,8 +81,12 @@ REQUIRED = [
 
 
 def connect():
-    os.environ.setdefault("PGSERVICEFILE", str(NOTEBOOKS_DIR / ".pg_service.conf"))
-    os.environ.setdefault("PGPASSFILE", str(NOTEBOOKS_DIR / ".pgpass"))
+    # nur setzen, wenn die Dateien wirklich im Repo liegen -- sonst nimmt
+    # libpq die Standardorte ~/.pg_service.conf und ~/.pgpass
+    if (NOTEBOOKS_DIR / ".pg_service.conf").exists():
+        os.environ.setdefault("PGSERVICEFILE", str(NOTEBOOKS_DIR / ".pg_service.conf"))
+    if (NOTEBOOKS_DIR / ".pgpass").exists():
+        os.environ.setdefault("PGPASSFILE", str(NOTEBOOKS_DIR / ".pgpass"))
     return psycopg.connect(service="eeg-middleware")
 
 
