@@ -1,153 +1,78 @@
 <script>
-    import { formatDate } from "$lib/format";
-    import { JsonView } from "@zerodevx/svelte-json-view";
-    import { format } from "date-fns";
+    import { Chart } from "@flowbite-svelte-plugins/chart";
+    import { Card, Heading } from "flowbite-svelte";
+    import { COLORS, baseOptions } from "./chartShared.js";
 
-    import { Heading } from "flowbite-svelte";
-    import { Chart } from "flowbite-svelte";
+    /** @type {{ dailySums: any[] }} */
+    let { dailySums } = $props();
 
-    export let data;
+    const ts = (/** @type {any} */ it) => new Date(it.day).getTime();
+    const mwh = (/** @type {string} */ v) => parseFloat(v) / 1000.0;
 
-    /**
-     * @type {any[]}
-     */
-    let labels = [];
-    /**
-     * @type {number[]}
-     */
-    let totalConsumption = [];
-    /**
-     * @type {number[]}
-     */
-    let totalProduction = [];
-    /**
-     * @type {number[]}
-     */
-    let selfUse = [];
+    const lastDate = dailySums.length ? new Date(dailySums.at(-1).day) : null;
 
-    // filter((_, index) => index % n === n - 1).
-
-    data.dailySums.forEach((it) => {
-        //console.log(element.month);
-        labels.push(`${formatDate(it.day)}`);
-        totalConsumption.push(parseFloat(it.total_consumption) / 1000.0);
-        totalProduction.push(parseFloat(it.total_production) / 1000.0);
-        selfUse.push(parseFloat(it.self_use) / 1000.0);
-    });
-
-
-
-    let options = {
-        chart: {
-            height: "400px",
-            maxWidth: "100%",
-            type: "area",
-            fontFamily: "Inter, sans-serif",
-            dropShadow: {
-                enabled: false,
-            },
-            zoom: {
-                enabled: true, // Disables zooming
-            },
-            toolbar: {
-                tools: {
-                    zoom: true, // Hides zoom buttons
-                    zoomin: true,
-                    zoomout: true,
-                    pan: true,
-                    reset: true,
-                },
-            },
-        },
-
-        tooltip: {
-            enabled: true,
-            x: {
-                show: false,
-            },
-            y: {
-                formatter: function (/** @type {number} */ value) {
-                    return `${value.toFixed(2)} MWh`; // Ensures tooltip also shows rounded values
-                },
-            },
-        },
-        fill: {
-            type: "gradient",
-            gradient: {
-                opacityFrom: 0.55,
-                opacityTo: 0,
-                shade: "#1C64F2",
-                gradientToColors: ["#1C64F2"],
-            },
-        },
-        dataLabels: {
-            enabled: false,
-        },
-        stroke: {
-            width: 6,
-        },
-        grid: {
-            show: false,
-            strokeDashArray: 4,
-            padding: {
-                left: 2,
-                right: 2,
-                top: 0,
-            },
-        },
+    /** @type {import("apexcharts").ApexOptions} */
+    const options = {
+        ...baseOptions(),
+        colors: [COLORS.community, COLORS.consumption, COLORS.production],
+        // "Verteilt" als Fläche: Teilmenge von Verbrauch und Erzeugung
+        fill: { type: "solid", opacity: [0.12, 1, 1] },
         series: [
             {
-                name: "Verbrauch",
-                data: totalConsumption,
-                color: "#ed2a00",
-            },
-            {
-                name: "Produktion",
-                data: totalProduction,
-                color: "#07831e",
-            },
-            {
                 name: "Verteilt",
-                data: selfUse,
-                color: "#52cb24",
+                type: "area",
+                data: dailySums.map((it) => [ts(it), mwh(it.self_use)]),
+            },
+            {
+                name: "Verbrauch",
+                type: "line",
+                data: dailySums.map((it) => [ts(it), mwh(it.total_consumption)]),
+            },
+            {
+                name: "Erzeugung",
+                type: "line",
+                data: dailySums.map((it) => [ts(it), mwh(it.total_production)]),
             },
         ],
-        xaxis: {
-            categories: labels,
-            labels: {
-                show: true,
-            },
-            axisBorder: {
-                show: false,
-            },
-            axisTicks: {
-                show: false,
-            },
-            title: {
-                text: "Tag",
+        tooltip: {
+            shared: true,
+            intersect: false,
+            x: { format: "dd. MMM yyyy" },
+            y: {
+                formatter: (/** @type {number} */ value) =>
+                    `${value.toFixed(2)} MWh`,
             },
         },
         yaxis: {
-            show: true,
-            labels: {
-                formatter: function (/** @type {number} */ value) {
-                    return value.toFixed(0);
-                },
-            },
+            min: 0,
+            forceNiceScale: true,
             title: {
-                text: "Tagessumme [MWh]",
+                text: "MWh je Tag",
+                style: { color: "#6b7280", fontWeight: 400 },
+            },
+            labels: {
+                style: { colors: "#6b7280" },
+                formatter: (/** @type {number} */ value) => value.toFixed(1),
             },
         },
     };
 </script>
 
-<div class="w-full flex content-center flex-col">
-    <Heading class="text-primary-700 text-center" tag="h6"
-        >Letze 30 Tage</Heading
-    >
-    <div class="mx-auto">
-        <span class="text-xs">Stand: {labels[labels.length - 1]}</span>
+<Card class="p-4 md:p-6" size="xl">
+    <div class="flex items-end justify-between mb-2">
+        <Heading tag="h2" class="text-xl font-semibold w-auto">
+            Letzte 30 Tage
+        </Heading>
+        {#if lastDate}
+            <span class="text-xs text-gray-500 dark:text-gray-400">
+                Stand: {lastDate.toLocaleDateString("de-AT", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                })}
+            </span>
+        {/if}
     </div>
 
-    <Chart class="m-4" bind:options />
-</div>
+    <Chart {options} />
+</Card>

@@ -1,153 +1,83 @@
 <script>
-    import { JsonView } from "@zerodevx/svelte-json-view";
-    import { format } from "date-fns";
+    import { Chart } from "@flowbite-svelte-plugins/chart";
+    import { Card, Heading } from "flowbite-svelte";
+    import { getISOWeek, getISOWeekYear } from "date-fns";
+    import { COLORS, baseOptions, isoWeekStart } from "./chartShared.js";
 
-    import { Heading } from "flowbite-svelte";
-    import { Chart } from "flowbite-svelte";
+    /** @type {{ weeklySums: any[] }} */
+    let { weeklySums } = $props();
 
-    export let data;
+    const ts = (/** @type {any} */ it) =>
+        isoWeekStart(parseInt(it.year), parseInt(it.week));
 
-    /**
-     * @type {any[]}
-     */
-    let labels = [];
+    // Messfehler können Quoten über 100 % erzeugen – auf 100 % kappen
+    const pct = (/** @type {number} */ share, /** @type {string} */ total) =>
+        Math.min((share / parseFloat(total)) * 100, 100);
 
-    let relativeUseOfProduction = [];
-    let relativeProvisionOfConsumption = [];
+    const kwLabel = (/** @type {number} */ value) =>
+        `KW ${getISOWeek(value)} / ${getISOWeekYear(value)}`;
 
-    // filter((_, index) => index % n === n - 1).
+    const lastTs = weeklySums.length ? ts(weeklySums.at(-1)) : null;
 
-    data.weeklySums.forEach(
-        (
-            /** @type {{ week: any; total_consumption: string; total_production: string; self_use: string; }} */ it,
-        ) => {
-            //console.log(element.month);
-            labels.push(`KW ${it.week}`);
-
-            let relativeUse =
-                (parseFloat(it.self_use) / parseFloat(it.total_production)) *
-                100;
-            let relativeProvision =
-                (parseFloat(it.self_use) / parseFloat(it.total_consumption)) *
-                100;
-
-            // handle data > 100% due to measurement errors or other issues
-            if (relativeUse > 100) {
-                relativeUse = 100;
-            }
-            if (relativeProvision > 100) {
-                relativeProvision = 100;
-            }
-
-            relativeUseOfProduction.push(relativeUse);
-            relativeProvisionOfConsumption.push(relativeProvision);
-        },
-    );
-
-    let options = {
-        chart: {
-            height: "400px",
-            maxWidth: "100%",
-            type: "area",
-            fontFamily: "Inter, sans-serif",
-            dropShadow: {
-                enabled: false,
-            },
-            zoom: {
-                enabled: true, // Disables zooming
-            },
-            toolbar: {
-                tools: {
-                    zoom: true, // Hides zoom buttons
-                    zoomin: true,
-                    zoomout: true,
-                    pan: true,
-                    reset: true,
-                },
-            },
-        },
-
-        tooltip: {
-            enabled: true,
-            x: {
-                show: false,
-            },
-            y: {
-                formatter: function (/** @type {number} */ value) {
-                    return `${value.toFixed(2)} %`;
-                },
-            },
-        },
-        fill: {
-            type: "gradient",
-            gradient: {
-                opacityFrom: 0.55,
-                opacityTo: 0,
-                shade: "#1C64F2",
-                gradientToColors: ["#1C64F2"],
-            },
-        },
-        dataLabels: {
-            enabled: false,
-        },
-        stroke: {
-            width: 6,
-        },
-        grid: {
-            show: false,
-            strokeDashArray: 4,
-            padding: {
-                left: 2,
-                right: 2,
-                top: 0,
-            },
-        },
+    /** @type {import("apexcharts").ApexOptions} */
+    const options = {
+        ...baseOptions(),
+        colors: [COLORS.consumption, COLORS.production],
         series: [
             {
-                name: "Deckung von Verbrauch durch Eigenproduktion",
-                data: relativeProvisionOfConsumption,
-                color: "#07831e", // Greenish
+                name: "Verbrauch aus der EEG gedeckt",
+                data: weeklySums.map((it) => [
+                    ts(it),
+                    pct(parseFloat(it.self_use), it.total_consumption),
+                ]),
             },
             {
-                name: "Eigenverbrauchsquote der Produktion",
-                data: relativeUseOfProduction,
-                color: "#FF6B35", // Orange
+                name: "Erzeugung in der EEG verteilt",
+                data: weeklySums.map((it) => [
+                    ts(it),
+                    pct(parseFloat(it.self_use), it.total_production),
+                ]),
             },
         ],
-        xaxis: {
-            categories: labels,
-            labels: {
-                show: true,
-            },
-            axisBorder: {
-                show: false,
-            },
-            axisTicks: {
-                show: false,
-            },
-            title: {
-                text: "Kalenderwoche",
+        tooltip: {
+            shared: true,
+            intersect: false,
+            x: { formatter: kwLabel },
+            y: {
+                formatter: (/** @type {number} */ value) =>
+                    `${value.toFixed(1)} %`,
             },
         },
         yaxis: {
-            show: true,
+            min: 0,
+            max: 100,
+            tickAmount: 5,
             labels: {
-                formatter: function (/** @type {number} */ value) {
-                    return value.toFixed(0);
-                },
-            },
-            title: {
-                text: "Verteilung [%]",
+                style: { colors: "#6b7280" },
+                formatter: (/** @type {number} */ value) =>
+                    `${value.toFixed(0)} %`,
             },
         },
     };
 </script>
 
-<div class="w-full flex content-center flex-col">
-    <Heading class="text-primary-700 text-center" tag="h6">Verteilung</Heading>
-    <div class="mx-auto">
-        <span class="text-xs">Stand: {labels[labels.length - 1]}</span>
+<Card class="p-4 md:p-6" size="xl">
+    <div class="flex items-end justify-between mb-2">
+        <div>
+            <Heading tag="h2" class="text-xl font-semibold w-auto">
+                Deckungsgrad
+            </Heading>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                Wie viel des Verbrauchs die Gemeinschaft deckt – und wie viel
+                der Erzeugung in der Gemeinschaft bleibt
+            </p>
+        </div>
+        {#if lastTs}
+            <span class="text-xs text-gray-500 dark:text-gray-400">
+                Stand: {kwLabel(lastTs)}
+            </span>
+        {/if}
     </div>
 
-    <Chart class="m-4" bind:options />
-</div>
+    <Chart {options} />
+</Card>
