@@ -9,18 +9,20 @@ export async function load({ fetch, params, parent, locals }) {
 
     const messagesImport = await importMemberDataFromNextcloud();
 
-
-    const messagesCoordinates = await updateMissingMemberCoordinates();
-
+    await updateMissingMemberCoordinates();
 
     const pendingActiveNotifications = await getMembersWithPendingWelcome();
 
-
     await sendWelcomeEmails(pendingActiveNotifications);
 
+    // Nur neu angelegte Datensätze anzeigen; Updates/Skips laufen weiter,
+    // werden aber nicht gelistet.
+    const inserted = messagesImport
+        .filter((m) => m.startsWith("[INSERTED]"))
+        .map((m) => m.replace(/^\[INSERTED\]\s*/, ""));
 
     return {
-        messages: [...messagesImport, ...messagesCoordinates]
+        messages: inserted
     }
 
 }
