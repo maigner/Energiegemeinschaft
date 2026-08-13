@@ -1,5 +1,4 @@
-import { getMeasurementPoints, getMembers, getNumberOfMembersStats } from "$lib/server/db/members/member";
-import { nextcloudClient } from "$lib/server/nextcloud/client";
+import { getMembers, getNumberOfMembersStats } from "$lib/server/db/members/member";
 import { importMemberDataFromNextcloud } from "$lib/server/nextcloud/members/memberdata";
 
 
@@ -7,19 +6,12 @@ import { importMemberDataFromNextcloud } from "$lib/server/nextcloud/members/mem
 export async function load({ fetch, params, parent, locals }) {
 
     const numberOfMembersStats = await getNumberOfMembersStats();
-    //const measurementPoints = await getMeasurementPoints();
     const members = await getMembers();
-
-
 
     await importMemberDataFromNextcloud();
 
-
-
-
     return {
         numberOfMembersStats: numberOfMembersStats,
-        //measurementPoints: measurementPoints,
         members: members
     }
 

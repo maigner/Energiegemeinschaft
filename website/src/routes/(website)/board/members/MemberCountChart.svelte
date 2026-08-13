@@ -1,119 +1,112 @@
 <script>
-    import { JsonView } from "@zerodevx/svelte-json-view";
-    import { format } from "date-fns";
+    import { Chart } from "@flowbite-svelte-plugins/chart";
+    import { Card } from "flowbite-svelte";
+    import deLocale from "apexcharts/dist/locales/de.json";
 
-    import { Heading } from "flowbite-svelte";
-    import { Chart } from 'flowbite-svelte';
+    /** @type {{ stats: { month: string | Date, num_members: string }[] }} */
+    let { stats } = $props();
 
-    export let data;
+    // volle Tagesauflösung als [Zeitstempel, Anzahl]-Paare
+    const points = stats.map((e) => [
+        new Date(e.month).getTime(),
+        parseInt(e.num_members),
+    ]);
 
-    let labels = [];
-    let dataset = [];
+    const lastPoint = points.at(-1);
+    const current = lastPoint?.[1] ?? 0;
+    const lastDate = lastPoint ? new Date(lastPoint[0]) : null;
 
-    // filter((_, index) => index % n === n - 1).
+    // Zuwachs seit Jahresbeginn
+    const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+    const atYearStart = points.filter((p) => p[0] <= yearStart).at(-1)?.[1];
+    const delta = atYearStart != null ? current - atYearStart : null;
 
-    // filter every nth element to smoothen chart
-    data.numberOfMembersStats.forEach((element) => {
-        //console.log(element.month);
-        labels.push(format(element.month, "yyyy-MM-dd"));
-        dataset.push(parseInt(element.num_members));
-    });
+    const dateLabel = lastDate
+        ? lastDate.toLocaleDateString("de-AT", {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+          })
+        : "";
 
-    // every nth and the last
-    const n = 15;
-
-    labels = [
-        ...(labels.filter((_, index) => index % n === n - 1)),
-        ...(labels.slice(-1))
-    ];
-    
-    dataset = [
-        ...(dataset.filter((_, index) => index % n === n - 1)),
-        ...(dataset.slice(-1))
-    ];
-
-
-    // make sure to add the latest point. no worries about duplicates
-
-
-
-
-    let memberCountGraphOptions = {
+    /** @type {import("apexcharts").ApexOptions} */
+    const options = {
         chart: {
-            height: "400px",
-            maxWidth: "100%",
+            height: "320px",
             type: "area",
             fontFamily: "Inter, sans-serif",
-            dropShadow: {
-                enabled: false,
-            },
-            toolbar: {
-                show: false,
-            },
+            locales: [deLocale],
+            defaultLocale: "de",
+            toolbar: { show: false },
+            zoom: { enabled: false },
+            animations: { enabled: false },
+        },
+        colors: ["#1A56DB"],
+        stroke: { width: 2, curve: "stepline", lineCap: "round" },
+        fill: { type: "solid", opacity: 0.1 },
+        dataLabels: { enabled: false },
+        grid: {
+            show: true,
+            borderColor: "rgba(107, 114, 128, 0.2)",
+            strokeDashArray: 0,
+            xaxis: { lines: { show: false } },
+            yaxis: { lines: { show: true } },
         },
         tooltip: {
-            enabled: true,
-            x: {
-                show: false,
+            x: { format: "dd. MMM yyyy" },
+            y: {
+                formatter: (/** @type {number} */ value) =>
+                    `${value} Mitglieder`,
             },
         },
-        fill: {
-            type: "gradient",
-            gradient: {
-                opacityFrom: 0.55,
-                opacityTo: 0,
-                shade: "#1C64F2",
-                gradientToColors: ["#1C64F2"],
-            },
-        },
-        dataLabels: {
-            enabled: false,
-        },
-        stroke: {
-            width: 6,
-        },
-        grid: {
-            show: false,
-            strokeDashArray: 4,
-            padding: {
-                left: 2,
-                right: 2,
-                top: 0,
-            },
-        },
-        series: [
-            {
-                name: "Anzahl Mitglieder",
-                data: dataset,
-                color: "#1A56DB",
-            },
-        ],
+        series: [{ name: "Mitglieder", data: points }],
         xaxis: {
-            categories: labels,
+            type: "datetime",
             labels: {
-                show: true,
+                datetimeUTC: false,
+                style: { colors: "#6b7280" },
             },
-            axisBorder: {
-                show: false,
-            },
-            axisTicks: {
-                show: false,
-            },
+            axisBorder: { show: false },
+            axisTicks: { show: false },
+            tooltip: { enabled: false },
         },
         yaxis: {
-            show: true,
+            min: 0,
+            forceNiceScale: true,
+            labels: {
+                style: { colors: "#6b7280" },
+                formatter: (/** @type {number} */ value) =>
+                    String(Math.round(value)),
+            },
         },
-        
     };
 </script>
 
+<Card class="p-4 md:p-6" size="xl">
+    <div class="flex items-end justify-between mb-2">
+        <div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                Vereinsstärke
+            </p>
+            <p class="text-4xl font-semibold text-gray-900 dark:text-white">
+                {current}
+            </p>
+        </div>
+        <div class="text-right">
+            {#if delta !== null && delta !== 0}
+                <p
+                    class="text-sm font-medium {delta > 0
+                        ? 'text-green-700 dark:text-green-500'
+                        : 'text-red-700 dark:text-red-500'}"
+                >
+                    {delta > 0 ? "+" : ""}{delta} seit Jahresbeginn
+                </p>
+            {/if}
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                Stand: {dateLabel}
+            </p>
+        </div>
+    </div>
 
-<div class="w-full">
-    <Heading class="text-primary-700 text-center" tag="h6"
-        >Vereinsstärke: {dataset[dataset.length - 1]}</Heading
-    >
-
-    <Chart bind:options={memberCountGraphOptions} />
-
-    <span class="text-xs">Stand: {labels[labels.length - 1]}</span>
-</div>
+    <Chart {options} />
+</Card>
