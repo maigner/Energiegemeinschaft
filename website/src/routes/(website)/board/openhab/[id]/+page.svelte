@@ -287,12 +287,7 @@
         </Heading>
         <Badge color={statusColor[statusOf(anlage)]}>{statusOf(anlage)}</Badge>
     </div>
-    <p
-        class="text-sm text-gray-500 dark:text-gray-400 {anlage.data?.versions ||
-        anlage.data?.apt_updates
-            ? 'mb-1'
-            : 'mb-6'}"
-    >
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
         Mitglied: {anlage.memberName}. Letzte Meldung: {formatLastSeen(
             anlage.lastSeen,
         )}. Diagramme zeigen die letzten {data.historyDays} Tage, gemittelt auf
@@ -313,10 +308,75 @@
         {/if}
     {/snippet}
 
+    {#snippet systemStat(
+        /** @type {string} */ label,
+        /** @type {string} */ value,
+        /** @type {string} */ cls,
+    )}
+        <div>
+            <dt class="text-gray-500 dark:text-gray-400">{label}</dt>
+            <dd class="font-medium {cls || 'text-gray-900 dark:text-gray-100'}">
+                {value}
+            </dd>
+        </div>
+    {/snippet}
+
+    {#if history.length === 0}
+        <Card class="max-w-xl">
+            <p class="text-gray-600 dark:text-gray-300">
+                Für diese Anlage liegt noch kein Verlauf vor. Die Daten sammeln
+                sich mit jeder Statusmeldung (alle 5 Minuten) an, sobald die
+                Anlage meldet.
+            </p>
+        </Card>
+    {:else}
+        <Card class="max-w-none p-4 md:p-6 mb-6">
+            <Heading tag="h2" class="text-lg font-semibold mb-2">
+                Batterie-Ladestand
+            </Heading>
+            <Chart options={socOptions} />
+        </Card>
+
+        <Card class="max-w-none p-4 md:p-6">
+            <Heading tag="h2" class="text-lg font-semibold mb-2">
+                Leistung Batterie und Netz
+            </Heading>
+            {#if hasPowerData}
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    Einspeisung aus der Batterie ist der Anteil der
+                    Batterie-Entladung, der tatsächlich ins Netz fließt (der
+                    Rest deckt den Haushalt).
+                </p>
+                <Chart options={powerOptions} />
+            {:else}
+                <p class="text-gray-600 dark:text-gray-300">
+                    Diese Anlage meldet keine Leistungswerte. Dafür müssen in
+                    der Main UI die Channels für Batterie- und Netzleistung mit
+                    Items verknüpft sein (bei Fronius:
+                    Fronius_Symo_Inverter_Battery_Power und
+                    Fronius_Symo_Inverter_Grid_Power).
+                </p>
+            {/if}
+        </Card>
+
+        {#if hasSystemHistory}
+            <Card class="max-w-none p-4 md:p-6 mt-6">
+                <Heading tag="h2" class="text-lg font-semibold mb-2">
+                    Systemwerte
+                </Heading>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    CPU-Temperatur (linke Achse) sowie Belegung von SD-Karte,
+                    Arbeitsspeicher und Swap (rechte Achse, Prozent).
+                </p>
+                <Chart options={systemOptions} />
+            </Card>
+        {/if}
+    {/if}
+
     {#if anlage.data?.versions || anlage.data?.apt_updates}
         {@const v = anlage.data.versions ?? {}}
         {@const apt = anlage.data.apt_updates}
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-6">
             {@render versionPart("IBM-Paket", "ibm", v.ibm)} ·
             {@render versionPart("openHAB", "openhab", v.openhab)} ·
             {@render versionPart("Java", "java", v.java)} ·
@@ -337,23 +397,10 @@
         </p>
     {/if}
 
-    {#snippet systemStat(
-        /** @type {string} */ label,
-        /** @type {string} */ value,
-        /** @type {string} */ cls,
-    )}
-        <div>
-            <dt class="text-gray-500 dark:text-gray-400">{label}</dt>
-            <dd class="font-medium {cls || 'text-gray-900 dark:text-gray-100'}">
-                {value}
-            </dd>
-        </div>
-    {/snippet}
-
     <!-- Systemzustand des Pi; wie bei den Logmeldungen erst, wenn die
          Anlage überhaupt schon gemeldet hat. -->
     {#if anlage.lastSeen}
-        <Card class="max-w-none p-4 md:p-6 mb-6">
+        <Card class="max-w-none p-4 md:p-6 mt-6">
             <Heading tag="h2" class="text-lg font-semibold mb-2">System</Heading>
             {#if !system}
                 <p class="text-gray-600 dark:text-gray-300">
@@ -455,108 +502,56 @@
     <!-- Solange die Anlage noch nie gemeldet hat, gibt es auch keine
          Logmeldungen zu zeigen - die Karte wäre nur irreführend. -->
     {#if anlage.lastSeen}
-    <Card class="max-w-none p-4 md:p-6 mb-6">
-        <Heading tag="h2" class="text-lg font-semibold mb-2">
-            Fehler und Warnungen
-        </Heading>
-        {#if logEntries === null}
-            <p class="text-gray-600 dark:text-gray-300">
-                Diese Anlage überträgt noch keine Logmeldungen. Dafür muss das
-                IBM-Paket auf dem openHABian aktualisiert werden.
-            </p>
-        {:else if logEntries.length === 0}
-            <p class="text-green-700 dark:text-green-400">
-                Keine Fehler oder Warnungen im openHAB-Log der letzten 24
-                Stunden.
-            </p>
-        {:else}
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                openHAB-Log der letzten 24 Stunden, Stand der letzten Meldung
-                (neueste zuerst, höchstens 20 Einträge).
-            </p>
-            <ul class="divide-y divide-gray-200 dark:divide-gray-700">
-                {#each logEntries as entry}
-                    <li class="py-2">
-                        <div class="flex flex-wrap items-center gap-2 mb-1">
-                            <Badge
-                                color={entry.level === "ERROR"
-                                    ? "red"
-                                    : "yellow"}
-                            >
-                                {entry.level}
-                            </Badge>
-                            <span
-                                class="text-sm text-gray-600 dark:text-gray-300"
-                            >
-                                {formatLogTime(entry.time)}
-                            </span>
-                            <span
-                                class="text-xs font-mono text-gray-400 dark:text-gray-500 break-all"
-                            >
-                                {entry.logger}
-                            </span>
-                        </div>
-                        <p
-                            class="text-sm font-mono break-all text-gray-800 dark:text-gray-200"
-                        >
-                            {entry.message}
-                        </p>
-                    </li>
-                {/each}
-            </ul>
-        {/if}
-    </Card>
-    {/if}
-
-    {#if history.length === 0}
-        <Card class="max-w-xl">
-            <p class="text-gray-600 dark:text-gray-300">
-                Für diese Anlage liegt noch kein Verlauf vor. Die Daten sammeln
-                sich mit jeder Statusmeldung (alle 5 Minuten) an, sobald die
-                Anlage meldet.
-            </p>
-        </Card>
-    {:else}
-        <Card class="max-w-none p-4 md:p-6 mb-6">
+        <Card class="max-w-none p-4 md:p-6 mt-6">
             <Heading tag="h2" class="text-lg font-semibold mb-2">
-                Batterie-Ladestand
+                Fehler und Warnungen
             </Heading>
-            <Chart options={socOptions} />
-        </Card>
-
-        <Card class="max-w-none p-4 md:p-6">
-            <Heading tag="h2" class="text-lg font-semibold mb-2">
-                Leistung Batterie und Netz
-            </Heading>
-            {#if hasPowerData}
-                <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    Einspeisung aus der Batterie ist der Anteil der
-                    Batterie-Entladung, der tatsächlich ins Netz fließt (der
-                    Rest deckt den Haushalt).
-                </p>
-                <Chart options={powerOptions} />
-            {:else}
+            {#if logEntries === null}
                 <p class="text-gray-600 dark:text-gray-300">
-                    Diese Anlage meldet keine Leistungswerte. Dafür müssen in
-                    der Main UI die Channels für Batterie- und Netzleistung mit
-                    Items verknüpft sein (bei Fronius:
-                    Fronius_Symo_Inverter_Battery_Power und
-                    Fronius_Symo_Inverter_Grid_Power).
+                    Diese Anlage überträgt noch keine Logmeldungen. Dafür muss
+                    das IBM-Paket auf dem openHABian aktualisiert werden.
                 </p>
+            {:else if logEntries.length === 0}
+                <p class="text-green-700 dark:text-green-400">
+                    Keine Fehler oder Warnungen im openHAB-Log der letzten 24
+                    Stunden.
+                </p>
+            {:else}
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                    openHAB-Log der letzten 24 Stunden, Stand der letzten
+                    Meldung (neueste zuerst, höchstens 20 Einträge).
+                </p>
+                <ul class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {#each logEntries as entry}
+                        <li class="py-2">
+                            <div class="flex flex-wrap items-center gap-2 mb-1">
+                                <Badge
+                                    color={entry.level === "ERROR"
+                                        ? "red"
+                                        : "yellow"}
+                                >
+                                    {entry.level}
+                                </Badge>
+                                <span
+                                    class="text-sm text-gray-600 dark:text-gray-300"
+                                >
+                                    {formatLogTime(entry.time)}
+                                </span>
+                                <span
+                                    class="text-xs font-mono text-gray-400 dark:text-gray-500 break-all"
+                                >
+                                    {entry.logger}
+                                </span>
+                            </div>
+                            <p
+                                class="text-sm font-mono break-all text-gray-800 dark:text-gray-200"
+                            >
+                                {entry.message}
+                            </p>
+                        </li>
+                    {/each}
+                </ul>
             {/if}
         </Card>
-
-        {#if hasSystemHistory}
-            <Card class="max-w-none p-4 md:p-6 mt-6">
-                <Heading tag="h2" class="text-lg font-semibold mb-2">
-                    Systemwerte
-                </Heading>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    CPU-Temperatur (linke Achse) sowie Belegung von SD-Karte,
-                    Arbeitsspeicher und Swap (rechte Achse, Prozent).
-                </p>
-                <Chart options={systemOptions} />
-            </Card>
-        {/if}
     {/if}
 </div>
