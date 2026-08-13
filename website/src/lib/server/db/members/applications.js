@@ -3,6 +3,11 @@ import { middlewareDbConnection } from "$lib/server/db/db";
 /**
  * Alle Bewerbungen, neueste zuerst. Fuer die Vorstandsseite
  * /board/members/applications (Review + Excel-Export).
+ *
+ * importedIdentifiers: die Zaehlpunkte der Bewerbung, die bereits im
+ * Stammdaten-Bestand (members_measurementpoint, gefuellt vom
+ * EEG-Faktura-Import) existieren. Sind alle drin, gilt die Bewerbung
+ * als uebernommen - einen eigenen Status gibt es bewusst nicht.
  */
 export const getMembershipApplications = async () => {
     const sql = await middlewareDbConnection();
@@ -26,7 +31,17 @@ export const getMembershipApplications = async () => {
                 measurement_points AS "measurementPoints",
                 accepted_terms AS "acceptedTerms",
                 accepted_sepa AS "acceptedSepa",
-                acknowledged_privacy_notice AS "acknowledgedPrivacyNotice"
+                acknowledged_privacy_notice AS "acknowledgedPrivacyNotice",
+                (
+                    SELECT COALESCE(array_agg(p->>'identifier'), '{}')
+                    FROM jsonb_array_elements(measurement_points) AS p
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM members_measurementpoint mp
+                        WHERE UPPER(REPLACE(mp.identifier, ' ', ''))
+                            = UPPER(REPLACE(p->>'identifier', ' ', ''))
+                    )
+                ) AS "importedIdentifiers"
             FROM members_membershipapplication
             ORDER BY created_at DESC
         `);
