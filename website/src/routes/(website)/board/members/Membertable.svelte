@@ -10,21 +10,43 @@
         Heading,
         Input,
         Button,
-        Modal,
-        List,
-        DescriptionList,
+        Badge,
     } from "flowbite-svelte";
     import {
         SearchOutline,
         ChevronLeftOutline,
         ChevronRightOutline,
     } from "flowbite-svelte-icons";
+    import { goto } from "$app/navigation";
 
     /** @type {{ members: any[] }} */
     let { members } = $props();
 
-    let memberDetailModal = $state(false);
-    let member = $state(/** @type {any} */ (null));
+    // EEG-Status eines Mitglieds, abgeleitet aus seinen Zählpunkten
+    const statusLabel = (/** @type {any} */ r) => {
+        if (r.pointsActive > 0 && r.pointsOpen > 0) return "teilweise aktiv";
+        if (r.pointsActive > 0) return "aktiv";
+        if (r.pointsOpen > 0) return "ausständig";
+        return r.pointsTotal > 0 ? "inaktiv" : "kein Zählpunkt";
+    };
+
+    /** @type {Record<string, { color: any, rank: number }>} */
+    const statusMeta = {
+        ausständig: { color: "red", rank: 0 },
+        "teilweise aktiv": { color: "yellow", rank: 1 },
+        aktiv: { color: "green", rank: 2 },
+        inaktiv: { color: "gray", rank: 3 },
+        "kein Zählpunkt": { color: "gray", rank: 4 },
+    };
+
+    const statusCounts = members.reduce(
+        (/** @type {Record<string, number>} */ acc, m) => {
+            const label = statusLabel(m);
+            acc[label] = (acc[label] ?? 0) + 1;
+            return acc;
+        },
+        {},
+    );
 
     const table = new DataTable({
         data: members,
@@ -38,6 +60,15 @@
                     [r.street, r.hnr, r.zip, r.city].filter(Boolean).join(" "),
             },
             { id: "email", key: "email", name: "E-Mail" },
+            {
+                id: "status",
+                key: "id",
+                name: "Status",
+                sortable: true,
+                getValue: statusLabel,
+                sorter: (/** @type {string} */ a, /** @type {string} */ b) =>
+                    statusMeta[a].rank - statusMeta[b].rank,
+            },
             {
                 id: "memberSince",
                 key: "memberSince",
@@ -53,57 +84,6 @@
         return dir === "asc" ? " ↑" : dir === "desc" ? " ↓" : "";
     };
 </script>
-
-{#if member}
-    <Modal
-        title="Mitglied #{member.identifier}"
-        autoclose
-        bind:open={memberDetailModal}
-    >
-        <List
-            tag="dl"
-            class="divide-y divide-gray-200 text-gray-900 dark:divide-gray-700 dark:text-white"
-        >
-            <div class="flex flex-col pb-3">
-                <DescriptionList tag="dt" class="mb-1">Name</DescriptionList>
-                <DescriptionList tag="dd">{member.name}</DescriptionList>
-            </div>
-
-            <div class="flex flex-col pb-3">
-                <DescriptionList tag="dt" class="mb-1"
-                    >Mitglied seit</DescriptionList
-                >
-                <DescriptionList tag="dd">{member.memberSince}</DescriptionList>
-            </div>
-
-            <div class="flex flex-col pb-3">
-                <DescriptionList tag="dt" class="mb-1">E-Mail</DescriptionList>
-                <DescriptionList tag="dd">{member.email}</DescriptionList>
-            </div>
-
-            <div class="flex flex-col pb-3">
-                <DescriptionList tag="dt" class="mb-1">Adresse</DescriptionList>
-                <DescriptionList tag="dd">
-                    {member.street}
-                    {member.hnr}, {member.zip}
-                    {member.city}
-                </DescriptionList>
-            </div>
-        </List>
-
-        <Button href="/board/members/member/{member.identifier}">
-            Energiekurven anzeigen
-        </Button>
-
-        {#snippet footer()}
-            <Button
-                onclick={() => {
-                    memberDetailModal = false;
-                }}>OK</Button
-            >
-        {/snippet}
-    </Modal>
-{/if}
 
 <div class="flex flex-col">
     <div class="flex items-center justify-between gap-4 mb-4">
@@ -139,6 +119,25 @@
         </div>
     </div>
 
+    <div class="flex flex-wrap gap-2 mb-4">
+        {#each Object.keys(statusMeta) as label}
+            {#if statusCounts[label]}
+                <Button
+                    size="xs"
+                    color={table.isFilterActive("status", label)
+                        ? "primary"
+                        : "alternative"}
+                    onclick={() => table.toggleFilter("status", label)}
+                >
+                    <Badge color={statusMeta[label].color} class="me-2">
+                        {statusCounts[label]}
+                    </Badge>
+                    {label}
+                </Button>
+            {/if}
+        {/each}
+    </div>
+
     <Table hoverable>
         <TableHead>
             <TableHeadCell
@@ -148,6 +147,12 @@
                 Name{sortIndicator("name")}
             </TableHeadCell>
             <TableHeadCell class="hidden md:table-cell">Adresse</TableHeadCell>
+            <TableHeadCell
+                class="cursor-pointer select-none"
+                onclick={() => table.toggleSort("status")}
+            >
+                Status{sortIndicator("status")}
+            </TableHeadCell>
             <TableHeadCell
                 class="cursor-pointer select-none whitespace-nowrap"
                 onclick={() => table.toggleSort("memberSince")}
@@ -159,10 +164,8 @@
             {#each table.rows as row (row.id)}
                 <TableBodyRow
                     class="cursor-pointer"
-                    onclick={() => {
-                        member = row;
-                        memberDetailModal = true;
-                    }}
+                    onclick={() =>
+                        goto(`/board/members/member/${row.identifier}`)}
                 >
                     <TableBodyCell>
                         <div class="font-medium">{row.name}</div>
@@ -178,13 +181,26 @@
                         {row.hnr}, {row.zip}
                         {row.city}
                     </TableBodyCell>
+                    <TableBodyCell>
+                        <Badge color={statusMeta[statusLabel(row)].color}>
+                            {statusLabel(row)}
+                        </Badge>
+                        {#if statusLabel(row) === "teilweise aktiv"}
+                            <div
+                                class="text-xs text-gray-500 dark:text-gray-400 mt-1"
+                            >
+                                {row.pointsActive} von {row.pointsActive +
+                                    row.pointsOpen} Zählpunkten aktiv
+                            </div>
+                        {/if}
+                    </TableBodyCell>
                     <TableBodyCell class="whitespace-nowrap">
                         {row.memberSince}
                     </TableBodyCell>
                 </TableBodyRow>
             {:else}
                 <TableBodyRow>
-                    <TableBodyCell colspan={3}>
+                    <TableBodyCell colspan={4}>
                         Keine Mitglieder gefunden.
                     </TableBodyCell>
                 </TableBodyRow>

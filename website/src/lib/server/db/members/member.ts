@@ -279,23 +279,38 @@ export const getMetricTimestampRange = async (memberId: number) => {
 export const getMembers = async () => {
     const sql = await middlewareDbConnection();
 
+    // Zählpunkt-Status je Mitglied:
+    // ACTIVE = in der EEG aktiv; PENDING/APPROVED/INIT/INVALID = Aktivierung
+    // noch ausständig; INACTIVE/REJECTED = beendet (zählt nur zu total)
     const result = await sql.query(`
         SELECT
-            id,
-            identifier,
-            email,
-            name,
-            first_name AS "firstName",
-            last_name AS "lastName",
-            street,
-            hnr,
-            zip,
-            city,
-            latitude,
-            longitude,
-            TO_CHAR(member_since, 'YYYY-MM-DD') AS "memberSince"
-        FROM members_member
-        order by member_since desc;
+            m.id,
+            m.identifier,
+            m.email,
+            m.name,
+            m.first_name AS "firstName",
+            m.last_name AS "lastName",
+            m.street,
+            m.hnr,
+            m.zip,
+            m.city,
+            m.latitude,
+            m.longitude,
+            TO_CHAR(m.member_since, 'YYYY-MM-DD') AS "memberSince",
+            COALESCE(mp.total, 0)::int  AS "pointsTotal",
+            COALESCE(mp.active, 0)::int AS "pointsActive",
+            COALESCE(mp.open, 0)::int   AS "pointsOpen"
+        FROM members_member m
+        LEFT JOIN (
+            SELECT
+                member_id,
+                count(*) AS total,
+                count(*) FILTER (WHERE status = 'ACTIVE') AS active,
+                count(*) FILTER (WHERE status IN ('PENDING', 'APPROVED', 'INIT', 'INVALID')) AS open
+            FROM members_measurementpoint
+            GROUP BY member_id
+        ) mp ON mp.member_id = m.id
+        order by m.member_since desc;
     `);
 
     sql.release();
