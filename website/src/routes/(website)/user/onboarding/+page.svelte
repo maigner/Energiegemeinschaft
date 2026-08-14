@@ -23,26 +23,27 @@
 
         <p class="mt-8">
             Wenn Sie Teil dieser Energiegemeinschaft werden möchten, dann füllen
-            Sie bitte das folgende Bewerbungsformular aus und klicken danach auf "Bewerbung abschicken".
+            Sie bitte den folgenden Beitrittsantrag aus und klicken danach auf
+            "Antrag abschicken".
         </p>
     {:else}
         <p class="mt-8">
-            Ihre Bewerbung vom {data.existingApplications[0].createdAtLabel} ist bei uns eingegangen.
+            Ihr Beitrittsantrag vom {data.existingApplications[0].createdAtLabel} ist bei uns eingegangen.
         </p>
 
         <p class="mt-8">
-            Der Vorstand prüft Ihre Bewerbung und meldet sich bei Ihnen.
+            Der Vorstand prüft Ihren Antrag und meldet sich bei Ihnen.
             Sie müssen nichts weiter tun.
         </p>
 
         <p class="mt-8">
-            Möchten Sie einen weiteren Standort anmelden, können Sie eine
-            zusätzliche Bewerbung ausfüllen.
+            Möchten Sie einen weiteren Standort anmelden, können Sie einen
+            zusätzlichen Antrag ausfüllen.
         </p>
 
         <div class="mt-4">
             <Button pill onclick={() => (showForm = true)}>
-                Weitere Bewerbung ausfüllen
+                Weiteren Antrag ausfüllen
             </Button>
         </div>
     {/if}

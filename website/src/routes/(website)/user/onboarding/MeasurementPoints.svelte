@@ -30,7 +30,7 @@
             ? "Bezugszählpunkt(e)"
             : "Einspeisezählpunkt(e)"}
 
-        {#each measurementPoints.filter((item) => item.type === measurementPointType) as measurementPoint, index}
+        {#each measurementPoints.filter((/** @type {any} */ item) => item.type === measurementPointType) as measurementPoint, index}
             <div class="mt-4">
                 <Label for={"measurementPoint-" + index} class="mb-2"
                     >Zählpunktnummer</Label
@@ -64,7 +64,8 @@
                     </div>
                 </div>
                 <div>
-                    {#if isValidMeasurementPointIdentifier(measurementPoint.identifier) === false}
+                    <!-- Fehler erst zeigen, wenn über die Vorbefüllung hinaus getippt wurde -->
+                    {#if measurementPoint.identifier !== "AT003000" && isValidMeasurementPointIdentifier(measurementPoint.identifier) === false}
                         <Helper class="mt-2" color="red">
                             <span class="font-medium"
                                 >Bitte geben Sie eine gültige Zählpunktnummer

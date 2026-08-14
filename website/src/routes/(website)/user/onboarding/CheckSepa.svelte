@@ -17,7 +17,7 @@
     {#if checkSepa === false}
         <Helper class="mt-2" color="red">
             <span class="font-medium"
-                >Eine Teilname ohne SEPA Bankeinzug ist leider nicht möglich.</span
+                >Eine Teilnahme ohne SEPA-Bankeinzug ist leider nicht möglich.</span
             >
         </Helper>
     {/if}

@@ -1,17 +1,7 @@
 <script>
-    import { Button, footer, Modal } from "flowbite-svelte";
+    import { Button, Modal } from "flowbite-svelte";
 
-    let { data, noDataModalOpen = $bindable() } = $props();
-
-    $effect(() => {
-        if (data.noDataModalOpen) {
-            data.dataRangeSelection = {
-                name: "Gesamt",
-                startDate: data.metricsTimestampRange.first_timestamp,
-                endDate: data.metricsTimestampRange.last_timestamp,
-            };
-        }
-    });
+    let { noDataModalOpen = $bindable(), onShowAll } = $props();
 </script>
 
 <Modal title="Leider keine Daten vorhanden" bind:open={noDataModalOpen}>
@@ -25,14 +15,9 @@
     {#snippet footer()}
         <Button
             onclick={() => {
-                data.dataRangeSelection = {
-                    name: "Gesamt",
-                    startDate: data.metricsTimestampRange.first_timestamp,
-                    endDate: data.metricsTimestampRange.last_timestamp,
-                };
-
                 noDataModalOpen = false;
-            }}>Zur Übersicht</Button
+                onShowAll?.();
+            }}>Gesamten Zeitraum anzeigen</Button
         >
     {/snippet}
 </Modal>

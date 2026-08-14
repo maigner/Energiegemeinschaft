@@ -1,11 +1,10 @@
 <script>
-    import { Chart, Card, Tabs, TabItem } from "flowbite-svelte";
+    import { Chart, Card, Tabs, TabItem, Spinner, Alert } from "flowbite-svelte";
 
     import ChartHeader from "./ChartHeader.svelte";
-    import { onMount } from "svelte";
     import DataRangePagination from "./DataRangePagination.svelte";
     import NoDataModal from "./NoDataModal.svelte";
-    import { Spinner } from "flowbite-svelte";
+    import StatTiles from "./StatTiles.svelte";
     import { getQuarterRanges } from "$lib/quarters";
 
     /**
@@ -19,23 +18,49 @@
 
     let unit = "kW";
 
-    $effect(() => {
+    // Metrik-Namen aus der Datenlieferung (EEG-Faktura); die Anzeigenamen
+    // in den Charts sind bewusst allgemeinverständlich gehalten
+    const METRIC_CONSUMPTION_TOTAL =
+        "Gesamtverbrauch lt. Messung (bei Teilnahme gem. Erzeugung)";
+    const METRIC_COMMUNITY_RECEIVED = "Eigendeckung gemeinschaftliche Erzeugung";
+    const METRIC_PRODUCTION_TOTAL = "Gesamte gemeinschaftliche Erzeugung";
+    const METRIC_GRID_INJECTION =
+        "Gesamt/Überschusserzeugung, Gemeinschaftsüberschuss";
+
+    // Serienfarben (validierte Palette): Gemeinschaftsanteil in beiden
+    // Charts dieselbe Farbe, damit "Gemeinschaft" wiedererkennbar bleibt
+    const COLOR_TOTAL = "#2a78d6";
+    const COLOR_COMMUNITY = "#1baf7a";
+    const COLOR_GRID = "#eb6834";
+
+    /** @type {{ name: string; startDate: Date; endDate: Date; }[]} */
+    let dateSelectionOptions = $state([]);
+
+    if (data.metricsTimestampRange) {
+        dateSelectionOptions = getQuarterRanges(
+            data.metricsTimestampRange.first_timestamp,
+            data.metricsTimestampRange.last_timestamp,
+        );
+
+        dateSelectionOptions.push({
+            name: "Gesamter Zeitraum",
+            startDate: data.metricsTimestampRange.first_timestamp,
+            endDate: data.metricsTimestampRange.last_timestamp,
+        });
+
         currentStartDate = data.metricsTimestampRange.first_timestamp;
-    });
-    $effect(() => {
         currentEndDate = data.metricsTimestampRange.last_timestamp;
-    });
+    }
 
-    data.dateSelectionOptions = getQuarterRanges(
-        data.metricsTimestampRange.first_timestamp,
-        data.metricsTimestampRange.last_timestamp,
-    );
-
-    data.dateSelectionOptions.push({
-        name: "Gesamt",
-        startDate: data.metricsTimestampRange.first_timestamp,
-        endDate: data.metricsTimestampRange.last_timestamp,
-    });
+    /** @type {string[]} */
+    const quarterHours = [];
+    for (let hour = 0; hour < 24; hour++) {
+        for (let minute = 0; minute < 60; minute += 15) {
+            quarterHours.push(
+                `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`,
+            );
+        }
+    }
 
     let options = {
         chart: {
@@ -57,6 +82,13 @@
             enabled: true,
             x: {
                 show: true,
+                formatter: (
+                    /** @type {any} */ _value,
+                    /** @type {any} */ { dataPointIndex },
+                ) => {
+                    const time = quarterHours[dataPointIndex] ?? "";
+                    return `${time.substring(0, 5)} Uhr`;
+                },
             },
             y: {
                 formatter: (/** @type {number} */ value) => {
@@ -77,7 +109,7 @@
             enabled: false,
         },
         stroke: {
-            width: 6,
+            width: 3,
         },
         grid: {
             show: false,
@@ -91,110 +123,22 @@
 
         xaxis: {
             type: "category",
-            categories: [
-                "00:00:00",
-                "00:15:00",
-                "00:30:00",
-                "00:45:00",
-                "01:00:00",
-                "01:15:00",
-                "01:30:00",
-                "01:45:00",
-                "02:00:00",
-                "02:15:00",
-                "02:30:00",
-                "02:45:00",
-                "03:00:00",
-                "03:15:00",
-                "03:30:00",
-                "03:45:00",
-                "04:00:00",
-                "04:15:00",
-                "04:30:00",
-                "04:45:00",
-                "05:00:00",
-                "05:15:00",
-                "05:30:00",
-                "05:45:00",
-                "06:00:00",
-                "06:15:00",
-                "06:30:00",
-                "06:45:00",
-                "07:00:00",
-                "07:15:00",
-                "07:30:00",
-                "07:45:00",
-                "08:00:00",
-                "08:15:00",
-                "08:30:00",
-                "08:45:00",
-                "09:00:00",
-                "09:15:00",
-                "09:30:00",
-                "09:45:00",
-                "10:00:00",
-                "10:15:00",
-                "10:30:00",
-                "10:45:00",
-                "11:00:00",
-                "11:15:00",
-                "11:30:00",
-                "11:45:00",
-                "12:00:00",
-                "12:15:00",
-                "12:30:00",
-                "12:45:00",
-                "13:00:00",
-                "13:15:00",
-                "13:30:00",
-                "13:45:00",
-                "14:00:00",
-                "14:15:00",
-                "14:30:00",
-                "14:45:00",
-                "15:00:00",
-                "15:15:00",
-                "15:30:00",
-                "15:45:00",
-                "16:00:00",
-                "16:15:00",
-                "16:30:00",
-                "16:45:00",
-                "17:00:00",
-                "17:15:00",
-                "17:30:00",
-                "17:45:00",
-                "18:00:00",
-                "18:15:00",
-                "18:30:00",
-                "18:45:00",
-                "19:00:00",
-                "19:15:00",
-                "19:30:00",
-                "19:45:00",
-                "20:00:00",
-                "20:15:00",
-                "20:30:00",
-                "20:45:00",
-                "21:00:00",
-                "21:15:00",
-                "21:30:00",
-                "21:45:00",
-                "22:00:00",
-                "22:15:00",
-                "22:30:00",
-                "22:45:00",
-                "23:00:00",
-                "23:15:00",
-                "23:30:00",
-                "23:45:00",
-            ],
+            categories: quarterHours,
             labels: {
-                show: false,
+                // Uhrzeit alle drei Stunden anzeigen, dazwischen leer
+                show: true,
+                rotate: 0,
+                hideOverlappingLabels: false,
                 style: {
-                    fontSize: "14px",
+                    fontSize: "12px",
                 },
-                tickAmount: 24,
+                formatter: (/** @type {string} */ value) => {
+                    if (!value) return "";
+                    const [hour, minute] = value.split(":");
+                    return minute === "00" && parseInt(hour) % 3 === 0
+                        ? `${hour}:00`
+                        : "";
+                },
             },
             axisBorder: {
                 show: false,
@@ -212,7 +156,8 @@
             },
         },
         legend: {
-            fontSize: "18px",
+            show: true,
+            fontSize: "14px",
             itemMargin: {
                 vertical: 10,
             },
@@ -220,6 +165,7 @@
     };
 
     // metrics
+    /** @type {number[]} */
     let prodTotal = $state([]);
 
     /**
@@ -227,49 +173,28 @@
      */
     let overshoot = [];
 
+    /** @type {number[]} */
     let consumptionTotal = $state([]);
 
     let eegReceive = [];
     // difference goes into EEG
     let eegInject = [];
 
-    /** @type {import('apexcharts').ApexOptions} */
-    // @ts-ignore
-    let producerGraphOptions = $state({
-        series: [
-            {
-                name: "Netzeinspeisung",
-                data: [],
-                color: "#5dd602",
-            },
-            {
-                name: "EEG Einspeisung",
-                data: [],
-                color: "#3bd2bd",
-            },
-        ],
-        ...options,
-    });
+    /** @type {Record<string, number>} */
+    let totals = $state({});
 
     /** @type {import('apexcharts').ApexOptions} */
     // @ts-ignore
-    let consumerGraphOptions = $state({
-        series: [
-            {
-                name: "Gesamtverbrauch",
-                data: [],
-                color: "#de5213",
-            },
-            {
-                name: "EEG Bezug",
-                data: [],
-                color: "#f5eb1e",
-            },
-        ],
-        ...options,
-    });
+    let producerGraphOptions = $state({ series: [], ...options });
+
+    /** @type {import('apexcharts').ApexOptions} */
+    // @ts-ignore
+    let consumerGraphOptions = $state({ series: [], ...options });
 
     let isLoading = $state(false);
+
+    /** @type {'consumption' | 'production' | null} */
+    let initialTab = $state(null);
 
     const loadData = async (
         /** @type {Date} */ startDate,
@@ -289,66 +214,43 @@
         });
 
         const result = await response.json();
-        //console.log(result);
 
         currentStartDate = startDate;
         currentEndDate = endDate;
 
         // data
-        data.averageMetrics = result;
+        data.averageMetrics = result.averageMetrics ?? [];
+
+        totals = Object.fromEntries(
+            (result.totals ?? []).map(
+                (/** @type {{ metric_name: string; total_kwh: any; }} */ row) => [
+                    row.metric_name,
+                    Number(row.total_kwh),
+                ],
+            ),
+        );
 
         if (data.averageMetrics.length < 1) {
-            // no data
-            console.log("No Data?");
-            data.noDataModalOpen = true;
+            // keine Daten für diese Auswahl -> Hinweis anzeigen
+            noDataModalOpen = true;
         }
 
-        //options.labels = labels;
+        const metricValues = (/** @type {string} */ metricName) =>
+            data.averageMetrics
+                .filter(
+                    (/** @type {{ metric_name: string; }} */ element) =>
+                        element.metric_name === metricName,
+                )
+                .map(
+                    (/** @type {{ avg_value: number; }} */ element) =>
+                        element.avg_value,
+                );
 
         // metrics
-        prodTotal = data.averageMetrics
-            .filter(
-                (/** @type {{ metric_name: string; }} */ element) =>
-                    element.metric_name ===
-                    "Gesamte gemeinschaftliche Erzeugung",
-            )
-            .map(
-                (/** @type {{ avg_value: number; }} */ element) =>
-                    element.avg_value,
-            );
-
-        overshoot = data.averageMetrics
-            .filter(
-                (/** @type {{ metric_name: string; }} */ element) =>
-                    element.metric_name ===
-                    "Gesamt/Überschusserzeugung, Gemeinschaftsüberschuss",
-            )
-            .map(
-                (/** @type {{ avg_value: any; }} */ element) =>
-                    element.avg_value,
-            );
-
-        consumptionTotal = data.averageMetrics
-            .filter(
-                (/** @type {{ metric_name: string; }} */ element) =>
-                    element.metric_name ===
-                    "Gesamtverbrauch lt. Messung (bei Teilnahme gem. Erzeugung)",
-            )
-            .map(
-                (/** @type {{ avg_value: any; }} */ element) =>
-                    element.avg_value,
-            );
-
-        eegReceive = data.averageMetrics
-            .filter(
-                (/** @type {{ metric_name: string; }} */ element) =>
-                    element.metric_name ===
-                    "Eigendeckung gemeinschaftliche Erzeugung",
-            )
-            .map(
-                (/** @type {{ avg_value: any; }} */ element) =>
-                    element.avg_value,
-            );
+        prodTotal = metricValues(METRIC_PRODUCTION_TOTAL);
+        overshoot = metricValues(METRIC_GRID_INJECTION);
+        consumptionTotal = metricValues(METRIC_CONSUMPTION_TOTAL);
+        eegReceive = metricValues(METRIC_COMMUNITY_RECEIVED);
 
         // difference goes into EEG
         eegInject = prodTotal.map(
@@ -361,14 +263,14 @@
         producerGraphOptions = {
             series: [
                 {
-                    name: "Netzeinspeisung",
-                    data: overshoot,
-                    color: "#5dd602",
+                    name: "An die Gemeinschaft geliefert",
+                    data: eegInject,
+                    color: COLOR_COMMUNITY,
                 },
                 {
-                    name: "EEG Einspeisung",
-                    data: eegInject,
-                    color: "#3bd2bd",
+                    name: "Ins Stromnetz eingespeist",
+                    data: overshoot,
+                    color: COLOR_GRID,
                 },
             ],
             ...options,
@@ -378,18 +280,27 @@
         consumerGraphOptions = {
             series: [
                 {
-                    name: "Gesamtverbrauch",
+                    name: "Verbrauch gesamt",
                     data: consumptionTotal,
-                    color: "#de5213",
+                    color: COLOR_TOTAL,
                 },
                 {
-                    name: "EEG Bezug",
+                    name: "Davon aus der Gemeinschaft",
                     data: eegReceive,
-                    color: "#f5eb1e",
+                    color: COLOR_COMMUNITY,
                 },
             ],
             ...options,
         };
+
+        if (initialTab === null) {
+            if (consumptionTotal.length > 0) {
+                initialTab = "consumption";
+            } else if (prodTotal.length > 0) {
+                initialTab = "production";
+            }
+        }
+
         isLoading = false;
     };
 
@@ -401,92 +312,117 @@
         if (dataRangeSelection) {
             if (dataRangeSelection.name !== currentDataRangeSelection.name) {
                 currentDataRangeSelection = dataRangeSelection;
-                //console.log("update");
-                //console.log(data.dataRangeSelection);
-                updateChart(dataRangeSelection);
+                loadData(
+                    dataRangeSelection.startDate,
+                    dataRangeSelection.endDate,
+                );
             }
         }
     });
 
-    /**
-     * @param {{ startDate: Date; endDate: Date; }} dataRangeSelection
-     */
-    async function updateChart(dataRangeSelection) {
-        //console.log({ dataRangeSelection });
-        loadData(dataRangeSelection.startDate, dataRangeSelection.endDate);
-    }
-
     let dataRangeSelection = $state({
-        name: "Gesamt",
-        startDate: data.metricsTimestampRange.first_timestamp,
-        endDate: data.metricsTimestampRange.last_timestamp,
+        name: "Gesamter Zeitraum",
+        startDate: data.metricsTimestampRange?.first_timestamp,
+        endDate: data.metricsTimestampRange?.last_timestamp,
     });
 
-    let tabOpen = {
-        production: false,
-        consumption: true,
+    const showFullRange = () => {
+        const fullRange =
+            dateSelectionOptions[dateSelectionOptions.length - 1];
+        if (fullRange) {
+            dataRangeSelection = fullRange;
+        }
     };
-
-    $effect(() => {
-        if (prodTotal.length < 1 && consumptionTotal.length > 0) {
-            tabOpen.production = false;
-            tabOpen.consumption = true;
-        }
-        if (prodTotal.length > 1 && consumptionTotal.length < 0) {
-            tabOpen.production = true;
-            tabOpen.consumption = false;
-        }
-    });
-
 </script>
 
-<NoDataModal {data} bind:noDataModalOpen />
+{#if !data.metricsTimestampRange}
+    <Card class="max-w-full mt-4">
+        <Alert color="blue" class="text-base">
+            <span class="font-semibold">Noch keine Energiedaten vorhanden.</span>
+            Ihre Messwerte kommen vom Netzbetreiber und stehen meist erst einige
+            Wochen nach der Aktivierung Ihres Zählpunkts zur Verfügung. Sie
+            müssen nichts weiter tun &ndash; schauen Sie einfach später wieder
+            vorbei.
+        </Alert>
+    </Card>
+{:else}
+    <NoDataModal bind:noDataModalOpen onShowAll={showFullRange} />
 
-<Card class="max-w-full">
-    <DataRangePagination {currentStartDate} {currentEndDate} />
+    <Card class="max-w-full mt-4">
+        <DataRangePagination
+            options={dateSelectionOptions}
+            bind:dataRangeSelection
+            {currentStartDate}
+            {currentEndDate}
+        />
 
-    {#if isLoading}
-        <div class="w-max m-auto">
-            <Spinner />
-        </div>
-    {/if}
+        <StatTiles
+            {totals}
+            metricNames={{
+                consumptionTotal: METRIC_CONSUMPTION_TOTAL,
+                communityReceived: METRIC_COMMUNITY_RECEIVED,
+                productionTotal: METRIC_PRODUCTION_TOTAL,
+                gridInjection: METRIC_GRID_INJECTION,
+            }}
+            communityColor={COLOR_COMMUNITY}
+        />
 
-    <Tabs>
-        {#if consumptionTotal.length > 0}
-            <TabItem open={tabOpen.consumption} title="Bezug">
-                <ChartHeader
-                    {data}
-                    bind:dataRangeSelection
-                    title="&#x2300; Bezug nach Tageszeit"
-                    subTitle="in kiloWatt"
-                ></ChartHeader>
-
-                {#if !isLoading}
-                    <Chart options={consumerGraphOptions} />
-                {:else}
-                    <div class="w-max m-auto">
-                        <Spinner />
-                    </div>
-                {/if}
-            </TabItem>
+        {#if isLoading}
+            <div class="w-max m-auto">
+                <Spinner />
+            </div>
         {/if}
 
-        {#if prodTotal.length > 0}
-            <TabItem open={tabOpen.production} title="Einspeisung">
-                <ChartHeader
-                    {data}
-                    bind:dataRangeSelection
-                    title="&#x2300; Einspeisung nach Tageszeit"
-                    subTitle="in kiloWatt"
-                ></ChartHeader>
-                {#if !isLoading}
-                    <Chart options={producerGraphOptions} />
-                {:else}
-                    <div class="w-max m-auto">
-                        <Spinner />
-                    </div>
-                {/if}
-            </TabItem>
-        {/if}
-    </Tabs>
-</Card>
+        <Tabs>
+            {#if consumptionTotal.length > 0}
+                <TabItem
+                    open={initialTab === "consumption"}
+                    title="Mein Verbrauch"
+                >
+                    <ChartHeader
+                        options={dateSelectionOptions}
+                        bind:dataRangeSelection
+                        title="Mein Verbrauch im Tagesverlauf"
+                        subTitle="Durchschnittlicher Tag im gewählten Zeitraum, in Kilowatt (kW)"
+                        hint="Jeder Punkt der Kurve zeigt, wie viel Strom Sie zu dieser Uhrzeit im Durchschnitt verbraucht haben &ndash; und wie viel davon aus der Energiegemeinschaft kam."
+                    ></ChartHeader>
+
+                    {#if !isLoading}
+                        <Chart options={consumerGraphOptions} />
+                    {:else}
+                        <div class="w-max m-auto">
+                            <Spinner />
+                        </div>
+                    {/if}
+                </TabItem>
+            {/if}
+
+            {#if prodTotal.length > 0}
+                <TabItem
+                    open={initialTab === "production"}
+                    title="Meine Erzeugung"
+                >
+                    <ChartHeader
+                        options={dateSelectionOptions}
+                        bind:dataRangeSelection
+                        title="Meine Erzeugung im Tagesverlauf"
+                        subTitle="Durchschnittlicher Tag im gewählten Zeitraum, in Kilowatt (kW)"
+                        hint="Jeder Punkt der Kurve zeigt, wie viel Strom Ihre Anlage zu dieser Uhrzeit im Durchschnitt geliefert hat &ndash; an die Gemeinschaft oder ins Stromnetz."
+                    ></ChartHeader>
+                    {#if !isLoading}
+                        <Chart options={producerGraphOptions} />
+                    {:else}
+                        <div class="w-max m-auto">
+                            <Spinner />
+                        </div>
+                    {/if}
+                </TabItem>
+            {/if}
+        </Tabs>
+
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            Datenbasis: vollständig vom Netzbetreiber gelieferte Tage im
+            gewählten Zeitraum.
+        </p>
+    </Card>
+{/if}

@@ -7,8 +7,7 @@
     } from "flowbite-svelte";
     import { ChevronDownOutline } from "flowbite-svelte-icons";
 
-    let { data, dataRangeSelection = $bindable() } = $props();
-
+    let { options = [], dataRangeSelection = $bindable() } = $props();
 
     let dropDownOpen = $state(false);
 </script>
@@ -22,14 +21,14 @@
 <Dropdown bind:isOpen={dropDownOpen}>
     <DropdownHeader>
         <span class="block text-sm text-gray-900 dark:text-white"
-            >Datenauswahl</span
+            >Zeitraum</span
         >
         <span class="block truncate text-sm font-medium"
             >Wählen Sie einen Zeitraum</span
         >
     </DropdownHeader>
 
-    {#each data.dateSelectionOptions as dateSelectionOption}
+    {#each options as dateSelectionOption}
         <DropdownItem
             onclick={() => {
                 dataRangeSelection = dateSelectionOption;

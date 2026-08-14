@@ -1,6 +1,10 @@
 import { dev } from '$app/environment';
 import { getUsersByEmail } from '$lib/server/db/members/member';
-import { relay, relayDebug } from '$lib/server/mail/smtp';
+import { relayDebug } from '$lib/server/mail/smtp';
+
+// Benachrichtigung über neue (Nicht-Mitglieds-)Logins nur einmal pro
+// Serverlauf und E-Mail-Adresse, nicht bei jedem Seitenaufruf
+const notifiedNewEmails = new Set();
 
 /** @type {import('./$types').LayoutServerLoad} */
 export async function load({ parent, locals }) {
@@ -11,13 +15,12 @@ export async function load({ parent, locals }) {
     // @ts-ignore
     const users = await getUsersByEmail(session?.user?.email);
 
-    if (!users && !dev) {
+    const email = session?.user?.email;
+    if (!users && !dev && email && !notifiedNewEmails.has(email)) {
+        notifiedNewEmails.add(email);
         // new email registered
         relayDebug("new email registered", session?.user);
     }
-
-    //console.log({users});
-    
 
     return {
         users: users

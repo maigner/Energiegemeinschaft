@@ -5,7 +5,7 @@ export const getBoardMemberByEmail = async (email: string) => {
     if (!email) return null;
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member
-    where email like $1 and board_member = true`, [email]);
+    where lower(email) = lower($1) and board_member = true`, [email]);
     sql.release();
     return (result?.rows.length > 0 ? result?.rows[0] : null);
 };
@@ -14,7 +14,7 @@ export const getCommunityMembersByEmail = async (email: string) => {
     if (!email) return null;
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member
-    where email like $1`, [email]);
+    where lower(email) = lower($1)`, [email]);
     sql.release();
     return (result?.rows.length > 0 ? result?.rows : null);
 };
@@ -24,7 +24,7 @@ export const getUsersByEmail = async (email: string) => {
     if (!email) return null;
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member
-    where email like $1`, [email]);
+    where lower(email) = lower($1)`, [email]);
     sql.release();
     return (result?.rows.length > 0 ? result?.rows : null);
 };
@@ -220,32 +220,88 @@ export const getMeasurementPoints = async () => {
 
 export const getAverageMetrics = async (memberId: number, startDate: any, endDate: any) => {
     const sql = await middlewareDbConnection();
+    // Tageszeit-Buckets explizit in Lokalzeit; unvollständig gelieferte Tage
+    // (Zeilen da, Werte 0 -- siehe daily_metering_quality) würden den
+    // Durchschnitt nach unten verfälschen und bleiben draußen.
     const result = await sql.query(`
             select
                 member.name,
                 member.identifier as member_identifier,
                 p.type as point_type,
                 metercode.description as metric_name,
-                m.timestamp::time as time,
+                (m.timestamp at time zone 'Europe/Vienna')::time as time,
                 avg(m.value) * 4 as avg_value,
                 'kW' as unit
             from metering_measurement m
             inner join members_measurementpoint p on p.id = m.measurement_point_id
             inner join public.members_member member on member.id = p.member_id
             inner join public.metering_metercode metercode on metercode.id = m.meter_code_id
+            left join (
+                select day, bool_or(is_complete) as is_complete
+                from daily_metering_quality
+                group by day
+            ) quality on quality.day = (m.timestamp at time zone 'Europe/Vienna')::date
 
             where member.identifier = $1
             and p.status like 'ACTIVE'
             and metercode.description not like 'Anteil gemeinschaftliche Erzeugung'
             and m.timestamp BETWEEN $2 AND $3
-            group by member.name, member.identifier, p.type, metercode.description, m.timestamp::time
-            order by m.timestamp::time
+            and coalesce(quality.is_complete, true)
+            group by member.name, member.identifier, p.type, metercode.description, (m.timestamp at time zone 'Europe/Vienna')::time
+            order by time
             ;
         `, [memberId, startDate, endDate]);
 
     sql.release();
     const rows = result?.rows;
     return rows;
+};
+
+
+// Summen in kWh je Metrik über den Zeitraum (gleiche Qualitätsfilterung wie
+// getAverageMetrics, damit Kacheln und Kurve dieselbe Datenbasis zeigen).
+export const getMetricTotals = async (memberId: number, startDate: any, endDate: any) => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+            select
+                metercode.description as metric_name,
+                sum(m.value) as total_kwh
+            from metering_measurement m
+            inner join members_measurementpoint p on p.id = m.measurement_point_id
+            inner join public.members_member member on member.id = p.member_id
+            inner join public.metering_metercode metercode on metercode.id = m.meter_code_id
+            left join (
+                select day, bool_or(is_complete) as is_complete
+                from daily_metering_quality
+                group by day
+            ) quality on quality.day = (m.timestamp at time zone 'Europe/Vienna')::date
+
+            where member.identifier = $1
+            and p.status like 'ACTIVE'
+            and metercode.description not like 'Anteil gemeinschaftliche Erzeugung'
+            and m.timestamp BETWEEN $2 AND $3
+            and coalesce(quality.is_complete, true)
+            group by metercode.description
+            ;
+        `, [memberId, startDate, endDate]);
+
+    sql.release();
+    return result?.rows;
+};
+
+
+export const getMemberMeasurementPoints = async (memberIdentifier: number) => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        select p.identifier, p.type, p.status
+        from members_measurementpoint p
+        inner join members_member m on m.id = p.member_id
+        where m.identifier = $1
+        order by p.type, p.identifier
+        ;
+        `, [memberIdentifier]);
+    sql.release();
+    return result?.rows;
 };
 
 

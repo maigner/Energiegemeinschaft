@@ -1,16 +1,6 @@
 <script>
     import { page } from "$app/state";
 
-    import {
-        HomeOutline,
-        MailBoxOutline,
-        QuestionCircleOutline,
-        UserAddOutline,
-        UserOutline,
-        ChartMixedDollarOutline,
-        AwardOutline,
-    } from "flowbite-svelte-icons";
-
     import { signOut } from "@auth/sveltekit/client";
 
     import {
@@ -27,6 +17,8 @@
 
     let { data } = $props();
     let activeUrl = $derived(page.url.pathname);
+
+    let hasMultipleLocations = $derived((data.users?.length ?? 0) > 1);
 </script>
 
 <Navbar>
@@ -37,7 +29,11 @@
                 >Mein Bereich</span
             >
         </NavBrand>
-        <Avatar id="avatar-menu" />
+
+        <div class="flex items-center gap-2 ml-auto md:order-2">
+            <Avatar id="avatar-menu" class="cursor-pointer" />
+            <NavHamburger />
+        </div>
 
         <Dropdown placement="bottom" triggeredBy="#avatar-menu">
             <DropdownHeader>
@@ -52,5 +48,50 @@
                 }}>Abmelden</DropdownItem
             >
         </Dropdown>
+
+        <NavUl {activeUrl}>
+            {#if hasMultipleLocations}
+                <NavLi
+                    href="/user"
+                    onclick={() => toggle()}
+                    activeClass="text-green-600 bg-secundary-100"
+                    nonActiveClass="text-green-800"
+                    class="hover:text-green-600"
+                >
+                    Meine Standorte
+                </NavLi>
+            {/if}
+
+            <NavLi
+                href="/"
+                onclick={() => toggle()}
+                activeClass="text-green-600 bg-secundary-100"
+                nonActiveClass="text-green-800"
+                class="hover:text-green-600"
+            >
+                Zur Website
+            </NavLi>
+
+            <NavLi
+                href="mailto:info@ischlstrom.org"
+                activeClass="text-green-600 bg-secundary-100"
+                nonActiveClass="text-green-800"
+                class="hover:text-green-600"
+            >
+                Hilfe &amp; Kontakt
+            </NavLi>
+
+            <NavLi
+                href="#abmelden"
+                onclick={(/** @type {Event} */ event) => {
+                    event.preventDefault();
+                    signOut();
+                }}
+                nonActiveClass="text-green-800"
+                class="hover:text-green-600 cursor-pointer"
+            >
+                Abmelden
+            </NavLi>
+        </NavUl>
     {/snippet}
 </Navbar>

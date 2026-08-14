@@ -33,7 +33,7 @@ function summaryEmailExternal(d) {
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Ihre Bewerbung bei der Energiegemeinschaft ISCHLSTROM</title>
+    <title>Ihr Beitrittsantrag bei der Energiegemeinschaft ISCHLSTROM</title>
 </head>
 <body>
     <p>Sehr geehrte(r) ${name},</p>
@@ -249,7 +249,7 @@ export async function POST(event) {
             const htmlExternal = summaryEmailExternal({ email, homeOrCompany, applicationData });
             const htmlInternal = summaryEmailInternal({ email, homeOrCompany, applicationData }, saved?.id);
 
-            await relayHtml("info@ischlstrom.org", email, "Ihre Bewerbung bei der Energiegemeinschaft ISCHLSTROM", htmlExternal);
+            await relayHtml("info@ischlstrom.org", email, "Ihr Beitrittsantrag bei der Energiegemeinschaft ISCHLSTROM", htmlExternal);
             await relayHtml("info@ischlstrom.org", "info@ischlstrom.org", `Neue Bewerbung von ${email}`, htmlInternal);
         } catch (mailError) {
             console.error(`membership application ${saved?.id} mail failed:`, mailError?.message ?? mailError);

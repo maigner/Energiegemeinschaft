@@ -1,4 +1,4 @@
-import { getAverageMetrics } from '$lib/server/db/members/member';
+import { getAverageMetrics, getMetricTotals } from '$lib/server/db/members/member';
 import { canAccessMemberData } from '$lib/server/db/members/authorization';
 import { json } from '@sveltejs/kit';
 
@@ -25,12 +25,11 @@ export async function POST(event) {
         return new Response(null, { status: 403, statusText: "Forbidden" });
     }
 
-    const result = await getAverageMetrics(userId, startDate, endDate);
+    const [averageMetrics, totals] = await Promise.all([
+        getAverageMetrics(userId, startDate, endDate),
+        getMetricTotals(userId, startDate, endDate),
+    ]);
 
-
-
-    return json(
-        result
-    );
+    return json({ averageMetrics, totals });
 
 }
