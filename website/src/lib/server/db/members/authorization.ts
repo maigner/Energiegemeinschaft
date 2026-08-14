@@ -61,6 +61,22 @@ export const canAccessMemberData = async (
 };
 
 
+/**
+ * Guard for /api/finance endpoints: returns an error Response when the
+ * request is not from a cashier session, null when access is allowed.
+ * 401 = not logged in, 403 = logged in but not a cashier.
+ */
+export const cashierGuard = async (locals: any): Promise<Response | null> => {
+    const session = await locals.auth();
+    if (!session) {
+        return new Response(null, { status: 401, statusText: "Unauthorized" });
+    }
+    if (!(await cashierSession(session))) {
+        return new Response(null, { status: 403, statusText: "Forbidden" });
+    }
+    return null;
+};
+
 export const cashierSession = async (session: any) => {
     //console.log({session});
     if (session?.user?.email === CHAIR1) {

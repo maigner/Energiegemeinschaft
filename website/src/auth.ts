@@ -5,6 +5,7 @@ import PostgresAdapter from "@auth/pg-adapter";
 import { error, redirect } from '@sveltejs/kit';
 import { authDbPool } from "$lib/server/db/db";
 import { getBoardMemberByEmail } from "$lib/server/db/members/member";
+import { cashierSession } from "$lib/server/db/members/authorization";
 import { createTransport } from "nodemailer";
 
 export const authorizationHandle = async({ event, resolve }) => {
@@ -40,6 +41,16 @@ export const authorizationHandle = async({ event, resolve }) => {
 
     if (!session) {
       throw redirect(307, `/login?source=${event.route.id.replace("/(website)", "")}`);
+    }
+  }
+
+  // defense in depth: finance API endpoints are cashier-only; each endpoint
+  // additionally checks the cashier role itself via cashierGuard
+  if (event.route.id?.startsWith('/api/finance')) {
+    const session = await event.locals.auth();
+
+    if (!(await cashierSession(session))) {
+      error(session ? 403 : 401, { message: 'Nicht berechtigt' });
     }
   }
 

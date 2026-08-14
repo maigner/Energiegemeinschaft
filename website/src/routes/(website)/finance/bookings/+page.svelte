@@ -1,5 +1,4 @@
 <script>
-    import { JsonView } from "@zerodevx/svelte-json-view";
     import {
         Table,
         TableBody,
@@ -37,9 +36,23 @@
     /**
      * @type {string}
      */
-    let yearString = $state("2025"); //new Date().getFullYear().toString();
+    let yearString = $state(new Date().getFullYear().toString());
 
     let year = $derived(parseInt(yearString));
+
+    // all years that have bookings, plus the current year
+    let yearItems = $derived.by(() => {
+        const years = new Set(
+            bookings.map(
+                (/** @type {{ booking_date: Date; }} */ booking) =>
+                    booking.booking_date.getFullYear(),
+            ),
+        );
+        years.add(new Date().getFullYear());
+        return [...years]
+            .sort((a, b) => b - a)
+            .map((y) => ({ value: y.toString(), name: y.toString() }));
+    });
 
     let filteredBookings = $derived(
         bookings.filter(
@@ -86,12 +99,7 @@
     <div class="flex">
         <Select
             class="mt-2 mb-4 min-w-20"
-            items={[
-                { value: "2023", name: "2023" },
-                { value: "2024", name: "2024" },
-                { value: "2025", name: "2025" },
-                { value: "2026", name: "2026" },
-            ]}
+            items={yearItems}
             bind:value={yearString}
             placeholder="Jahr"
         />
@@ -258,7 +266,6 @@
 
                             <div class="mt-4">
                                 <FileBox
-                                    {data}
                                     bind:fileList={bookingsAttachments}
                                     bookingId={booking.id}
                                 />

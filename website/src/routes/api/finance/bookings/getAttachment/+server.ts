@@ -1,41 +1,33 @@
-import { cashierSession } from '$lib/server/db/members/authorization';
+import { cashierGuard } from '$lib/server/db/members/authorization';
 import { nextcloudClient } from '$lib/server/nextcloud/client';
 import { getAttachment } from '$lib/server/db/finance/bookings.js';
+import { parseId, sanitizeFilename } from '$lib/server/api';
 
 /** @type {import('../../$types').RequestHandler} */
 export async function GET(event) {
 
-    const attachmentId = event.url.searchParams.get("attachmentId");
+    const guard = await cashierGuard(event.locals);
+    if (guard) return guard;
 
-
-    const session = await event.locals.auth();
-
-    const authorized = await cashierSession(session);
-    if (!authorized) {
-        return new Response(null, { status: 401, statusText: "Unauthorized" })
+    const attachmentId = parseId(event.url.searchParams.get("attachmentId"));
+    if (attachmentId === null) {
+        return new Response(null, { status: 400, statusText: "invalid attachmentId" });
     }
 
-
-    // @ts-ignore
-    const attachment = await getAttachment(parseInt(attachmentId));
+    const attachment = await getAttachment(attachmentId);
     if (!attachment) {
         return new Response(null, { status: 404, statusText: "No attachment" })
     }
 
-
     const nextcloud = nextcloudClient();
 
-
     const stat = await nextcloud.stat(attachment.filename);
-    //console.log({ stat });
-
     if (!stat) {
         return new Response(null, { status: 404, statusText: "No Stats for File" })
     }
 
-
     const baseFileName = attachment.filename.split("/").slice(-1)[0];
-    const outputFileName = `${attachmentId}-${baseFileName}`;
+    const outputFileName = sanitizeFilename(`${attachmentId}-${baseFileName}`);
 
     try {
         // Bankbelege nicht auf Platte zwischenspeichern, direkt durchreichen
@@ -44,7 +36,7 @@ export async function GET(event) {
         return new Response(file, {
             status: 200,
             headers: {
-                'Content-Type': stat.mime, // Adjust MIME type for the file you're generating
+                'Content-Type': stat.mime,
                 'Content-Disposition': `attachment; filename="${outputFileName}"` // Forces download with a filename
             }
         });

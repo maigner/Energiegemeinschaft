@@ -1,21 +1,22 @@
 import { deleteBookingLabel } from '$lib/server/db/finance/bookings';
-import { cashierSession } from '$lib/server/db/members/authorization';
+import { cashierGuard } from '$lib/server/db/members/authorization';
+import { parseId } from '$lib/server/api';
 import { json } from '@sveltejs/kit';
 
 /** @type {import('../../$types').RequestHandler} */
 export async function POST(event) {
 
-    const session = await event.locals.auth();
+    const guard = await cashierGuard(event.locals);
+    if (guard) return guard;
 
-    const authorized = await cashierSession(session);
-    if (!authorized) {
-        return new Response(null, { status: 401, statusText: "Unauthorized" })
+    const body = await event.request.json();
+    const bookingId = parseId(body.bookingId);
+    const labelId = parseId(body.labelId);
+    if (bookingId === null || labelId === null) {
+        return new Response(null, { status: 400, statusText: "invalid bookingId/labelId" });
     }
 
-    const { bookingId, labelId } = await event?.request?.json();
     const result = await deleteBookingLabel(bookingId, labelId);
-    return json(
-        result
-    );
+    return json(result);
 
 }

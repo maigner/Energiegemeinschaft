@@ -1,5 +1,4 @@
 <script>
-    import { JsonView } from "@zerodevx/svelte-json-view";
     import {
         Badge,
         Indicator,
@@ -47,11 +46,10 @@
                 );
             })
             .sort(
-                // @ts-ignore
                 (
                     /** @type {{ label: string; }} */ a,
                     /** @type {{ label: string; }} */ b,
-                ) => a.label.localeCompare(b.label) >= 0,
+                ) => a.label.localeCompare(b.label),
             );
     });
 
@@ -134,37 +132,6 @@
             </TableBodyRow>
         {/each}
 
-        <!--
-        <TableBodyRow>
-            <TableBodyCell class="whitespace-normal p-2">
-                <div class="pl-1 text-lg">Gesamt</div>
-            </TableBodyCell>
-
-            <TableBodyCell class="whitespace-normal text-lg text-right">
-                {data.filteredBookings
-                    .reduce(
-                        (
-                            /** @type {number} */ sum,
-                            /** @type {{ amount: string; }} */ booking,
-                        ) => sum + parseFloat(booking.amount),
-                        0,
-                    )
-                    .toFixed(2)}
-            </TableBodyCell>
-
-            <TableBodyCell class="whitespace-normal text-lg text-right">
-                {data.filteredBookings
-                    .reduce(
-                        (
-                            /** @type {number} */ sum,
-                            /** @type {{ amount: string; }} */ booking,
-                        ) => sum + Math.abs(parseFloat(booking.amount)),
-                        0,
-                    )
-                    .toFixed(2)}
-            </TableBodyCell>
-        </TableBodyRow>
--->
         <TableBodyRow>
             <TableBodyCell class="whitespace-normal p-2">
                 <div class="pl-1">Finaler Kontostand</div>

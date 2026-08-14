@@ -1,26 +1,34 @@
 import { updateBookingReverseChargeAmount } from '$lib/server/db/finance/bookings';
-import { cashierSession } from '$lib/server/db/members/authorization.js';
+import { cashierGuard } from '$lib/server/db/members/authorization.js';
+import { parseId } from '$lib/server/api';
 import { json } from '@sveltejs/kit';
 
 /** @type {import('../../$types').RequestHandler} */
 export async function POST(event) {
 
-    //console.log({event});
+    const guard = await cashierGuard(event.locals);
+    if (guard) return guard;
 
-    const session = await event.locals.auth();
+    const body = await event.request.json();
 
-    //console.log({session});
-
-    const authorized = await cashierSession(session);
-    if (!authorized) {
-        return new Response(null, { status: 401, statusText: "Unauthorized" })
+    const bookingId = parseId(body.bookingId);
+    if (bookingId === null) {
+        return new Response(null, { status: 400, statusText: "invalid bookingId" });
     }
 
-    const { bookingId, reverseChargeAmount } = await event?.request?.json();
+    // empty input clears the amount
+    let reverseChargeAmount = body.reverseChargeAmount;
+    if (reverseChargeAmount === undefined || reverseChargeAmount === "") {
+        reverseChargeAmount = null;
+    }
+    if (reverseChargeAmount !== null) {
+        reverseChargeAmount = Number(reverseChargeAmount);
+        if (!Number.isFinite(reverseChargeAmount)) {
+            return new Response(null, { status: 400, statusText: "invalid reverseChargeAmount" });
+        }
+    }
 
-    const result = await updateBookingReverseChargeAmount(bookingId, reverseChargeAmount);
-    return json(
-        result
-    );
+    await updateBookingReverseChargeAmount(bookingId, reverseChargeAmount);
+    return json({ success: true });
 
 }

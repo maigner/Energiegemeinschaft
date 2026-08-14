@@ -1,5 +1,6 @@
-import { cashierSession } from '$lib/server/db/members/authorization.js';
+import { cashierGuard } from '$lib/server/db/members/authorization.js';
 import { nextcloudClient } from '$lib/server/nextcloud/client.js';
+import { parseId } from '$lib/server/api';
 import { json } from '@sveltejs/kit';
 
 import { Readable } from 'stream';
@@ -23,51 +24,43 @@ const createReadStreamFromBuffer = (buffer) => {
 
 /** @type {import('../../$types').RequestHandler} */
 export async function POST(event) {
-    //console.log({event});
-    const session = await event.locals.auth();
-    //console.log({ session });
-    const authorized = await cashierSession(session);
-    if (!authorized) {
-        return new Response(null, { status: 401, statusText: "Unauthorized" })
-    }
 
+    const guard = await cashierGuard(event.locals);
+    if (guard) return guard;
 
-    const formData = await event.request.formData(); // Get the form data
+    const formData = await event.request.formData();
 
-    // Retrieve the file from the form data
     const file = formData.get('file');
-    //console.log(file);
-    if (!file) {
-        return new Response(null, { status: 500, statusText: "file" })
+    if (!file || typeof file === 'string') {
+        return new Response(null, { status: 400, statusText: "file" })
     }
 
-    const bookingId = parseInt(formData.get("bookingId"));
-    if (!bookingId) {
-        return new Response(null, { status: 500, statusText: "bookingId" })
+    const bookingId = parseId(formData.get("bookingId"));
+    if (bookingId === null) {
+        return new Response(null, { status: 400, statusText: "bookingId" })
     }
-    //console.log({ bookingId });
+
+    // strip any path components from the client-supplied name
+    const fileName = file.name.split("/").pop()?.split("\\").pop();
+    if (!fileName || fileName === "." || fileName === "..") {
+        return new Response(null, { status: 400, statusText: "invalid filename" })
+    }
 
     const dir = `/website/finance/bookings/booking/${bookingId}`;
     const nextcloud = nextcloudClient();
 
-    if (!nextcloud) {
-        return new Response(null, { status: 500, statusText: "no nextcloud" });
-    }
-
-
     try {
-        await nextcloud.createDirectory(dir);
-        console.log("created " + dir);
+        if (!(await nextcloud.exists(dir))) {
+            await nextcloud.createDirectory(dir);
+            console.log("created " + dir);
+        }
     } catch (e) {
         console.error(e);
         return new Response(null, { status: 500, statusText: "createDirectory" });
     }
 
+    const target = `${dir}/${fileName}`;
 
-    const target = `${dir}/${file.name}`;
-
-    // Convert the file to a buffer
-    // @ts-ignore
     const buffer = Buffer.from(await file.arrayBuffer());
 
     const fileStream = createReadStreamFromBuffer(buffer);
@@ -76,22 +69,16 @@ export async function POST(event) {
     let attachment;
 
     try {
-        // Await the piping of the streams
         await pipe(fileStream, writestream);
-        //console.log(`File ${file.name} uploaded successfully.`);
-
 
         // update DB
         attachment = await addFileToBooking(bookingId, target);
 
-
     } catch (err) {
-        console.error(`Error writing file ${file.name}:`, err);
+        console.error(`Error writing file ${fileName}:`, err);
         return new Response(null, { status: 500, statusText: "upload failed" });
     }
 
-
-    // Send a response back
     return json({ success: true, message: 'File uploaded', attachment: attachment });
 
 }

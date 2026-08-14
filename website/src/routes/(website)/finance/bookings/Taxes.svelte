@@ -1,5 +1,4 @@
 <script>
-    import { JsonView } from "@zerodevx/svelte-json-view";
     import {
         Badge,
         Indicator,
@@ -41,22 +40,26 @@
     });
 
     let sumOfIncome = $derived.by(() => {
-        return bookingsByLabel["Einnahmen"]?.reduce(
-            (
-                /** @type {number} */ sum,
-                /** @type {{ amount: string; }} */ booking,
-            ) => sum + parseFloat(booking?.amount),
-            0,
+        return (
+            bookingsByLabel["Einnahmen"]?.reduce(
+                (
+                    /** @type {number} */ sum,
+                    /** @type {{ amount: string; }} */ booking,
+                ) => sum + parseFloat(booking?.amount),
+                0,
+            ) ?? 0
         );
     });
 
     let sumOfExpenses = $derived.by(() => {
-        return bookingsByLabel["Ausgaben"]?.reduce(
-            (
-                /** @type {number} */ sum,
-                /** @type {{ amount: string; }} */ booking,
-            ) => sum + parseFloat(booking?.amount),
-            0,
+        return (
+            bookingsByLabel["Ausgaben"]?.reduce(
+                (
+                    /** @type {number} */ sum,
+                    /** @type {{ amount: string; }} */ booking,
+                ) => sum + parseFloat(booking?.amount),
+                0,
+            ) ?? 0
         );
     });
 
@@ -72,7 +75,6 @@
             );
     });
 
-    let turnover = $derived(sumOfIncome + Math.abs(sumOfExpenses));
 </script>
 
 <Heading tag="h4" class="text-center text-primary-700 mb-4">K2a: KÖSt</Heading>

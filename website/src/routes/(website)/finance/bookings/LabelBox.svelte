@@ -1,5 +1,4 @@
 <script>
-    import { JsonView } from "@zerodevx/svelte-json-view";
     import { Badge, Select, Indicator, Button } from "flowbite-svelte";
     import { TrashBinOutline } from "flowbite-svelte-icons";
 
@@ -34,7 +33,7 @@
                 (
                     /** @type {{ name: string; }} */ a,
                     /** @type {{ name: string; }} */ b,
-                ) => a.name.localeCompare(b.name) >= 0,
+                ) => a.name.localeCompare(b.name),
             );
     });
 
@@ -92,8 +91,6 @@
                         } catch (err) {
                             alert(err);
                         }
-
-                        // TODO: call API to actually delete
                     }}
                 >
                     <TrashBinOutline />
