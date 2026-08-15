@@ -65,6 +65,10 @@ String Ischlstrom_Crossover_Ende      "Crossover Ende [%s]"             <time> (
 String Ischlstrom_Ladesperre_Start    "Ladesperre ab [%s]"              <time> (IBM)
 String Ischlstrom_Ladesperre_Ende     "Ladesperre bis [%s]"             <time> (IBM)
 String Ischlstrom_Ladesperre_Datum    "Ladesperre-Fenster fuer [%s]"    <calendar> (IBM)
+// ON, wenn das Sperr-Ende von der Token-API individuell fuer diese Anlage
+// berechnet wurde (aus Erzeugungsprofil, Kapazitaet und Ladeleistung) -
+// die Steuerung uebernimmt es dann unveraendert
+Switch Ischlstrom_Ladesperre_Individuell "Sperr-Ende individualisiert"  <switch> (IBM)
 
 // Vom Mitglied einstellbar
 Number IBM_MIN_BATTERY_CHARGE                       "Minimaler Ladestand Batterie [%.0f %%]" <batterylevel> (IBM)
@@ -135,6 +139,7 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     Ischlstrom_Ladesperre_Start,
     Ischlstrom_Ladesperre_Ende,
     Ischlstrom_Ladesperre_Datum,
+    Ischlstrom_Ladesperre_Individuell,
     IBM_MIN_BATTERY_CHARGE,
     Minimale_Entladeleistung_Batterieeinspeisung,
     Maximale_Entladeleistung_Batterieeinspeisung,

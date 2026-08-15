@@ -94,6 +94,7 @@ if [ -f "$items_db" ]; then
               Ischlstrom_Ladesperre_Start \
               Ischlstrom_Ladesperre_Ende \
               Ischlstrom_Ladesperre_Datum \
+              Ischlstrom_Ladesperre_Individuell \
               IBM_MIN_BATTERY_CHARGE \
               Minimale_Entladeleistung_Batterieeinspeisung \
               Maximale_Entladeleistung_Batterieeinspeisung \

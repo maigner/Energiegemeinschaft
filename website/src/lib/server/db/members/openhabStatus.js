@@ -84,6 +84,28 @@ export const pushOpenhabStatus = async (token, name, data) => {
 };
 
 /**
+ * Anlage zu einem Status-Token, fuer die individualisierte Ladefenster-API
+ * (/api/ibm/ladefenster/v1): liefert die zuletzt gepushten Daten der Anlage
+ * (geschaetzte Batteriekapazitaet und Ladeleistung), mit denen der Server
+ * das Sperr-Ende je Anlage berechnet. null bei unbekanntem Token.
+ *
+ * @param {string} token
+ * @returns {Promise<{ id: number, data: Record<string, any> } | null>}
+ */
+export const getOpenhabPlantByToken = async (token) => {
+    const db = await middlewareDbConnection();
+    try {
+        const result = await db.query(
+            `SELECT id, data FROM members_openhabstatus WHERE token = $1`,
+            [token]
+        );
+        return result.rows[0] ?? null;
+    } finally {
+        db.release();
+    }
+};
+
+/**
  * Verlauf einer Anlage fuer die Diagramme der Detailseite, gemittelt auf
  * 15-Minuten-Fenster. Vorzeichen wie vom Fronius geliefert: Batterie
  * positiv = Entladen, Netz negativ = Einspeisung. Die Systemwerte

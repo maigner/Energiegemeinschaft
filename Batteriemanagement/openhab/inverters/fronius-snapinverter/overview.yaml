@@ -296,10 +296,11 @@ pages:
                               title: Sperre bis
                               item: Ischlstrom_Ladesperre_Ende
                               footer: >-
-                                Ende der Sperre laut Tagesprognose. Ist unten
-                                das selbst berechnete Sperr-Ende aktiv, gilt
-                                stattdessen dieses. Ab dem Ende lädt die
-                                Batterie aus der eigenen PV-Anlage.
+                                Ende der Sperre - individuell für diese
+                                Anlage berechnet, sofern eingeschaltet und
+                                Schätzwerte vorliegen, sonst laut
+                                Tagesprognose der Gemeinschaft. Ab dem Ende
+                                lädt die Batterie aus der eigenen PV-Anlage.
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -310,16 +311,16 @@ pages:
                         default:
                           - component: oh-toggle-card
                             config:
-                              title: Sperr-Ende selbst berechnen
+                              title: Sperr-Ende an die Anlage anpassen
                               item: IBM_LADESPERRE_LOKAL
                               color: blue
                               footer: >-
-                                Die Steuerung errechnet aus Batteriegröße und
-                                gelernter Ladeleistung, wann sie spätestens zu
-                                laden beginnen muss, damit die Batterie am
-                                Abend voll ist - und sperrt genau bis dahin.
-                                Solange die Schätzungen fehlen, gilt das Ende
-                                laut Tagesprognose.
+                                Das Sperr-Ende wird für diese Anlage berechnet:
+                                aus Batteriegröße, gelernter Ladeleistung und
+                                dem Sonnenverlauf des Tages, so spät wie
+                                möglich, aber die Batterie ist am Abend voll.
+                                Solange die Schätzungen fehlen (oder bei AUS),
+                                gilt das allgemeine Ende laut Tagesprognose.
               - component: oh-grid-row
                 config: {}
                 slots:
@@ -330,11 +331,13 @@ pages:
                         default:
                           - component: oh-label-card
                             config:
-                              title: Selbst berechnetes Sperr-Ende
+                              title: Notfall-Ende (lokal gerechnet)
                               item: IBM_LADESPERRE_LOKAL_ENDE
                               footer: >-
-                                "-" bedeutet: heute gilt das Ende laut
-                                Tagesprognose oder es wird nicht gesperrt.
+                                Greift nur, wenn ischlstrom.org kein
+                                individuelles Ende liefert. "-" bedeutet:
+                                das Ende unter "Sperre bis" gilt oder es
+                                wird heute nicht gesperrt.
                     - component: oh-grid-col
                       config: {}
                       slots:

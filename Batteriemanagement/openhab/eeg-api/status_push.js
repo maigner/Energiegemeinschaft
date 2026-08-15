@@ -240,6 +240,7 @@ var payload = {
     ladesperre_start: stateOf('Ischlstrom_Ladesperre_Start'),
     ladesperre_ende: stateOf('Ischlstrom_Ladesperre_Ende'),
     ladesperre_datum: stateOf('Ischlstrom_Ladesperre_Datum'),
+    ladesperre_individuell: stateOf('Ischlstrom_Ladesperre_Individuell'),
     log_entries: collectLogEntries(),
     versions: collectVersions(),
     apt_updates: collectAptUpdates(),

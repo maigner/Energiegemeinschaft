@@ -54,7 +54,11 @@ CRON_CLOUD="0 40 * * * ?"
 CRON_CROSSOVER="0 5 4 * * ?"
 
 # Ladesperre-Fenster aus der Tagesprognose. Stuendlich, damit ein frueher
-# API-Ausfall am selben Tag noch nachgeholt wird.
+# API-Ausfall am selben Tag noch nachgeholt wird. Mit Status-Token (und
+# DEFAULT_LADESPERRE_LOKAL nicht OFF) fragt die Anlage die individualisierte
+# Token-API ab: der Server berechnet das Sperr-Ende dann je Anlage aus dem
+# Erzeugungsprofil des Tages und den gepushten Schaetzwerten (Kapazitaet,
+# Ladeleistung); ohne Token gilt das Community-Fenster.
 CRON_LADESPERRE="0 50 * * * ?"
 
 # Initialisierung der Konfigurations-Items (setzt nur NULL/UNDEF-Werte).

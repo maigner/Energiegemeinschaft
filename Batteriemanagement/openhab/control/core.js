@@ -584,14 +584,23 @@ if (pauseDays >= 1) {
 // ----------------------------------------------------------------------------
 // Lokale Ladesperre: eigenes Sperr-Ende aus Batteriegroesse und Ladeleistung
 // ----------------------------------------------------------------------------
-// Ist das lokale Ende berechenbar, ersetzt es das Server-Ende - auch nach
-// hinten ("moeglichst spaet laden"), begrenzt auf LOCAL_LATEST_END_MIN.
-// Liegt es vor dem Fensterbeginn, braucht die Anlage den ganzen Tag zum
-// Laden und es wird gar nicht gesperrt. Datum-Pruefung und Fensterbeginn
-// (erster Sonnenschein) kommen weiterhin vom Server. Das berechnete Ende
-// steht in IBM_LADESPERRE_LOKAL_ENDE (Anzeige und Status-Push), '-' wenn
-// gerade das Server-Ende gilt oder heute nicht gesperrt wird.
-if (chargeLockReady) {
+// Meldet die API ein individualisiertes Ende (Ischlstrom_Ladesperre_
+// Individuell=ON, Token-API mit Erzeugungsprofil und den gepushten
+// Schaetzwerten dieser Anlage), gilt es unveraendert - die lokale
+// Flatrate-Rechnung ist dann nur noch der Rueckfall fuer Community-Fenster
+// und API-Ausfall. Ist das lokale Ende berechenbar, ersetzt es das
+// Community-Ende - auch nach hinten ("moeglichst spaet laden"), begrenzt
+// auf LOCAL_LATEST_END_MIN. Liegt es vor dem Fensterbeginn, braucht die
+// Anlage den ganzen Tag zum Laden und es wird gar nicht gesperrt.
+// Datum-Pruefung und Fensterbeginn (erster Sonnenschein) kommen immer vom
+// Server. Das lokal berechnete Ende steht in IBM_LADESPERRE_LOKAL_ENDE
+// (Anzeige und Status-Push), '-' wenn gerade ein Server-Ende gilt oder
+// heute nicht gesperrt wird.
+var serverEndIndividual = onOff('Ischlstrom_Ladesperre_Individuell', false);
+if (chargeLockReady && serverEndIndividual) {
+  console.log('[IBM][Ladesperre] Server-Ende ' + fmtMinutes(chargeLockEnd) + ' ist fuer diese Anlage individualisiert - lokale Berechnung uebersprungen');
+  publishItem('IBM_LADESPERRE_LOKAL_ENDE', '-');
+} else if (chargeLockReady) {
   var localEnd = localChargeLockEnd();
   if (localEnd === null) {
     publishItem('IBM_LADESPERRE_LOKAL_ENDE', '-');

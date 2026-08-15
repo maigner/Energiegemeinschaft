@@ -148,6 +148,7 @@ voraussetzen:
 | `Ischlstrom_Crossover_Ende` | String | Ende Ueberschussfenster, `HH:MM:SS` |
 | `Ischlstrom_Ladesperre_Start` / `_Ende` | String | Ladesperre-Fenster, `HH:MM` oder `-` |
 | `Ischlstrom_Ladesperre_Datum` | String | Gueltigkeitstag des Fensters, `YYYY-MM-DD` |
+| `Ischlstrom_Ladesperre_Individuell` | Switch | ON = Ende kam individualisiert von der Token-API; der Kern uebernimmt es unveraendert |
 | `IBM_MIN_BATTERY_CHARGE` | Number | Minimaler Ladestand in % |
 | `Minimale_Entladeleistung_Batterieeinspeisung` | Number | Watt |
 | `Maximale_Entladeleistung_Batterieeinspeisung` | Number | Watt |

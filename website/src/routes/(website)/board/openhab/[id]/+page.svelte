@@ -66,7 +66,13 @@
                 d.ladesperre_aktiv === "OFF"
                     ? "deaktiviert"
                     : start && ende
-                      ? `${start} bis ${ende}${lokalEnde ? " (lokal berechnet)" : ""}`
+                      ? `${start} bis ${ende}${
+                            d.ladesperre_individuell === "ON"
+                                ? " (individuell)"
+                                : lokalEnde
+                                  ? " (lokal berechnet)"
+                                  : ""
+                        }`
                       : "heute keine",
             entladungAus: d.entladung_aktiv === "OFF",
             entladung:
@@ -513,10 +519,12 @@
                 )}
             </dl>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                "Lokal berechnet" heißt: Die Anlage hat das Sperr-Ende selbst
-                aus Batteriegröße und gelernter Ladeleistung bestimmt, damit
-                die Batterie am Abend voll ist. Ohne diese Angabe gilt das
-                Server-Ende aus der Tagesprognose.
+                "Individuell" heißt: Der Server hat das Sperr-Ende für diese
+                Anlage aus dem Erzeugungsprofil des Tages, Batteriegröße und
+                gelernter Ladeleistung berechnet. "Lokal berechnet" ist der
+                Rückfall der Anlage nach derselben Idee, aber ohne
+                Tagesprofil. Ohne beide Angaben gilt das Community-Ende aus
+                der Tagesprognose.
             </p>
         </Card>
     {/if}

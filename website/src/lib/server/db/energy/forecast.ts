@@ -152,6 +152,94 @@ export const getTodayChargeWindow = async (runId: number) => {
     return row;
 };
 
+// --- Individualisiertes Ladesperre-Ende (Token-API /api/ibm/ladefenster) ----
+// Rechnet das Sperr-Ende je Anlage statt für die Gemeinschaft: rückwärts von
+// der Abend-Deadline wird das normierte Erzeugungsprofil des Prognosetags,
+// skaliert mit der gepushten Ladeleistung der Anlage, aufintegriert, bis die
+// fehlende Energie (Anteil der gepushten Batteriekapazität mal Sicherheits-
+// faktor) gedeckt ist. Das Community-Profil dient nur als Tagesform (wann ist
+// die Sonne wie stark); Amplitude und Batteriegröße kommen von der Anlage.
+// Die Parameter liegen bewusst hier am Server: Tuning braucht so kein
+// IBM-Paket-Update auf den Anlagen.
+
+// Fehlende Energie am Morgen: der Wechselrichter versorgt nach dem
+// Entlade-Stopp das Haus weiter aus der Batterie bis zu seiner eigenen
+// Reserve von wenigen Prozent - unabhängig vom eingestellten Mindest-SoC.
+const IBM_CHARGE_FRACTION = 0.95;
+// Sicherheitsaufschlag auf die benötigte Energie (Prognosefehler, Dunst).
+const IBM_SAFETY_FACTOR = 1.3;
+// So viele Minuten vor dem abendlichen Crossover soll die Batterie voll sein.
+const IBM_FULL_BUFFER_MIN = 60;
+// Später endet keine Sperre (die Steuerung am Pi ignoriert Enden ab 15:00).
+const IBM_LATEST_END_MIN = 14 * 60;
+
+const fmtMinutes = (m: number) => {
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${h < 10 ? "0" : ""}${h}:${mm < 10 ? "0" : ""}${mm}`;
+};
+
+/**
+ * Individualisiertes Ladesperre-Ende ("HH:MM") für eine Anlage mit der
+ * gegebenen Batteriekapazität und Ladeleistung - oder null, wenn die Anlage
+ * laut Profil den ganzen Tag zum Laden braucht (dann keine Sperre) oder der
+ * Prognosetag keine Berechnung hergibt (kein Profil, keine Erzeugung, kein
+ * abendlicher Crossover). Plausibilität der Eingaben prüft der Aufrufer.
+ */
+export const getIndividualChargeWindowEnd = async (
+    runId: number,
+    capacityKwh: number,
+    chargeRateKw: number
+) => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        SELECT (EXTRACT(hour FROM timestamp AT TIME ZONE 'Europe/Vienna') * 60
+              + EXTRACT(minute FROM timestamp AT TIME ZONE 'Europe/Vienna'))::int AS minute_of_day,
+               generation_kwh,
+               consumption_kwh
+        FROM metering_energyforecast
+        WHERE run_id = $1
+          AND (timestamp AT TIME ZONE 'Europe/Vienna')::date = (now() AT TIME ZONE 'Europe/Vienna')::date
+        ORDER BY 1
+    `, [runId]);
+    sql.release();
+
+    const slots = (result?.rows ?? []).map((r: any) => ({
+        minute: Number(r.minute_of_day),
+        gen: Number(r.generation_kwh),
+        cons: Number(r.consumption_kwh),
+    }));
+    if (slots.length === 0) return null;
+
+    const maxGen = Math.max(...slots.map((s: { gen: number }) => s.gen));
+    if (!(maxGen > 0)) return null;
+
+    // Abendlicher Crossover: Ende des letzten Slots, in dem die Erzeugung
+    // den Verbrauch noch deckt.
+    let crossoverEnd: number | null = null;
+    for (const s of slots) {
+        if (s.gen >= s.cons) crossoverEnd = s.minute + 15;
+    }
+    if (crossoverEnd === null) return null;
+
+    const deadline = crossoverEnd - IBM_FULL_BUFFER_MIN;
+    const neededKwh = capacityKwh * IBM_CHARGE_FRACTION * IBM_SAFETY_FACTOR;
+
+    // Rückwärts von der Deadline: Ladeleistung im Slot = Spitzenrate der
+    // Anlage mal normierter Erzeugung. Sobald die aufsummierte Energie
+    // reicht, ist der Slotbeginn das späteste Sperr-Ende.
+    let cumKwh = 0;
+    for (let i = slots.length - 1; i >= 0; i--) {
+        const s = slots[i];
+        if (s.minute + 15 > deadline) continue;
+        cumKwh += chargeRateKw * (s.gen / maxGen) * 0.25;
+        if (cumKwh >= neededKwh) {
+            return fmtMinutes(Math.min(s.minute, IBM_LATEST_END_MIN));
+        }
+    }
+    return null;
+};
+
 /**
  * Durchschnittlicher nächtlicher Strombedarf laut Prognose, für die
  * IBM-Seite: je vollständigem Prognosetag die Summe von Verbrauch minus
