@@ -260,7 +260,7 @@ zu niedrig als zu hoch.
 Das Ladestands-Item und das Batterieleistungs-Item werden **nicht** angelegt —
 sie entstehen beim Verknuepfen der Channels in der Main UI und werden ueber
 `SOC_ITEM` bzw. `BATTERY_POWER_ITEM` nur referenziert (letzteres zeigt auf der
-Overview-Seite die aktuelle Einspeiseleistung der Batterie).
+Overview-Seite die aktuelle Entladeleistung der Batterie).
 
 Die Startwerte dieser Items stehen in `ibm.conf` (`DEFAULT_*`) und werden von
 `ibm_init.js` gesetzt, solange ein Item noch `NULL` ist. Danach ist alles in

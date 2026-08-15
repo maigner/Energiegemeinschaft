@@ -114,6 +114,30 @@
     }
 
     /**
+     * Aktuelle Netzeinspeisung aus der Batterie in W, aus der letzten
+     * Meldung berechnet - dieselbe Rechnung wie auf dem Pi
+     * (ibm_netzeinspeisung.js) und in den Verlaufscharts der Detailseite:
+     * Die Batterie liefert (+) und das Netz nimmt auf (Netzleistung
+     * negativ); der kleinere der beiden Werte fließt tatsächlich von der
+     * Batterie ins Netz. null, wenn die Anlage keine Leistungswerte meldet.
+     * @param {any} d
+     */
+    function batteryToGridW(d) {
+        if (
+            typeof d.battery_power_w !== "number" ||
+            typeof d.grid_power_w !== "number"
+        ) {
+            return null;
+        }
+        return Math.round(
+            Math.min(
+                Math.max(d.battery_power_w, 0),
+                Math.max(-d.grid_power_w, 0),
+            ),
+        );
+    }
+
+    /**
      * Wirksames Ladesperre-Fenster heute: meldet die Anlage ein lokal
      * berechnetes Ende (lokale Ladesperre), gilt dieses statt des
      * Server-Endes aus der Tagesprognose.
@@ -290,6 +314,10 @@
                                 "Wolkenvorschau",
                             )}
                             {@render stat(sperreText(d), "Sperre heute")}
+                            {@render stat(
+                                batteryToGridW(d) !== null ? `${batteryToGridW(d)} W` : "-",
+                                "Einspeisung aus Batterie",
+                            )}
                             {@render stat(uptimeText(d) ?? "-", "Uptime")}
                         </div>
 

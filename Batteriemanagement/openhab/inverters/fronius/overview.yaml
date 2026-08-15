@@ -111,16 +111,33 @@ pages:
                         default:
                           - component: oh-label-card
                             config:
-                              title: Einspeiseleistung der Batterie
+                              title: Entladeleistung der Batterie
                               item: Fronius_Symo_Inverter_Battery_Power
                               footer: >-
-                                Mit dieser Leistung gibt die Batterie gerade
-                                Strom ab - an Haushalt und Netz. Negative
+                                Mit dieser Leistung entlädt sich die Batterie
+                                gerade. Der Strom versorgt zuerst den eigenen
+                                Haushalt, nur der Rest geht ins Netz. Negative
                                 Werte: die Batterie lädt. Tippen zeigt den
                                 Verlauf.
                               action: analyzer
                               actionAnalyzerItems:
                                 - Fronius_Symo_Inverter_Battery_Power
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Netzeinspeisung aus der Batterie
+                              item: IBM_BATTERIE_NETZEINSPEISUNG
+                              footer: >-
+                                Anteil der Entladung, der gerade wirklich ins
+                                Netz geht - der Rest versorgt den Haushalt.
+                                Berechnet aus Batterie- und Netzleistung.
+                                Tippen zeigt den Verlauf.
+                              action: analyzer
+                              actionAnalyzerItems:
+                                - IBM_BATTERIE_NETZEINSPEISUNG
               - component: oh-grid-row
                 config: {}
                 slots:

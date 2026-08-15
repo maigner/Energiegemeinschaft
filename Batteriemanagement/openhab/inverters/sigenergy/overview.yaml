@@ -111,11 +111,12 @@ pages:
                         default:
                           - component: oh-label-card
                             config:
-                              title: Einspeiseleistung der Batterie
+                              title: Entladeleistung der Batterie
                               item: IBM_SG_BatteryPower
                               footer: >-
-                                Mit dieser Leistung gibt die Batterie gerade
-                                Strom ab - an Haushalt und Netz. Negative
+                                Mit dieser Leistung entlädt sich die Batterie
+                                gerade. Der Strom versorgt zuerst den eigenen
+                                Haushalt, nur der Rest geht ins Netz. Negative
                                 Werte: die Batterie lädt. Tippen zeigt den
                                 Verlauf.
                               action: analyzer

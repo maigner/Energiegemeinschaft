@@ -80,7 +80,7 @@ Drei Vorlagen:
    | `INVERTER_SOC_PLACEHOLDER` | Standardname des Ladestands-Items; wird vom Setup durch das konfigurierte Item ersetzt |
    | `INVERTER_NOTES` | Hinweis fuer den Installateur |
 
-   Optional, fuer die Karte "Einspeiseleistung der Batterie" auf der
+   Optional, fuer die Karte "Entladeleistung der Batterie" auf der
    Overview-Seite (ohne diese Variablen entfaellt die Abfrage im
    Assistenten und die Ersetzung beim Installieren der Seiten):
 
@@ -88,6 +88,8 @@ Drei Vorlagen:
    | --- | --- |
    | `INVERTER_BATTERY_POWER_CHANNEL` | Channel mit der aktuellen Batterieleistung (+ entladen, - laden) |
    | `INVERTER_BATTERY_POWER_PLACEHOLDER` | Itemname in den Main-UI-Seiten, den das Setup durch `BATTERY_POWER_ITEM` ersetzt |
+   | `INVERTER_GRID_POWER_CHANNEL` | Channel mit der aktuellen Netzleistung (+ Bezug, - Einspeisung); zusammen mit der Batterieleistung berechnet `control/netzeinspeisung.js` daraus `IBM_BATTERIE_NETZEINSPEISUNG` (Karte "Netzeinspeisung aus der Batterie" - bisher nur im fronius-Profil) |
+   | `INVERTER_GRID_POWER_PLACEHOLDER` | Standard-Itemname der Netzleistung; wird durch `GRID_POWER_ITEM` ersetzt |
 
    Optional, fuer den Netzwerk-Watchdog (ohne diese Variablen bietet das
    Setup keinen Watchdog an):
@@ -154,6 +156,7 @@ voraussetzen:
 | `IBM_HAUSLAST` | Number | Vom Kern gelernte Hauslast in W (Anzeige/Status-Push) |
 | `IBM_HAUSLAST_MESSUNG` | String | Interner Zustand der Hauslastschaetzung (JSON) |
 | `IBM_NACHT_ZIEL` | String | Interner Zustand: festgehaltener Ziel-Ladestand der laufenden Nacht (JSON) |
+| `IBM_BATTERIE_NETZEINSPEISUNG` | Number | Berechnet (ibm_netzeinspeisung.js): Anteil der Batterie-Entladung, der ins Netz fliesst, in W; NULL ohne Batterie-/Netzleistungs-Item |
 | `IBM_MIN_BATTERY_CHARGE` | Number | Minimaler Ladestand in % |
 | `Minimale_Entladeleistung_Batterieeinspeisung` | Number | Watt |
 | `Maximale_Entladeleistung_Batterieeinspeisung` | Number | Watt |

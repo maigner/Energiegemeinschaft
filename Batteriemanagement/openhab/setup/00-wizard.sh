@@ -106,6 +106,7 @@ if [ "${#thing_candidates[@]}" -eq 0 ] && [ -n "$INVERTER_HOST_THING_PREFIX" ]; 
     INVERTER_THING_UID="$INVERTER_AUTO_THING_UID"
     SOC_ITEM="$INVERTER_SOC_PLACEHOLDER"
     BATTERY_POWER_ITEM="$INVERTER_BATTERY_POWER_PLACEHOLDER"
+    GRID_POWER_ITEM="$INVERTER_GRID_POWER_PLACEHOLDER"
     log "Thing-UID: $INVERTER_THING_UID"
     log "Ladestands-Item: $SOC_ITEM"
   fi
@@ -220,10 +221,36 @@ if [ -n "$INVERTER_BATTERY_POWER_PLACEHOLDER" ]; then
     warn "Kein Batterieleistungs-Item gefunden. Den Channel"
     warn "'${INVERTER_BATTERY_POWER_CHANNEL}' des Things in der Main UI mit einem"
     warn "Item verknuepfen (Standardname unten), sonst bleibt die Karte"
-    warn "'Einspeiseleistung der Batterie' auf der Overview leer."
+    warn "'Entladeleistung der Batterie' auf der Overview leer."
   fi
 
   ask BATTERY_POWER_ITEM "Item mit der Batterieleistung" "$power_default"
+fi
+
+# --- 3c. Netzleistungs-Item (fuer die berechnete Netzeinspeisung) ------------
+# Optional: Aus Batterie- und Netzleistung berechnet die Regel
+# ibm_netzeinspeisung.js, wie viel der Entladung tatsaechlich ins Netz geht
+# (Karte "Netzeinspeisung aus der Batterie"). Ohne Item entfaellt das.
+GRID_POWER_ITEM=""
+if [ -n "$INVERTER_GRID_POWER_PLACEHOLDER" ]; then
+  mapfile -t grid_candidates < <(detect_grid_power_items "$INVERTER_THING_UID")
+
+  if [ "${#grid_candidates[@]}" -ge 1 ]; then
+    grid_default="${grid_candidates[0]}"
+    if [ "${#grid_candidates[@]}" -gt 1 ]; then
+      echo "[IBM] Moegliche Netzleistungs-Items:"
+      printf '[IBM]   %s\n' "${grid_candidates[@]}"
+    fi
+    log "Netzleistungs-Item erkannt: $grid_default"
+  else
+    grid_default="$INVERTER_GRID_POWER_PLACEHOLDER"
+    warn "Kein Netzleistungs-Item gefunden. Den Channel"
+    warn "'${INVERTER_GRID_POWER_CHANNEL}' des Things in der Main UI mit einem"
+    warn "Item verknuepfen (Standardname unten), sonst bleibt die Karte"
+    warn "'Netzeinspeisung aus der Batterie' auf der Overview leer."
+  fi
+
+  ask GRID_POWER_ITEM "Item mit der Netzleistung" "$grid_default"
 fi
 
 fi # Ende des manuellen Wegs (AUTO_CREATE_THING != 1)
@@ -439,6 +466,7 @@ INVERTER_TYPE="${INVERTER_TYPE}"
 INVERTER_THING_UID="${INVERTER_THING_UID}"
 SOC_ITEM="${SOC_ITEM}"
 BATTERY_POWER_ITEM="${BATTERY_POWER_ITEM}"
+GRID_POWER_ITEM="${GRID_POWER_ITEM}"
 
 # --- Automatische Einrichtung -------------------------------------------------
 # 02b-install-things.sh legt Bridge- und Wechselrichter-Thing selbst an
@@ -530,6 +558,7 @@ cat <<ZUSAMMENFASSUNG
 [IBM]   Anlegen        : $([ "$AUTO_CREATE_THING" = "1" ] && echo "automatisch (${INVERTER_HOST})" || echo "vorhandenes Thing wird verwendet")
 [IBM]   Ladestand-Item : ${SOC_ITEM}
 [IBM]   Leistungs-Item : ${BATTERY_POWER_ITEM:-"(keins - Karte bleibt leer)"}
+[IBM]   Netz-Item      : ${GRID_POWER_ITEM:-"(keins - keine berechnete Netzeinspeisung)"}
 [IBM]   API            : ${IBM_API_BASE}
 [IBM]   Status-Push    : $([ "$INSTALL_STATUS_PUSH" = "1" ] && echo "ja (${IBM_ANLAGE_NAME})" || echo "nein")
 [IBM]   Ladestand min. : ${DEFAULT_MIN_BATTERY_CHARGE} %

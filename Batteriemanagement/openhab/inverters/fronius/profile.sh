@@ -23,6 +23,11 @@ INVERTER_SOC_CHANNEL="powerflowinvertersoc"
 # Channel, der die aktuelle Batterieleistung liefert (+ entladen, - laden)
 INVERTER_BATTERY_POWER_CHANNEL="powerflowchannelpakku"
 
+# Channel, der die aktuelle Netzleistung liefert (+ Bezug, - Einspeisung).
+# Zusammen mit der Batterieleistung berechnet die Regel
+# ibm_netzeinspeisung.js daraus, wie viel der Entladung ins Netz geht.
+INVERTER_GRID_POWER_CHANNEL="powerflowchannelpgrid"
+
 # Wechselrichter-Adapter (Adapter-Kontrakt siehe control/core.js), relativ
 # zu IBM_SCRIPT_DIR. Das Setup setzt Adapter und Kern in dieselbe Regel.
 INVERTER_ADAPTER_SCRIPT="inverters/fronius/adapter.js"
@@ -47,6 +52,10 @@ INVERTER_SOC_PLACEHOLDER="Fronius_Symo_Inverter_Battery_State_of_Charge"
 # durch BATTERY_POWER_ITEM aus ibm.conf ersetzt. Der Platzhalter ist
 # zugleich der Standard-Itemname beim Verknuepfen des Channels.
 INVERTER_BATTERY_POWER_PLACEHOLDER="Fronius_Symo_Inverter_Battery_Power"
+
+# Standard-Itemname der Netzleistung (analog zum Batterieleistungs-Item);
+# wird durch GRID_POWER_ITEM aus ibm.conf ersetzt.
+INVERTER_GRID_POWER_PLACEHOLDER="Fronius_Symo_Inverter_Grid_Power"
 
 # Hinweis, der im Assistenten und am Ende der Installation angezeigt wird
 INVERTER_NOTES="Im Fronius Thing muessen Benutzername und Passwort des Wechselrichters hinterlegt sein - ohne Credentials stellt das Binding die Batterie-Actions nicht bereit. Bei der automatischen Einrichtung traegt das Setup beides selbst ein."

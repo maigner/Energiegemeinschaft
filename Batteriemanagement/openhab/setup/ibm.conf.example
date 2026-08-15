@@ -31,10 +31,17 @@ SOC_ITEM="Fronius_Symo_Inverter_Battery_State_of_Charge"
 
 # Item mit der aktuellen Batterieleistung (+ entladen, - laden; verknuepft
 # mit dem Channel powerflowchannelpakku). Zeigt auf der Overview-Seite die
-# Einspeiseleistung der Batterie. Entsteht wie das SoC-Item beim Verknuepfen
+# Entladeleistung der Batterie. Entsteht wie das SoC-Item beim Verknuepfen
 # des Channels in der Main UI; leer = Platzhalter bleibt stehen und die
 # Karte zeigt "-", bis ein Item mit dem Standardnamen existiert.
 BATTERY_POWER_ITEM="Fronius_Symo_Inverter_Battery_Power"
+
+# Item mit der aktuellen Netzleistung (+ Bezug, - Einspeisung; verknuepft
+# mit dem Channel powerflowchannelpgrid). Zusammen mit der Batterieleistung
+# berechnet die Regel ibm_netzeinspeisung.js daraus, wie viel der Entladung
+# tatsaechlich ins Netz geht (Karte "Netzeinspeisung aus der Batterie").
+# Leer = Regel wird nicht installiert, die Karte zeigt "-".
+GRID_POWER_ITEM="Fronius_Symo_Inverter_Grid_Power"
 
 # --- ischlstrom API ---------------------------------------------------------
 

@@ -61,7 +61,7 @@ Checkliste (Ergebnis in die Tabelle unten eintragen, danach `profile.sh`/
    Writes zurueckfaellt -> `M124_HAS_RVRTTMS`. Das ist die Go/No-Go-Frage
    fuer den primaeren Fail-Safe (siehe unten).
 8. Model 160 (MPPT): ist die Batterielade-/entladeleistung lesbar? Wenn ja,
-   kann das Profil spaeter die Karte "Einspeiseleistung der Batterie"
+   kann das Profil spaeter die Karte "Entladeleistung der Batterie"
    nachruesten (Data-Thing + `INVERTER_BATTERY_POWER_PLACEHOLDER`).
 9. Unit-IDs enumerieren: welche antwortet fuer den Hybrid (Model 124
    vorhanden), welche fuer einen Nicht-Hybrid-Slave -> `MODBUS_UNIT_ID`.
@@ -106,7 +106,7 @@ dagegen **bleiben stehen**. Deshalb:
 
 ## Bekannte Grenzen
 
-- Keine Karte "Einspeiseleistung der Batterie" auf der Overview-Seite,
+- Keine Karte "Entladeleistung der Batterie" auf der Overview-Seite,
   bis Spike-Punkt 8 (Model 160) geklaert ist.
 - Beim manuellen Weg (ohne automatisches Anlegen) muessen die Modbus-Things
   von Hand angelegt werden; das Setup erwartet dann ein SoC-Item am

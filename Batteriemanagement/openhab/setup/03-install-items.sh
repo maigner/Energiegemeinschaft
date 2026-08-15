@@ -39,6 +39,10 @@ Number:Dimensionless ${SOC_ITEM} \"Ladestand Batterie [%.0f %%]\" <batterylevel>
         battery_items="${battery_items}
 Number:Power ${BATTERY_POWER_ITEM} \"Batterieleistung [%.0f W]\" <energy> (IBM) { channel=\"${INVERTER_THING_UID}:${INVERTER_BATTERY_POWER_CHANNEL}\", unit=\"W\" }"
       fi
+      if [ -n "$GRID_POWER_ITEM" ] && [ -n "$INVERTER_GRID_POWER_CHANNEL" ]; then
+        battery_items="${battery_items}
+Number:Power ${GRID_POWER_ITEM} \"Netzleistung [%.0f W]\" <energy> (IBM) { channel=\"${INVERTER_THING_UID}:${INVERTER_GRID_POWER_CHANNEL}\", unit=\"W\" }"
+      fi
     fi
     ;;
 esac
@@ -114,6 +118,12 @@ String IBM_LADESPERRE_LOKAL_ENDE "Lokales Ladesperre-Ende [%s]"                <
 Number IBM_HAUSLAST              "Geschaetzte Hauslast [%.0f W]"               <energy>   (IBM)
 String IBM_HAUSLAST_MESSUNG      "Hauslastschaetzung (intern) [%s]"            <settings> (IBM)
 String IBM_NACHT_ZIEL            "Nachtziel Entladung (intern) [%s]"           <settings> (IBM)
+
+// Berechnet von ibm_netzeinspeisung.js aus Batterie- und Netzleistung:
+// Anteil der Batterie-Entladung, der tatsaechlich ins Netz fliesst (der
+// Rest versorgt den Haushalt). Bleibt NULL, wenn Batterieleistungs- oder
+// Netzleistungs-Item fehlen.
+Number IBM_BATTERIE_NETZEINSPEISUNG "Netzeinspeisung aus der Batterie [%.0f W]" <energy> (IBM)
 EOF
 
 # --- Persistence ------------------------------------------------------------
@@ -186,6 +196,10 @@ EOF
     battery_persist="${battery_persist}
     ${BATTERY_POWER_ITEM},"
   fi
+  if [ -n "$GRID_POWER_ITEM" ]; then
+    battery_persist="${battery_persist}
+    ${GRID_POWER_ITEM},"
+  fi
   install_file "$OPENHAB_CONF/persistence/rrd4j.persist" <<EOF
 // ============================================================================
 // ISCHLSTROM Batteriemanagement (IBM)
@@ -212,7 +226,8 @@ ${battery_persist}
     IBM_LADESPERRE_WOLKEN_SCHWELLE,
     IBM_BATTERIE_KAPAZITAET,
     IBM_LADELEISTUNG,
-    IBM_HAUSLAST
+    IBM_HAUSLAST,
+    IBM_BATTERIE_NETZEINSPEISUNG
         : strategy = everyChange, everyMinute
 }
 EOF

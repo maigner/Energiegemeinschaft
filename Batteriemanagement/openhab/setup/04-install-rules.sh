@@ -108,6 +108,7 @@ api_base_esc="$(sed_escape "$IBM_API_BASE")"
 thing_uid_esc="$(sed_escape "$INVERTER_THING_UID")"
 soc_item_esc="$(sed_escape "$SOC_ITEM")"
 battery_power_item_esc="$(sed_escape "$BATTERY_POWER_ITEM")"
+grid_power_item_esc="$(sed_escape "$GRID_POWER_ITEM")"
 anlage_name_esc="$(sed_escape "$IBM_ANLAGE_NAME")"
 status_token_esc="$(sed_escape "$IBM_STATUS_TOKEN")"
 inverter_type_esc="$(sed_escape "$INVERTER_TYPE")"
@@ -129,6 +130,7 @@ render_payload() {
       -e "s|@IBM_THING_UID@|${thing_uid_esc}|g" \
       -e "s|@IBM_SOC_ITEM@|${soc_item_esc}|g" \
       -e "s|@IBM_BATTERY_POWER_ITEM@|${battery_power_item_esc}|g" \
+      -e "s|@IBM_GRID_POWER_ITEM@|${grid_power_item_esc}|g" \
       -e "s|@IBM_ANLAGE_NAME@|${anlage_name_esc}|g" \
       -e "s|@IBM_STATUS_TOKEN@|${status_token_esc}|g" \
       -e "s|@IBM_INVERTER_TYPE@|${inverter_type_esc}|g" \
@@ -226,6 +228,39 @@ else
     "IBM - Batteriesteuerung (${INVERTER_TYPE})" \
     "Ladesperre am Vormittag und forcierte Entladung in der Nacht" \
     "$CRON_BATTERY"
+fi
+
+# --- Netzeinspeisung aus der Batterie (berechnet) ---------------------------
+# Kleine Regel, die aus Batterie- und Netzleistung den Anteil der Entladung
+# berechnet, der tatsaechlich ins Netz fliesst (IBM_BATTERIE_NETZEINSPEISUNG,
+# Karte auf der Overview-Seite). Anders als die Cron-Regeln laeuft sie bei
+# jeder Aenderung der beiden Quell-Items. Ohne konfigurierte Items entfaellt
+# sie; das Ziel-Item bleibt dann NULL und die Karte zeigt "-".
+if [ -n "$BATTERY_POWER_ITEM" ] && [ -n "$GRID_POWER_ITEM" ]; then
+  feedin_src="$IBM_SCRIPT_DIR/control/netzeinspeisung.js"
+  [ -f "$feedin_src" ] || die "Quellskript fehlt: $feedin_src"
+  {
+    echo "// ==========================================================================="
+    echo "// GENERIERT von 04-install-rules.sh - nicht direkt bearbeiten."
+    echo "// Quelle: control/netzeinspeisung.js"
+    echo "// Aenderungen im Repository vornehmen und das Setup erneut ausfuehren."
+    echo "// ==========================================================================="
+    echo "rules.JSRule({"
+    echo "  id: 'ibm_netzeinspeisung',"
+    echo "  name: 'IBM - Netzeinspeisung aus der Batterie berechnen',"
+    echo "  description: 'Anteil der Batterie-Entladung, der ins Netz fliesst',"
+    echo "  tags: ['IBM'],"
+    echo "  triggers: ["
+    echo "    triggers.ItemStateChangedTrigger('${BATTERY_POWER_ITEM}'),"
+    echo "    triggers.ItemStateChangedTrigger('${GRID_POWER_ITEM}')"
+    echo "  ],"
+    echo "  execute: (event) => {"
+    render_payload "$feedin_src"
+    echo "  }"
+    echo "});"
+  } | install_file "$js_dir/ibm_netzeinspeisung.js"
+else
+  log "Kein Batterie- oder Netzleistungs-Item konfiguriert - berechnete Netzeinspeisung uebersprungen."
 fi
 
 # --- Status-Push an das Vorstands-Dashboard ---------------------------------

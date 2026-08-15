@@ -113,7 +113,8 @@ if [ -f "$items_db" ]; then
               IBM_LADESPERRE_LOKAL_ENDE \
               IBM_HAUSLAST \
               IBM_HAUSLAST_MESSUNG \
-              IBM_NACHT_ZIEL; do
+              IBM_NACHT_ZIEL \
+              IBM_BATTERIE_NETZEINSPEISUNG; do
     if grep -q "\"$item\"" "$items_db"; then
       fail "Item '$item' existiert bereits in der Main UI und wuerde mit $OPENHAB_CONF/items/ibm.items kollidieren - bitte in der UI loeschen."
     fi
@@ -126,7 +127,8 @@ if [ -f "$items_db" ]; then
   # zweiten Spalte der .items-Zeilen.
   if [ "$AUTO_CREATE_THING" = "1" ]; then
     battery_item_names="$SOC_ITEM
-${BATTERY_POWER_ITEM:-}"
+${BATTERY_POWER_ITEM:-}
+${GRID_POWER_ITEM:-}"
     if type inverter_battery_items >/dev/null 2>&1; then
       battery_item_names="$battery_item_names
 $(inverter_battery_items | awk '$1 ~ /^(Number|Switch|String|Dimmer|Contact|DateTime|Group)/ {print $2}')"
