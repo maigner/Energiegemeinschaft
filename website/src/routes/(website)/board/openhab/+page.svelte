@@ -19,6 +19,7 @@
     } from "flowbite-svelte";
 
     import { compareVersions, newestVersion } from "$lib/versions";
+    import { inverterLabel } from "$lib/inverters";
 
     let { data, form } = $props();
 
@@ -234,6 +235,9 @@
 
                     <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
                         Mitglied: {anlage.memberName}
+                        {#if inverterLabel(d.inverter_type)}
+                            · {inverterLabel(d.inverter_type)}
+                        {/if}
                     </p>
 
                     {#if status === "wartet"}

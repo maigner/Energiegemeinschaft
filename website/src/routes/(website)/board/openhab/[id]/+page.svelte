@@ -2,6 +2,7 @@
     import { Card, Badge, Indicator, Heading } from "flowbite-svelte";
     import { Chart } from "@flowbite-svelte-plugins/chart";
     import { compareVersions } from "$lib/versions";
+    import { inverterLabel } from "$lib/inverters";
 
     let { data } = $props();
 
@@ -288,7 +289,11 @@
         <Badge color={statusColor[statusOf(anlage)]}>{statusOf(anlage)}</Badge>
     </div>
     <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-        Mitglied: {anlage.memberName}. Letzte Meldung: {formatLastSeen(
+        Mitglied: {anlage.memberName}.
+        {#if inverterLabel(anlage.data?.inverter_type)}
+            Wechselrichter: {inverterLabel(anlage.data?.inverter_type)}.
+        {/if}
+        Letzte Meldung: {formatLastSeen(
             anlage.lastSeen,
         )}. Diagramme zeigen die letzten {data.historyDays} Tage, gemittelt auf
         15 Minuten.
