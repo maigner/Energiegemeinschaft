@@ -69,6 +69,11 @@ String Ischlstrom_Ladesperre_Datum    "Ladesperre-Fenster fuer [%s]"    <calenda
 // berechnet wurde (aus Erzeugungsprofil, Kapazitaet und Ladeleistung) -
 // die Steuerung uebernimmt es dann unveraendert
 Switch Ischlstrom_Ladesperre_Individuell "Sperr-Ende individualisiert"  <switch> (IBM)
+// Nacht-Entladebudget von der Token-API: so viel kWh duerfen heute Nacht
+// eingespeist werden, ohne dass die Batterie am trueben Folgetag dem
+// eigenen Haus fehlt; '-' = kein Budget (Entladung bis zur Reserve)
+String Ischlstrom_Nachtbudget         "Nacht-Entladebudget [%s]"        <energy> (IBM)
+String Ischlstrom_Nachtbudget_Zeit    "Nachtbudget abgerufen [%s]"      <time>   (IBM)
 
 // Vom Mitglied einstellbar
 Number IBM_MIN_BATTERY_CHARGE                       "Minimaler Ladestand Batterie [%.0f %%]" <batterylevel> (IBM)
@@ -102,6 +107,13 @@ Switch IBM_LADESPERRE_LOKAL      "Ladesperre-Ende selbst berechnen"            <
 Number IBM_LADELEISTUNG          "Geschaetzte Ladeleistung [%.1f kW]"          <energy>   (IBM)
 String IBM_LADERATE_MESSUNG      "Ladeleistungsschaetzung (intern) [%s]"       <settings> (IBM)
 String IBM_LADESPERRE_LOKAL_ENDE "Lokales Ladesperre-Ende [%s]"                <time>     (IBM)
+
+// Hauslast (gelernt aus dem naechtlichen Ladestandsabfall unterhalb der
+// Entlade-Reserve) und Nachtziel der Entladung. IBM_HAUSLAST_MESSUNG und
+// IBM_NACHT_ZIEL sind interner Zustand (JSON).
+Number IBM_HAUSLAST              "Geschaetzte Hauslast [%.0f W]"               <energy>   (IBM)
+String IBM_HAUSLAST_MESSUNG      "Hauslastschaetzung (intern) [%s]"            <settings> (IBM)
+String IBM_NACHT_ZIEL            "Nachtziel Entladung (intern) [%s]"           <settings> (IBM)
 EOF
 
 # --- Persistence ------------------------------------------------------------
@@ -140,6 +152,8 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     Ischlstrom_Ladesperre_Ende,
     Ischlstrom_Ladesperre_Datum,
     Ischlstrom_Ladesperre_Individuell,
+    Ischlstrom_Nachtbudget,
+    Ischlstrom_Nachtbudget_Zeit,
     IBM_MIN_BATTERY_CHARGE,
     Minimale_Entladeleistung_Batterieeinspeisung,
     Maximale_Entladeleistung_Batterieeinspeisung,
@@ -153,7 +167,10 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     IBM_LADESPERRE_LOKAL,
     IBM_LADELEISTUNG,
     IBM_LADERATE_MESSUNG,
-    IBM_LADESPERRE_LOKAL_ENDE
+    IBM_LADESPERRE_LOKAL_ENDE,
+    IBM_HAUSLAST,
+    IBM_HAUSLAST_MESSUNG,
+    IBM_NACHT_ZIEL
         : strategy = everyChange, restoreOnStartup
 }
 EOF
@@ -194,7 +211,8 @@ ${battery_persist}
     IBM_PAUSE_TAGE,
     IBM_LADESPERRE_WOLKEN_SCHWELLE,
     IBM_BATTERIE_KAPAZITAET,
-    IBM_LADELEISTUNG
+    IBM_LADELEISTUNG,
+    IBM_HAUSLAST
         : strategy = everyChange, everyMinute
 }
 EOF

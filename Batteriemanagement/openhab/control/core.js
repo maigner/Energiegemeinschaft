@@ -136,6 +136,29 @@ var CAPACITY_EMA_WEIGHT = 0.3;   // Gewicht einer neuen Stichprobe
 // stuendlich abgeholt; drei ausgefallene Abrufe in Folge sind ein Ausfall).
 var MAX_CLOUD_AGE_HOURS = 3;
 
+// --- Nacht-Entladebudget ----------------------------------------------------
+// Eingespeist wird nachts nur, was der kommende Tag laut Server sicher
+// wieder in die Batterie laedt (Ischlstrom_Nachtbudget, von der Token-API
+// mit dem Ladefenster geliefert). Beim ersten Entladungs-Zyklus der Nacht
+// wird daraus ein Ziel-Ladestand berechnet und festgehalten; tiefer wird
+// nicht entladen. Ohne (aktuelles) Budget gilt wie bisher die Reserve
+// IBM_MIN_BATTERY_CHARGE.
+var NIGHT_BUDGET_MAX_AGE_HOURS = 3;  // Budget aelter -> gilt nicht mehr
+var NIGHT_BUDGET_MAX_KWH = 200;      // Plausibilitaetsfenster
+var NIGHT_TARGET_MAX_GAP_MIN = 60;   // laengere Luecke -> neue Nacht, Ziel neu
+
+// --- Hauslast-Schaetzung ----------------------------------------------------
+// Nach dem Entlade-Stopp versorgt der Wechselrichter das Haus allein aus
+// der Batterie - der naechtliche Ladestandsabfall unterhalb der Reserve
+// ergibt also direkt die Hauslast. Sie geht per Status-Push an den Server,
+// der daraus die Eigenbedarfsreserve des Nachtbudgets ableitet.
+var HOUSE_LOAD_MIN_SOC_DROP = 3;      // Prozentpunkte je Stichprobe
+var HOUSE_LOAD_MAX_STEP_GAP_MIN = 12; // laengere Luecke -> Messung neu aufsetzen
+var HOUSE_LOAD_MIN_SOC = 4;           // darunter drosselt der Wechselrichter selbst
+var HOUSE_LOAD_MIN_W = 50;            // Plausibilitaetsfenster einer Stichprobe
+var HOUSE_LOAD_MAX_W = 3000;
+var HOUSE_LOAD_EMA_WEIGHT = 0.3;      // Gewicht einer neuen Stichprobe
+
 // --- Hilfsfunktionen zum Lesen der Konfiguration ----------------------------
 
 function readItem(name) {
@@ -447,6 +470,162 @@ function updateChargeRateEstimate(soc, capacityKwh) {
   writeChargeRateState(st);
 }
 
+// --- Hauslast-Schaetzung ----------------------------------------------------
+// Zustand wie bei den anderen Schaetzern als JSON in einem String-Item:
+//   watt        geschaetzte Hauslast
+//   messungen   Anzahl akzeptierter Stichproben
+//   basisSoc    Ladestand zu Beginn der laufenden Messstrecke (%)
+//   basisZeit   Beginn der Messstrecke
+//   letztZeit   Zeitpunkt des letzten Messlaufs (Lueckenerkennung)
+// Gemessen wird nur nachts unterhalb der Entlade-Reserve (sampleHouseLoad).
+
+function readHouseLoadState() {
+  var item = readItem('IBM_HAUSLAST_MESSUNG');
+  if (item === null) return null;
+  var state = String(item.state);
+  if (state === 'NULL' || state === 'UNDEF' || state === '') return {};
+  try {
+    var parsed = JSON.parse(state);
+    return (parsed !== null && typeof parsed === 'object') ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function writeHouseLoadState(st) {
+  var item = readItem('IBM_HAUSLAST_MESSUNG');
+  if (item !== null) item.postUpdate(JSON.stringify(st));
+  var display = readItem('IBM_HAUSLAST');
+  if (display !== null && typeof st.watt === 'number') {
+    display.postUpdate(Math.round(st.watt));
+  }
+}
+
+// Schreibt die Hauslastschaetzung fort: ist der Ladestand seit Beginn der
+// Messstrecke um HOUSE_LOAD_MIN_SOC_DROP Prozentpunkte gefallen, ergibt
+// entnommene Energie (aus der Kapazitaet) / Zeit eine Stichprobe.
+function updateHouseLoadEstimate(soc, capacityKwh) {
+  var st = readHouseLoadState();
+  if (st === null) {
+    console.log('[IBM][Hauslast] Item IBM_HAUSLAST_MESSUNG fehlt - Schaetzung uebersprungen');
+    return;
+  }
+
+  function restartMeasurement() {
+    st.basisSoc = soc;
+    st.basisZeit = now.toString();
+    st.letztZeit = now.toString();
+    writeHouseLoadState(st);
+  }
+
+  var prevTime = null;
+  var baseTime = null;
+  try {
+    if (st.letztZeit) prevTime = time.ZonedDateTime.parse(String(st.letztZeit));
+    if (st.basisZeit) baseTime = time.ZonedDateTime.parse(String(st.basisZeit));
+  } catch (e) {
+    prevTime = null;
+  }
+  if (typeof st.basisSoc !== 'number' || prevTime === null || baseTime === null) {
+    restartMeasurement();
+    return;
+  }
+
+  var gapMin = time.Duration.between(prevTime, now).toMinutes();
+  if (gapMin <= 0 || gapMin > HOUSE_LOAD_MAX_STEP_GAP_MIN) {
+    restartMeasurement();
+    return;
+  }
+  if (soc > st.basisSoc) {
+    restartMeasurement();
+    return;
+  }
+
+  var drop = st.basisSoc - soc;
+  if (drop < HOUSE_LOAD_MIN_SOC_DROP) {
+    st.letztZeit = now.toString();
+    writeHouseLoadState(st);
+    return;
+  }
+
+  var hours = time.Duration.between(baseTime, now).toMinutes() / 60;
+  if (hours > 0) {
+    var sampleW = Math.round(drop / 100 * capacityKwh * 1000 / hours);
+    if (sampleW >= HOUSE_LOAD_MIN_W && sampleW <= HOUSE_LOAD_MAX_W) {
+      var count = (typeof st.messungen === 'number') ? st.messungen : 0;
+      st.watt = (typeof st.watt === 'number' && count > 0)
+        ? Math.round((1 - HOUSE_LOAD_EMA_WEIGHT) * st.watt + HOUSE_LOAD_EMA_WEIGHT * sampleW)
+        : sampleW;
+      st.messungen = count + 1;
+      console.log('[IBM][Hauslast] Stichprobe ' + sampleW + ' W (' + drop + ' Prozentpunkte in ' + Math.round(hours * 60) + ' min) -> Schaetzung ' + st.watt + ' W (' + st.messungen + '. Messung)');
+    } else {
+      console.log('[IBM][Hauslast] Stichprobe ' + sampleW + ' W unplausibel - verworfen');
+    }
+  }
+  st.basisSoc = soc;
+  st.basisZeit = now.toString();
+  st.letztZeit = now.toString();
+  writeHouseLoadState(st);
+}
+
+// Nacht-Entladebudget in kWh - oder null, wenn keines vorliegt, es
+// unplausibel oder veraltet ist (dann gilt wie bisher die Reserve).
+function nightBudgetKwh() {
+  var item = readItem('Ischlstrom_Nachtbudget');
+  if (item === null) return null;
+  var value = parseFloat(String(item.state));
+  if (isNaN(value) || value < 0 || value > NIGHT_BUDGET_MAX_KWH) return null;
+  var stamp = readItem('Ischlstrom_Nachtbudget_Zeit');
+  if (stamp === null) return null;
+  var state = String(stamp.state);
+  if (state === 'NULL' || state === 'UNDEF') return null;
+  try {
+    var fetched = time.ZonedDateTime.parse(state);
+    if (time.Duration.between(fetched, now).toHours() >= NIGHT_BUDGET_MAX_AGE_HOURS) {
+      console.log('[IBM][Entladung] Nachtbudget veraltet - wird ignoriert');
+      return null;
+    }
+  } catch (e) {
+    return null;
+  }
+  return value;
+}
+
+// Ziel-Ladestand der laufenden Nacht: beim ersten Entladungs-Zyklus der
+// Nacht aus dem aktuellen Ladestand und dem Nachtbudget berechnet und dann
+// festgehalten - ein spaeter aktualisiertes Budget wuerde sonst in derselben
+// Nacht doppelt ausgegeben. Eine Luecke > NIGHT_TARGET_MAX_GAP_MIN gilt als
+// neue Nacht.
+function nightTargetSoc(soc, minSoc, budgetKwh, capacityKwh) {
+  var item = readItem('IBM_NACHT_ZIEL');
+  if (item === null) return minSoc;
+  var st = {};
+  var state = String(item.state);
+  if (state !== 'NULL' && state !== 'UNDEF' && state !== '') {
+    try {
+      st = JSON.parse(state) || {};
+    } catch (e) {
+      st = {};
+    }
+  }
+  var prev = null;
+  try {
+    if (st.zeit) prev = time.ZonedDateTime.parse(String(st.zeit));
+  } catch (e) {
+    prev = null;
+  }
+  if (prev !== null && typeof st.zielSoc === 'number'
+      && time.Duration.between(prev, now).toMinutes() <= NIGHT_TARGET_MAX_GAP_MIN) {
+    st.zeit = now.toString();
+    item.postUpdate(JSON.stringify(st));
+    return Math.max(st.zielSoc, minSoc);
+  }
+  var ziel = Math.max(minSoc, Math.round(soc - budgetKwh / capacityKwh * 100));
+  console.log('[IBM][Entladung] Nachtbudget ' + budgetKwh + ' kWh -> Ziel-Ladestand heute Nacht ' + ziel + '% (aktuell ' + soc + '%)');
+  item.postUpdate(JSON.stringify({ zielSoc: ziel, zeit: now.toString() }));
+  return ziel;
+}
+
 // Lokales Ladesperre-Ende in Minuten seit Mitternacht - oder null, wenn es
 // (noch) nicht berechenbar ist. Rueckwaerts vom Abend gerechnet: Die morgens
 // fehlende Energie, geteilt durch die gelernte Ladeleistung, ergibt die
@@ -638,6 +817,22 @@ function sampleChargeRate() {
 }
 sampleChargeRate();
 
+// Hauslast lernen: nur nachts im Entladefenster, klar unterhalb der
+// Entlade-Reserve (dort speist die Steuerung sicher nicht mehr ein, die
+// Batterie versorgt allein das Haus) und oberhalb der Wechselrichter-
+// eigenen Reserve.
+function sampleHouseLoad() {
+  if (dischargeStart === null || dischargeEnd === null) return;
+  if (!inWindow(dischargeStart, dischargeEnd)) return;
+  var capacityKwh = estimatedCapacityKwh();
+  if (capacityKwh === null) return;
+  var soc = parseFloat(items.getItem('@IBM_SOC_ITEM@').numericState);
+  var minSoc = num('IBM_MIN_BATTERY_CHARGE', 20, 5, 90);
+  if (isNaN(soc) || soc >= minSoc - 1 || soc < HOUSE_LOAD_MIN_SOC) return;
+  updateHouseLoadEstimate(soc, capacityKwh);
+}
+sampleHouseLoad();
+
 // ----------------------------------------------------------------------------
 // Teil A: Ladesperre bei geringer Bewoelkung
 // ----------------------------------------------------------------------------
@@ -670,8 +865,37 @@ function handleForcedDischarge() {
     console.log('[IBM][Entladung] Battery min Level (' + minSoc + '%) - invalid value');
     return;
   }
+
+  // Wolken einmal lesen: steuert den Trueb-Stopp und spaeter die Leistung.
+  var clouds = cloudForecast();
+
+  // Trueb-Stopp: bei bedeckter Vorschau fuer das naechste Sonnenfenster gar
+  // nicht einspeisen. Ueber eine lange Nacht entlaedt auch "minimale
+  // Leistung" die Batterie fast vollstaendig - am trueben Folgetag muesste
+  // das Mitglied dann selbst Strom zukaufen. Die Schwelle ist dieselbe wie
+  // bei der Ladesperre: nur wenn morgen frueh gesperrt wuerde (sonnig),
+  // wird heute Nacht auch eingespeist.
+  if (clouds !== null && clouds >= CLOUD_THRESHOLD) {
+    console.log('[IBM][Entladung] Wolkenvorschau=' + clouds + '% (>=' + CLOUD_THRESHOLD + '%) - morgen wird die Batterie voraussichtlich nicht voll, keine Einspeisung heute Nacht');
+    return;
+  }
+
   if (isNaN(soc) || soc <= minSoc) {
     console.log('[IBM][Entladung] Battery too low (' + soc + '%) - skipping discharge schedule');
+    return;
+  }
+
+  // Nachtziel aus dem Entladebudget des Servers: tiefer als "Abend-Ladestand
+  // minus Budget" wird nicht entladen. Ohne Budget (kein Token, Server alt,
+  // Abruf zu lange her) gilt wie bisher nur die Reserve minSoc.
+  var budget = nightBudgetKwh();
+  var budgetCapacity = estimatedCapacityKwh();
+  var zielSoc = minSoc;
+  if (budget !== null && budgetCapacity !== null) {
+    zielSoc = nightTargetSoc(soc, minSoc, budget, budgetCapacity);
+  }
+  if (soc <= zielSoc) {
+    console.log('[IBM][Entladung] Nachtziel erreicht (SoC ' + soc + '% <= ' + zielSoc + '%) - keine weitere Einspeisung heute Nacht');
     return;
   }
 
@@ -714,7 +938,6 @@ function handleForcedDischarge() {
 
   console.log('[IBM][Entladung] Entladeleistung: min=' + dischargeMinW + 'W, max=' + dischargeMaxW + 'W');
 
-  var clouds = cloudForecast();
   if (clouds === null) {
     // Konservativ: ohne verlaessliche Vorschau so entladen, als waere der
     // naechste Tag komplett bewoelkt (minimale Leistung), damit die Batterie

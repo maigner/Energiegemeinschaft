@@ -149,6 +149,11 @@ voraussetzen:
 | `Ischlstrom_Ladesperre_Start` / `_Ende` | String | Ladesperre-Fenster, `HH:MM` oder `-` |
 | `Ischlstrom_Ladesperre_Datum` | String | Gueltigkeitstag des Fensters, `YYYY-MM-DD` |
 | `Ischlstrom_Ladesperre_Individuell` | Switch | ON = Ende kam individualisiert von der Token-API; der Kern uebernimmt es unveraendert |
+| `Ischlstrom_Nachtbudget` | String | Nacht-Entladebudget in kWh (Token-API) oder `-`; der Kern entlaedt nur bis Abend-Ladestand minus Budget |
+| `Ischlstrom_Nachtbudget_Zeit` | String | Abrufzeitpunkt des Budgets (Aktualitaetspruefung) |
+| `IBM_HAUSLAST` | Number | Vom Kern gelernte Hauslast in W (Anzeige/Status-Push) |
+| `IBM_HAUSLAST_MESSUNG` | String | Interner Zustand der Hauslastschaetzung (JSON) |
+| `IBM_NACHT_ZIEL` | String | Interner Zustand: festgehaltener Ziel-Ladestand der laufenden Nacht (JSON) |
 | `IBM_MIN_BATTERY_CHARGE` | Number | Minimaler Ladestand in % |
 | `Minimale_Entladeleistung_Batterieeinspeisung` | Number | Watt |
 | `Maximale_Entladeleistung_Batterieeinspeisung` | Number | Watt |

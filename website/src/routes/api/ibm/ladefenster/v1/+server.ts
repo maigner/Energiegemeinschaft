@@ -1,5 +1,11 @@
 import { json } from '@sveltejs/kit';
-import { getLatestForecastRun, getTodayChargeWindow, getIndividualChargeWindowEnd } from '$lib/server/db/energy/forecast';
+import {
+    getLatestForecastRun,
+    getTodayChargeWindow,
+    getIndividualChargeWindowEnd,
+    getNightDischargeBudget,
+    IBM_FALLBACK_HOUSE_LOAD_W
+} from '$lib/server/db/energy/forecast';
 import { getOpenhabPlantByToken } from '$lib/server/db/members/openhabStatus';
 
 /**
@@ -19,6 +25,13 @@ import { getOpenhabPlantByToken } from '$lib/server/db/members/openhabStatus';
  * Anlage braucht laut Profil den ganzen Tag zum Laden, heute keine Sperre.
  * Ohne Schätzwerte kommt das Community-Ende (individuell=false) -- die
  * Steuerung am Pi rechnet dann lokal weiter wie bisher.
+ *
+ * Zusätzlich (nur mit Schätzwerten): `nachtbudget_kwh` -- wie viel die
+ * Anlage heute Nacht ins Netz einspeisen darf, ohne dass das Mitglied am
+ * Folgetag selbst Strom zukaufen muss (siehe getNightDischargeBudget). Die
+ * Steuerung entlädt nachts nur bis "Abend-Ladestand minus Budget"; bei einer
+ * Mehrtages-Schlechtwetterfront ist das Budget 0 und die Batterie bleibt
+ * dem eigenen Haushalt.
  */
 
 /** @type {import('./$types').RequestHandler} */
@@ -59,12 +72,13 @@ export async function POST({ request }) {
     // heute überhaupt ein Fenster hat (sonst gibt es ohnehin keine Sperre).
     const capacity = Number(plant.data?.batterie_kapazitaet);
     const rate = Number(plant.data?.ladeleistung_kw);
+    const plausibel = Number.isFinite(capacity) && capacity >= 1 && capacity <= 100
+        && Number.isFinite(rate) && rate >= 0.3 && rate <= 30;
     let ende = fenster.ende;
     let individuell = false;
+    let nachtbudgetKwh = null;
 
-    if (fenster.start && fenster.ende
-        && Number.isFinite(capacity) && capacity >= 1 && capacity <= 100
-        && Number.isFinite(rate) && rate >= 0.3 && rate <= 30) {
+    if (plausibel && fenster.start && fenster.ende) {
         const individualEnde = await getIndividualChargeWindowEnd(run.id, capacity, rate);
         // Ende vor Fensterbeginn (oder gar nicht erreichbar): keine Sperre.
         ende = individualEnde !== null && individualEnde > fenster.start && individualEnde >= '05:00'
@@ -73,12 +87,27 @@ export async function POST({ request }) {
         individuell = true;
     }
 
+    // Das Nachtbudget braucht nur die Ladeleistung; die gelernte Hauslast
+    // der Anlage bestimmt die Eigenbedarfsreserve (Fallback, solange sie
+    // noch nicht gepusht wird).
+    if (plausibel) {
+        const houseLoadW = Number(plant.data?.hauslast_w);
+        nachtbudgetKwh = await getNightDischargeBudget(
+            run.id,
+            rate,
+            Number.isFinite(houseLoadW) && houseLoadW >= 50 && houseLoadW <= 3000
+                ? houseLoadW
+                : IBM_FALLBACK_HOUSE_LOAD_W
+        );
+    }
+
     return json({
         ladefenster: {
             datum: fenster.datum,
             start: fenster.start,
             ende,
-            individuell
+            individuell,
+            nachtbudget_kwh: nachtbudgetKwh
         }
     });
 }

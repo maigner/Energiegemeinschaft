@@ -86,6 +86,13 @@
             minSoc: num(d.min_battery_charge, 0),
             wolken: num(d.wolkenvorschau, 0),
             schwelle: num(d.wolken_schwelle, 0),
+            hauslast: num(d.hauslast_w, 0),
+            // kommt als String-Item ('-' = kein Budget)
+            nachtbudget:
+                typeof d.nachtbudget_kwh === "string" &&
+                Number.isFinite(Number(d.nachtbudget_kwh))
+                    ? Number(d.nachtbudget_kwh).toFixed(1)
+                    : null,
         };
     });
 
@@ -516,6 +523,18 @@
                     "Mindest-Ladestand",
                     bm.minSoc !== null ? `${bm.minSoc}%` : "unbekannt",
                     "",
+                )}
+                {@render systemStat(
+                    "Gelernte Hauslast",
+                    bm.hauslast !== null
+                        ? `${bm.hauslast} W`
+                        : "noch keine Schätzung",
+                    "",
+                )}
+                {@render systemStat(
+                    "Nacht-Entladebudget",
+                    bm.nachtbudget !== null ? `${bm.nachtbudget} kWh` : "-",
+                    bm.nachtbudget === "0.0" ? AMBER : "",
                 )}
             </dl>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">

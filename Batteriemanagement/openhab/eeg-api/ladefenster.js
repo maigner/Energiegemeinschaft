@@ -48,17 +48,25 @@ if (response !== null) {
       var ende = (fenster.ende === null || fenster.ende === undefined) ? "-" : String(fenster.ende);
       var individuell = fenster.individuell === true;
 
+      // Nacht-Entladebudget: wie viel heute Nacht eingespeist werden darf,
+      // ohne dass die Batterie am trueben Folgetag dem eigenen Haus fehlt.
+      // Kommt nur von der individualisierten API; '-' heisst kein Budget
+      // (die Steuerung entlaedt dann wie bisher bis zur Reserve).
+      var budget = (typeof fenster.nachtbudget_kwh === "number") ? String(fenster.nachtbudget_kwh) : "-";
+
       items.getItem("Ischlstrom_Ladesperre_Start").postUpdate(start);
       items.getItem("Ischlstrom_Ladesperre_Ende").postUpdate(ende);
       items.getItem("Ischlstrom_Ladesperre_Datum").postUpdate(String(fenster.datum));
-      // Kennzeichnung fuer die Steuerung; eigenes try, damit eine
-      // Installation ohne das Item die Fenster-Items trotzdem bekommt.
+      // Kennzeichnung und Budget fuer die Steuerung; eigenes try, damit eine
+      // Installation ohne die Items die Fenster-Items trotzdem bekommt.
       try {
         items.getItem("Ischlstrom_Ladesperre_Individuell").postUpdate(individuell ? "ON" : "OFF");
+        items.getItem("Ischlstrom_Nachtbudget").postUpdate(budget);
+        items.getItem("Ischlstrom_Nachtbudget_Zeit").postUpdate(time.ZonedDateTime.now().toString());
       } catch (e) {
-        console.error("[IBM] Item Ischlstrom_Ladesperre_Individuell fehlt - Setup-Skript 03 erneut ausfuehren.");
+        console.error("[IBM] Items fuer Individualisierung/Nachtbudget fehlen - Setup-Skript 03 erneut ausfuehren.");
       }
-      console.log("[IBM] Ladesperre-Fenster aktualisiert (" + fenster.datum + "): " + start + " - " + ende + (individuell ? " (individuell)" : ""));
+      console.log("[IBM] Ladesperre-Fenster aktualisiert (" + fenster.datum + "): " + start + " - " + ende + (individuell ? " (individuell)" : "") + (budget !== "-" ? " | Nachtbudget " + budget + " kWh" : ""));
     }
   } catch (e) {
     console.error("[IBM] Fehler beim Parsen der Antwort: " + e.message);

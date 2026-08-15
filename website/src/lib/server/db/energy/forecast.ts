@@ -173,10 +173,42 @@ const IBM_FULL_BUFFER_MIN = 60;
 // Später endet keine Sperre (die Steuerung am Pi ignoriert Enden ab 15:00).
 const IBM_LATEST_END_MIN = 14 * 60;
 
+// --- Nacht-Entladebudget ----------------------------------------------------
+// Eingespeist werden darf nachts nur, was der kommende Tag der Anlage sicher
+// wieder in die Batterie lädt - sonst speist ein Mitglied nachts für die
+// Gemeinschaft ein und muss am trüben Folgetag selbst Strom zukaufen. Vom
+// ladbaren Tagesertrag geht eine Eigenbedarfsreserve (Hauslast über Nacht
+// und trüben Folgetag) ab, der Rest wird wegen der Prognosefehler nur mit
+// Abschlag freigegeben. Bei einer Mehrtages-Schlechtwetterfront ist das
+// Budget mehrere Tage in Folge 0 - die Batterie bleibt dem eigenen Haus.
+const IBM_NIGHT_RESERVE_HOURS = 24;
+const IBM_NIGHT_BUDGET_DISCOUNT = 0.8;
+// Hauslast-Annahme in Watt, solange die Anlage noch keine gelernte Hauslast
+// gepusht hat; bewusst eher hoch (mehr Reserve).
+export const IBM_FALLBACK_HOUSE_LOAD_W = 500;
+
 const fmtMinutes = (m: number) => {
     const h = Math.floor(m / 60);
     const mm = m % 60;
     return `${h < 10 ? "0" : ""}${h}:${mm < 10 ? "0" : ""}${mm}`;
+};
+
+/**
+ * Referenz für die Normierung der Erzeugungsprofile: der höchste
+ * 15-Minuten-Slot des gesamten Prognoselaufs (~30 Tage, enthält praktisch
+ * immer nahezu klare Tage). Gegen den eigenen Tagesspitzenwert zu normieren
+ * wäre falsch: ein trüber Tag sähe dann aus wie ein klarer.
+ */
+const getRunMaxGeneration = async (runId: number) => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        SELECT MAX(generation_kwh) AS max_gen
+        FROM metering_energyforecast
+        WHERE run_id = $1
+    `, [runId]);
+    sql.release();
+    const maxGen = Number(result?.rows?.[0]?.max_gen);
+    return Number.isFinite(maxGen) && maxGen > 0 ? maxGen : null;
 };
 
 /**
@@ -211,8 +243,10 @@ export const getIndividualChargeWindowEnd = async (
     }));
     if (slots.length === 0) return null;
 
-    const maxGen = Math.max(...slots.map((s: { gen: number }) => s.gen));
-    if (!(maxGen > 0)) return null;
+    // Normierung gegen den besten Slot des Laufs: an trüben Tagen liegt das
+    // Profil dann realistisch niedrig und das Ende rückt nach vorne.
+    const maxGen = await getRunMaxGeneration(runId);
+    if (maxGen === null) return null;
 
     // Abendlicher Crossover: Ende des letzten Slots, in dem die Erzeugung
     // den Verbrauch noch deckt.
@@ -238,6 +272,44 @@ export const getIndividualChargeWindowEnd = async (
         }
     }
     return null;
+};
+
+/**
+ * Nacht-Entladebudget in kWh für eine Anlage: was der kommende Tag laut
+ * Prognoseprofil in die Batterie laden kann (Ladeleistung mal normierte
+ * Erzeugung der nächsten 24 Stunden), abzüglich Eigenbedarfsreserve und mit
+ * Abschlag (Konstanten oben). Die Steuerung am Pi entlädt nachts nur bis
+ * "Abend-Ladestand minus Budget". null, wenn der Lauf keine Slots für die
+ * nächsten 24 Stunden hat.
+ */
+export const getNightDischargeBudget = async (
+    runId: number,
+    chargeRateKw: number,
+    houseLoadW: number
+) => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        SELECT generation_kwh
+        FROM metering_energyforecast
+        WHERE run_id = $1
+          AND timestamp > now()
+          AND timestamp <= now() + interval '24 hours'
+    `, [runId]);
+    sql.release();
+
+    const rows = result?.rows ?? [];
+    if (rows.length === 0) return null;
+
+    const maxGen = await getRunMaxGeneration(runId);
+    if (maxGen === null) return null;
+
+    let chargeableKwh = 0;
+    for (const r of rows) {
+        chargeableKwh += chargeRateKw * (Number(r.generation_kwh) / maxGen) * 0.25;
+    }
+    const reserveKwh = (houseLoadW / 1000) * IBM_NIGHT_RESERVE_HOURS;
+    const budget = Math.max(0, chargeableKwh - reserveKwh) * IBM_NIGHT_BUDGET_DISCOUNT;
+    return Math.round(budget * 10) / 10;
 };
 
 /**

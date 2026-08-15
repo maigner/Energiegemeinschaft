@@ -95,6 +95,8 @@ if [ -f "$items_db" ]; then
               Ischlstrom_Ladesperre_Ende \
               Ischlstrom_Ladesperre_Datum \
               Ischlstrom_Ladesperre_Individuell \
+              Ischlstrom_Nachtbudget \
+              Ischlstrom_Nachtbudget_Zeit \
               IBM_MIN_BATTERY_CHARGE \
               Minimale_Entladeleistung_Batterieeinspeisung \
               Maximale_Entladeleistung_Batterieeinspeisung \
@@ -108,7 +110,10 @@ if [ -f "$items_db" ]; then
               IBM_LADESPERRE_LOKAL \
               IBM_LADELEISTUNG \
               IBM_LADERATE_MESSUNG \
-              IBM_LADESPERRE_LOKAL_ENDE; do
+              IBM_LADESPERRE_LOKAL_ENDE \
+              IBM_HAUSLAST \
+              IBM_HAUSLAST_MESSUNG \
+              IBM_NACHT_ZIEL; do
     if grep -q "\"$item\"" "$items_db"; then
       fail "Item '$item' existiert bereits in der Main UI und wuerde mit $OPENHAB_CONF/items/ibm.items kollidieren - bitte in der UI loeschen."
     fi

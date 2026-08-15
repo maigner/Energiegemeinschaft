@@ -86,7 +86,12 @@ DEFAULT_WOLKEN_SCHWELLE=75       # unter diesem Bewoelkungsgrad wird gesperrt
 
 # Forcierte Entladung in der Nacht. Das Zeitfenster kommt aus den
 # Crossover-Zeiten von ischlstrom.org; ohne plausible Zeiten wird nicht
-# entladen.
+# entladen. Zwei Schutzmechanismen sorgen dafuer, dass das Mitglied nach
+# einer Einspeise-Nacht nicht selbst Strom zukaufen muss: bei bedeckter
+# Vorschau (Wolken >= Schwelle) wird gar nicht eingespeist, und mit
+# Status-Token begrenzt ein Nacht-Entladebudget der Token-API die
+# Einspeisung auf das, was der Folgetag laut Prognose sicher wieder in die
+# Batterie laedt (bei einer Schlechtwetterfront: nichts).
 DEFAULT_ENTLADUNG_AKTIV=ON
 
 # Entladeleistung automatisch an die Batteriegroesse anpassen. Die Steuerung

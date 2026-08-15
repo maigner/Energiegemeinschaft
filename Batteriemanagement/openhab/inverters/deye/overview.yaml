@@ -474,6 +474,39 @@ pages:
                               footer: >-
                                 Unter diesem Ladestand stoppt die Einspeisung -
                                 diese Reserve bleibt für den eigenen Haushalt.
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Entladebudget heute Nacht
+                              item: Ischlstrom_Nachtbudget
+                              footer: >-
+                                So viel kWh dürfen heute Nacht eingespeist
+                                werden - höchstens das, was der morgige Tag
+                                laut Prognose sicher wieder in die Batterie
+                                lädt. Bei Schlechtwetter steht hier 0 und die
+                                Batterie bleibt dem eigenen Haushalt. "-"
+                                bedeutet: kein Budget, es gilt nur der
+                                Reserve-Ladestand.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Geschätzte Hauslast
+                              item: IBM_HAUSLAST
+                              footer: >-
+                                Nächtlicher Verbrauch des Hauses, gelernt aus
+                                dem Ladestandsabfall unterhalb der Reserve.
+                                Bestimmt, wie viel Energie dem Haushalt
+                                vorbehalten bleibt.
 
   # --- Unterseite: IBM pausieren ---------------------------------------------
   ibm_pause:

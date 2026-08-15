@@ -241,6 +241,8 @@ var payload = {
     ladesperre_ende: stateOf('Ischlstrom_Ladesperre_Ende'),
     ladesperre_datum: stateOf('Ischlstrom_Ladesperre_Datum'),
     ladesperre_individuell: stateOf('Ischlstrom_Ladesperre_Individuell'),
+    nachtbudget_kwh: stateOf('Ischlstrom_Nachtbudget'),
+    hauslast_w: numberOf('IBM_HAUSLAST'),
     log_entries: collectLogEntries(),
     versions: collectVersions(),
     apt_updates: collectAptUpdates(),
