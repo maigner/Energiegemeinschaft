@@ -1,0 +1,655 @@
+% ============================================================================
+% ISCHLSTROM Batteriemanagement (IBM) - Whitepaper
+% Kompilieren: pdflatex ibm-whitepaper.tex  (zweimal fuer Verweise)
+% ============================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{parskip}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds}
+\usepackage[colorlinks=true,linkcolor=black,urlcolor=blue!50!black]{hyperref}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{\textbf{ISCHLSTROM Batteriemanagement (IBM)}\\[0.5em]
+\large Gemeinschaftsdienliche Steuerung privater Heimspeicher\\
+in einer Erneuerbare-Energie-Gemeinschaft}
+\author{Energiegemeinschaft ISCHLSTROM \\ \href{https://ischlstrom.org}{ischlstrom.org}}
+\date{August 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent
+Das ISCHLSTROM Batteriemanagement (IBM) steuert private Heimspeicher von
+Mitgliedern einer Erneuerbare-Energie-Gemeinschaft (EEG) so, dass sie der
+Gemeinschaft nützen, ohne dem einzelnen Haushalt zu schaden. Zwei Eingriffe
+genügen dafür: Am sonnigen Vormittag wird das Laden der Batterie verzögert,
+damit PV-Überschuss in die Gemeinschaft fließt, solange diese ihn braucht,
+und die Batterie mitten in der Überschussspitze statt direkt nach
+Sonnenaufgang lädt. In der Nacht speist die Batterie kontrolliert in das
+Netz ein, solange die Gemeinschaft mehr verbraucht als erzeugt. Beide
+Eingriffe sind an Prognosen gebunden und mehrfach abgesichert: Ohne
+verlässliche Daten passiert nichts, und der Wechselrichter fällt nach
+wenigen Minuten von selbst in sein Werksverhalten zurück. Die Steuerung
+lernt Batteriekapazität, Ladeleistung und nächtliche Hauslast jeder Anlage
+selbstständig aus dem Betrieb; eine manuelle Parametrierung pro Anlage
+entfällt. Dieses Papier beschreibt Architektur, Algorithmen,
+Sicherheitsmechanismen und Betrieb des Systems im Detail.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ============================================================================
+\section{Motivation}
+% ============================================================================
+
+Eine Erneuerbare-Energie-Gemeinschaft verteilt lokal erzeugten PV-Strom
+unter ihren Mitgliedern. Ihr wirtschaftlicher und ökologischer Nutzen hängt
+davon ab, wie gut Erzeugung und Verbrauch zeitlich zusammenpassen: Nur
+Energie, die im selben Viertelstunden-Raster erzeugt und verbraucht wird,
+zählt als gemeinschaftliche Deckung. ISCHLSTROM kauft als Gemeinschaft
+niemals Strom zu; was die Mitglieder nicht aus der Gemeinschaft decken,
+beziehen sie individuell von ihrem eigenen Lieferanten.
+
+Private Heimspeicher verschärfen das Gleichzeitigkeitsproblem, statt es zu
+lösen: Ab Sonnenaufgang lädt jede Batterie sofort, der Vormittags-Überschuss
+der PV-Anlagen verschwindet in den Speichern, während die Gemeinschaft noch
+Strom braucht. Am Abend und in der Nacht versorgt die volle Batterie nur den
+eigenen Haushalt, während die Gemeinschaft aus dem Netz bezieht.
+
+IBM dreht dieses Verhalten um, ohne den Eigennutzen des Speicherbesitzers zu
+opfern:
+
+\begin{itemize}
+  \item \textbf{Vormittag (Ladesperre):} Die Batterie beginnt so spät wie
+    möglich zu laden, wird aber bis zum Abend trotzdem voll. Der Überschuss
+    des frühen Vormittags deckt die morgendliche Verbrauchsspitze der
+    Gemeinschaft direkt.
+  \item \textbf{Nacht (forcierte Entladung):} Die Batterie speist einen
+    berechneten Teil ihres Inhalts in das Netz ein, solange die Gemeinschaft
+    mehr verbraucht als erzeugt. Eingespeist wird nur, was der kommende Tag
+    laut Prognose sicher wieder in die Batterie lädt.
+\end{itemize}
+
+Geladen wird dabei ausschließlich aus der eigenen PV-Anlage, nie aus dem
+Netz oder von anderen Mitgliedern.
+
+% ============================================================================
+\section{Systemarchitektur}
+% ============================================================================
+
+IBM besteht aus zwei Teilen: einem zentralen Server (die Website der
+Gemeinschaft, \code{ischlstrom.org}) und je Anlage einem lokalen Gateway,
+einem Raspberry~Pi mit openHAB (openHABian), der den Wechselrichter im
+Heimnetz des Mitglieds ansteuert.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+  node distance=0.9cm and 2.1cm,
+  box/.style={draw, rounded corners, align=center, minimum height=2.4em,
+              inner sep=6pt, font=\small},
+  cloud/.style={box, fill=blue!8},
+  pi/.style={box, fill=green!8},
+  hw/.style={box, fill=orange!10},
+  lbl/.style={font=\scriptsize, midway, align=center},
+  arr/.style={-{Stealth}, thick}
+]
+  \node[cloud] (server) {Server \code{ischlstrom.org}\\Prognose, Ladefenster,\\Crossover, Wolken, Dashboard};
+  \node[pi, below left=2.2cm and -1.2cm of server] (rules) {openHAB-Regeln\\(API-Abrufe, Status-Push)};
+  \node[pi, right=of rules] (core) {Steuerungskern\\\code{core.js} (alle 5\,min)};
+  \node[pi, right=of core] (adapter) {Adapter\\(je Hersteller)};
+  \node[hw, right=1.7cm of adapter] (inverter) {Wechselrichter\\+ Batterie};
+
+  \begin{scope}[on background layer]
+    \node[draw, dashed, rounded corners, fit=(rules)(core)(adapter),
+          label={[font=\scriptsize]below:{Raspberry Pi (openHABian) im Heimnetz des Mitglieds}}] {};
+  \end{scope}
+
+  \draw[arr] (server.south -| rules.north) -- (rules.north)
+    node[lbl, left=1pt] {HTTPS\\(Abruf + Push)};
+  \draw[arr] (rules) -- (core) node[lbl, above] {Items};
+  \draw[arr] (core) -- (adapter) node[lbl, above] {3 Funktionen};
+  \draw[arr] (adapter) -- (inverter) node[lbl, above] {Modbus /\\Binding};
+\end{tikzpicture}
+\caption{Gesamtarchitektur: Der Server liefert Prognosedaten, das lokale
+Gateway entscheidet und steuert. Alle Verbindungen gehen vom Gateway aus;
+am Router des Mitglieds wird nichts geöffnet.}
+\label{fig:arch}
+\end{figure}
+
+\subsection{Rollenteilung Server und Gateway}
+
+Der Server kennt die Gemeinschaft: die Viertelstunden-Prognose von Erzeugung
+und Verbrauch, die Wetterdaten und die gemeldeten Kennwerte aller Anlagen.
+Daraus berechnet er die Steuersignale (Abschnitt~\ref{sec:signale}). Das
+Gateway kennt die Anlage: den Ladestand, den Wechselrichter und die lokal
+gelernten Kennwerte. Die eigentliche Entscheidung, ob in diesem Moment
+gesperrt oder entladen wird, fällt immer lokal auf dem Gateway. Fällt der
+Server aus, passiert nichts Gefährliches: Ohne aktuelle Daten unterbleiben
+die Eingriffe (Abschnitt~\ref{sec:sicherheit}).
+
+\subsection{Kern und Adapter}
+
+Die gesamte Entscheidungslogik liegt herstellerneutral in einem einzigen
+Skript (\code{control/core.js}), das alle fünf Minuten läuft und pro Kunde
+nie verändert wird. Alles Anlagenspezifische kommt aus openHAB-Items mit
+Rückfallwerten im Code; fehlt ein Item, läuft die Steuerung mit der Vorgabe
+weiter.
+
+Herstellerspezifisch ist nur ein dünner \emph{Adapter}, den das Setup dem
+Kern im selben Regel-Body voranstellt. Der Adapter-Kontrakt umfasst genau
+drei Funktionen:
+
+\begin{center}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Funktion & Semantik & Rückgabe \\
+\midrule
+\code{ibmReset()} & Wechselrichter sofort auf Werksverhalten & \code{\{ok\}} \\
+\code{ibmPreventCharge(min)} & Batterieladen für \code{min} Minuten sperren & \code{\{ok\}} \\
+\code{ibmForceDischarge(W, min)} & Entladung mit $\approx$\code{W} Watt erzwingen & \code{\{ok, appliedW?\}} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Jede Aktion gilt nur für einen Zeitschlitz von fünf Minuten und muss
+hersteller\-seitig von selbst ablaufen (Schedule oder Revert-Timeout). Der
+nächste Lauf des Kerns verlängert den Eingriff oder beendet ihn, indem er
+schlicht nichts mehr kommandiert. \code{appliedW} meldet die nach
+herstellerseitiger Quantisierung tatsächlich kommandierte Leistung (etwa
+durch Prozent-Rundung); der Kapazitätsschätzer rechnet damit.
+
+Unterstützt werden derzeit fünf Profile: Fronius GEN24 (Binding-Actions),
+Fronius Symo Hybrid (Modbus, SunSpec Model~124), Sigenergy SigenStor
+(proprietäre Modbus-Register), Deye SG04/SG05LP3 (Modbus RTU hinter einem
+RS485-Gateway, TOU-Fahrplan) und Victron Energy (Modbus TCP am GX-Gerät,
+ESS-Register). Ein neuer Hersteller braucht nur ein neues Profilverzeichnis
+mit Adapter; an den Setup-Skripten und am Kern ändert sich nichts.
+
+\subsection{Zeitgesteuerte Regeln}
+
+Auf dem Gateway laufen wenige, klar getrennte Regeln:
+
+\begin{center}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Regel & Aufgabe & Zeitplan \\
+\midrule
+\code{ibm\_cloud\_forecast} & Wolkenvorschau abrufen & stündlich \\
+\code{ibm\_crossover} & Crossover-Zeiten abrufen & täglich 04:05 \\
+\code{ibm\_ladesperre} & Ladefenster und Nachtbudget abrufen & stündlich \\
+\code{ibm\_battery\_control} & Adapter + Kern: entscheiden und steuern & alle 5\,min \\
+\code{ibm\_status\_push} & Zustand an das Dashboard melden & alle 5\,min \\
+\code{ibm\_init} & Startwerte setzen, solange Items \code{NULL} sind & alle 10\,min \\
+\code{ibm\_pause} & Pausentage herunterzählen & täglich 00:30 \\
+\code{ibm\_watchdog} & Wechselrichter nach IP-Wechsel wiederfinden & bei Bedarf \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ============================================================================
+\section{Steuersignale des Servers}\label{sec:signale}
+% ============================================================================
+
+Der Server stellt vier Signale bereit. Die Gateways rufen sie über eine
+schlanke HTTP-API ab; die Community-Signale sind öffentlich, die
+individualisierten erfordern das Status-Token der Anlage.
+
+\begin{center}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Endpunkt & Methode & Inhalt & Zugriff \\
+\midrule
+\code{/api/eeginfo/ladefenster/v1} & GET & Community-Ladefenster & öffentlich \\
+\code{/api/ibm/ladefenster/v1} & POST & individuelles Fenster + Nachtbudget & Token \\
+\code{/api/eeginfo/crossover/v1} & GET & Crossover-Zeiten der Woche & öffentlich \\
+\code{/api/wolken/vorschau/v1} & GET & Bewölkung im nächsten Mittagsfenster & öffentlich \\
+\code{/api/ibm/status/v1} & POST & Status-Push der Anlage & Token \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Datengrundlage: die Tagesprognose}
+
+Grundlage der Ladefenster-Signale ist die Viertelstunden-Prognose der
+Gemeinschaft: ein statistisches Modell (Python) prognostiziert Erzeugung,
+Verbrauch und Eigendeckung je Messpunkt aus Kalender-, Sonnenstands- und
+Wetter-Merkmalen (Open-Meteo). Prognoseläufe werden versioniert gespeichert
+und nie überschrieben; die API liest stets den neuesten Live-Lauf. Die
+Wetterdaten selbst holt ein stündlicher Serverjob.
+
+\subsection{Community-Ladefenster}
+
+Aus dem Prognosetag berechnet der Server das Sperrfenster der Gemeinschaft.
+Mit der prognostizierten Erzeugung $G_t$ und dem Verbrauch $V_t$ je
+Viertelstunden-Slot, dem Überschuss $S_t = G_t - V_t$ und dessen
+Tagesmaximum $S_{\max}$ gilt:
+
+\begin{itemize}
+  \item \textbf{Beginn} ist der erste Slot mit nennenswertem Sonnenschein,
+    $G_t > 0{,}05 \cdot G_{\max}$.
+  \item \textbf{Ende} ist der spätere Zeitpunkt von Vormittags-Crossover
+    (erster Slot mit $G_t \geq V_t$) und dem ersten Slot mit
+    $S_t \geq 0{,}75 \cdot S_{\max}$, gekappt am Slot des
+    Überschussmaximums und um 14:00:
+    \begin{equation}
+      t_{\text{Ende}} \;=\; \min\Bigl(
+        \max\bigl(t_{\text{Crossover}},\; t_{S \geq 0{,}75\,S_{\max}}\bigr),
+        \; t_{S_{\max}},\; 14\!:\!00 \Bigr).
+    \end{equation}
+\end{itemize}
+
+Die Batterien bleiben so bis in die Überschussspitze gesperrt, statt direkt
+nach dem Crossover loszuladen. Erwartet die Prognose keinen Überschuss,
+liefert die API kein Ende und es wird nicht gesperrt. Jede Antwort trägt
+das Datum des Prognosetags; die Gateways verwerfen Fenster mit fremdem
+Datum.
+
+\subsection{Individualisiertes Sperr-Ende}\label{sec:individuell}
+
+Für Anlagen mit Status-Token rechnet der Server das Fensterende je Anlage,
+aus deren zuletzt gemeldeten Kennwerten (Kapazität $C$, Ladeleistung
+$P_{\text{Lade}}$, Abschnitt~\ref{sec:lernen}). Die Idee: Die erreichbare
+Ladeleistung folgt dem Erzeugungsprofil des Tages. Der Server normiert das
+Profil auf den Maximalslot des gesamten Prognoselaufs (nicht des Tages,
+sonst sähe ein trüber Tag wie ein klarer aus) und integriert rückwärts von
+der Abend-Deadline $t_D$ (Ende des letzten Überschuss-Slots minus
+60~Minuten):
+\begin{equation}
+  E(t) \;=\; \sum_{s=t}^{t_D} P_{\text{Lade}} \cdot
+  \frac{G_s}{G_{\max}^{\text{Lauf}}} \cdot 0{,}25\,\text{h}.
+\end{equation}
+Das Sperr-Ende ist der späteste Slot $t$, ab dem
+$E(t) \geq 0{,}95 \cdot C \cdot 1{,}3$ noch geladen wird (95\% der
+Kapazität mit Sicherheitsfaktor 1,3), gekappt um 14:00. Reicht der ganze
+Tag nicht, wird nicht gesperrt. Individualisiert wird nur bei plausiblen
+Kennwerten (Kapazität 1 bis 100\,kWh, Ladeleistung 0,3 bis 30\,kW), und
+das Ende muss nach dem Fensterbeginn und nicht vor 05:00 liegen. Die
+Antwort ist als individuell markiert; das Gateway übernimmt sie dann
+unverändert und lässt die eigene Rechnung nach
+Gleichung~\eqref{eq:localend} aus.
+
+\subsection{Nachtbudget}\label{sec:nachtbudget}
+
+Mit dem individualisierten Ladefenster liefert der Server das
+Entladebudget der kommenden Nacht. Er summiert zunächst, was die Anlage in
+den nächsten 24~Stunden laut Prognoseprofil laden kann (dieselbe
+Integration wie in Abschnitt~\ref{sec:individuell}, über alle Slots der
+nächsten 24~Stunden), zieht eine Eigenbedarfsreserve von 24~Stunden
+gelernter Hauslast $P_{\text{Haus}}$ ab und behält einen Abschlag von 20\%
+ein:
+\begin{equation}
+  B \;=\; \max\Bigl(0,\; E_{\text{ladbar,24h}}
+    - \frac{P_{\text{Haus}}}{1000} \cdot 24\,\text{h}\Bigr) \cdot 0{,}8.
+\end{equation}
+Meldet die Anlage keine plausible Hauslast (50 bis 3000\,W), rechnet der
+Server mit 500\,W. Bei mehrtägigem Schlechtwetter ist das Budget schlicht
+null: Die Batterie behält ihren Inhalt für das eigene Haus. Wie das
+Gateway das Budget in einen Ziel-Ladestand übersetzt, zeigt
+Gleichung~\eqref{eq:ziel}.
+
+\subsection{Crossover-Zeiten}
+
+Die Crossover-Zeiten sind die typischen Uhrzeiten, zu denen die
+gemeinschaftliche Erzeugung den Gesamtverbrauch morgens über- und abends
+unterschreitet. Sie stammen aus den historischen Viertelstunden-Messdaten
+der Gemeinschaft: je Tag des Jahres über alle Jahre gemittelt und zu
+Kalenderwochen zusammengefasst (materialisierte Sicht, monatlich
+aufgefrischt). Anders als das Ladefenster sind sie also kein
+Prognoseprodukt, sondern ein saisonales Klimamittel; sie ändern sich
+langsam und sind deshalb als Wochenwert ausreichend genau.
+
+\subsection{Wolkenvorschau}
+
+Die Wolkenvorschau ist der mittlere Bewölkungsgrad über dem nächsten
+Mittagsfenster von 10:00 bis 14:00 (nach 12:00 zählt bereits das Fenster
+von morgen), berechnet aus den stündlich importierten
+Open-Meteo-Vorhersagedaten. Fehlen Wetterdaten, antwortet die API bewusst
+mit einem Fehler statt mit 0, denn 0\% würde von den Gateways als voller
+Sonnenschein gelesen.
+
+% ============================================================================
+\section{Teil A: Ladesperre am Vormittag}\label{sec:ladesperre}
+% ============================================================================
+
+\subsection{Grundprinzip}
+
+Am sonnigen Vormittag wird das Laden der Batterie in Fünf-Minuten-Schritten
+gesperrt. Das Sperrfenster kommt aus der Tagesprognose des Servers: vom
+ersten Sonnenschein bis in die Mittagsspitze des Gemeinschafts-Überschusses.
+Das Fenster gilt nur für das mitgelieferte Datum; ein nach einem API-Ausfall
+übrig gebliebenes Fenster von gestern sperrt heute nicht. Zusätzlich wird
+nur bei sonniger Vorschau gesperrt: Liegt die Bewölkungsvorschau über der
+Schwelle (Vorgabe 75\%), bleibt das Laden erlaubt, denn an einem trüben Tag
+würde die Batterie sonst womöglich gar nicht mehr voll.
+
+\subsection{Individualisiertes und lokal berechnetes Sperr-Ende}
+
+Das Community-Fenster des Servers kennt weder Batteriegröße noch
+Ladeleistung der einzelnen Anlage. Für das Sperr-Ende gibt es deshalb drei
+Stufen, in absteigender Priorität:
+
+\begin{enumerate}
+  \item \textbf{Individualisiertes Server-Ende:} Anlagen mit Status-Token
+    rufen das Ladefenster über die Token-API ab. Der Server berechnet das
+    Ende dann je Anlage aus dem Erzeugungsprofil des Prognosetags und den
+    zuletzt gemeldeten Kennwerten (Kapazität, Ladeleistung): so spät, dass
+    die Batterie am Abend gerade noch voll wird. Die Antwort ist als
+    individuell markiert; der Kern übernimmt sie unverändert.
+  \item \textbf{Lokal berechnetes Ende:} Ohne individualisierte Antwort
+    rechnet der Kern selbst, sobald Kapazität und Ladeleistung gelernt sind
+    (Abschnitt~\ref{sec:lernen}). Rückwärts vom Abend:
+    \begin{equation}
+      t_{\text{Ende}} \;=\; \min\Bigl(
+        t_{\text{Abend-Crossover}} - 60\,\text{min}
+        \;-\; \underbrace{\frac{0{,}95 \cdot C}{P_{\text{Lade}}} \cdot 1{,}3 \cdot 60\,\text{min}}_{\text{Ladezeit mit Sicherheitsaufschlag}},
+        \;\; 13\!:\!00\Bigr)
+      \label{eq:localend}
+    \end{equation}
+    mit Kapazität $C$ in kWh und gelernter Ladeleistung $P_{\text{Lade}}$
+    in kW. Als fehlende Energie gelten fest 95\% der Kapazität, nicht der
+    Live-Ladestand: Das Ergebnis soll den ganzen Vormittag konstant sein
+    und nicht pendeln, sobald das Laden den Ladestand hebt. Liegt das
+    berechnete Ende vor dem Fensterbeginn, braucht die Anlage den ganzen
+    Tag zum Laden und es wird gar nicht gesperrt.
+  \item \textbf{Community-Ende des Servers:} Solange die Schätzer noch
+    nicht belastbar sind, gilt das für die ganze Gemeinschaft berechnete
+    Fensterende unverändert.
+\end{enumerate}
+
+Der Fensterbeginn (erster Sonnenschein) und die Datumsprüfung kommen immer
+vom Server. Plausibilitätsfenster verwerfen Unsinniges: Der Beginn muss
+zwischen 4 und 12~Uhr liegen, das Ende zwischen 5 und 15~Uhr.
+
+\subsection{Wirkung für die Gemeinschaft}
+
+Die morgendliche Verbrauchsspitze der Gemeinschaft wird direkt aus der PV
+gedeckt, und die Batterien laden mitten in der Überschussspitze statt
+unmittelbar nach dem Crossover. Das hält die Gemeinschaft nach dem
+Crossover im Plus, fängt Abregelungsverluste und verkürzt nebenbei die
+Standzeit der Batterie bei 100\% Ladung.
+
+% ============================================================================
+\section{Teil B: Forcierte Entladung in der Nacht}\label{sec:entladung}
+% ============================================================================
+
+\subsection{Entladefenster}
+
+Entladen wird vom abendlichen bis zum morgendlichen Crossover, also genau
+solange die Gemeinschaft mehr verbraucht als erzeugt. Die Crossover-Zeiten
+holt das Gateway täglich vom Server. Liegen keine plausiblen Zeiten vor
+(Server nie erreichbar gewesen oder Werte unbrauchbar), wird nicht entladen;
+ein Ersatzfenster gibt es bewusst nicht.
+
+\subsection{Entladeleistung aus der Wolkenvorschau}
+
+Die Entladeleistung hängt von der Bewölkungsvorschau für das nächste
+Sonnenfenster ab, linear interpoliert zwischen einem Minimum und einem
+Maximum:
+\begin{equation}
+  P_{\text{Entladung}} \;=\; P_{\max} - \frac{w}{100}\,(P_{\max} - P_{\min}),
+  \qquad w = \text{Bewölkung in \%}.
+  \label{eq:power}
+\end{equation}
+Bei klarer Vorschau ($w=0$) wird mit $P_{\max}$ entladen, weil die Batterie
+am nächsten Tag sicher wieder voll wird; bei trüber Vorschau entsprechend
+weniger. Zwei Sonderfälle:
+
+\begin{itemize}
+  \item \textbf{Trüb-Stopp:} Liegt die Vorschau über der Wolkenschwelle
+    (dieselbe wie bei der Ladesperre), wird gar nicht eingespeist. Über
+    eine lange Nacht entlädt auch minimale Leistung die Batterie fast
+    vollständig; am trüben Folgetag müsste das Mitglied dann selbst Strom
+    zukaufen. Es gilt die Symmetrie: Nur wenn morgen früh gesperrt würde
+    (sonnig), wird heute Nacht auch eingespeist.
+  \item \textbf{Ausfall der Vorschau:} Ist die Wolkenvorschau älter als
+    drei Stunden oder ungültig, wird konservativ so entladen, als wäre der
+    nächste Tag komplett bewölkt, also mit $P_{\min}$. Die Batterie läuft
+    bei einem API-Ausfall damit nie mit Maximalleistung leer.
+\end{itemize}
+
+\subsection{Dynamische Leistungsgrenzen (C-Rate)}
+
+$P_{\min}$ und $P_{\max}$ sind einstellbar (Vorgabe 1000 und 3000\,W),
+werden aber ersetzt, sobald die Kapazitätsschätzung belastbar ist
+(Abschnitt~\ref{sec:lernen}): Dann gilt eine C-Raten-Spanne von 0,1\,C bis
+0,3\,C. Eine 10-kWh-Batterie speist also mit 1000 bis 3000\,W ein, eine
+5-kWh-Batterie mit 500 bis 1500\,W. Unabhängig von Einstellung und
+Schätzung gilt eine harte Sicherheits-Obergrenze von 5000\,W, die nie
+überschritten wird.
+
+\subsection{Untergrenzen: Reserve und Nachtbudget}
+
+Zwei Grenzen schützen den Haushalt vor einer leeren Batterie:
+
+\begin{itemize}
+  \item \textbf{Reserve:} Unter den eingestellten Mindest-Ladestand
+    (\code{IBM\_MIN\_BATTERY\_CHARGE}, plausibel zwischen 5 und 90\%) wird
+    nie forciert entladen.
+  \item \textbf{Nachtbudget:} Die Token-API liefert mit dem Ladefenster ein
+    Entladebudget $B$ in kWh: so viel darf heute Nacht eingespeist werden,
+    ohne dass die Batterie am Folgetag dem eigenen Haus fehlt. Beim ersten
+    Entlade-Zyklus der Nacht wird daraus ein Ziel-Ladestand berechnet und
+    für die ganze Nacht festgehalten:
+    \begin{equation}
+      \text{SoC}_{\text{Ziel}} \;=\; \max\Bigl(\text{SoC}_{\min},\;
+        \text{SoC}_{\text{Abend}} - \frac{B}{C}\cdot 100\Bigr).
+      \label{eq:ziel}
+    \end{equation}
+    Das Festhalten verhindert, dass ein später aktualisiertes Budget in
+    derselben Nacht doppelt ausgegeben wird; eine Lücke von mehr als
+    60~Minuten gilt als neue Nacht. Ohne (aktuelles) Budget, etwa ohne
+    Token oder bei veraltetem Abruf, gilt wie zuvor nur die Reserve.
+\end{itemize}
+
+Nach dem Entlade-Stopp versorgt der Wechselrichter das Haus weiter aus der
+Batterie, bis zu seiner eigenen Reserve von wenigen Prozent; genau dieser
+Abschnitt liefert die Hauslast-Messung (Abschnitt~\ref{sec:lernen}).
+
+% ============================================================================
+\section{Selbstlernende Anlagenkennwerte}\label{sec:lernen}
+% ============================================================================
+
+Bei der Einrichtung sind weder Batteriekapazität noch reale Ladeleistung
+noch nächtliche Hauslast bekannt, und niemand soll sie pro Anlage pflegen
+müssen. Die Steuerung schätzt alle drei Werte aus dem laufenden Betrieb.
+Alle Schätzer teilen dasselbe Muster: Messstrecken über mehrere
+Fünf-Minuten-Läufe, Plausibilitätsfenster je Stichprobe, Neuaufsetzen nach
+Lücken oder widersprüchlichen Ladestandsbewegungen, gleitende Mittelung und
+eine Mindestzahl von Stichproben, bevor der Wert verwendet wird. Der
+Zustand jedes Schätzers liegt als JSON in einem persistierten Item und
+überlebt Neustarts.
+
+\subsection{Batteriekapazität}
+
+Während der forcierten Entladung ist die Batterieleistung bekannt, denn sie
+wird kommandiert. Der Kern summiert die entnommene Energie über die
+Fünf-Minuten-Läufe auf; fällt der Ladestand um mindestens 8~Prozentpunkte,
+ergibt sich eine Stichprobe
+\begin{equation}
+  C_{\text{Stichprobe}} \;=\;
+  \frac{E_{\text{entnommen}}\,[\text{kWh}]}{\Delta\text{SoC}\,[\%]}\cdot 100,
+\end{equation}
+die mit Gewicht 0,3 gleitend in die Schätzung einfließt. Stichproben unter
+1 oder über 100\,kWh werden verworfen; verwendet wird die Schätzung ab drei
+akzeptierten Stichproben. Eine typische Nacht liefert mehrere Stichproben,
+die Schätzung ist also meist nach der ersten Nacht belastbar. Zieht der
+Haushalt nachts mehr als kommandiert, fällt die Schätzung etwas zu klein
+aus; das ist gewollt konservativ, denn die daraus abgeleitete
+Entladeleistung ist dann eher zu niedrig als zu hoch.
+
+\subsection{Ladeleistung}
+
+Gemessen wird nur, wenn die Messung die real erreichbare Ladeleistung
+widerspiegelt: tagsüber zwischen Fensterbeginn und Abend-Deadline, wenn die
+Batterie frei laden darf, die Vorschau Sonne meldet und der Ladestand unter
+95\% liegt (darüber drosselt der Wechselrichter selbst). Steigt der
+Ladestand um mindestens 5~Prozentpunkte, ergibt geladene Energie (aus der
+Kapazität) geteilt durch die Messdauer eine Stichprobe in kW.
+
+Die Mittelung ist bewusst \emph{asymmetrisch und dauergewichtet}: Eine
+Stichprobe unter der bisherigen Schätzung (etwa Dunst trotz sonniger
+Vorschau) zählt mit Gewicht 0,5 je Messstunde, eine darüber nur mit 0,15 je
+Messstunde, gedeckelt bei 0,6. Die Schätzung liegt damit nahe an der
+unteren Hüllkurve der letzten Tage. Das ist die sichere Seite: Die Batterie
+muss abends voll sein, also wird die Ladezeit eher über- als unterschätzt
+und die Sperre endet eher zu früh als zu spät. Die Dauergewichtung
+verhindert zugleich, dass schnelle Mittagsphasen mit vielen Stichproben je
+Stunde den Schnitt systematisch nach oben ziehen.
+
+\subsection{Nächtliche Hauslast}
+
+Nach dem Entlade-Stopp versorgt die Batterie allein das Haus. Der
+Ladestandsabfall klar unterhalb der Entlade-Reserve (und oberhalb der
+wechselrichtereigenen Reserve) ergibt daher direkt die Hauslast:
+Stichproben zwischen 50 und 3000\,W fließen mit Gewicht 0,3 in die
+Schätzung ein. Der Wert geht per Status-Push an den Server, der daraus die
+Eigenbedarfsreserve des Nachtbudgets ableitet; der Kreis zwischen lokalem
+Lernen und serverseitiger Individualisierung schließt sich hier.
+
+% ============================================================================
+\section{Sicherheit und Robustheit}\label{sec:sicherheit}
+% ============================================================================
+
+Das System greift in fremde Hardware ein und läuft unbeaufsichtigt in
+Privathaushalten. Entsprechend defensiv ist es ausgelegt; die Grundregel
+lautet: \emph{Im Zweifel nichts tun.} Der Werkszustand des Wechselrichters,
+also Eigenverbrauchsoptimierung, ist immer der sichere Rückfall.
+
+\begin{itemize}
+  \item \textbf{Fail-Safe im Wechselrichter:} Jeder Eingriff gilt für fünf
+    Minuten und läuft herstellerseitig von selbst ab. Stirbt der Pi, hängt
+    openHAB oder fällt das Netzwerk aus, arbeitet der Wechselrichter nach
+    spätestens fünf Minuten wieder ab Werk. Kann ein Hersteller das nicht
+    garantieren, dokumentiert sein Profil das Restrisiko ausdrücklich.
+  \item \textbf{Kein Eingriff ohne Daten:} Ohne plausible Crossover-Zeiten
+    keine Entladung; ohne gültiges, datumsrichtiges Ladefenster keine
+    Sperre; ohne frische Wolkenvorschau (älter als drei Stunden) keine
+    Sperre und nur minimale Entladung.
+  \item \textbf{Plausibilitätsfenster überall:} Jede Konfigurations- und
+    Messgröße wird gegen einen erlaubten Bereich geprüft; Unplausibles wird
+    verworfen und durch den Rückfallwert ersetzt, mit Logmeldung.
+  \item \textbf{Harte Leistungsgrenze:} 5000\,W Entladeleistung werden nie
+    überschritten, weder durch Einstellungen noch durch die
+    Kapazitätsschätzung.
+  \item \textbf{Untergrenzen des Ladestands:} Reserve und Nachtbudget
+    (Abschnitt~\ref{sec:entladung}) verhindern, dass der Haushalt mit
+    leerer Batterie in einen trüben Tag startet.
+  \item \textbf{Hauptschalter und Pause:} Der Hauptschalter steht nach der
+    Installation auf \code{OFF}; erst das Mitglied schaltet die Steuerung
+    scharf. Bei \code{ON} wird in jedem Zyklus zuerst
+    \code{ibmReset()} gerufen, der Sollzustand ist also selbstheilend.
+    Über die Pausenfunktion setzt das Mitglied die Steuerung für eine
+    gewählte Zahl von Tagen aus (etwa bei Urlaub oder Handwerkerterminen);
+    ein nächtlicher Zähler zählt herunter, danach läuft alles von selbst
+    wieder an.
+  \item \textbf{Robust gegen fehlende Konfiguration:} Jedes fehlende oder
+    \code{NULL}-Item wird durch einen dokumentierten Rückfallwert ersetzt;
+    die Steuerung läuft auch unvollständig eingerichtet weiter.
+\end{itemize}
+
+% ============================================================================
+\section{Betrieb und Überwachung}
+% ============================================================================
+
+\subsection{Status-Push und Vorstands-Dashboard}
+
+Auf Wunsch meldet jede Anlage alle fünf Minuten ihren Zustand an den
+Server: Ladestand, Wechselrichter-Status, Batterie-, Netz-, PV- und
+Lastleistung, alle Schalterstellungen, die gelernten Kennwerte, die zuletzt
+empfangenen Steuersignale, die Warnungen und Fehler aus dem openHAB-Log der
+letzten 24~Stunden, Versionsstände (IBM-Paket, openHAB, Java,
+Betriebssystem), ausstehende Betriebssystem-Updates und den Systemzustand
+des Pi (CPU-Temperatur, Unterspannungs-Register, SD-Karten-Füllstand,
+RAM/Swap, Boot-Zeitpunkt). Übertragen werden ausschließlich diese
+Betriebsdaten, keine Verbrauchsdaten des Haushalts.
+
+Der Vorstand sieht alle Anlagen live auf einem Dashboard
+(\code{/board/openhab}), inklusive Wochendiagrammen von Ladestand,
+Batterieleistung und Netzeinspeisung aus der Batterie. Ausbleibende
+Meldungen färben die Anlage nach 15~Minuten gelb, nach einer Stunde rot;
+das Dashboard ist damit zugleich die Ausfallüberwachung der Flotte.
+
+Die Netzeinspeisung aus der Batterie ist dabei eine berechnete Größe: Von
+der Entladeleistung fließt nur der Teil ins Netz, den das Netz gerade
+aufnimmt, der Rest versorgt den Haushalt:
+\begin{equation}
+  P_{\text{Batterie}\rightarrow\text{Netz}} \;=\;
+  \min\bigl(\max(P_{\text{Batterie}},0),\; \max(-P_{\text{Netz}},0)\bigr)
+\end{equation}
+mit der Vorzeichenkonvention Batterie positiv beim Entladen, Netz negativ
+bei Einspeisung.
+
+\subsection{Authentifizierung}
+
+Jede Anlage authentifiziert sich mit einem Status-Token, das der Vorstand
+vor der Installation auf dem Dashboard je Mitglied erzeugt und das bei der
+Einrichtung in der Konfiguration des Gateways landet. Dasselbe Token
+individualisiert den Ladefenster-Abruf; beide Token-Endpunkte sind bewusst
+POST-Aufrufe mit dem Token im Body, damit es in keinem Access-Log
+auftaucht. Meldungen mit unbekanntem Token weist der Server ab; das
+Löschen des Tokens auf dem Dashboard widerruft den Zugang sofort. Auf dem
+Server ist der letzte gemeldete Zustand je Anlage gespeichert (begrenzt
+auf 16\,kB), dazu eine Verlaufshistorie im Fünf-Minuten-Raster mit
+30~Tagen Aufbewahrung, aus der die Dashboard-Diagramme entstehen; die
+Logauszüge gehen nicht in die Historie ein. Es werden keine Client-IPs
+und keine personenbezogenen Daten protokolliert.
+
+\subsection{Watchdog und Fernwartung}
+
+Vergibt der Router dem Wechselrichter per DHCP eine neue IP, findet ein
+Watchdog das Gerät im lokalen /24-Netz wieder, verifiziert es über die
+Seriennummer (nie wird ein fremdes Gerät übernommen) und trägt die neue
+Adresse per REST-API in das Thing ein. Für die Wartung hält jeder Pi einen
+ausgehenden WireGuard-Tunnel zum Wartungsserver offen; am Router des
+Mitglieds muss nichts geöffnet werden, und durch den Tunnel läuft
+ausschließlich das Wartungsnetz. Sicherheitsupdates des Betriebssystems
+spielt die Anlage über \code{unattended-upgrades} automatisch ein.
+
+\subsection{Installation}
+
+Die Einrichtung beim Mitglied besteht aus dem Flashen des
+openHABian-Images, dem Anlegen des Admin-Kontos und einem einzigen
+Kommando:
+\begin{center}
+\code{curl -fsSL https://ischlstrom.org/ibm/install.sh | sudo bash}
+\end{center}
+Der Assistent findet den Wechselrichter im Netz, legt Things und Items an,
+installiert Regeln und Bedienoberfläche und verifiziert das Ergebnis. Alle
+Schritte sind idempotent; ein Paket-Update übernimmt die bestehende
+Konfiguration. Bedient wird die Anlage danach über die openHAB Main UI am
+Handy: Hauptschalter, Teilfunktionen, Pause und eine Expertenseite.
+
+% ============================================================================
+\section{Zusammenfassung}
+% ============================================================================
+
+IBM zeigt, dass sich private Heimspeicher mit geringem Aufwand
+gemeinschaftsdienlich steuern lassen, ohne Komfort- oder Kostennachteil für
+den Besitzer. Die Architektur trennt strikt: Der Server rechnet mit dem
+Wissen der Gemeinschaft, das Gateway entscheidet mit dem Wissen der Anlage,
+und der Wechselrichter fällt ohne frische Kommandos von selbst in sein
+Werksverhalten zurück. Selbstlernende Schätzer für Kapazität, Ladeleistung
+und Hauslast ersetzen jede manuelle Parametrierung; das Kern-Adapter-Muster
+hält den Aufwand für neue Wechselrichter-Hersteller bei wenigen Dutzend
+Zeilen. Nach demselben Muster lässt sich das System auf weitere
+Gemeinschaften übertragen.
+
+\end{document}
