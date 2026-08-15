@@ -5,7 +5,11 @@
 //           Das Fenster kommt aus der Tagesprognose der API (erster
 //           Sonnenschein bis in die Mittagsspitze; das Ende berechnet der
 //           Server) und gilt nur fuer das mitgelieferte Datum - ohne
-//           gueltiges Fenster wird nicht gesperrt.
+//           gueltiges Fenster wird nicht gesperrt. Sobald die Anlage ihre
+//           Batteriekapazitaet und Ladeleistung kennt, ersetzt ein lokal
+//           berechnetes Ende das Server-Ende (Abschnitt "Lokale
+//           Ladesperre"): so spaet, dass die Batterie bis zum Abend
+//           gerade noch voll wird.
 //   Teil B: Forcierte Batterieentladung (Nacht), abhaengig von Toggle,
 //           Ladestand und Wolkenvorschau. Die Entladeleistung passt sich
 //           automatisch an die Batteriegroesse an, die das Skript aus der
@@ -69,6 +73,38 @@ var IBM_SLOT_MINUTES = 5;
 // --- Rueckfallwerte, falls das zugehoerige Item fehlt oder ungueltig ist ----
 var FALLBACK_CHARGE_LOCK_ACTIVE = true;
 var FALLBACK_CLOUD_THRESHOLD = 75;
+
+// --- Lokale Ladesperre ------------------------------------------------------
+// Das Server-Ende ist aus Sicht der Gemeinschaft berechnet und kennt weder
+// Batteriegroesse noch Ladeleistung der einzelnen Anlage. Die Anlage
+// berechnet ihr Sperr-Ende deshalb selbst: Die Batterie soll moeglichst
+// spaet zu laden beginnen, aber LOCAL_FULL_BUFFER_MIN Minuten vor dem
+// abendlichen Crossover voll sein. Die dafuer noetige Ladezeit ergibt sich
+// aus der geschaetzten Kapazitaet und der Ladeleistung, die die Steuerung
+// aus dem Ladestandsanstieg an sonnigen Tagen lernt (analog zur
+// Kapazitaetsschaetzung). Solange Kapazitaet oder Ladeleistung unbekannt
+// sind, gilt das Server-Ende unveraendert.
+var FALLBACK_LOCAL_LOCK_ACTIVE = true;
+var LOCAL_FULL_BUFFER_MIN = 60;     // so viele Minuten vor dem Abend-Crossover voll
+var LOCAL_SAFETY_FACTOR = 1.3;      // Aufschlag auf die berechnete Ladezeit
+var LOCAL_LATEST_END_MIN = 13 * 60; // spaeter endet keine Sperre
+
+var CHARGE_RATE_MIN_SOC_RISE = 5;      // Prozentpunkte je Stichprobe
+var CHARGE_RATE_MAX_STEP_GAP_MIN = 12; // laengere Luecke -> Messung neu aufsetzen
+var CHARGE_RATE_MAX_SOC = 95;          // darueber drosselt der Wechselrichter selbst
+var CHARGE_RATE_MIN_KW = 0.3;          // Plausibilitaetsfenster einer Stichprobe
+var CHARGE_RATE_MAX_KW = 30;
+// Asymmetrisches, dauergewichtetes Lernen: Die Batterie muss abends voll
+// sein, also zaehlt eine schlechte Erfahrung (Stichprobe unter der
+// Schaetzung, z. B. Dunst trotz sonniger Vorschau) sofort stark, eine gute
+// nur langsam - die Schaetzung liegt nahe an der unteren Huelle der letzten
+// Tage. Zusaetzlich zaehlt jede Stichprobe mit ihrer Messdauer: schnelle
+// Mittagsphasen liefern sonst mehr Stichproben je Stunde als zaehe Phasen
+// und wuerden den Schnitt systematisch nach oben ziehen.
+var CHARGE_RATE_EMA_DOWN = 0.5;        // Gewicht je Messstunde, Stichprobe unter der Schaetzung
+var CHARGE_RATE_EMA_UP = 0.15;         // Gewicht je Messstunde, Stichprobe darueber
+var CHARGE_RATE_EMA_MAX = 0.6;         // Obergrenze des Gewichts einer Stichprobe
+var CHARGE_RATE_MIN_SAMPLES = 3;       // erst ab so vielen Stichproben verwenden
 
 var FALLBACK_DISCHARGE_ACTIVE = true;
 
@@ -159,10 +195,17 @@ function timeItemMinutes(name, minHour, maxHour) {
   return h * 60 + m;
 }
 
+// Schreibt einen String in ein Item, nur wenn sich der Wert aendert.
+function publishItem(name, value) {
+  var item = readItem(name);
+  if (item !== null && String(item.state) !== value) item.postUpdate(value);
+}
+
 // --- Konfiguration ----------------------------------------------------------
 
 var CHARGE_LOCK_ACTIVE     = onOff('IBM_LADESPERRE_AKTIV', FALLBACK_CHARGE_LOCK_ACTIVE);
 var CLOUD_THRESHOLD        = num('IBM_LADESPERRE_WOLKEN_SCHWELLE', FALLBACK_CLOUD_THRESHOLD, 0, 100);
+var LOCAL_LOCK_ACTIVE      = onOff('IBM_LADESPERRE_LOKAL', FALLBACK_LOCAL_LOCK_ACTIVE);
 
 // Ladesperre-Fenster aus der Tagesprognose: erster Sonnenschein 4-12 Uhr,
 // Vormittags-Crossover 5-15 Uhr plausibel. '-' (kein Ueberschuss erwartet)
@@ -289,6 +332,148 @@ function updateCapacityEstimate(soc, commandedW, scheduleOk) {
   writeCapacityState(st);
 }
 
+// --- Ladeleistungsschaetzung ------------------------------------------------
+// Zustand wie bei der Kapazitaetsschaetzung als JSON in einem String-Item:
+//   kw          geschaetzte Ladeleistung
+//   messungen   Anzahl akzeptierter Stichproben
+//   basisSoc    Ladestand zu Beginn der laufenden Messstrecke (%)
+//   basisZeit   Beginn der Messstrecke
+//   letztZeit   Zeitpunkt des letzten Messlaufs (Lueckenerkennung)
+// Gemessen wird nur, wenn die Batterie frei laden darf, die Vorschau Sonne
+// meldet und der Ladestand unter der Drossel-Zone liegt (sampleChargeRate) -
+// die Schaetzung spiegelt so die real erreichbare Ladeleistung der Anlage,
+// einschliesslich Hausverbrauch und Wechselrichter-Grenzen.
+
+function readChargeRateState() {
+  var item = readItem('IBM_LADERATE_MESSUNG');
+  if (item === null) return null;
+  var state = String(item.state);
+  if (state === 'NULL' || state === 'UNDEF' || state === '') return {};
+  try {
+    var parsed = JSON.parse(state);
+    return (parsed !== null && typeof parsed === 'object') ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function writeChargeRateState(st) {
+  var item = readItem('IBM_LADERATE_MESSUNG');
+  if (item !== null) item.postUpdate(JSON.stringify(st));
+  var display = readItem('IBM_LADELEISTUNG');
+  if (display !== null && typeof st.kw === 'number') {
+    display.postUpdate(Math.round(st.kw * 10) / 10);
+  }
+}
+
+// Geschaetzte Ladeleistung in kW - oder null, solange die Schaetzung noch
+// nicht belastbar ist (Items fehlen, zu wenige oder unplausible Messungen).
+function estimatedChargeKw() {
+  var st = readChargeRateState();
+  if (st === null) return null;
+  if (typeof st.kw !== 'number' || st.kw < CHARGE_RATE_MIN_KW || st.kw > CHARGE_RATE_MAX_KW) return null;
+  if (!(typeof st.messungen === 'number' && st.messungen >= CHARGE_RATE_MIN_SAMPLES)) return null;
+  return st.kw;
+}
+
+// Schreibt die Ladeleistungsschaetzung fort: ist der Ladestand seit Beginn
+// der Messstrecke um CHARGE_RATE_MIN_SOC_RISE Prozentpunkte gestiegen,
+// ergibt geladene Energie (aus der Kapazitaet) / Zeit eine Stichprobe, die
+// gleitend in die Schaetzung einfliesst.
+function updateChargeRateEstimate(soc, capacityKwh) {
+  var st = readChargeRateState();
+  if (st === null) {
+    console.log('[IBM][Ladeleistung] Item IBM_LADERATE_MESSUNG fehlt - Schaetzung uebersprungen');
+    return;
+  }
+
+  function restartMeasurement(reason) {
+    if (reason !== null) console.log('[IBM][Ladeleistung] ' + reason + ' - Messung neu aufgesetzt');
+    st.basisSoc = soc;
+    st.basisZeit = now.toString();
+    st.letztZeit = now.toString();
+    writeChargeRateState(st);
+  }
+
+  var prevTime = null;
+  var baseTime = null;
+  try {
+    if (st.letztZeit) prevTime = time.ZonedDateTime.parse(String(st.letztZeit));
+    if (st.basisZeit) baseTime = time.ZonedDateTime.parse(String(st.basisZeit));
+  } catch (e) {
+    prevTime = null;
+  }
+  if (typeof st.basisSoc !== 'number' || prevTime === null || baseTime === null) {
+    restartMeasurement('Keine laufende Messung');
+    return;
+  }
+
+  var gapMin = time.Duration.between(prevTime, now).toMinutes();
+  if (gapMin <= 0 || gapMin > CHARGE_RATE_MAX_STEP_GAP_MIN) {
+    restartMeasurement('Letzter Messlauf ' + gapMin + ' min her');
+    return;
+  }
+  if (soc < st.basisSoc) {
+    restartMeasurement('Ladestand gefallen (' + st.basisSoc + '% -> ' + soc + '%)');
+    return;
+  }
+
+  var rise = soc - st.basisSoc;
+  if (rise < CHARGE_RATE_MIN_SOC_RISE) {
+    st.letztZeit = now.toString();
+    writeChargeRateState(st);
+    return;
+  }
+
+  var hours = time.Duration.between(baseTime, now).toMinutes() / 60;
+  if (hours > 0) {
+    var sampleKw = Math.round(rise / 100 * capacityKwh / hours * 100) / 100;
+    if (sampleKw >= CHARGE_RATE_MIN_KW && sampleKw <= CHARGE_RATE_MAX_KW) {
+      var count = (typeof st.messungen === 'number') ? st.messungen : 0;
+      var weight = (typeof st.kw === 'number' && sampleKw < st.kw) ? CHARGE_RATE_EMA_DOWN : CHARGE_RATE_EMA_UP;
+      weight = Math.min(weight * hours, CHARGE_RATE_EMA_MAX);
+      st.kw = (typeof st.kw === 'number' && count > 0)
+        ? Math.round(((1 - weight) * st.kw + weight * sampleKw) * 100) / 100
+        : sampleKw;
+      st.messungen = count + 1;
+      console.log('[IBM][Ladeleistung] Stichprobe ' + sampleKw + ' kW (' + rise + ' Prozentpunkte in ' + Math.round(hours * 60) + ' min) -> Schaetzung ' + st.kw + ' kW (' + st.messungen + '. Messung)');
+    } else {
+      console.log('[IBM][Ladeleistung] Stichprobe ' + sampleKw + ' kW unplausibel - verworfen');
+    }
+  }
+  st.basisSoc = soc;
+  st.basisZeit = now.toString();
+  st.letztZeit = now.toString();
+  writeChargeRateState(st);
+}
+
+// Lokales Ladesperre-Ende in Minuten seit Mitternacht - oder null, wenn es
+// (noch) nicht berechenbar ist. Rueckwaerts vom Abend gerechnet: Die morgens
+// fehlende Energie, geteilt durch die gelernte Ladeleistung, ergibt die
+// noetige Ladezeit; die wird mit Sicherheitsaufschlag vor den (um
+// LOCAL_FULL_BUFFER_MIN vorgezogenen) Abend-Crossover gelegt. Als fehlende
+// Energie gilt fest LOCAL_CHARGE_FRACTION der Kapazitaet - nicht der
+// Live-Ladestand (das Ergebnis soll den ganzen Vormittag konstant sein und
+// nicht pendeln, sobald das Laden den Ladestand hebt) und auch nicht
+// IBM_MIN_BATTERY_CHARGE (nach dem Entlade-Stopp versorgt der
+// Wechselrichter das Haus weiter aus der Batterie, bis zur eigenen Reserve
+// von wenigen Prozent - dort startet der Morgen wirklich).
+var LOCAL_CHARGE_FRACTION = 0.95;
+function localChargeLockEnd() {
+  if (!LOCAL_LOCK_ACTIVE) return null;
+  if (EVENING_CROSSOVER_MIN === null) return null;
+  var capacityKwh = estimatedCapacityKwh();
+  var rateKw = estimatedChargeKw();
+  if (capacityKwh === null || rateKw === null) {
+    console.log('[IBM][Ladesperre] Noch keine belastbare Kapazitaets- oder Ladeleistungsschaetzung - Server-Ende gilt');
+    return null;
+  }
+  var missingKwh = capacityKwh * LOCAL_CHARGE_FRACTION;
+  var chargeMinutes = Math.round(missingKwh / rateKw * LOCAL_SAFETY_FACTOR * 60);
+  var deadline = EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN;
+  return Math.min(deadline - chargeMinutes, LOCAL_LATEST_END_MIN);
+}
+
 // --- Skript-Logik -----------------------------------------------------------
 var now = time.ZonedDateTime.now();
 var nowMinutes = now.hour() * 60 + now.minute();
@@ -326,8 +511,9 @@ function chargeLockDateValid() {
 
 var chargeLockStart = CHARGE_LOCK_START_MIN;
 var chargeLockEnd   = CHARGE_LOCK_END_MIN;
+var chargeLockDateOk = chargeLockDateValid();
 var chargeLockReady = chargeLockStart !== null && chargeLockEnd !== null
-  && chargeLockStart < chargeLockEnd && chargeLockDateValid();
+  && chargeLockStart < chargeLockEnd && chargeLockDateOk;
 
 // Entladung: vom abendlichen bis zum morgendlichen Crossover - solange die
 // Gemeinschaft mehr verbraucht als erzeugt. Ohne plausible Crossover-Daten
@@ -394,6 +580,54 @@ if (pauseDays >= 1) {
   console.log('[IBM] Pausiert (noch ' + pauseDays + ' Tag' + (pauseDays === 1 ? '' : 'e') + ') - Tue nichts');
   return;
 }
+
+// ----------------------------------------------------------------------------
+// Lokale Ladesperre: eigenes Sperr-Ende aus Batteriegroesse und Ladeleistung
+// ----------------------------------------------------------------------------
+// Ist das lokale Ende berechenbar, ersetzt es das Server-Ende - auch nach
+// hinten ("moeglichst spaet laden"), begrenzt auf LOCAL_LATEST_END_MIN.
+// Liegt es vor dem Fensterbeginn, braucht die Anlage den ganzen Tag zum
+// Laden und es wird gar nicht gesperrt. Datum-Pruefung und Fensterbeginn
+// (erster Sonnenschein) kommen weiterhin vom Server. Das berechnete Ende
+// steht in IBM_LADESPERRE_LOKAL_ENDE (Anzeige und Status-Push), '-' wenn
+// gerade das Server-Ende gilt oder heute nicht gesperrt wird.
+if (chargeLockReady) {
+  var localEnd = localChargeLockEnd();
+  if (localEnd === null) {
+    publishItem('IBM_LADESPERRE_LOKAL_ENDE', '-');
+  } else if (localEnd <= chargeLockStart) {
+    console.log('[IBM][Ladesperre] Lokales Ende ' + fmtMinutes(Math.max(localEnd, 0)) + ' liegt vor dem Fensterbeginn ' + fmtMinutes(chargeLockStart) + ' - die Anlage braucht den ganzen Tag, keine Sperre heute');
+    chargeLockReady = false;
+    publishItem('IBM_LADESPERRE_LOKAL_ENDE', '-');
+  } else {
+    if (localEnd !== chargeLockEnd) {
+      console.log('[IBM][Ladesperre] Lokales Ende ' + fmtMinutes(localEnd) + ' ersetzt Server-Ende ' + fmtMinutes(chargeLockEnd));
+    }
+    chargeLockEnd = localEnd;
+    publishItem('IBM_LADESPERRE_LOKAL_ENDE', fmtMinutes(localEnd));
+  }
+} else {
+  publishItem('IBM_LADESPERRE_LOKAL_ENDE', '-');
+}
+
+// Ladeleistung lernen: nur tagsueber zwischen Fensterbeginn und
+// Abend-Deadline, wenn die Batterie frei laden darf (keine Sperre moeglich),
+// die Vorschau Sonne meldet und der Ladestand unter der Drossel-Zone liegt.
+function sampleChargeRate() {
+  if (!LOCAL_LOCK_ACTIVE) return;
+  if (!chargeLockDateOk || CHARGE_LOCK_START_MIN === null || EVENING_CROSSOVER_MIN === null) return;
+  var capacityKwh = estimatedCapacityKwh();
+  if (capacityKwh === null) return;
+  var deadline = EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN;
+  if (nowMinutes < CHARGE_LOCK_START_MIN || nowMinutes >= deadline) return;
+  if (chargeLockReady && inWindow(chargeLockStart, chargeLockEnd)) return;
+  var clouds = cloudForecast();
+  if (clouds === null || clouds >= CLOUD_THRESHOLD) return;
+  var soc = parseFloat(items.getItem('@IBM_SOC_ITEM@').numericState);
+  if (isNaN(soc) || soc > CHARGE_RATE_MAX_SOC) return;
+  updateChargeRateEstimate(soc, capacityKwh);
+}
+sampleChargeRate();
 
 // ----------------------------------------------------------------------------
 // Teil A: Ladesperre bei geringer Bewoelkung

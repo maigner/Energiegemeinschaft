@@ -92,6 +92,17 @@ DEFAULT_ENTLADUNG_AKTIV=ON
 # Steuerungsskript wird in keinem Fall ueberschritten.
 DEFAULT_DYNAMISCHE_LEISTUNG=ON
 
+# Ladesperre-Ende selbst berechnen: aus der geschaetzten Batteriekapazitaet
+# und der aus dem Ladestandsanstieg gelernten Ladeleistung errechnet die
+# Steuerung, wann sie spaetestens zu laden beginnen muss, damit die Batterie
+# eine Stunde vor dem abendlichen Crossover voll ist - und sperrt genau bis
+# dahin (nie ueber 14:00 hinaus). Das passt das Sperr-Ende an die einzelne
+# Anlage an: kleine Batterie mit starker PV sperrt laenger, grosse Batterie
+# mit schwacher PV kuerzer oder gar nicht. Solange Kapazitaet oder
+# Ladeleistung noch nicht belastbar geschaetzt sind (oder bei OFF), gilt
+# das Server-Ende aus der Tagesprognose.
+DEFAULT_LADESPERRE_LOKAL=ON
+
 # --- Optionen ---------------------------------------------------------------
 
 # Addons ueber addons.cfg installieren.

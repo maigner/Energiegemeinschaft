@@ -103,7 +103,11 @@ if [ -f "$items_db" ]; then
               IBM_ENTLADUNG_AKTIV \
               IBM_DYNAMISCHE_LEISTUNG \
               IBM_BATTERIE_KAPAZITAET \
-              IBM_KAPAZITAET_MESSUNG; do
+              IBM_KAPAZITAET_MESSUNG \
+              IBM_LADESPERRE_LOKAL \
+              IBM_LADELEISTUNG \
+              IBM_LADERATE_MESSUNG \
+              IBM_LADESPERRE_LOKAL_ENDE; do
     if grep -q "\"$item\"" "$items_db"; then
       fail "Item '$item' existiert bereits in der Main UI und wuerde mit $OPENHAB_CONF/items/ibm.items kollidieren - bitte in der UI loeschen."
     fi

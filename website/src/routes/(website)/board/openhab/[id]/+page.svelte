@@ -38,6 +38,51 @@
     // keine Systemwerte.
     let system = $derived(anlage.data?.system ?? null);
 
+    // Zustand des Batteriemanagements aus der letzten Meldung, aufbereitet
+    // für die Karte. Das wirksame Sperr-Ende ist das lokal berechnete, wenn
+    // die Anlage eines meldet (lokale Ladesperre), sonst das Server-Ende
+    // aus der Tagesprognose.
+    let bm = $derived.by(() => {
+        const d = anlage.data ?? {};
+        const time = (/** @type {unknown} */ v) =>
+            typeof v === "string" && /^\d{1,2}:\d{2}/.test(v)
+                ? v.slice(0, 5)
+                : null;
+        const num = (/** @type {unknown} */ v, digits = 1) =>
+            typeof v === "number" && Number.isFinite(v)
+                ? v.toFixed(digits)
+                : null;
+        const start = time(d.ladesperre_start);
+        const lokalEnde = time(d.ladesperre_lokal_ende);
+        const ende = lokalEnde ?? time(d.ladesperre_ende);
+        const pauseTage = Number(d.pause_tage) || 0;
+        const minW = num(d.min_entladeleistung_w, 0);
+        const maxW = num(d.max_entladeleistung_w, 0);
+        return {
+            hauptschalter: typeof d.hauptschalter === "string" ? d.hauptschalter : null,
+            pauseTage,
+            sperreAus: d.ladesperre_aktiv === "OFF",
+            sperre:
+                d.ladesperre_aktiv === "OFF"
+                    ? "deaktiviert"
+                    : start && ende
+                      ? `${start} bis ${ende}${lokalEnde ? " (lokal berechnet)" : ""}`
+                      : "heute keine",
+            entladungAus: d.entladung_aktiv === "OFF",
+            entladung:
+                d.entladung_aktiv === "OFF"
+                    ? "deaktiviert"
+                    : minW && maxW
+                      ? `${minW} bis ${maxW} W`
+                      : "aktiv",
+            ladeleistung: num(d.ladeleistung_kw),
+            kapazitaet: num(d.batterie_kapazitaet),
+            minSoc: num(d.min_battery_charge, 0),
+            wolken: num(d.wolkenvorschau, 0),
+            schwelle: num(d.wolken_schwelle, 0),
+        };
+    });
+
     const AMBER = "text-amber-600 dark:text-amber-400";
     const RED = "text-red-600 dark:text-red-400";
     const GREEN = "text-green-700 dark:text-green-400";
@@ -253,7 +298,7 @@
                 max: 100,
                 labels: {
                     formatter: (/** @type {number} */ v) =>
-                        `${Math.round(v)} %`,
+                        `${Math.round(v)}%`,
                 },
             },
             { seriesName: "SD-Karte belegt", show: false },
@@ -402,6 +447,80 @@
         </p>
     {/if}
 
+    <!-- Zustand des Batteriemanagements aus der letzten Meldung; erst, wenn
+         die Anlage überhaupt schon gemeldet hat. -->
+    {#if anlage.lastSeen}
+        <Card class="max-w-none p-4 md:p-6 mt-6">
+            <Heading tag="h2" class="text-lg font-semibold mb-2">
+                Batteriemanagement
+            </Heading>
+            <dl class="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+                {@render systemStat(
+                    "Hauptschalter",
+                    bm.hauptschalter === "ON"
+                        ? "EIN"
+                        : bm.hauptschalter === "OFF"
+                          ? "AUS"
+                          : "unbekannt",
+                    bm.hauptschalter === "ON"
+                        ? GREEN
+                        : bm.hauptschalter === "OFF"
+                          ? RED
+                          : "",
+                )}
+                {@render systemStat(
+                    "Pause",
+                    bm.pauseTage > 0
+                        ? `noch ${bm.pauseTage} Tag${bm.pauseTage === 1 ? "" : "e"}`
+                        : "keine",
+                    bm.pauseTage > 0 ? AMBER : "",
+                )}
+                {@render systemStat(
+                    "Ladesperre heute",
+                    bm.sperre,
+                    bm.sperreAus ? AMBER : "",
+                )}
+                {@render systemStat(
+                    "Entladung nachts",
+                    bm.entladung,
+                    bm.entladungAus ? AMBER : "",
+                )}
+                {@render systemStat(
+                    "Gelernte Ladeleistung",
+                    bm.ladeleistung !== null
+                        ? `${bm.ladeleistung} kW`
+                        : "noch keine Schätzung",
+                    "",
+                )}
+                {@render systemStat(
+                    "Geschätzte Kapazität",
+                    bm.kapazitaet !== null
+                        ? `${bm.kapazitaet} kWh`
+                        : "noch keine Schätzung",
+                    "",
+                )}
+                {@render systemStat(
+                    "Wolkenvorschau",
+                    bm.wolken !== null
+                        ? `${bm.wolken}%${bm.schwelle !== null ? ` (Sperre unter ${bm.schwelle}%)` : ""}`
+                        : "unbekannt",
+                    "",
+                )}
+                {@render systemStat(
+                    "Mindest-Ladestand",
+                    bm.minSoc !== null ? `${bm.minSoc}%` : "unbekannt",
+                    "",
+                )}
+            </dl>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                "Lokal berechnet" heißt: Die Anlage hat das Sperr-Ende selbst
+                aus Batteriegröße und gelernter Ladeleistung bestimmt, damit
+                die Batterie am Abend voll ist. Ohne diese Angabe gilt das
+                Server-Ende aus der Tagesprognose.
+            </p>
+        </Card>
+    {/if}
+
     <!-- Systemzustand des Pi; wie bei den Logmeldungen erst, wenn die
          Anlage überhaupt schon gemeldet hat. -->
     {#if anlage.lastSeen}
@@ -455,7 +574,7 @@
                     {@render systemStat(
                         "SD-Karte",
                         typeof system.disk_used_pct === "number"
-                            ? `${system.disk_used_pct} % belegt`
+                            ? `${system.disk_used_pct}% belegt`
                             : "unbekannt",
                         system.disk_used_pct >= 90
                             ? RED

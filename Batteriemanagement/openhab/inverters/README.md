@@ -153,6 +153,10 @@ voraussetzen:
 | `Maximale_Entladeleistung_Batterieeinspeisung` | Number | Watt |
 | `IBM_LADESPERRE_AKTIV` | Switch | Teilfunktion Ladesperre ein/aus |
 | `IBM_LADESPERRE_WOLKEN_SCHWELLE` | Number | Bewoelkung in % |
+| `IBM_LADESPERRE_LOKAL` | Switch | Sperr-Ende selbst berechnen (aus Kapazitaet und gelernter Ladeleistung) statt Server-Ende |
+| `IBM_LADELEISTUNG` | Number | Vom Kern gelernte Ladeleistung in kW (Anzeige) |
+| `IBM_LADERATE_MESSUNG` | String | Interner Zustand der Ladeleistungsschaetzung (JSON) |
+| `IBM_LADESPERRE_LOKAL_ENDE` | String | Vom Kern berechnetes Sperr-Ende `HH:MM` oder `-` (Anzeige/Status-Push) |
 | `IBM_ENTLADUNG_AKTIV` | Switch | Teilfunktion Entladung ein/aus |
 | `IBM_PAUSE_TAGE` | Number | Verbleibende Pausentage: solange > 0 plant der Kern nichts |
 

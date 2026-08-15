@@ -88,6 +88,16 @@ Switch IBM_ENTLADUNG_AKTIV             "Forcierte Entladung nachts"         <swi
 Switch IBM_DYNAMISCHE_LEISTUNG   "Entladeleistung an Batteriegroesse anpassen" <switch>  (IBM)
 Number IBM_BATTERIE_KAPAZITAET   "Geschaetzte Batteriekapazitaet [%.1f kWh]"   <battery> (IBM)
 String IBM_KAPAZITAET_MESSUNG    "Kapazitaetsschaetzung (intern) [%s]"         <settings> (IBM)
+
+// Lokale Ladesperre: die Steuerung errechnet das Sperr-Ende selbst aus
+// Batteriekapazitaet und gelernter Ladeleistung - die Batterie beginnt so
+// spaet wie moeglich zu laden und ist am Abend trotzdem voll. Solange die
+// Schaetzungen fehlen, gilt das Server-Ende aus der Tagesprognose.
+// IBM_LADERATE_MESSUNG ist interner Zustand (JSON).
+Switch IBM_LADESPERRE_LOKAL      "Ladesperre-Ende selbst berechnen"            <switch>   (IBM)
+Number IBM_LADELEISTUNG          "Geschaetzte Ladeleistung [%.1f kW]"          <energy>   (IBM)
+String IBM_LADERATE_MESSUNG      "Ladeleistungsschaetzung (intern) [%s]"       <settings> (IBM)
+String IBM_LADESPERRE_LOKAL_ENDE "Lokales Ladesperre-Ende [%s]"                <time>     (IBM)
 EOF
 
 # --- Persistence ------------------------------------------------------------
@@ -134,7 +144,11 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     IBM_ENTLADUNG_AKTIV,
     IBM_DYNAMISCHE_LEISTUNG,
     IBM_BATTERIE_KAPAZITAET,
-    IBM_KAPAZITAET_MESSUNG
+    IBM_KAPAZITAET_MESSUNG,
+    IBM_LADESPERRE_LOKAL,
+    IBM_LADELEISTUNG,
+    IBM_LADERATE_MESSUNG,
+    IBM_LADESPERRE_LOKAL_ENDE
         : strategy = everyChange, restoreOnStartup
 }
 EOF
@@ -174,7 +188,8 @@ ${battery_persist}
     Maximale_Entladeleistung_Batterieeinspeisung,
     IBM_PAUSE_TAGE,
     IBM_LADESPERRE_WOLKEN_SCHWELLE,
-    IBM_BATTERIE_KAPAZITAET
+    IBM_BATTERIE_KAPAZITAET,
+    IBM_LADELEISTUNG
         : strategy = everyChange, everyMinute
 }
 EOF

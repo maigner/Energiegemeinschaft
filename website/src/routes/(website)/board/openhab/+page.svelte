@@ -114,6 +114,21 @@
     }
 
     /**
+     * Wirksames Ladesperre-Fenster heute: meldet die Anlage ein lokal
+     * berechnetes Ende (lokale Ladesperre), gilt dieses statt des
+     * Server-Endes aus der Tagesprognose.
+     * @param {any} d
+     */
+    function sperreText(d) {
+        const t = (/** @type {unknown} */ v) =>
+            typeof v === "string" && /^\d{1,2}:\d{2}/.test(v) ? v.slice(0, 5) : null;
+        if (d.ladesperre_aktiv === "OFF") return "aus";
+        const start = t(d.ladesperre_start);
+        const ende = t(d.ladesperre_lokal_ende) ?? t(d.ladesperre_ende);
+        return start && ende ? `${start}-${ende}` : "keine";
+    }
+
+    /**
      * Uptime aus dem gemeldeten Boot-Zeitpunkt (Lokalzeit der Anlage,
      * "YYYY-MM-DD HH:MM:SS"); null, wenn keiner vorliegt oder unlesbar.
      * @param {any} data
@@ -164,6 +179,10 @@
         if (d.hauptschalter === "OFF") {
             issues.push({ text: "Batteriemanagement aus", color: "yellow" });
         } else {
+            const pause = Number(d.pause_tage);
+            if (pause > 0) {
+                issues.push({ text: `pausiert (noch ${pause} Tag${pause === 1 ? "" : "e"})`, color: "yellow" });
+            }
             if (d.ladesperre_aktiv === "OFF") issues.push({ text: "Ladesperre aus", color: "gray" });
             if (d.entladung_aktiv === "OFF") issues.push({ text: "Entladung aus", color: "gray" });
         }
@@ -181,7 +200,7 @@
         }
         const disk = d.system?.disk_used_pct;
         if (typeof disk === "number" && disk >= 80) {
-            issues.push({ text: `SD-Karte ${Math.round(disk)} % belegt`, color: disk >= 90 ? "red" : "yellow" });
+            issues.push({ text: `SD-Karte ${Math.round(disk)}% belegt`, color: disk >= 90 ? "red" : "yellow" });
         }
         return issues;
     }
@@ -263,9 +282,14 @@
                                 "Kapazität",
                             )}
                             {@render stat(
-                                num(d.wolkenvorschau, 0) !== null ? `${num(d.wolkenvorschau, 0)} %` : "-",
+                                num(d.ladeleistung_kw) !== null ? `${num(d.ladeleistung_kw)} kW` : "-",
+                                "Ladeleistung",
+                            )}
+                            {@render stat(
+                                num(d.wolkenvorschau, 0) !== null ? `${num(d.wolkenvorschau, 0)}%` : "-",
                                 "Wolkenvorschau",
                             )}
+                            {@render stat(sperreText(d), "Sperre heute")}
                             {@render stat(uptimeText(d) ?? "-", "Uptime")}
                         </div>
 

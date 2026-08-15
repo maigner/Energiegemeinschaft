@@ -88,11 +88,14 @@ export const getForecastDays = async (runId: number, days: number = 10) => {
  * Das Ende ist der spätere von Vormittags-Crossover (Erzeugung >= Verbrauch)
  * und dem ersten Slot mit Überschuss >= 75 % des Tagesmaximums, aber nie
  * später als der Spitzen-Slot selbst und nie nach 14:00 (die Steuerung am Pi
- * ignoriert Enden ab 15:00 ganz, dann gäbe es gar keine Sperre). Verlängert
- * wird nur, wenn der prognostizierte Rest-Überschuss danach mindestens die
- * doppelte Batteriekapazität der IBM-Flotte deckt -- sonst gilt der nackte
- * Crossover, damit die Batterien vor dem Abend sicher voll werden. An Tagen
- * ohne erwarteten Überschuss ist `ende` null -- dann gibt es keine Sperre.
+ * ignoriert Enden ab 15:00 ganz, dann gäbe es gar keine Sperre). Dieses Ende
+ * ist die Community-Sicht und zugleich nur der Rückfall: Anlagen mit
+ * belastbarer Kapazitäts- und Ladeleistungsschätzung ersetzen es lokal durch
+ * ihr selbst berechnetes Ende (lokale Ladesperre in
+ * Batteriemanagement/openhab/control/core.js), damit die Batterie am Abend
+ * sicher voll wird -- ob eine Anlage rechtzeitig voll wird, kann nur sie
+ * selbst beurteilen, nicht die Community-Prognose. An Tagen ohne erwarteten
+ * Überschuss ist `ende` null -- dann gibt es keine Sperre.
  */
 export const getTodayChargeWindow = async (runId: number) => {
     const sql = await middlewareDbConnection();
@@ -111,14 +114,6 @@ export const getTodayChargeWindow = async (runId: number) => {
             SELECT MAX(generation_kwh) AS max_gen,
                    MAX(surplus_kwh) AS max_surplus
             FROM slots
-        ),
-        -- Summe der geschätzten Batteriekapazitäten der meldenden Anlagen;
-        -- Maßstab für den Energie-Guard der Verlängerung.
-        fleet AS (
-            SELECT COALESCE(SUM(CASE WHEN jsonb_typeof(data->'batterie_kapazitaet') = 'number'
-                                     THEN (data->>'batterie_kapazitaet')::float END), 0) AS capacity_kwh
-            FROM members_openhabstatus
-            WHERE last_seen IS NOT NULL
         ),
         crossover AS (
             SELECT MIN(ts_local) AS t
@@ -141,17 +136,6 @@ export const getTodayChargeWindow = async (runId: number) => {
                         AND surplus_kwh = peak.max_surplus),
                     (now() AT TIME ZONE 'Europe/Vienna')::date + time '14:00'
                 ) END AS t
-        ),
-        guarded AS (
-            SELECT CASE
-                WHEN e.t IS NULL THEN NULL
-                WHEN (SELECT COALESCE(SUM(GREATEST(surplus_kwh, 0)), 0)
-                        FROM slots WHERE ts_local >= e.t)
-                     >= 2 * (SELECT capacity_kwh FROM fleet)
-                THEN e.t
-                ELSE (SELECT t FROM crossover)
-            END AS t
-            FROM extended e
         )
         SELECT
             COUNT(*)::int AS intervals,
@@ -159,7 +143,7 @@ export const getTodayChargeWindow = async (runId: number) => {
             to_char(MIN(ts_local) FILTER (
                 WHERE generation_kwh > 0.05 * (SELECT max_gen FROM peak)
             ), 'HH24:MI') AS start,
-            to_char((SELECT t FROM guarded), 'HH24:MI') AS ende
+            to_char((SELECT t FROM extended), 'HH24:MI') AS ende
         FROM slots
     `, [runId]);
     sql.release();
