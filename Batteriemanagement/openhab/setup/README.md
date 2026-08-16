@@ -53,7 +53,18 @@ sudo IBM_ASSUME_YES=1 bash install.sh
 
 Bei einer erneuten Installation wird das alte Verzeichnis nach
 `openhab.bak-<zeitstempel>` gesichert und eine vorhandene `ibm.conf`
-uebernommen — ein Update aendert die Konfiguration der Anlage also nicht.
+uebernommen — ein Update aendert bestehende Einstellungen der Anlage also
+nicht. **Neue Konfig-Schluessel ergaenzt das Update aber automatisch**
+(`migrate_config` in `lib/common.sh`, laeuft bei jedem `load_config`):
+Schluessel, die in der uebernommenen `ibm.conf` noch gar nicht vorkommen,
+werden mit dem Wert eingetragen, den der Assistent heute vorgeben wuerde —
+bei der automatischen Einrichtung der Standard-Itemname aus dem
+Wechselrichter-Profil, am klassischen Weg das bereits verknuepfte Item.
+Ein vorhandener, bewusst leer gesetzter Schluessel bleibt unangetastet.
+Manuelles Nachtragen in der `ibm.conf` ist damit nicht noetig; nur was
+eine Rueckfrage braucht (etwa das Status-Push-Token), fragt der jeweilige
+Schritt beim Update selbst nach. Wer neue Schluessel einfuehrt, ergaenzt
+sie in `migrate_config`.
 
 ## Neues Paket veroeffentlichen
 

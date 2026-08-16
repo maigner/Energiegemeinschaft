@@ -275,6 +275,60 @@ load_config() {
   INVERTER_PASSWORD="${INVERTER_PASSWORD:-}"
 
   load_profile "$INVERTER_TYPE"
+
+  migrate_config
+}
+
+# ---------------------------------------------------------------------------
+# Konfig-Migration
+#
+# Bringt eine aeltere ibm.conf nach einem Paket-Update automatisch auf den
+# aktuellen Stand - ein Paket-Update genuegt, manuelles Editieren der
+# ibm.conf ist nicht noetig. Massstab ist die Datei, nicht die Variable:
+# nur Schluessel, die in der ibm.conf noch gar nicht vorkommen (die Datei
+# stammt also von vor dem jeweiligen Feature), werden mit dem Wert ergaenzt,
+# den der Assistent heute vorgeben wuerde. Ein vorhandener, bewusst leer
+# gesetzter Schluessel bleibt unangetastet. Laeuft bei jedem load_config
+# und ist idempotent.
+#
+# Interaktive Nachruestungen (Status-Push-Token) bleiben Sache der
+# Einzelschritte - hier wird nur ergaenzt, was ohne Rueckfrage entscheidbar
+# ist.
+# ---------------------------------------------------------------------------
+
+# Ergaenzt ein fehlendes Leistungs-Item: bei der automatischen Einrichtung
+# der Standardname aus dem Profil (wie im Assistenten); am klassischen Weg
+# das bereits verknuepfte Item, ersatzweise ebenfalls der Standardname.
+#   $1 Schluessel  $2 Profil-Standardname  $3 detect-Funktion
+migrate_config_item() {
+  local key="$1" placeholder="$2" detect="$3" value=""
+  [ -n "$placeholder" ] || return 0
+  grep -qE "^${key}=" "$IBM_CONF" && return 0
+  if [ "$AUTO_CREATE_THING" = "1" ]; then
+    value="$placeholder"
+  else
+    value="$("$detect" "$INVERTER_THING_UID" | head -n 1)"
+    value="${value:-$placeholder}"
+  fi
+  conf_set "$key" "$value"
+  printf -v "$key" '%s' "$value"
+  migrated_keys="${migrated_keys} ${key}"
+}
+
+migrate_config() {
+  # Ohne Schreibrecht (z. B. Aufruf ohne root) nichts anfassen - der
+  # naechste Lauf mit sudo holt die Migration nach.
+  [ -w "$IBM_CONF" ] || return 0
+
+  migrated_keys=""
+  migrate_config_item BATTERY_POWER_ITEM "$INVERTER_BATTERY_POWER_PLACEHOLDER" detect_battery_power_items
+  migrate_config_item GRID_POWER_ITEM "$INVERTER_GRID_POWER_PLACEHOLDER" detect_grid_power_items
+  migrate_config_item PV_POWER_ITEM "$INVERTER_PV_POWER_PLACEHOLDER" detect_pv_power_items
+
+  if [ -n "$migrated_keys" ]; then
+    log "ibm.conf um neue Schluessel ergaenzt (Paket-Update):${migrated_keys}"
+  fi
+  unset migrated_keys
 }
 
 # Setzt einen Schluessel in der bestehenden ibm.conf (Wert in Anfuehrungs-
