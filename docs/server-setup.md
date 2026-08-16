@@ -14,7 +14,8 @@ TLS terminiert **Caddy** am Host (`/etc/caddy/Caddyfile`):
 | --- | --- | --- |
 | ischlstrom.org, www | localhost:3001 | **Website** (Docker `ischlstrom-website`) |
 | s1.ischlstrom.org | localhost:8090 | mailcow (auch MX fuer ischlstrom.org) |
-| hac.ischlstrom.org | localhost:3000 | openHAB Cloud |
+| hac.ischlstrom.org | localhost:3000 | openHAB Cloud (siehe [openhab-cloud.md](openhab-cloud.md)) |
+| remote.hac.ischlstrom.org | localhost:3000 | openHAB Cloud Remote-Proxy (Main UI der Anlagen) |
 | nextcloud.ischlstrom.org | localhost:11000 | Nextcloud AIO |
 | newsletter.ischlstrom.org | localhost:4000 | keila |
 
@@ -92,3 +93,6 @@ Noch offen:
    die Config-Tarballs.
 4. Plattenplatz beobachten: `journalctl -u s1-backup` zeigt Belegung und
    freien Platz nach jedem Lauf.
+5. openHAB Cloud: die MongoDB des Stacks (Konten, UUID/Secret der Anlagen)
+   wird noch nicht gesichert - `mongodump` in `s1-backup.sh` ergaenzen
+   (siehe [openhab-cloud.md](openhab-cloud.md)).
