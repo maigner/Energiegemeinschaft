@@ -336,6 +336,12 @@ der Main UI aenderbar — **das Steuerungsskript wird pro Kunde nie angepasst**.
 `../inverters/fronius/overview.yaml` — fuer die Bedienung am Handy aufgeteilt
 in eine kompakte Overview (Zustand, Hauptschalter, Navigation) und vier
 Unterseiten (`ibm_laden`, `ibm_einspeisen`, `ibm_pause`, `ibm_experten`).
+Die Laden-Seite zeigt bewusst nur den Hauptschalter "Intelligentes Laden"
+(`IBM_LADESPERRE_AKTIV`) und die Statuskarten der Regelung
+(Ziel-Ladeleistung, effektive Restladezeit); alle Bedienelemente des
+klassischen Sperrfensters (`IBM_LADEREGELUNG`, `IBM_LADESPERRE_LOKAL`,
+Sperrzeiten, Bewoelkungs-Schwelle) liegen als Block "Notfallplan Laden
+(Sperrfenster)" auf der Expertenseite.
 Main-UI-Seiten
 liegen in der JSONDB, deshalb installiert `05-install-overview.sh` sie per
 REST API — dafuer wird das openHAB-API-Token gebraucht (`OH_API_TOKEN`, fragt

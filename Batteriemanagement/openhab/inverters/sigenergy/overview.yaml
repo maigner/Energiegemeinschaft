@@ -284,82 +284,14 @@ pages:
                         default:
                           - component: oh-toggle-card
                             config:
-                              title: Ladesperre verwenden
+                              title: Intelligentes Laden
                               item: IBM_LADESPERRE_AKTIV
                               color: blue
-                              footer: "=items.IBM_LADESPERRE_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - An sonnigen Tagen lädt die Batterie zwischen den unten angezeigten Zeiten nicht: Der eigene PV-Strom geht bis in die Mittagszeit an Haushalt und Gemeinschaft. Danach lädt die Batterie wie immer aus der eigenen PV-Anlage.' : (items.IBM_LADESPERRE_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Die Batterie lädt aus der eigenen PV, sobald Sonne da ist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
+                              footer: "=items.IBM_LADESPERRE_AKTIV.state === 'ON' ? '🟢 EINGESCHALTET - Die Batterie lädt an sonnigen Tagen automatisch gerade schnell genug, um am Abend voll zu sein. Der restliche Sonnenstrom geht laufend an Haushalt und Gemeinschaft. An trüben Tagen lädt die Batterie ungebremst.' : (items.IBM_LADESPERRE_AKTIV.state === 'OFF' ? '⚪ AUSGESCHALTET - Die Batterie lädt aus der eigenen PV, sobald Sonne da ist.' : 'Zustand noch unbekannt - openHAB startet vermutlich gerade.')"
               - component: oh-grid-row
                 config: {}
                 slots:
                   default:
-                    - component: oh-grid-col
-                      config: {}
-                      slots:
-                        default:
-                          - component: oh-label-card
-                            config:
-                              title: Sperre ab
-                              item: Ischlstrom_Ladesperre_Start
-                              footer: >-
-                                Erster Sonnenschein laut Tagesprognose - kommt
-                                automatisch von ischlstrom.org. "-" bedeutet:
-                                heute keine Sperre.
-                    - component: oh-grid-col
-                      config: {}
-                      slots:
-                        default:
-                          - component: oh-label-card
-                            config:
-                              title: Sperre bis
-                              item: Ischlstrom_Ladesperre_Ende
-                              footer: >-
-                                Ende der Sperre - individuell für diese
-                                Anlage berechnet, sofern eingeschaltet und
-                                Schätzwerte vorliegen, sonst laut
-                                Tagesprognose der Gemeinschaft. Ab dem Ende
-                                lädt die Batterie aus der eigenen PV-Anlage.
-              - component: oh-grid-row
-                config: {}
-                slots:
-                  default:
-                    - component: oh-grid-col
-                      config: {}
-                      slots:
-                        default:
-                          - component: oh-toggle-card
-                            config:
-                              title: Sperr-Ende an die Anlage anpassen
-                              item: IBM_LADESPERRE_LOKAL
-                              color: blue
-                              footer: >-
-                                Nur ein Rückfall, wenn die dynamische
-                                Laderegelung oben nicht greift: Das Sperr-Ende
-                                wird dann für diese Anlage berechnet - aus
-                                Batteriegröße, gelernter Ladeleistung und dem
-                                Sonnenverlauf des Tages, so spät wie möglich,
-                                aber die Batterie ist am Abend voll. Solange
-                                die Schätzungen fehlen (oder bei AUS), gilt
-                                das allgemeine Ende laut Tagesprognose.
-              - component: oh-grid-row
-                config: {}
-                slots:
-                  default:
-                    - component: oh-grid-col
-                      config: {}
-                      slots:
-                        default:
-                          - component: oh-toggle-card
-                            config:
-                              title: Ladeleistung dynamisch regeln
-                              item: IBM_LADEREGELUNG
-                              color: blue
-                              footer: >-
-                                Statt einer harten Sperre lädt die Batterie
-                                den ganzen Tag gerade schnell genug, um am
-                                Abend voll zu sein - der restliche Sonnenstrom
-                                geht laufend an Haushalt und Gemeinschaft.
-                                Braucht die Schätzwerte unten; solange sie
-                                fehlen (oder bei AUS), gilt das Sperrfenster.
                     - component: oh-grid-col
                       config: {}
                       slots:
@@ -370,12 +302,9 @@ pages:
                               item: IBM_LADEREGELUNG_SOLL
                               footer: >-
                                 Mit dieser Leistung soll die Batterie gerade
-                                laden, damit sie zur Abend-Deadline voll ist.
-                                "-" bedeutet: keine Begrenzung aktiv.
-              - component: oh-grid-row
-                config: {}
-                slots:
-                  default:
+                                laden, damit sie am Abend voll ist. "-"
+                                bedeutet: keine Begrenzung aktiv, die Batterie
+                                lädt frei.
                     - component: oh-grid-col
                       config: {}
                       slots:
@@ -387,70 +316,8 @@ pages:
                               footer: >-
                                 Sonnengewichtete Ladezeit, die bis zum Abend
                                 noch bleibt: jede Stunde zählt nur mit ihrem
-                                erwarteten Ertrag laut Prognose. Die Regelung
-                                teilt die fehlende Energie durch diese Zeit.
-                                "-" bedeutet: gerade nicht berechenbar.
-              - component: oh-grid-row
-                config: {}
-                slots:
-                  default:
-                    - component: oh-grid-col
-                      config: {}
-                      slots:
-                        default:
-                          - component: oh-label-card
-                            config:
-                              title: Notfall-Ende (lokal gerechnet)
-                              item: IBM_LADESPERRE_LOKAL_ENDE
-                              footer: >-
-                                Greift nur, wenn ischlstrom.org kein
-                                individuelles Ende liefert. "-" bedeutet:
-                                das Ende unter "Sperre bis" gilt oder es
-                                wird heute nicht gesperrt.
-                    - component: oh-grid-col
-                      config: {}
-                      slots:
-                        default:
-                          - component: oh-label-card
-                            config:
-                              title: Geschätzte Ladeleistung
-                              item: IBM_LADELEISTUNG
-                              footer: >-
-                                Aus dem Anstieg des Ladestands an sonnigen
-                                Tagen gelernt. Bestimmt zusammen mit der
-                                Batteriegröße das selbst berechnete
-                                Sperr-Ende.
-              - component: oh-grid-row
-                config: {}
-                slots:
-                  default:
-                    - component: oh-grid-col
-                      config: {}
-                      slots:
-                        default:
-                          - component: oh-label-card
-                            config:
-                              title: Bewölkung am Vormittag
-                              item: Ischlstrom_Wolkenvorschau
-                              footer: >-
-                                Vorhersage in Prozent: 0 % = wolkenlos,
-                                100 % = bedeckt. Kommt stündlich von
-                                ischlstrom.org.
-                    - component: oh-grid-col
-                      config: {}
-                      slots:
-                        default:
-                          - component: oh-stepper-card
-                            config:
-                              title: Bewölkungs-Schwelle (%)
-                              item: IBM_LADESPERRE_WOLKEN_SCHWELLE
-                              min: 0
-                              max: 100
-                              step: 5
-                              footer: >-
-                                Nur wenn die Bewölkungsvorhersage unter diesem
-                                Wert liegt (also genug Sonne kommt), wird das
-                                Laden gesperrt.
+                                erwarteten Ertrag laut Prognose. "-" bedeutet:
+                                gerade nicht berechenbar.
 
   # --- Unterseite: Einspeisen am Abend ---------------------------------------
   ibm_einspeisen:
@@ -795,3 +662,140 @@ pages:
                                 Netz. Sollte immer 0 W sein; dauerhaft höhere
                                 Werte zeigen einen Zeitplan oder eine
                                 Fehlkonfiguration am Wechselrichter.
+        - component: oh-block
+          config:
+            title: Notfallplan Laden (Sperrfenster)
+          slots:
+            default:
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-toggle-card
+                            config:
+                              title: Ladeleistung dynamisch regeln
+                              item: IBM_LADEREGELUNG
+                              color: blue
+                              footer: >-
+                                Kern des intelligenten Ladens: statt einer
+                                harten Sperre lädt die Batterie den ganzen Tag
+                                gerade schnell genug, um am Abend voll zu
+                                sein. Nur ausschalten, wenn die Regelung
+                                Probleme macht - dann gilt das klassische
+                                Sperrfenster unten als Notfallplan. Bei
+                                fehlenden Schätz- oder Prognosedaten springt
+                                das Sperrfenster automatisch ein.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-toggle-card
+                            config:
+                              title: Sperr-Ende an die Anlage anpassen
+                              item: IBM_LADESPERRE_LOKAL
+                              color: blue
+                              footer: >-
+                                Nur ein Rückfall, wenn die dynamische
+                                Laderegelung nicht greift: Das Sperr-Ende
+                                wird dann für diese Anlage berechnet - aus
+                                Batteriegröße, gelernter Ladeleistung und dem
+                                Sonnenverlauf des Tages, so spät wie möglich,
+                                aber die Batterie ist am Abend voll. Solange
+                                die Schätzungen fehlen (oder bei AUS), gilt
+                                das allgemeine Ende laut Tagesprognose.
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Sperre ab
+                              item: Ischlstrom_Ladesperre_Start
+                              footer: >-
+                                Erster Sonnenschein laut Tagesprognose - kommt
+                                automatisch von ischlstrom.org. "-" bedeutet:
+                                heute keine Sperre.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Sperre bis
+                              item: Ischlstrom_Ladesperre_Ende
+                              footer: >-
+                                Ende der Sperre - individuell für diese
+                                Anlage berechnet, sofern eingeschaltet und
+                                Schätzwerte vorliegen, sonst laut
+                                Tagesprognose der Gemeinschaft. Ab dem Ende
+                                lädt die Batterie aus der eigenen PV-Anlage.
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Notfall-Ende (lokal gerechnet)
+                              item: IBM_LADESPERRE_LOKAL_ENDE
+                              footer: >-
+                                Greift nur, wenn ischlstrom.org kein
+                                individuelles Ende liefert. "-" bedeutet:
+                                das Ende unter "Sperre bis" gilt oder es
+                                wird heute nicht gesperrt.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Geschätzte Ladeleistung
+                              item: IBM_LADELEISTUNG
+                              footer: >-
+                                Aus dem Anstieg des Ladestands an sonnigen
+                                Tagen gelernt. Bestimmt zusammen mit der
+                                Batteriegröße das selbst berechnete
+                                Sperr-Ende.
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Bewölkung am Vormittag
+                              item: Ischlstrom_Wolkenvorschau
+                              footer: >-
+                                Vorhersage in Prozent: 0% = wolkenlos,
+                                100% = bedeckt. Kommt stündlich von
+                                ischlstrom.org.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-stepper-card
+                            config:
+                              title: Bewölkungs-Schwelle (%)
+                              item: IBM_LADESPERRE_WOLKEN_SCHWELLE
+                              min: 0
+                              max: 100
+                              step: 5
+                              footer: >-
+                                Nur wenn die Bewölkung unter diesem Wert
+                                liegt (also genug Sonne kommt), wird das
+                                Laden geregelt oder gesperrt. Darüber lädt
+                                die Batterie immer frei.
