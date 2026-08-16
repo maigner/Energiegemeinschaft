@@ -109,6 +109,7 @@ thing_uid_esc="$(sed_escape "$INVERTER_THING_UID")"
 soc_item_esc="$(sed_escape "$SOC_ITEM")"
 battery_power_item_esc="$(sed_escape "$BATTERY_POWER_ITEM")"
 grid_power_item_esc="$(sed_escape "$GRID_POWER_ITEM")"
+pv_power_item_esc="$(sed_escape "$PV_POWER_ITEM")"
 anlage_name_esc="$(sed_escape "$IBM_ANLAGE_NAME")"
 status_token_esc="$(sed_escape "$IBM_STATUS_TOKEN")"
 inverter_type_esc="$(sed_escape "$INVERTER_TYPE")"
@@ -131,6 +132,7 @@ render_payload() {
       -e "s|@IBM_SOC_ITEM@|${soc_item_esc}|g" \
       -e "s|@IBM_BATTERY_POWER_ITEM@|${battery_power_item_esc}|g" \
       -e "s|@IBM_GRID_POWER_ITEM@|${grid_power_item_esc}|g" \
+      -e "s|@IBM_PV_POWER_ITEM@|${pv_power_item_esc}|g" \
       -e "s|@IBM_ANLAGE_NAME@|${anlage_name_esc}|g" \
       -e "s|@IBM_STATUS_TOKEN@|${status_token_esc}|g" \
       -e "s|@IBM_INVERTER_TYPE@|${inverter_type_esc}|g" \

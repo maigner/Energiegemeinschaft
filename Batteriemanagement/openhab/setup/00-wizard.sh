@@ -107,6 +107,7 @@ if [ "${#thing_candidates[@]}" -eq 0 ] && [ -n "$INVERTER_HOST_THING_PREFIX" ]; 
     SOC_ITEM="$INVERTER_SOC_PLACEHOLDER"
     BATTERY_POWER_ITEM="$INVERTER_BATTERY_POWER_PLACEHOLDER"
     GRID_POWER_ITEM="$INVERTER_GRID_POWER_PLACEHOLDER"
+    PV_POWER_ITEM="$INVERTER_PV_POWER_PLACEHOLDER"
     log "Thing-UID: $INVERTER_THING_UID"
     log "Ladestands-Item: $SOC_ITEM"
   fi
@@ -251,6 +252,31 @@ if [ -n "$INVERTER_GRID_POWER_PLACEHOLDER" ]; then
   fi
 
   ask GRID_POWER_ITEM "Item mit der Netzleistung" "$grid_default"
+fi
+
+# --- 3d. PV-Leistungs-Item (fuer das Vorstands-Dashboard) --------------------
+# Optional: Der Status-Push meldet damit die aktuelle PV-Leistung der Anlage
+# an das Vorstands-Dashboard. Ohne Item bleibt die Kachel dort leer ("-").
+PV_POWER_ITEM=""
+if [ -n "$INVERTER_PV_POWER_PLACEHOLDER" ]; then
+  mapfile -t pv_candidates < <(detect_pv_power_items "$INVERTER_THING_UID")
+
+  if [ "${#pv_candidates[@]}" -ge 1 ]; then
+    pv_default="${pv_candidates[0]}"
+    if [ "${#pv_candidates[@]}" -gt 1 ]; then
+      echo "[IBM] Moegliche PV-Leistungs-Items:"
+      printf '[IBM]   %s\n' "${pv_candidates[@]}"
+    fi
+    log "PV-Leistungs-Item erkannt: $pv_default"
+  else
+    pv_default="$INVERTER_PV_POWER_PLACEHOLDER"
+    warn "Kein PV-Leistungs-Item gefunden. Den Channel"
+    warn "'${INVERTER_PV_POWER_CHANNEL}' des Things in der Main UI mit einem"
+    warn "Item verknuepfen (Standardname unten), sonst bleibt die Kachel"
+    warn "'PV-Leistung' am Vorstands-Dashboard leer."
+  fi
+
+  ask PV_POWER_ITEM "Item mit der PV-Leistung" "$pv_default"
 fi
 
 fi # Ende des manuellen Wegs (AUTO_CREATE_THING != 1)
@@ -467,6 +493,7 @@ INVERTER_THING_UID="${INVERTER_THING_UID}"
 SOC_ITEM="${SOC_ITEM}"
 BATTERY_POWER_ITEM="${BATTERY_POWER_ITEM}"
 GRID_POWER_ITEM="${GRID_POWER_ITEM}"
+PV_POWER_ITEM="${PV_POWER_ITEM}"
 
 # --- Automatische Einrichtung -------------------------------------------------
 # 02b-install-things.sh legt Bridge- und Wechselrichter-Thing selbst an
@@ -559,6 +586,7 @@ cat <<ZUSAMMENFASSUNG
 [IBM]   Ladestand-Item : ${SOC_ITEM}
 [IBM]   Leistungs-Item : ${BATTERY_POWER_ITEM:-"(keins - Karte bleibt leer)"}
 [IBM]   Netz-Item      : ${GRID_POWER_ITEM:-"(keins - keine berechnete Netzeinspeisung)"}
+[IBM]   PV-Item        : ${PV_POWER_ITEM:-"(keins - keine PV-Leistung am Dashboard)"}
 [IBM]   API            : ${IBM_API_BASE}
 [IBM]   Status-Push    : $([ "$INSTALL_STATUS_PUSH" = "1" ] && echo "ja (${IBM_ANLAGE_NAME})" || echo "nein")
 [IBM]   Ladestand min. : ${DEFAULT_MIN_BATTERY_CHARGE} %

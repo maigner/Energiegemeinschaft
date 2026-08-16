@@ -90,6 +90,8 @@ Drei Vorlagen:
    | `INVERTER_BATTERY_POWER_PLACEHOLDER` | Itemname in den Main-UI-Seiten, den das Setup durch `BATTERY_POWER_ITEM` ersetzt |
    | `INVERTER_GRID_POWER_CHANNEL` | Channel mit der aktuellen Netzleistung (+ Bezug, - Einspeisung); zusammen mit der Batterieleistung berechnet `control/netzeinspeisung.js` daraus `IBM_BATTERIE_NETZEINSPEISUNG` (Karte "Netzeinspeisung aus der Batterie" - bisher nur im fronius-Profil) |
    | `INVERTER_GRID_POWER_PLACEHOLDER` | Standard-Itemname der Netzleistung; wird durch `GRID_POWER_ITEM` ersetzt |
+   | `INVERTER_PV_POWER_CHANNEL` | Channel mit der aktuellen PV-Leistung (Erzeugung); der Status-Push meldet sie an das Vorstands-Dashboard (Kachel "PV-Leistung") |
+   | `INVERTER_PV_POWER_PLACEHOLDER` | Standard-Itemname der PV-Leistung; wird durch `PV_POWER_ITEM` ersetzt |
 
    Optional, fuer den Netzwerk-Watchdog (ohne diese Variablen bietet das
    Setup keinen Watchdog an):

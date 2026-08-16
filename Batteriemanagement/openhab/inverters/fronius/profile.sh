@@ -28,6 +28,10 @@ INVERTER_BATTERY_POWER_CHANNEL="powerflowchannelpakku"
 # ibm_netzeinspeisung.js daraus, wie viel der Entladung ins Netz geht.
 INVERTER_GRID_POWER_CHANNEL="powerflowchannelpgrid"
 
+# Channel, der die aktuelle PV-Leistung liefert (Erzeugung der Anlage).
+# Nur Anzeige (Status-Push an das Vorstands-Dashboard), keine Steuerung.
+INVERTER_PV_POWER_CHANNEL="powerflowchannelppv"
+
 # Wechselrichter-Adapter (Adapter-Kontrakt siehe control/core.js), relativ
 # zu IBM_SCRIPT_DIR. Das Setup setzt Adapter und Kern in dieselbe Regel.
 INVERTER_ADAPTER_SCRIPT="inverters/fronius/adapter.js"
@@ -56,6 +60,10 @@ INVERTER_BATTERY_POWER_PLACEHOLDER="Fronius_Symo_Inverter_Battery_Power"
 # Standard-Itemname der Netzleistung (analog zum Batterieleistungs-Item);
 # wird durch GRID_POWER_ITEM aus ibm.conf ersetzt.
 INVERTER_GRID_POWER_PLACEHOLDER="Fronius_Symo_Inverter_Grid_Power"
+
+# Standard-Itemname der PV-Leistung (analog); wird durch PV_POWER_ITEM aus
+# ibm.conf ersetzt.
+INVERTER_PV_POWER_PLACEHOLDER="Fronius_Symo_Inverter_Solar_Plant_Power"
 
 # Hinweis, der im Assistenten und am Ende der Installation angezeigt wird
 INVERTER_NOTES="Im Fronius Thing muessen Benutzername und Passwort des Wechselrichters hinterlegt sein - ohne Credentials stellt das Binding die Batterie-Actions nicht bereit. Bei der automatischen Einrichtung traegt das Setup beides selbst ein."

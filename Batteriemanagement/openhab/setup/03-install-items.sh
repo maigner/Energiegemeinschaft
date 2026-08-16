@@ -43,6 +43,10 @@ Number:Power ${BATTERY_POWER_ITEM} \"Batterieleistung [%.0f W]\" <energy> (IBM) 
         battery_items="${battery_items}
 Number:Power ${GRID_POWER_ITEM} \"Netzleistung [%.0f W]\" <energy> (IBM) { channel=\"${INVERTER_THING_UID}:${INVERTER_GRID_POWER_CHANNEL}\", unit=\"W\" }"
       fi
+      if [ -n "$PV_POWER_ITEM" ] && [ -n "$INVERTER_PV_POWER_CHANNEL" ]; then
+        battery_items="${battery_items}
+Number:Power ${PV_POWER_ITEM} \"PV-Leistung [%.0f W]\" <solarplant> (IBM) { channel=\"${INVERTER_THING_UID}:${INVERTER_PV_POWER_CHANNEL}\", unit=\"W\" }"
+      fi
     fi
     ;;
 esac
@@ -199,6 +203,10 @@ EOF
   if [ -n "$GRID_POWER_ITEM" ]; then
     battery_persist="${battery_persist}
     ${GRID_POWER_ITEM},"
+  fi
+  if [ -n "$PV_POWER_ITEM" ]; then
+    battery_persist="${battery_persist}
+    ${PV_POWER_ITEM},"
   fi
   install_file "$OPENHAB_CONF/persistence/rrd4j.persist" <<EOF
 // ============================================================================

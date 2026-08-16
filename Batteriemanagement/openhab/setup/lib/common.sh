@@ -141,7 +141,8 @@ load_profile() {
         INVERTER_ADAPTER_SCRIPT INVERTER_CONTROL_SCRIPT \
         INVERTER_SOC_PLACEHOLDER INVERTER_BATTERY_POWER_CHANNEL \
         INVERTER_BATTERY_POWER_PLACEHOLDER INVERTER_GRID_POWER_CHANNEL \
-        INVERTER_GRID_POWER_PLACEHOLDER INVERTER_NOTES \
+        INVERTER_GRID_POWER_PLACEHOLDER INVERTER_PV_POWER_CHANNEL \
+        INVERTER_PV_POWER_PLACEHOLDER INVERTER_NOTES \
         INVERTER_HOST_THING_PREFIX INVERTER_HOST_PARAM \
         INVERTER_REDISCOVER_SCRIPT INVERTER_DEFAULT_USERNAME \
         INVERTER_USER_PARAM INVERTER_PASSWORD_PARAM \
@@ -185,6 +186,8 @@ load_profile() {
   INVERTER_BATTERY_POWER_PLACEHOLDER="${INVERTER_BATTERY_POWER_PLACEHOLDER:-}"
   INVERTER_GRID_POWER_CHANNEL="${INVERTER_GRID_POWER_CHANNEL:-}"
   INVERTER_GRID_POWER_PLACEHOLDER="${INVERTER_GRID_POWER_PLACEHOLDER:-}"
+  INVERTER_PV_POWER_CHANNEL="${INVERTER_PV_POWER_CHANNEL:-}"
+  INVERTER_PV_POWER_PLACEHOLDER="${INVERTER_PV_POWER_PLACEHOLDER:-}"
 
   # Optional: Netzwerk-Watchdog (nur wenn das Profil eine Netzwerksuche hat)
   INVERTER_HOST_THING_PREFIX="${INVERTER_HOST_THING_PREFIX:-}"
@@ -227,6 +230,7 @@ load_config() {
   INVERTER_TYPE="${INVERTER_TYPE:-fronius}"
   BATTERY_POWER_ITEM="${BATTERY_POWER_ITEM:-}"
   GRID_POWER_ITEM="${GRID_POWER_ITEM:-}"
+  PV_POWER_ITEM="${PV_POWER_ITEM:-}"
   CRON_BATTERY="${CRON_BATTERY:-0 */5 * * * ?}"
   CRON_CLOUD="${CRON_CLOUD:-0 40 * * * ?}"
   CRON_CROSSOVER="${CRON_CROSSOVER:-0 5 4 * * ?}"
@@ -426,6 +430,35 @@ detect_grid_power_items() {
     found="$(grep -o '"[A-Za-z0-9_]*"' "$itemdb" 2>/dev/null \
              | tr -d '"' \
              | grep -Ei 'grid_?power|netzleistung|pgrid' \
+             | sort -u || true)"
+  fi
+
+  printf '%s' "$found"
+}
+
+# Kandidaten fuer das PV-Leistungs-Item (Anzeige am Vorstands-Dashboard).
+# Gleiche Suchreihenfolge wie beim Batterieleistungs-Item.
+detect_pv_power_items() {
+  local thing_uid="${1:-}"
+  local linkdb="$OPENHAB_USERDATA/jsondb/org.openhab.core.thing.link.ItemChannelLink.json"
+  local itemdb="$OPENHAB_USERDATA/jsondb/org.openhab.core.items.Item.json"
+  local found=""
+
+  # "|| true" jeweils: siehe detect_soc_items.
+  if [ -n "$thing_uid" ] && [ -n "$INVERTER_PV_POWER_CHANNEL" ] && [ -f "$linkdb" ]; then
+    found="$(grep -o "\"[^\"]* -> ${thing_uid}:${INVERTER_PV_POWER_CHANNEL}\"" "$linkdb" 2>/dev/null \
+             | sed -e 's/^"//' -e 's/ ->.*//' | sort -u || true)"
+  fi
+
+  if [ -z "$found" ] && [ -n "$INVERTER_PV_POWER_CHANNEL" ] && [ -f "$OPENHAB_CONF/items/ibm.items" ]; then
+    found="$(grep -E "channel=\"[^\"]*:${INVERTER_PV_POWER_CHANNEL}\"" "$OPENHAB_CONF/items/ibm.items" 2>/dev/null \
+             | awk '{print $2}' | sort -u || true)"
+  fi
+
+  if [ -z "$found" ] && [ -f "$itemdb" ]; then
+    found="$(grep -o '"[A-Za-z0-9_]*"' "$itemdb" 2>/dev/null \
+             | tr -d '"' \
+             | grep -Ei 'pv_?power|solar_?plant|ppv' \
              | sort -u || true)"
   fi
 

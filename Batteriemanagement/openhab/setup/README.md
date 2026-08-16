@@ -296,7 +296,12 @@ Auf Wunsch (Frage im Assistenten, `INSTALL_STATUS_PUSH=1`) meldet die Anlage
 alle 5 Minuten ihren Zustand an `<IBM_API_BASE>/api/ibm/status/v1` — der
 Vorstand sieht alle Anlagen dann live unter
 <https://ischlstrom.org/board/openhab> (Ladestand, Wechselrichter-Status,
-Schalterstellungen, geschaetzte Kapazitaet, letzte Meldung). Zusaetzlich
+Schalterstellungen, geschaetzte Kapazitaet, letzte Meldung). Die
+**Momentanwerte** (PV-Leistung, Netzleistung, Batterieleistung) kommen aus
+den Items `PV_POWER_ITEM`, `GRID_POWER_ITEM` und `BATTERY_POWER_ITEM` der
+`ibm.conf` (bei der automatischen Einrichtung legt `03-install-items.sh`
+sie samt Channel-Verknuepfung an); fehlt eines, versucht es der Push unter
+dem Fronius-Standardnamen, sonst zeigt die jeweilige Kachel "-". Zusaetzlich
 gehen die **Fehler und Warnungen** aus dem openHAB-Log der letzten
 24 Stunden mit (`WARN`/`ERROR`-Zeilen aus `/var/log/openhab/openhab.log`,
 hoechstens 20 Eintraege, Meldungstext gekuerzt) — das Dashboard zeigt sie

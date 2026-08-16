@@ -43,6 +43,11 @@ BATTERY_POWER_ITEM="Fronius_Symo_Inverter_Battery_Power"
 # Leer = Regel wird nicht installiert, die Karte zeigt "-".
 GRID_POWER_ITEM="Fronius_Symo_Inverter_Grid_Power"
 
+# Item mit der aktuellen PV-Leistung (verknuepft mit dem Channel
+# powerflowchannelppv). Der Status-Push meldet damit die PV-Erzeugung an
+# das Vorstands-Dashboard. Leer = die Kachel "PV-Leistung" dort zeigt "-".
+PV_POWER_ITEM="Fronius_Symo_Inverter_Solar_Plant_Power"
+
 # --- ischlstrom API ---------------------------------------------------------
 
 IBM_API_BASE="https://ischlstrom.org"
