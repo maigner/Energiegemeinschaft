@@ -169,6 +169,8 @@ voraussetzen:
 | `IBM_HAUSLAST_MESSUNG` | String | Interner Zustand der Hauslastschaetzung (JSON) |
 | `IBM_NACHT_ZIEL` | String | Interner Zustand: festgehaltener Ziel-Ladestand der laufenden Nacht (JSON) |
 | `IBM_BATTERIE_NETZEINSPEISUNG` | Number | Berechnet (ibm_netzeinspeisung.js): Anteil der Batterie-Entladung, der ins Netz fliesst, in W; NULL ohne Batterie-/Netzleistungs-Item |
+| `IBM_BATTERIE_NETZEINSPEISUNG_KWH` | Number | Einspeise-Zaehler des Kerns: aufsummierte Energie aus der Batterie ins Netz in kWh (Anzeige/Status-Push) |
+| `IBM_NETZEINSPEISUNG_ZAEHLER` | String | Interner Zustand des Einspeise-Zaehlers (JSON) |
 | `IBM_MIN_BATTERY_CHARGE` | Number | Minimaler Ladestand in % |
 | `Minimale_Entladeleistung_Batterieeinspeisung` | Number | Watt |
 | `Maximale_Entladeleistung_Batterieeinspeisung` | Number | Watt |

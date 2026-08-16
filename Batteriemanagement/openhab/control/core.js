@@ -192,6 +192,15 @@ var NETZLADE_TRIGGER_CYCLES = 3;  // so viele Zyklen in Folge (15 min), dann wir
 var NETZLADE_MIN_SOC = 15;        // darunter nur warnen (Schutzladung des Wechselrichters)
 var NETZLADE_MAX_GAP_MIN = 12;    // laengere Luecke -> Zaehler neu aufsetzen
 
+// --- Einspeise-Zaehler ------------------------------------------------------
+// Summiert die Energie, die aus der Batterie ins Netz (an die Gemeinschaft)
+// fliesst - der Nutzen-Indikator fuer Besitzer und EEG. Integriert wird pro
+// Zyklus die aktuelle Einspeiseleistung ueber die Zeit seit dem letzten
+// Lauf; laengere Luecken (openHAB stand) werden nicht hochgerechnet.
+// Praeziser Stand als JSON in IBM_NETZEINSPEISUNG_ZAEHLER ({kwh, zeit}),
+// gerundete Anzeige in IBM_BATTERIE_NETZEINSPEISUNG_KWH (Status-Push).
+var EINSPEISE_MAX_GAP_MIN = 12;   // laengere Luecke -> nicht integrieren
+
 var FALLBACK_DISCHARGE_ACTIVE = true;
 
 var FALLBACK_MIN_DISCHARGE_W = 1000;
@@ -776,6 +785,20 @@ function currentNetzladungW() {
   return Math.round(Math.min(chargingW, importW));
 }
 
+// Aktuelle Einspeisung aus der Batterie in Watt: die Batterie entlaedt (+)
+// und das Netz nimmt auf (Netzleistung negativ) - der kleinere der beiden
+// Werte fliesst tatsaechlich von der Batterie ins Netz, der Rest der
+// Entladung versorgt den Haushalt. null, wenn Leistungs-Items fehlen.
+function currentEinspeisungW() {
+  var batt = readItem('@IBM_BATTERY_POWER_ITEM@');
+  var grid = readItem('@IBM_GRID_POWER_ITEM@');
+  if (batt === null || grid === null) return null;
+  var dischargeW = parseFloat(batt.numericState); // Batterie positiv = entladen
+  var exportW = -parseFloat(grid.numericState);   // Netz negativ = Einspeisung
+  if (isNaN(dischargeW) || isNaN(exportW)) return null;
+  return Math.round(Math.min(Math.max(dischargeW, 0), Math.max(exportW, 0)));
+}
+
 // --- Laderegelung: PWM-Zustand und Slot-Planung -----------------------------
 // PWM-Zustand als JSON in einem String-Item (persistiert):
 //   schuld     angesammelte Sperrschuld in Slots (Bresenham-Akkumulator:
@@ -1167,6 +1190,42 @@ var netzladeBlock = false;
   netzladeBlock = true;
   console.log('[IBM][Netzladeschutz] Laden gesperrt fuer ' + IBM_SLOT_MINUTES
     + ' min (nur aus PV, nie aus dem Netz) | ok=' + (res && res.ok === true));
+})();
+
+// ----------------------------------------------------------------------------
+// Einspeise-Zaehler: Energie aus der Batterie ins Netz aufsummieren
+// ----------------------------------------------------------------------------
+// Laeuft in jedem Zyklus (Tag und Nacht). Tagsueber ist die Einspeisung aus
+// der Batterie praktisch 0 (die Batterie entlaedt nicht, waehrend PV
+// exportiert), gezaehlt wird die naechtliche Einspeisung an die Gemeinschaft.
+(function () {
+  var w = currentEinspeisungW();
+  if (w === null) return; // Leistungs-Items fehlen - Zaehler aus
+  var item = readItem('IBM_NETZEINSPEISUNG_ZAEHLER');
+  if (item === null) return; // aeltere Installation ohne Zaehler-Item
+  var st = {};
+  var state = String(item.state);
+  if (state !== 'NULL' && state !== 'UNDEF' && state !== '') {
+    try {
+      var parsed = JSON.parse(state);
+      if (parsed !== null && typeof parsed === 'object') st = parsed;
+    } catch (e) { /* kaputter Zustand - neu aufsetzen */ }
+  }
+  var kwh = (typeof st.kwh === 'number' && isFinite(st.kwh) && st.kwh >= 0) ? st.kwh : 0;
+  var prev = null;
+  try {
+    if (st.zeit) prev = time.ZonedDateTime.parse(String(st.zeit));
+  } catch (e) {
+    prev = null;
+  }
+  if (prev !== null) {
+    var gapMin = time.Duration.between(prev, now).toMillis() / 60000;
+    if (gapMin > 0 && gapMin <= EINSPEISE_MAX_GAP_MIN) {
+      kwh += w * (gapMin / 60) / 1000;
+    }
+  }
+  item.postUpdate(JSON.stringify({ kwh: Math.round(kwh * 1e6) / 1e6, zeit: now.toString() }));
+  publishItem('IBM_BATTERIE_NETZEINSPEISUNG_KWH', String(Math.round(kwh * 100) / 100));
 })();
 
 // ----------------------------------------------------------------------------

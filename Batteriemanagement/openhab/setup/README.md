@@ -223,6 +223,8 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `IBM_NETZLADESCHUTZ` | Switch | Netzladeschutz: erkannte Netto-Netzladung sperrt das Laden (siehe unten) |
 | `IBM_NETZLADUNG` | Number | Aktuelle Netto-Ladung der Batterie aus dem Netz in W (0 = in Ordnung) |
 | `IBM_NETZLADE_WAECHTER` | String | Interner Zustand des Netzladeschutzes (JSON) |
+| `IBM_BATTERIE_NETZEINSPEISUNG_KWH` | Number | Einspeise-Zaehler: aufsummierte Energie aus der Batterie ins Netz in kWh (Nutzen-Indikator, Anzeige/Status-Push) |
+| `IBM_NETZEINSPEISUNG_ZAEHLER` | String | Interner Zustand des Einspeise-Zaehlers (JSON, praeziser Stand samt Zeitstempel) |
 
 Das Entladefenster folgt den Crossover-Zeiten der Gemeinschaft
 (`Ischlstrom_Crossover_Start`/`_Ende`): entladen wird vom abendlichen bis zum

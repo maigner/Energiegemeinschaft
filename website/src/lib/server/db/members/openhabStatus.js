@@ -122,7 +122,11 @@ export const getOpenhabPlantByToken = async (token) => {
 /**
  * Verlauf einer Anlage fuer die Diagramme der Detailseite, gemittelt auf
  * 15-Minuten-Fenster. Vorzeichen wie vom Fronius geliefert: Batterie
- * positiv = Entladen, Netz negativ = Einspeisung. Die Systemwerte
+ * positiv = Entladen, Netz negativ = Einspeisung. Daraus je Messpunkt
+ * abgeleitet (vor der Mittelung): battery_to_grid_w = Anteil der
+ * Batterie-Entladung, der ins Netz fliesst (min aus Entladung und
+ * Einspeisung), grid_to_battery_w = Netto-Ladung aus dem Netz (min aus
+ * Ladung und Bezug; soll dauerhaft 0 sein). Die Systemwerte
  * (data->'system') kommen als CPU-Temperatur und Belegung von SD-Karte,
  * RAM und Swap in Prozent mit; Anlagen mit altem IBM-Paket liefern NULL.
  *
@@ -137,6 +141,14 @@ export const getOpenhabStatusHistory = async (statusId, days) => {
                     avg(CASE WHEN jsonb_typeof(data->'soc') = 'number' THEN (data->>'soc')::float END) AS soc,
                     avg(CASE WHEN jsonb_typeof(data->'battery_power_w') = 'number' THEN (data->>'battery_power_w')::float END) AS battery_power_w,
                     avg(CASE WHEN jsonb_typeof(data->'grid_power_w') = 'number' THEN (data->>'grid_power_w')::float END) AS grid_power_w,
+                    avg(CASE WHEN jsonb_typeof(data->'battery_power_w') = 'number'
+                              AND jsonb_typeof(data->'grid_power_w') = 'number'
+                             THEN LEAST(GREATEST((data->>'battery_power_w')::float, 0),
+                                        GREATEST(-(data->>'grid_power_w')::float, 0)) END) AS battery_to_grid_w,
+                    avg(CASE WHEN jsonb_typeof(data->'battery_power_w') = 'number'
+                              AND jsonb_typeof(data->'grid_power_w') = 'number'
+                             THEN LEAST(GREATEST(-(data->>'battery_power_w')::float, 0),
+                                        GREATEST((data->>'grid_power_w')::float, 0)) END) AS grid_to_battery_w,
                     avg(CASE WHEN jsonb_typeof(data->'system'->'cpu_temp_c') = 'number' THEN (data->'system'->>'cpu_temp_c')::float END) AS cpu_temp_c,
                     avg(CASE WHEN jsonb_typeof(data->'system'->'disk_used_pct') = 'number' THEN (data->'system'->>'disk_used_pct')::float END) AS disk_used_pct,
                     avg(CASE WHEN jsonb_typeof(data->'system'->'mem_total_mb') = 'number'

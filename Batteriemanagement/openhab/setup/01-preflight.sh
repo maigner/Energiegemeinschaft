@@ -123,7 +123,9 @@ if [ -f "$items_db" ]; then
               IBM_HAUSLAST \
               IBM_HAUSLAST_MESSUNG \
               IBM_NACHT_ZIEL \
-              IBM_BATTERIE_NETZEINSPEISUNG; do
+              IBM_BATTERIE_NETZEINSPEISUNG \
+              IBM_BATTERIE_NETZEINSPEISUNG_KWH \
+              IBM_NETZEINSPEISUNG_ZAEHLER; do
     if grep -q "\"$item\"" "$items_db"; then
       fail "Item '$item' existiert bereits in der Main UI und wuerde mit $OPENHAB_CONF/items/ibm.items kollidieren - bitte in der UI loeschen."
     fi

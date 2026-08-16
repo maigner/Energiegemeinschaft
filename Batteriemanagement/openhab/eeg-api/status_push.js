@@ -250,6 +250,11 @@ var payload = {
     // Ordnung; > 0 zeigt das Dashboard als rote Warnung).
     netzladeschutz: stateOf('IBM_NETZLADESCHUTZ'),
     netzladung_w: numberOf('IBM_NETZLADUNG'),
+    // Einspeisung aus der Batterie: aktueller Wert (Regel
+    // ibm_netzeinspeisung) und aufsummierte Energie seit Inbetriebnahme
+    // des Zaehlers (Nutzen-Indikator fuer Besitzer und Gemeinschaft).
+    netzeinspeisung_w: numberOf('IBM_BATTERIE_NETZEINSPEISUNG'),
+    batterie_netz_kwh: numberOf('IBM_BATTERIE_NETZEINSPEISUNG_KWH'),
     min_battery_charge: numberOf('IBM_MIN_BATTERY_CHARGE'),
     min_entladeleistung_w: numberOf('Minimale_Entladeleistung_Batterieeinspeisung'),
     max_entladeleistung_w: numberOf('Maximale_Entladeleistung_Batterieeinspeisung'),

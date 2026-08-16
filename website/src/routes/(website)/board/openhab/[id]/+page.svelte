@@ -84,6 +84,9 @@
                     ? Math.round(d.netzladung_w)
                     : null,
             netzladeschutzAus: d.netzladeschutz === "OFF",
+            // Aufsummierte Energie aus der Batterie ins Netz seit
+            // Zählerstart (Nutzen-Indikator); null bei altem IBM-Paket.
+            netzKwh: num(d.batterie_netz_kwh, 1),
             // Ziel-Ladeleistung der dynamischen Laderegelung; null, wenn
             // gerade nicht begrenzt wird (dann zeigt die Karte das
             // Sperrfenster).
@@ -284,6 +287,35 @@
         ),
     );
 
+    // Energiefluss zwischen Batterie und Netz: Einspeisung an die
+    // Gemeinschaft und zur Verifikation die Netto-Ladung aus dem Netz -
+    // letztere muss dauerhaft auf der Nulllinie liegen.
+    /** @type {import('apexcharts').ApexOptions} */
+    let exchangeOptions = $derived({
+        ...baseChart,
+        fill: {
+            type: "gradient",
+            gradient: { opacityFrom: 0.35, opacityTo: 0 },
+        },
+        series: [
+            {
+                name: "Batterie ins Netz (Einspeisung)",
+                data: series(history, (r) => r.batteryToGridW),
+                color: "#1C64F2",
+            },
+            {
+                name: "Netz in die Batterie (soll 0 W sein)",
+                data: series(history, (r) => r.gridToBatteryW),
+                color: "#DC2626",
+            },
+        ],
+        yaxis: {
+            labels: {
+                formatter: (/** @type {number} */ v) => `${Math.round(v)} W`,
+            },
+        },
+    });
+
     // Systemwerte im Verlauf: Temperatur auf der linken Achse (°C), die
     // drei Belegungsgrade teilen sich die rechte Prozent-Achse (die yaxis-
     // Einträge 3 und 4 hängen sich per seriesName an die SD-Karten-Achse).
@@ -440,6 +472,25 @@
             {/if}
         </Card>
 
+        {#if hasPowerData}
+            <Card class="max-w-none p-4 md:p-6 mt-6">
+                <Heading tag="h2" class="text-lg font-semibold mb-2">
+                    Batterie und Netz
+                </Heading>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    Einspeisung aus der Batterie an die Gemeinschaft und zur
+                    Kontrolle die Netto-Ladung aus dem Netz - diese Linie muss
+                    praktisch auf 0 W liegen (wenige Watt Messrauschen sind
+                    normal, der Netzladeschutz greift ab 250 W). In den letzten {data.historyDays}
+                    Tagen flossen {(data.batteryToGridKwh ?? 0).toFixed(1)} kWh
+                    aus der Batterie ins Netz{bm.netzKwh !== null
+                        ? `, seit Zählerstart insgesamt ${bm.netzKwh} kWh`
+                        : ""}.
+                </p>
+                <Chart options={exchangeOptions} />
+            </Card>
+        {/if}
+
         {#if hasSystemHistory}
             <Card class="max-w-none p-4 md:p-6 mt-6">
                 <Heading tag="h2" class="text-lg font-semibold mb-2">
@@ -573,6 +624,11 @@
                     "Nacht-Entladebudget",
                     bm.nachtbudget !== null ? `${bm.nachtbudget} kWh` : "-",
                     bm.nachtbudget === "0.0" ? AMBER : "",
+                )}
+                {@render systemStat(
+                    "Batterie ins Netz gesamt",
+                    bm.netzKwh !== null ? `${bm.netzKwh} kWh` : "-",
+                    bm.netzKwh !== null ? GREEN : "",
                 )}
             </dl>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">

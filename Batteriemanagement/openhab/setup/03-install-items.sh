@@ -157,6 +157,13 @@ String IBM_NACHT_ZIEL            "Nachtziel Entladung (intern) [%s]"           <
 // Rest versorgt den Haushalt). Bleibt NULL, wenn Batterieleistungs- oder
 // Netzleistungs-Item fehlen.
 Number IBM_BATTERIE_NETZEINSPEISUNG "Netzeinspeisung aus der Batterie [%.0f W]" <energy> (IBM)
+
+// Einspeise-Zaehler: von core.js pro Zyklus aufsummierte Energie, die aus
+// der Batterie ins Netz (an die Gemeinschaft) geflossen ist - der
+// Nutzen-Indikator fuer Besitzer und EEG. IBM_NETZEINSPEISUNG_ZAEHLER ist
+// interner Zustand (JSON, praeziser Stand samt Zeitstempel).
+Number IBM_BATTERIE_NETZEINSPEISUNG_KWH "Batterie ins Netz gesamt [%.2f kWh]"  <energy>   (IBM)
+String IBM_NETZEINSPEISUNG_ZAEHLER  "Einspeise-Zaehler (intern) [%s]"          <settings> (IBM)
 EOF
 
 # --- Persistence ------------------------------------------------------------
@@ -219,6 +226,8 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     IBM_RESTLADEZEIT,
     IBM_NETZLADESCHUTZ,
     IBM_NETZLADE_WAECHTER,
+    IBM_BATTERIE_NETZEINSPEISUNG_KWH,
+    IBM_NETZEINSPEISUNG_ZAEHLER,
     IBM_HAUSLAST,
     IBM_HAUSLAST_MESSUNG,
     IBM_NACHT_ZIEL

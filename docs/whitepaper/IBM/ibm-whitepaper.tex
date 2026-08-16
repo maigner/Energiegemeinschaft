@@ -715,7 +715,13 @@ aufnimmt, der Rest versorgt den Haushalt:
   \min\bigl(\max(P_{\text{Batterie}},0),\; \max(-P_{\text{Netz}},0)\bigr)
 \end{equation}
 mit der Vorzeichenkonvention Batterie positiv beim Entladen, Netz negativ
-bei Einspeisung.
+bei Einspeisung. Das Gateway summiert diese Leistung zyklusweise zu einem
+Einspeise-Zähler in kWh auf; die Detailseite des Dashboards zeigt daraus
+den Gesamtnutzen der Anlage für Besitzer und Gemeinschaft sowie ein
+Diagramm beider Richtungen. Die Gegenrichtung, die Netto-Ladung der
+Batterie aus dem Netz, dient dort der laufenden Verifikation des
+Grundsatzes "nie aus dem Netz laden" und muss praktisch auf der Nulllinie
+liegen.
 
 \subsection{Authentifizierung}
 
