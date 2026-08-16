@@ -138,6 +138,44 @@
     }
 
     /**
+     * Leistung lesbar: unter 1 kW in W, darüber in kW. Vorzeichen steckt
+     * in der Beschriftung, angezeigt wird der Betrag.
+     * @param {number} w
+     */
+    function formatPowerW(w) {
+        const abs = Math.abs(w);
+        return abs < 1000 ? `${Math.round(abs)} W` : `${(abs / 1000).toFixed(1)} kW`;
+    }
+
+    /**
+     * Momentanwert Netz für die Karte (Fronius-Vorzeichen: + = Bezug,
+     * - = Einspeisung); die Richtung steht in der Beschriftung.
+     * @param {any} d
+     * @returns {{ value: string, label: string }}
+     */
+    function netzStat(d) {
+        const w = d.grid_power_w;
+        if (typeof w !== "number") return { value: "-", label: "Netz" };
+        if (w < 0) return { value: formatPowerW(w), label: "Einspeisung ins Netz" };
+        if (w > 0) return { value: formatPowerW(w), label: "Bezug vom Netz" };
+        return { value: "0 W", label: "Netz" };
+    }
+
+    /**
+     * Momentanwert Batterie für die Karte (Fronius-Vorzeichen:
+     * + = Entladen, - = Laden).
+     * @param {any} d
+     * @returns {{ value: string, label: string }}
+     */
+    function batterieStat(d) {
+        const w = d.battery_power_w;
+        if (typeof w !== "number") return { value: "-", label: "Batterie" };
+        if (w > 0) return { value: formatPowerW(w), label: "Batterie entlädt" };
+        if (w < 0) return { value: formatPowerW(w), label: "Batterie lädt" };
+        return { value: "0 W", label: "Batterie" };
+    }
+
+    /**
      * Wirksames Ladesperre-Fenster heute: meldet die Anlage ein lokal
      * berechnetes Ende (lokale Ladesperre), gilt dieses statt des
      * Server-Endes aus der Tagesprognose.
@@ -301,6 +339,12 @@
                         </div>
 
                         <div class="grid grid-cols-3 gap-2 text-center mb-3">
+                            {@render stat(
+                                typeof d.pv_power_w === "number" ? formatPowerW(d.pv_power_w) : "-",
+                                "PV-Leistung",
+                            )}
+                            {@render stat(netzStat(d).value, netzStat(d).label)}
+                            {@render stat(batterieStat(d).value, batterieStat(d).label)}
                             {@render stat(
                                 num(d.batterie_kapazitaet) !== null ? `${num(d.batterie_kapazitaet)} kWh` : "-",
                                 "Kapazität",
