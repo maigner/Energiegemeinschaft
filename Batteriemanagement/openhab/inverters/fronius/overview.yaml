@@ -348,12 +348,46 @@ pages:
                               item: IBM_LADESPERRE_LOKAL
                               color: blue
                               footer: >-
-                                Das Sperr-Ende wird für diese Anlage berechnet:
-                                aus Batteriegröße, gelernter Ladeleistung und
-                                dem Sonnenverlauf des Tages, so spät wie
-                                möglich, aber die Batterie ist am Abend voll.
-                                Solange die Schätzungen fehlen (oder bei AUS),
-                                gilt das allgemeine Ende laut Tagesprognose.
+                                Nur ein Rückfall, wenn die dynamische
+                                Laderegelung oben nicht greift: Das Sperr-Ende
+                                wird dann für diese Anlage berechnet - aus
+                                Batteriegröße, gelernter Ladeleistung und dem
+                                Sonnenverlauf des Tages, so spät wie möglich,
+                                aber die Batterie ist am Abend voll. Solange
+                                die Schätzungen fehlen (oder bei AUS), gilt
+                                das allgemeine Ende laut Tagesprognose.
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-toggle-card
+                            config:
+                              title: Ladeleistung dynamisch regeln
+                              item: IBM_LADEREGELUNG
+                              color: blue
+                              footer: >-
+                                Statt einer harten Sperre lädt die Batterie
+                                den ganzen Tag gerade schnell genug, um am
+                                Abend voll zu sein - der restliche Sonnenstrom
+                                geht laufend an Haushalt und Gemeinschaft.
+                                Braucht die Schätzwerte unten; solange sie
+                                fehlen (oder bei AUS), gilt das Sperrfenster.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Ziel-Ladeleistung
+                              item: IBM_LADEREGELUNG_SOLL
+                              footer: >-
+                                Mit dieser Leistung soll die Batterie gerade
+                                laden, damit sie zur Abend-Deadline voll ist.
+                                "-" bedeutet: keine Begrenzung aktiv.
               - component: oh-grid-row
                 config: {}
                 slots:

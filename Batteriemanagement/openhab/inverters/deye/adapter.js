@@ -37,6 +37,13 @@
 // (jeder Zyklus) und der Fensterbefehl togglen 146 dennoch zweimal je
 // Zyklus INNERHALB der Fenster - Bewertung und ggf. Haertung im README.
 //
+// BEWUSST KEIN ibmLimitCharge: ein Ladestrom-Limit-Register ist fuer die
+// SG04/05LP3-Familie nicht verifiziert und haengt nicht an den Data-Things
+// des Profils; ausserdem wuerde ein laufend nachgefuehrtes Limit genau die
+// EEPROM-Schreibzyklen erzeugen, die dieser Adapter vermeidet. Die
+// Laderegelung des Kerns nutzt deshalb die PWM ueber ibmPreventCharge -
+// mit 15-Minuten-Bloecken ist das hier sogar die schonendere Variante.
+//
 // Fail-Safe: Deye kennt KEIN geraeteseitiges Auto-Revert wie das
 // SunSpec-InOutWRte_RvrtTms - faellt openHAB mit aktivem TOU-Fahrplan aus,
 // bleibt der kommandierte Zustand stehen. Der Kern setzt ausserhalb der

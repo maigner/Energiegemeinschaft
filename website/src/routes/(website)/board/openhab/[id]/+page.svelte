@@ -74,6 +74,14 @@
                                   : ""
                         }`
                       : "heute keine",
+            // Ziel-Ladeleistung der dynamischen Laderegelung; null, wenn
+            // gerade nicht begrenzt wird (dann zeigt die Karte das
+            // Sperrfenster).
+            laderegelungSoll:
+                typeof d.laderegelung_soll_w === "number" &&
+                Number.isFinite(d.laderegelung_soll_w)
+                    ? Math.round(d.laderegelung_soll_w)
+                    : null,
             entladungAus: d.entladung_aktiv === "OFF",
             entladung:
                 d.entladung_aktiv === "OFF"
@@ -489,8 +497,10 @@
                     bm.pauseTage > 0 ? AMBER : "",
                 )}
                 {@render systemStat(
-                    "Ladesperre heute",
-                    bm.sperre,
+                    bm.laderegelungSoll !== null ? "Laderegelung" : "Ladesperre heute",
+                    bm.laderegelungSoll !== null
+                        ? `begrenzt auf ${bm.laderegelungSoll} W`
+                        : bm.sperre,
                     bm.sperreAus ? AMBER : "",
                 )}
                 {@render systemStat(

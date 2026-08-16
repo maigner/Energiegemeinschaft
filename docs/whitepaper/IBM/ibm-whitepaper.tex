@@ -35,11 +35,12 @@ in einer Erneuerbare-Energie-Gemeinschaft}
 Das ISCHLSTROM Batteriemanagement (IBM) steuert private Heimspeicher von
 Mitgliedern einer Erneuerbare-Energie-Gemeinschaft (EEG) so, dass sie der
 Gemeinschaft nützen, ohne dem einzelnen Haushalt zu schaden. Zwei Eingriffe
-genügen dafür: Am sonnigen Vormittag wird das Laden der Batterie verzögert,
-damit PV-Überschuss in die Gemeinschaft fließt, solange diese ihn braucht,
-und die Batterie mitten in der Überschussspitze statt direkt nach
-Sonnenaufgang lädt. In der Nacht speist die Batterie kontrolliert in das
-Netz ein, solange die Gemeinschaft mehr verbraucht als erzeugt. Beide
+genügen dafür: An sonnigen Tagen regelt ein geschlossener Regelkreis die
+Ladeleistung der Batterie so, dass sie den ganzen Tag gerade schnell genug
+lädt, um am Abend voll zu sein; der restliche PV-Überschuss fließt laufend
+in die Gemeinschaft, solange diese ihn braucht. In der Nacht speist die
+Batterie kontrolliert in das Netz ein, solange die Gemeinschaft mehr
+verbraucht als erzeugt. Beide
 Eingriffe sind an Prognosen gebunden und mehrfach abgesichert: Ohne
 verlässliche Daten passiert nichts, und der Wechselrichter fällt nach
 wenigen Minuten von selbst in sein Werksverhalten zurück. Die Steuerung
@@ -74,10 +75,10 @@ IBM dreht dieses Verhalten um, ohne den Eigennutzen des Speicherbesitzers zu
 opfern:
 
 \begin{itemize}
-  \item \textbf{Vormittag (Ladesperre):} Die Batterie beginnt so spät wie
-    möglich zu laden, wird aber bis zum Abend trotzdem voll. Der Überschuss
-    des frühen Vormittags deckt die morgendliche Verbrauchsspitze der
-    Gemeinschaft direkt.
+  \item \textbf{Tagsüber (Laderegelung):} Die Batterie lädt so langsam wie
+    möglich, wird aber bis zum Abend trotzdem voll. Der nicht gespeicherte
+    Überschuss deckt die Verbrauchsspitzen der Gemeinschaft direkt, vom
+    frühen Vormittag an und über den ganzen Tag verteilt.
   \item \textbf{Nacht (forcierte Entladung):} Die Batterie speist einen
     berechneten Teil ihres Inhalts in das Netz ein, solange die Gemeinschaft
     mehr verbraucht als erzeugt. Eingespeist wird nur, was der kommende Tag
@@ -151,8 +152,8 @@ Rückfallwerten im Code; fehlt ein Item, läuft die Steuerung mit der Vorgabe
 weiter.
 
 Herstellerspezifisch ist nur ein dünner \emph{Adapter}, den das Setup dem
-Kern im selben Regel-Body voranstellt. Der Adapter-Kontrakt umfasst genau
-drei Funktionen:
+Kern im selben Regel-Body voranstellt. Der Adapter-Kontrakt umfasst drei
+Pflichtfunktionen und eine optionale:
 
 \begin{center}
 \small
@@ -163,6 +164,7 @@ Funktion & Semantik & Rückgabe \\
 \code{ibmReset()} & Wechselrichter sofort auf Werksverhalten & \code{\{ok\}} \\
 \code{ibmPreventCharge(min)} & Batterieladen für \code{min} Minuten sperren & \code{\{ok\}} \\
 \code{ibmForceDischarge(W, min)} & Entladung mit $\approx$\code{W} Watt erzwingen & \code{\{ok, appliedW?\}} \\
+\code{ibmLimitCharge(W, min)} & optional: Ladeleistung auf $\approx$\code{W} Watt begrenzen & \code{\{ok, appliedW?\}} \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -173,6 +175,11 @@ nächste Lauf des Kerns verlängert den Eingriff oder beendet ihn, indem er
 schlicht nichts mehr kommandiert. \code{appliedW} meldet die nach
 herstellerseitiger Quantisierung tatsächlich kommandierte Leistung (etwa
 durch Prozent-Rundung); der Kapazitätsschätzer rechnet damit.
+\code{ibmLimitCharge} definieren nur Profile, deren Hardware ein echtes
+Ladelimit kennt, ohne dabei aus dem Netz laden zu können (SunSpec
+\code{InWRte}, Victron DVCC); fehlt die Funktion, bildet der Kern die
+Begrenzung per Puls-Weiten-Modulation über \code{ibmPreventCharge} nach
+(Abschnitt~\ref{sec:ladesperre}).
 
 Unterstützt werden derzeit fünf Profile: Fronius GEN24 (Binding-Actions),
 Fronius Symo Hybrid (Modbus, SunSpec Model~124), Sigenergy SigenStor
@@ -284,7 +291,9 @@ Kennwerten (Kapazität 1 bis 100\,kWh, Ladeleistung 0,3 bis 30\,kW), und
 das Ende muss nach dem Fensterbeginn und nicht vor 05:00 liegen. Die
 Antwort ist als individuell markiert; das Gateway übernimmt sie dann
 unverändert und lässt die eigene Rechnung nach
-Gleichung~\eqref{eq:localend} aus.
+Gleichung~\eqref{eq:localend} aus. Greift auf dem Gateway die
+Laderegelung (Abschnitt~\ref{sec:ladesperre}), spielt das Ende keine Rolle
+mehr; es bleibt der Rückfall für Anlagen ohne belastbare Schätzwerte.
 
 \subsection{Nachtbudget}\label{sec:nachtbudget}
 
@@ -326,33 +335,80 @@ mit einem Fehler statt mit 0, denn 0\% würde von den Gateways als voller
 Sonnenschein gelesen.
 
 % ============================================================================
-\section{Teil A: Ladesperre am Vormittag}\label{sec:ladesperre}
+\section{Teil A: Laderegelung am Tag}\label{sec:ladesperre}
 % ============================================================================
 
-\subsection{Grundprinzip}
+\subsection{Grundprinzip: Regelkreis statt Sperrfenster}
 
-Am sonnigen Vormittag wird das Laden der Batterie in Fünf-Minuten-Schritten
-gesperrt. Das Sperrfenster kommt aus der Tagesprognose des Servers: vom
-ersten Sonnenschein bis in die Mittagsspitze des Gemeinschafts-Überschusses.
-Das Fenster gilt nur für das mitgelieferte Datum; ein nach einem API-Ausfall
-übrig gebliebenes Fenster von gestern sperrt heute nicht. Zusätzlich wird
-nur bei sonniger Vorschau gesperrt: Liegt die Bewölkungsvorschau über der
-Schwelle (Vorgabe 75\%), bleibt das Laden erlaubt, denn an einem trüben Tag
-würde die Batterie sonst womöglich gar nicht mehr voll.
+An sonnigen Tagen wird die Ladeleistung der Batterie dynamisch geregelt.
+In jedem Fünf-Minuten-Zyklus berechnet der Kern die Ziel-Ladeleistung neu:
+fehlende Energie geteilt durch die verbleibende Zeit bis zur Abend-Deadline
+$t_D$ (Abend-Crossover minus 60~Minuten), mit einem wolkenabhängigen
+Sicherheitsfaktor,
+\begin{equation}
+  P_{\text{Soll}}(t) \;=\;
+  \frac{(0{,}95 - \text{SoC}(t)) \cdot C}{t_D - t}
+  \cdot \Bigl(1{,}1 + \frac{w}{100} \cdot 0{,}5\Bigr)
+  \label{eq:psoll}
+\end{equation}
+mit Kapazität $C$ in kWh, Live-Ladestand $\text{SoC}(t)$ als Anteil und
+Bewölkung $w$ in Prozent: je bedeckter die (unter der Schwelle liegende)
+Vorschau, desto früher und schneller wird geladen. Die Batterie lädt so den
+ganzen Tag gerade schnell genug, um am Abend voll zu sein; der gesamte
+restliche PV-Überschuss fließt laufend in die Gemeinschaft. Weil auf den
+Live-Ladestand geregelt wird, ist der Kreis geschlossen: Zieht es zu,
+bleibt der Ladestand zurück, $P_{\text{Soll}}$ steigt und die Begrenzung
+löst sich von selbst; wird es sonniger als vorhergesagt, sinkt
+$P_{\text{Soll}}$ und mehr geht ins Netz. Prognosefehler regeln sich so
+alle fünf Minuten aus, statt einmal am Vormittag verwettet zu werden.
 
-\subsection{Individualisiertes und lokal berechnetes Sperr-Ende}
+Geregelt wird nur zwischen dem Fensterbeginn des Servers (erster
+Sonnenschein der Tagesprognose, gültig nur für das mitgelieferte Datum) und
+der Abend-Deadline, und nur bei frischer, sonniger Wolkenvorschau: Liegt
+die Bewölkung über der Schwelle (Vorgabe 75\%), bleibt das Laden frei, denn
+an einem trüben Tag würde die Batterie sonst womöglich gar nicht mehr voll.
 
-Das Community-Fenster des Servers kennt weder Batteriegröße noch
-Ladeleistung der einzelnen Anlage. Für das Sperr-Ende gibt es deshalb drei
-Stufen, in absteigender Priorität:
+\subsection{Umsetzung: direktes Limit oder Puls-Weiten-Modulation}
+
+Definiert der Adapter \code{ibmLimitCharge}, wird $P_{\text{Soll}}$ direkt
+kommandiert (quantisiert auf 100-W-Schritte). Sonst bildet der Kern die
+Begrenzung per Puls-Weiten-Modulation über \code{ibmPreventCharge} nach:
+Der Sperranteil
+\begin{equation}
+  d \;=\; 1 - \frac{P_{\text{Soll}}}{P_{\text{Lade}}}
+  \label{eq:duty}
+\end{equation}
+(mit der gelernten Ladeleistung $P_{\text{Lade}}$,
+Abschnitt~\ref{sec:lernen}) bestimmt, welcher Anteil der Zeit gesperrt
+wird. Entschieden wird je 15-Minuten-Block (drei Slots): Ein
+Bresenham-Akkumulator sammelt je Slot den Sperranteil als
+\emph{Sperrschuld} an, jeder gesperrte Slot zieht 1 ab; im Mittel entsteht
+so genau die Ziel-Leistung. Eine Hysterese auf der Sperrschuld (Sperren ab
+2,0, Freigeben unter 1,0) verhindert Flattern an den Blockgrenzen, und die
+Batterie schaltet nie schneller als im 15-Minuten-Raster. Zwei Deckel
+sichern die Regelung ab: Unter einem Sperranteil von 10\% wird gar nicht
+begrenzt, und über 90\% wird gekappt; ein Schätzfehler kann das Laden also
+nie ganz würgen. Fällt die Begrenzung ohnehin über die gelernte
+Ladeleistung hinaus ($P_{\text{Soll}} \geq P_{\text{Lade}}$), lädt die
+Batterie unbegrenzt.
+
+\subsection{Rückfall: das Sperrfenster}\label{sec:sperrfenster}
+
+Die Regelung braucht belastbare Schätzwerte für Kapazität und
+Ladeleistung. Solange sie fehlen (frisch installierte Anlage) oder die
+Regelung abgeschaltet ist, gilt das klassische Sperrfenster: Das Laden wird
+in Fünf-Minuten-Schritten komplett gesperrt, vom ersten Sonnenschein bis zu
+einem berechneten Sperr-Ende, danach lädt die Batterie mit voller Leistung.
+Für das Sperr-Ende gibt es drei Stufen, in absteigender Priorität:
 
 \begin{enumerate}
   \item \textbf{Individualisiertes Server-Ende:} Anlagen mit Status-Token
     rufen das Ladefenster über die Token-API ab. Der Server berechnet das
     Ende dann je Anlage aus dem Erzeugungsprofil des Prognosetags und den
     zuletzt gemeldeten Kennwerten (Kapazität, Ladeleistung): so spät, dass
-    die Batterie am Abend gerade noch voll wird. Die Antwort ist als
-    individuell markiert; der Kern übernimmt sie unverändert.
+    die Batterie am Abend gerade noch voll wird
+    (Abschnitt~\ref{sec:individuell}). Die Antwort ist als individuell
+    markiert; der Kern übernimmt sie unverändert.
   \item \textbf{Lokal berechnetes Ende:} Ohne individualisierte Antwort
     rechnet der Kern selbst, sobald Kapazität und Ladeleistung gelernt sind
     (Abschnitt~\ref{sec:lernen}). Rückwärts vom Abend:
@@ -374,17 +430,20 @@ Stufen, in absteigender Priorität:
     Fensterende unverändert.
 \end{enumerate}
 
-Der Fensterbeginn (erster Sonnenschein) und die Datumsprüfung kommen immer
-vom Server. Plausibilitätsfenster verwerfen Unsinniges: Der Beginn muss
-zwischen 4 und 12~Uhr liegen, das Ende zwischen 5 und 15~Uhr.
+Greift die Laderegelung, sind alle drei Stufen gegenstandslos: Der
+geschlossene Regelkreis reagiert auf den Live-Ladestand besser, als es jede
+Vorausberechnung eines Endes kann. Der Fensterbeginn (erster Sonnenschein)
+und die Datumsprüfung kommen in jedem Fall vom Server.
+Plausibilitätsfenster verwerfen Unsinniges: Der Beginn muss zwischen 4 und
+12~Uhr liegen, das Ende zwischen 5 und 15~Uhr.
 
 \subsection{Wirkung für die Gemeinschaft}
 
-Die morgendliche Verbrauchsspitze der Gemeinschaft wird direkt aus der PV
-gedeckt, und die Batterien laden mitten in der Überschussspitze statt
-unmittelbar nach dem Crossover. Das hält die Gemeinschaft nach dem
-Crossover im Plus, fängt Abregelungsverluste und verkürzt nebenbei die
-Standzeit der Batterie bei 100\% Ladung.
+Die Verbrauchsspitzen der Gemeinschaft werden direkt aus der PV gedeckt,
+und die Einspeisung verteilt sich über den ganzen Tag statt erst nach einem
+Sperr-Ende einzusetzen. Das hält die Gemeinschaft nach dem Crossover im
+Plus, fängt Abregelungsverluste und verkürzt nebenbei die Standzeit der
+Batterie bei 100\% Ladung.
 
 % ============================================================================
 \section{Teil B: Forcierte Entladung in der Nacht}\label{sec:entladung}
@@ -500,9 +559,12 @@ Entladeleistung ist dann eher zu niedrig als zu hoch.
 Gemessen wird nur, wenn die Messung die real erreichbare Ladeleistung
 widerspiegelt: tagsüber zwischen Fensterbeginn und Abend-Deadline, wenn die
 Batterie frei laden darf, die Vorschau Sonne meldet und der Ladestand unter
-95\% liegt (darüber drosselt der Wechselrichter selbst). Steigt der
-Ladestand um mindestens 5~Prozentpunkte, ergibt geladene Energie (aus der
-Kapazität) geteilt durch die Messdauer eine Stichprobe in kW.
+95\% liegt (darüber drosselt der Wechselrichter selbst). In freien
+PWM-Blöcken der Laderegelung wird weiter gemessen (dort lädt die Batterie
+unbegrenzt); unter einem direkten Ladelimit nie, denn die Stichprobe würde
+das Limit statt der Anlage messen und die Schätzung nach unten ziehen.
+Steigt der Ladestand um mindestens 5~Prozentpunkte, ergibt geladene Energie
+(aus der Kapazität) geteilt durch die Messdauer eine Stichprobe in kW.
 
 Die Mittelung ist bewusst \emph{asymmetrisch und dauergewichtet}: Eine
 Stichprobe unter der bisherigen Schätzung (etwa Dunst trotz sonniger
@@ -540,9 +602,13 @@ also Eigenverbrauchsoptimierung, ist immer der sichere Rückfall.
     spätestens fünf Minuten wieder ab Werk. Kann ein Hersteller das nicht
     garantieren, dokumentiert sein Profil das Restrisiko ausdrücklich.
   \item \textbf{Kein Eingriff ohne Daten:} Ohne plausible Crossover-Zeiten
-    keine Entladung; ohne gültiges, datumsrichtiges Ladefenster keine
-    Sperre; ohne frische Wolkenvorschau (älter als drei Stunden) keine
-    Sperre und nur minimale Entladung.
+    keine Entladung; ohne gültiges, datumsrichtiges Ladefenster weder
+    Laderegelung noch Sperre; ohne frische Wolkenvorschau (älter als drei
+    Stunden) keine Ladebegrenzung und nur minimale Entladung.
+  \item \textbf{Laden nie ganz würgen:} Die Laderegelung begrenzt höchstens
+    auf 90\% Sperranteil bzw. mindestens 10\% der gelernten Ladeleistung.
+    Selbst ein grober Schätzfehler lässt die Batterie weiter laden, und der
+    Regelkreis korrigiert ihn über den Live-Ladestand.
   \item \textbf{Plausibilitätsfenster überall:} Jede Konfigurations- und
     Messgröße wird gegen einen erlaubten Bereich geprüft; Unplausibles wird
     verworfen und durch den Rückfallwert ersetzt, mit Logmeldung.

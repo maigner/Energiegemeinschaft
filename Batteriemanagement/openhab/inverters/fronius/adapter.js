@@ -7,6 +7,13 @@
 // Wechselrichter von allein zum Werksverhalten zurueck, auch wenn openHAB
 // ausfaellt.
 //
+// KEIN ibmLimitCharge: das Fronius-Binding bietet keine Action, die die
+// Ladeleistung auf einen Wert begrenzt (nur Sperren, forciertes Laden und
+// forciertes Entladen). Die Laderegelung des Kerns bildet die Begrenzung
+// deshalb per PWM ueber ibmPreventCharge nach - an der Schreibfrequenz
+// aendert das nichts (auch bisher wurde im Fenster alle 5 Minuten ein
+// Schedule gesetzt).
+//
 // Voraussetzung: Benutzername und Passwort des Wechselrichters im Bridge-
 // Thing, sonst stellt das Binding die Batterie-Actions nicht bereit.
 //

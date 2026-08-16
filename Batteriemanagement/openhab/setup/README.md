@@ -209,6 +209,9 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `IBM_DYNAMISCHE_LEISTUNG` | Switch | Entladeleistung automatisch an die Batteriegroesse anpassen |
 | `IBM_BATTERIE_KAPAZITAET` | Number | Geschaetzte Batteriekapazitaet in kWh (von der Steuerung befuellt) |
 | `IBM_KAPAZITAET_MESSUNG` | String | Interner Zustand der Kapazitaetsschaetzung (JSON) |
+| `IBM_LADEREGELUNG` | Switch | Ladeleistung dynamisch regeln statt Sperrfenster (siehe unten) |
+| `IBM_LADEREGELUNG_SOLL` | String | Ziel-Ladeleistung der Regelung, `<watt> W` oder `-` |
+| `IBM_LADEREGELUNG_STATUS` | String | Interner PWM-Zustand der Laderegelung (JSON) |
 
 Das Entladefenster folgt den Crossover-Zeiten der Gemeinschaft
 (`Ischlstrom_Crossover_Start`/`_Ende`): entladen wird vom abendlichen bis zum
@@ -236,6 +239,39 @@ bei sonniger Vorschau. Die Wolkenvorschau gilt als veraltet, wenn ihr
 letzter Abruf (`Ischlstrom_Wolkenvorschau_Zeit`) laenger als drei Stunden
 zurueckliegt — die Steuerung sperrt dann kein Laden und entlaedt nur mit
 minimaler Leistung.
+
+### Dynamische Laderegelung (ersetzt das Sperrfenster)
+
+Sobald die Anlage ihre Batteriekapazitaet und Ladeleistung belastbar
+geschaetzt hat, ersetzt ein geschlossener Regelkreis das harte Sperrfenster
+(`IBM_LADEREGELUNG`, Vorgabe `ON`): In jedem 5-Minuten-Zyklus berechnet die
+Steuerung die **Ziel-Ladeleistung** neu — fehlende Energie (bis 95%
+Ladestand) geteilt durch die verbleibende Zeit bis eine Stunde vor dem
+abendlichen Crossover, multipliziert mit einem wolkenabhaengigen
+Sicherheitsfaktor (1,1 bei klarem Himmel bis 1,6 bei 100% Bewoelkung: je
+bedeckter, desto frueher und schneller wird geladen). Die Batterie laedt so
+den ganzen Tag gerade schnell genug, um am Abend voll zu sein; der gesamte
+restliche PV-Ueberschuss fliesst laufend in die Gemeinschaft statt erst nach
+einem Sperr-Ende. Weil auf den **Live-Ladestand** geregelt wird, korrigieren
+sich Prognosefehler von selbst: zieht es zu, bleibt der Ladestand zurueck,
+die Ziel-Leistung steigt und die Begrenzung loest sich.
+
+Umgesetzt wird die Begrenzung je nach Wechselrichter: Definiert der Adapter
+die optionale Funktion `ibmLimitCharge` (SunSpec-/Victron-Profile), wird die
+Ziel-Leistung direkt kommandiert. Sonst bildet eine Puls-Weiten-Modulation
+sie nach: gesperrte und freie **15-Minuten-Bloecke** im passenden
+Verhaeltnis ergeben im Mittel die Ziel-Leistung; eine Hysterese verhindert
+Flattern an den Blockgrenzen, und mehr als 90% der Slots werden nie
+gesperrt — ein Schaetzfehler kann das Laden also nie ganz wuergen. Das
+aktuelle Soll steht in `IBM_LADEREGELUNG_SOLL` (`-` = keine Begrenzung) und
+geht mit dem Status-Push an das Vorstands-Dashboard.
+
+Alle Sicherungen des Sperrfensters gelten unveraendert: eingegriffen wird
+nur bei gueltigem Tagesfenster (Datum, erster Sonnenschein) und frischer,
+sonniger Wolkenvorschau. Fehlt eine Voraussetzung — auch die Schaetzungen
+auf einer frisch installierten Anlage — gilt automatisch das klassische
+Sperrfenster mit Server-/Lokal-Ende als Rueckfall; bei `IBM_LADEREGELUNG=OFF`
+dauerhaft.
 
 ### Dynamische Entladeleistung (Batteriegroesse wird geschaetzt)
 

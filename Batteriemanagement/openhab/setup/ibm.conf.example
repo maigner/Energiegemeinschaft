@@ -124,6 +124,18 @@ DEFAULT_DYNAMISCHE_LEISTUNG=ON
 # das Server-Ende aus der Tagesprognose.
 DEFAULT_LADESPERRE_LOKAL=ON
 
+# Ladeleistung dynamisch regeln (ersetzt das harte Sperrfenster): die
+# Steuerung berechnet alle 5 Minuten die Ziel-Ladeleistung - fehlende
+# Energie geteilt durch die verbleibende Zeit bis eine Stunde vor dem
+# abendlichen Crossover, mit wolkenabhaengigem Sicherheitsaufschlag. Die
+# Batterie laedt so den ganzen Tag gerade schnell genug, um am Abend voll
+# zu sein; der restliche PV-Ueberschuss fliesst laufend ins Netz. Kann der
+# Wechselrichter-Adapter die Ladeleistung direkt begrenzen (ibmLimitCharge),
+# wird sie kommandiert, sonst per gesperrter/freier 15-Minuten-Bloecke
+# nachgebildet. Braucht belastbare Kapazitaets- und Ladeleistungsschaetzung;
+# solange sie fehlen (oder bei OFF), gilt das Sperrfenster wie oben.
+DEFAULT_LADEREGELUNG=ON
+
 # --- Optionen ---------------------------------------------------------------
 
 # Addons ueber addons.cfg installieren.

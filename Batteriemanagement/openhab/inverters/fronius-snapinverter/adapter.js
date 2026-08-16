@@ -1,10 +1,12 @@
 // ============================================================================
 // IBM - Wechselrichter-Adapter: Fronius Symo Hybrid (SnapINverter, Modbus)
 //
-// Definiert die drei Funktionen des Adapter-Kontrakts (siehe control/core.js)
-// ueber das SunSpec Basic Storage Control Model (124), das der Datamanager
-// per Modbus TCP bereitstellt. Die Register haengen als Items an den
-// Data-Things des Setups (inverter_things_json im Profil):
+// Definiert die Funktionen des Adapter-Kontrakts (siehe control/core.js),
+// einschliesslich des optionalen ibmLimitCharge (InWRte ist im Storage-Model
+// genau das Ladelimit - die Laderegelung des Kerns kommandiert hier direkt
+// statt per PWM), ueber das SunSpec Basic Storage Control Model (124), das
+// der Datamanager per Modbus TCP bereitstellt. Die Register haengen als
+// Items an den Data-Things des Setups (inverter_things_json im Profil):
 //
 //   IBM_MB_ModelId   SunSpec-Model-ID an der Basisadresse (muss 124 sein)
 //   IBM_MB_WChaMax   Referenzleistung fuer die Prozentwerte (roh)
@@ -121,6 +123,25 @@ function ibmPreventCharge(minutes) {
   var ok = __ibmMbSend('IBM_MB_InWRte', 0);
   ok = __ibmMbSend('IBM_MB_StorCtl', M124_STORCTL_CHARGE_BIT) && ok;
   return { ok: ok };
+}
+
+function ibmLimitCharge(watts, minutes) {
+  // InWRte IST das Ladelimit des Storage-Models (Prozent von WChaMax) -
+  // die Laderegelung des Kerns kann hier direkt kommandieren, samt
+  // geraeteseitigem Auto-Revert. Geladen wird weiter nur aus PV; das
+  // Limit deckelt nur die Leistung.
+  var maxW = __ibmMbGuard();
+  if (maxW === null) return { ok: false };
+
+  var pct = Math.round(watts / maxW * 100);
+  if (pct < 1) pct = 1;
+  if (pct > 100) pct = 100;
+
+  __ibmMbArmRevert(minutes);
+  var ok = __ibmMbSend('IBM_MB_InWRte', pct * M124_WRTE_RAW_PER_PCT);
+  ok = __ibmMbSend('IBM_MB_StorCtl', M124_STORCTL_CHARGE_BIT) && ok;
+
+  return { ok: ok, appliedW: Math.round(maxW * pct / 100) };
 }
 
 function ibmForceDischarge(watts, minutes) {

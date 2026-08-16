@@ -229,6 +229,10 @@ var payload = {
     ladesperre_lokal: stateOf('IBM_LADESPERRE_LOKAL'),
     ladeleistung_kw: numberOf('IBM_LADELEISTUNG'),
     ladesperre_lokal_ende: stateOf('IBM_LADESPERRE_LOKAL_ENDE'),
+    laderegelung: stateOf('IBM_LADEREGELUNG'),
+    // Ziel-Ladeleistung der dynamischen Laderegelung; das Item traegt
+    // "<watt> W" oder "-" (keine Begrenzung) - numberOf liefert dann null.
+    laderegelung_soll_w: numberOf('IBM_LADEREGELUNG_SOLL'),
     min_battery_charge: numberOf('IBM_MIN_BATTERY_CHARGE'),
     min_entladeleistung_w: numberOf('Minimale_Entladeleistung_Batterieeinspeisung'),
     max_entladeleistung_w: numberOf('Maximale_Entladeleistung_Batterieeinspeisung'),

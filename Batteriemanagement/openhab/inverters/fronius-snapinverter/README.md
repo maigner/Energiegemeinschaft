@@ -10,6 +10,7 @@ TCP** und das **SunSpec Basic Storage Control Model (124)**:
 | --- | --- |
 | Reset (Werksverhalten) | `StorCtl_Mod = 0`, `InWRte = 100 %`, `OutWRte = 100 %` |
 | Ladesperre | `InWRte = 0` + Charge-Limit-Bit in `StorCtl_Mod` |
+| Laderegelung (ibmLimitCharge) | `InWRte = Prozent von WChaMax` + Charge-Limit-Bit - das Storage-Model ist genau dafuer gebaut, samt Auto-Revert (`InOutWRte_RvrtTms`) |
 | Forcierte Entladung | negatives `InWRte` (Prozent von `WChaMax`) + Charge-Limit-Bit |
 | Fail-Safe | `InOutWRte_RvrtTms` = Fensterlaenge + 60 s vor jedem Steuer-Write |
 

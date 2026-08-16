@@ -1,15 +1,20 @@
 // ============================================================================
 // IBM - Batteriesteuerung, herstellerneutraler Kern
 //
-//   Teil A: Batterieladen sperren bei geringer Bewoelkung (Vormittag).
-//           Das Fenster kommt aus der Tagesprognose der API (erster
-//           Sonnenschein bis in die Mittagsspitze; das Ende berechnet der
-//           Server) und gilt nur fuer das mitgelieferte Datum - ohne
-//           gueltiges Fenster wird nicht gesperrt. Sobald die Anlage ihre
-//           Batteriekapazitaet und Ladeleistung kennt, ersetzt ein lokal
-//           berechnetes Ende das Server-Ende (Abschnitt "Lokale
-//           Ladesperre"): so spaet, dass die Batterie bis zum Abend
-//           gerade noch voll wird.
+//   Teil A: Batterieladen bei geringer Bewoelkung zurueckhalten (tagsueber).
+//           Sobald die Anlage ihre Batteriekapazitaet und Ladeleistung
+//           kennt, regelt die Laderegelung (Abschnitt "Laderegelung") die
+//           Ladeleistung dynamisch: Die Batterie laedt den ganzen Tag
+//           gerade schnell genug, um am Abend voll zu sein - der restliche
+//           PV-Ueberschuss fliesst laufend ins Netz. Solange die
+//           Schaetzungen fehlen (oder die Regelung abgeschaltet ist),
+//           gilt das klassische Sperrfenster: Das Fenster kommt aus der
+//           Tagesprognose der API (erster Sonnenschein bis in die
+//           Mittagsspitze; das Ende berechnet der Server) und gilt nur
+//           fuer das mitgelieferte Datum - ohne gueltiges Fenster wird
+//           nicht gesperrt. Ein lokal berechnetes Ende ersetzt das
+//           Server-Ende (Abschnitt "Lokale Ladesperre"): so spaet, dass
+//           die Batterie bis zum Abend gerade noch voll wird.
 //   Teil B: Forcierte Batterieentladung (Nacht), abhaengig von Toggle,
 //           Ladestand und Wolkenvorschau. Die Entladeleistung passt sich
 //           automatisch an die Batteriegroesse an, die das Skript aus der
@@ -48,6 +53,13 @@
 //     herstellerseitiger Quantisierung tatsaechlich kommandierte Leistung
 //     (z. B. Prozent-Rundung); fehlt sie, rechnet der Kapazitaetsschaetzer
 //     mit `watts`.
+//
+//   ibmLimitCharge(watts, minutes)  -> { ok: boolean, appliedW?: number }
+//     OPTIONAL. Batterieladeleistung fuer `minutes` Minuten auf ~`watts`
+//     begrenzen (nicht erzwingen - geladen wird weiter nur aus PV), selbst
+//     ablaufend wie die anderen Kommandos. Definiert ein Adapter die
+//     Funktion nicht, bildet der Kern die Begrenzung per Puls-Weiten-
+//     Modulation ueber ibmPreventCharge nach (Abschnitt "Laderegelung").
 //
 // Regeln fuer Adapter: kein rules.JSRule(...), kein Top-Level-return, alle
 // Logausgaben mit '[IBM]' praefixieren, nur @IBM_...@-Platzhalter (keine
@@ -105,6 +117,44 @@ var CHARGE_RATE_EMA_DOWN = 0.5;        // Gewicht je Messstunde, Stichprobe unte
 var CHARGE_RATE_EMA_UP = 0.15;         // Gewicht je Messstunde, Stichprobe darueber
 var CHARGE_RATE_EMA_MAX = 0.6;         // Obergrenze des Gewichts einer Stichprobe
 var CHARGE_RATE_MIN_SAMPLES = 3;       // erst ab so vielen Stichproben verwenden
+
+// --- Laderegelung -----------------------------------------------------------
+// Ersetzt das harte Sperrfenster durch einen geschlossenen Regelkreis: In
+// jedem Zyklus wird die Ziel-Ladeleistung neu berechnet - fehlende Energie
+// geteilt durch die verbleibende Zeit bis zur Abend-Deadline (Abend-Crossover
+// minus LOCAL_FULL_BUFFER_MIN). Die Batterie laedt so den ganzen Tag gerade
+// schnell genug, um am Abend voll zu sein; der restliche PV-Ueberschuss
+// fliesst laufend ins Netz. Weil auf den Live-Ladestand geregelt wird,
+// korrigieren sich Prognosefehler alle 5 Minuten von selbst - zieht es zu,
+// bleibt der Ladestand zurueck, die Ziel-Leistung steigt, die Begrenzung
+// loest sich.
+//
+// Umsetzung je nach Adapter: definiert der Adapter ibmLimitCharge (optional,
+// siehe Adapter-Kontrakt), wird die Ziel-Leistung direkt kommandiert. Sonst
+// bildet eine Puls-Weiten-Modulation ueber ibmPreventCharge sie nach:
+// gesperrte und freie 15-Minuten-Bloecke (REG_BLOCK_SLOTS Slots) im
+// passenden Verhaeltnis ergeben im Mittel die Ziel-Leistung; eine Hysterese
+// (REG_HYST_ON/OFF auf der Sperrschuld) verhindert Flattern bei
+// Grenzwerten. Der Sicherheitsfaktor ist wolkenabhaengig: je bedeckter die
+// Vorschau (unterhalb der Schwelle), desto frueher und schneller wird
+// geladen.
+//
+// Voraussetzungen wie bei der lokalen Ladesperre: belastbare Kapazitaets-
+// und Ladeleistungsschaetzung, gueltiges Tagesfenster, frische sonnige
+// Wolkenvorschau. Fehlt etwas, gilt das klassische Sperrfenster mit
+// Server-/Lokal-Ende als Rueckfall.
+var FALLBACK_REGULATION_ACTIVE = true;
+var REG_TARGET_SOC = 95;        // bis hier gilt die Batterie als voll (darueber drosselt der WR selbst)
+var REG_SAFETY_SUNNY = 1.1;     // Sicherheitsfaktor bei 0% Wolken
+var REG_SAFETY_CLOUDY = 1.6;    // ... bei 100% Wolken (linear interpoliert)
+var REG_BLOCK_SLOTS = 3;        // PWM-Blocklaenge in Slots (3 x 5 min = 15 min)
+var REG_MIN_DUTY = 0.1;         // kleinere Sperranteile: gar nicht begrenzen
+var REG_MAX_DUTY = 0.9;         // groessere: auf 90% begrenzen - ein Schaetzfehler darf das Laden nie ganz wuergen
+var REG_HYST_ON = 2.0;          // Sperrschuld (Slots), ab der ein freier Block sperrt
+var REG_HYST_OFF = 1.0;         // Sperrschuld, unter der ein Sperr-Block wieder freigibt
+var REG_DEBT_MAX = 6;           // Anti-Windup der Sperrschuld
+var REG_MAX_GAP_MIN = 12;       // laengere Luecke -> PWM-Zustand neu aufsetzen
+var REG_LIMIT_STEP_W = 100;     // Quantisierung der direkten Leistungsbegrenzung
 
 var FALLBACK_DISCHARGE_ACTIVE = true;
 
@@ -653,6 +703,127 @@ function localChargeLockEnd() {
   return Math.min(deadline - chargeMinutes, LOCAL_LATEST_END_MIN);
 }
 
+// --- Laderegelung: PWM-Zustand und Slot-Planung -----------------------------
+// PWM-Zustand als JSON in einem String-Item (persistiert):
+//   schuld     angesammelte Sperrschuld in Slots (Bresenham-Akkumulator:
+//              jeder Slot addiert seinen Sperranteil, jeder gesperrte Slot
+//              zieht 1 ab - im Mittel entsteht so die Ziel-Leistung)
+//   sperren    Entscheidung des laufenden 15-Minuten-Blocks
+//   restSlots  verbleibende Slots des laufenden Blocks
+//   zeit       Zeitpunkt des letzten Laufs (Lueckenerkennung)
+
+function readRegulationState() {
+  var item = readItem('IBM_LADEREGELUNG_STATUS');
+  if (item === null) return null;
+  var state = String(item.state);
+  if (state === 'NULL' || state === 'UNDEF' || state === '') return {};
+  try {
+    var parsed = JSON.parse(state);
+    return (parsed !== null && typeof parsed === 'object') ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function writeRegulationState(st) {
+  var item = readItem('IBM_LADEREGELUNG_STATUS');
+  if (item !== null) item.postUpdate(JSON.stringify(st));
+}
+
+// Plant den aktuellen Steuer-Slot der Laderegelung - oder null, wenn die
+// Regelung gerade nicht zustaendig ist (dann gilt das klassische
+// Sperrfenster). Rueckgabe:
+//   sperren  diesen Slot per ibmPreventCharge sperren (PWM-Weg)
+//   limitW   Ladeleistung direkt auf diesen Wert begrenzen (Adapter-Weg)
+//   sollW    berechnete Ziel-Ladeleistung (Anzeige/Status-Push)
+//   aktiv    false = die Regelung laeuft, begrenzt aber gerade nicht
+function chargeRegulationPlan() {
+  if (!chargeLockDateOk || CHARGE_LOCK_START_MIN === null || EVENING_CROSSOVER_MIN === null) return null;
+  var deadline = EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN;
+  if (nowMinutes < CHARGE_LOCK_START_MIN || nowMinutes >= deadline) return null;
+
+  // Wie beim Sperrfenster: eingegriffen wird nur bei frischer, sonniger
+  // Vorschau - sonst laedt die Batterie frei (Fail-safe).
+  var clouds = cloudForecast();
+  if (clouds === null || clouds >= CLOUD_THRESHOLD) return null;
+
+  var capacityKwh = estimatedCapacityKwh();
+  var rateKw = estimatedChargeKw();
+  if (capacityKwh === null || rateKw === null) {
+    console.log('[IBM][Laderegelung] Noch keine belastbare Kapazitaets- oder Ladeleistungsschaetzung - Sperrfenster gilt');
+    return null;
+  }
+  var soc = parseFloat(items.getItem('@IBM_SOC_ITEM@').numericState);
+  if (isNaN(soc) || soc < 0 || soc > 100) return null;
+
+  // Ziel-Ladeleistung: fehlende Energie / verbleibende Zeit, mit
+  // wolkenabhaengigem Sicherheitsfaktor (je bedeckter, desto frueher voll).
+  var missingKwh = Math.max(0, (REG_TARGET_SOC - soc) / 100 * capacityKwh);
+  var remainingH = (deadline - nowMinutes) / 60;
+  var safety = REG_SAFETY_SUNNY + clouds / 100 * (REG_SAFETY_CLOUDY - REG_SAFETY_SUNNY);
+  var sollKw = missingKwh / remainingH * safety;
+  var duty = (missingKwh <= 0) ? 0 : 1 - sollKw / rateKw;
+  if (duty <= REG_MIN_DUTY) duty = 0;
+  if (duty > REG_MAX_DUTY) duty = REG_MAX_DUTY;
+  var sollW = Math.round(sollKw * 1000);
+  console.log('[IBM][Laderegelung] SoC=' + soc + '%, fehlen ~' + (Math.round(missingKwh * 10) / 10)
+    + ' kWh, ' + (Math.round(remainingH * 10) / 10) + ' h bis ' + fmtMinutes(deadline)
+    + ', Wolken=' + clouds + '% -> Ziel ' + sollW + ' W (Laderate ' + rateKw + ' kW, Sperranteil '
+    + Math.round(duty * 100) + '%)');
+
+  // Direkte Begrenzung, wenn der Adapter sie kann: Ziel-Leistung quantisiert
+  // kommandieren, nie unter den Boden von (1 - REG_MAX_DUTY) der Laderate.
+  if (typeof ibmLimitCharge === 'function') {
+    if (duty === 0) return { sperren: false, limitW: null, sollW: sollW, aktiv: false };
+    var floorW = Math.round(rateKw * 1000 * (1 - REG_MAX_DUTY));
+    var limitW = Math.max(sollW, floorW, REG_LIMIT_STEP_W);
+    limitW = Math.round(limitW / REG_LIMIT_STEP_W) * REG_LIMIT_STEP_W;
+    return { sperren: false, limitW: limitW, sollW: sollW, aktiv: true };
+  }
+
+  // PWM-Weg: Entscheidung je 15-Minuten-Block, mit Hysterese auf der
+  // Sperrschuld - erst ab REG_HYST_ON wird ein freier Block zum Sperr-Block,
+  // erst unter REG_HYST_OFF wieder frei.
+  var st = readRegulationState();
+  if (st === null) {
+    console.log('[IBM][Laderegelung] Item IBM_LADEREGELUNG_STATUS fehlt - Sperrfenster gilt (Setup-Skript 03 erneut ausfuehren)');
+    return null;
+  }
+  var prev = null;
+  try {
+    if (st.zeit) prev = time.ZonedDateTime.parse(String(st.zeit));
+  } catch (e) {
+    prev = null;
+  }
+  if (prev === null || time.Duration.between(prev, now).toMinutes() > REG_MAX_GAP_MIN
+      || typeof st.schuld !== 'number' || typeof st.restSlots !== 'number') {
+    st = { schuld: 0, sperren: false, restSlots: 0 };
+  }
+  st.schuld += duty;
+  if (st.schuld > REG_DEBT_MAX) st.schuld = REG_DEBT_MAX;
+  if (duty === 0) {
+    // Keine Begrenzung noetig - einen laufenden Sperr-Block sofort beenden
+    // (freigeben ist immer die sichere Richtung).
+    st.sperren = false;
+    st.restSlots = 0;
+  } else {
+    if (st.restSlots <= 0) {
+      var threshold = (st.sperren === true) ? REG_HYST_OFF : REG_HYST_ON;
+      st.sperren = st.schuld >= threshold;
+      st.restSlots = REG_BLOCK_SLOTS;
+    }
+    st.restSlots -= 1;
+    if (st.sperren === true) {
+      st.schuld -= 1;
+      if (st.schuld < 0) st.schuld = 0;
+    }
+  }
+  st.schuld = Math.round(st.schuld * 1000) / 1000;
+  st.zeit = now.toString();
+  writeRegulationState(st);
+  return { sperren: st.sperren === true, limitW: null, sollW: sollW, aktiv: duty > 0 };
+}
+
 // --- Skript-Logik -----------------------------------------------------------
 var now = time.ZonedDateTime.now();
 var nowMinutes = now.hour() * 60 + now.minute();
@@ -761,6 +932,24 @@ if (pauseDays >= 1) {
 }
 
 // ----------------------------------------------------------------------------
+// Laderegelung: Ladeleistung dynamisch regeln statt Sperrfenster
+// ----------------------------------------------------------------------------
+// Liefert die Planung einen Slot (alle Voraussetzungen erfuellt), ersetzt
+// sie das Sperrfenster komplett - Server-Ende, individualisiertes Ende und
+// lokale Flatrate-Rechnung sind dann alle drei nicht mehr noetig, weil der
+// Regelkreis auf den Live-Ladestand besser reagiert als jede
+// Vorausberechnung. Bei null gilt das bisherige Verhalten unveraendert.
+// Das aktuelle Soll steht in IBM_LADEREGELUNG_SOLL (Anzeige und
+// Status-Push), '-' wenn gerade nicht begrenzt wird.
+var REGULATION_ACTIVE = onOff('IBM_LADEREGELUNG', FALLBACK_REGULATION_ACTIVE);
+var regulationPlan = (CHARGE_LOCK_ACTIVE && REGULATION_ACTIVE) ? chargeRegulationPlan() : null;
+if (regulationPlan !== null && regulationPlan.aktiv) {
+  publishItem('IBM_LADEREGELUNG_SOLL', regulationPlan.sollW + ' W');
+} else {
+  publishItem('IBM_LADEREGELUNG_SOLL', '-');
+}
+
+// ----------------------------------------------------------------------------
 // Lokale Ladesperre: eigenes Sperr-Ende aus Batteriegroesse und Ladeleistung
 // ----------------------------------------------------------------------------
 // Meldet die API ein individualisiertes Ende (Ischlstrom_Ladesperre_
@@ -776,7 +965,10 @@ if (pauseDays >= 1) {
 // (Anzeige und Status-Push), '-' wenn gerade ein Server-Ende gilt oder
 // heute nicht gesperrt wird.
 var serverEndIndividual = onOff('Ischlstrom_Ladesperre_Individuell', false);
-if (chargeLockReady && serverEndIndividual) {
+if (regulationPlan !== null) {
+  // Die Laderegelung ersetzt Server- und Lokal-Ende - kein Sperr-Ende noetig.
+  publishItem('IBM_LADESPERRE_LOKAL_ENDE', '-');
+} else if (chargeLockReady && serverEndIndividual) {
   console.log('[IBM][Ladesperre] Server-Ende ' + fmtMinutes(chargeLockEnd) + ' ist fuer diese Anlage individualisiert - lokale Berechnung uebersprungen');
   publishItem('IBM_LADESPERRE_LOKAL_ENDE', '-');
 } else if (chargeLockReady) {
@@ -799,16 +991,22 @@ if (chargeLockReady && serverEndIndividual) {
 }
 
 // Ladeleistung lernen: nur tagsueber zwischen Fensterbeginn und
-// Abend-Deadline, wenn die Batterie frei laden darf (keine Sperre moeglich),
-// die Vorschau Sonne meldet und der Ladestand unter der Drossel-Zone liegt.
+// Abend-Deadline, wenn die Batterie frei laden darf (keine Sperre und keine
+// Leistungsbegrenzung moeglich), die Vorschau Sonne meldet und der
+// Ladestand unter der Drossel-Zone liegt. In freien PWM-Bloecken der
+// Laderegelung wird weiter gemessen (dort laedt die Batterie unbegrenzt);
+// unter einer direkten Leistungsbegrenzung nie - die Stichprobe wuerde
+// sonst das Limit statt der Anlage messen und die Schaetzung nach unten
+// ziehen.
 function sampleChargeRate() {
-  if (!LOCAL_LOCK_ACTIVE) return;
+  if (!LOCAL_LOCK_ACTIVE && !REGULATION_ACTIVE) return;
   if (!chargeLockDateOk || CHARGE_LOCK_START_MIN === null || EVENING_CROSSOVER_MIN === null) return;
   var capacityKwh = estimatedCapacityKwh();
   if (capacityKwh === null) return;
   var deadline = EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN;
   if (nowMinutes < CHARGE_LOCK_START_MIN || nowMinutes >= deadline) return;
-  if (chargeLockReady && inWindow(chargeLockStart, chargeLockEnd)) return;
+  if (regulationPlan !== null && (regulationPlan.sperren || regulationPlan.limitW !== null)) return;
+  if (regulationPlan === null && chargeLockReady && inWindow(chargeLockStart, chargeLockEnd)) return;
   var clouds = cloudForecast();
   if (clouds === null || clouds >= CLOUD_THRESHOLD) return;
   var soc = parseFloat(items.getItem('@IBM_SOC_ITEM@').numericState);
@@ -834,7 +1032,27 @@ function sampleHouseLoad() {
 sampleHouseLoad();
 
 // ----------------------------------------------------------------------------
-// Teil A: Ladesperre bei geringer Bewoelkung
+// Teil A: Laderegelung - Ladeleistung dynamisch begrenzen
+// ----------------------------------------------------------------------------
+// Der Reset zu Beginn des Zyklus hat den Wechselrichter bereits freigegeben -
+// ein freier Slot braucht deshalb keine Aktion.
+function handleChargeRegulation(plan) {
+  if (plan.limitW !== null) {
+    var res = ibmLimitCharge(plan.limitW, IBM_SLOT_MINUTES);
+    var appliedW = (res && typeof res.appliedW === 'number') ? res.appliedW : plan.limitW;
+    console.log('[IBM][Laderegelung] Ladeleistung begrenzt auf ' + appliedW + ' W fuer ' + IBM_SLOT_MINUTES + ' min | ok=' + (res && res.ok === true));
+    return;
+  }
+  if (plan.sperren) {
+    var res2 = ibmPreventCharge(IBM_SLOT_MINUTES);
+    console.log('[IBM][Laderegelung] Sperr-Block - Laden gesperrt fuer ' + IBM_SLOT_MINUTES + ' min | ok=' + (res2 && res2.ok === true));
+    return;
+  }
+  console.log('[IBM][Laderegelung] Freier Block - Laden erlaubt');
+}
+
+// ----------------------------------------------------------------------------
+// Teil A (Rueckfall): Ladesperre bei geringer Bewoelkung
 // ----------------------------------------------------------------------------
 function handleChargeLock() {
   var clouds = cloudForecast();
@@ -962,11 +1180,14 @@ function handleForcedDischarge() {
 // ----------------------------------------------------------------------------
 // Zeitfenster-Weiche: entscheidet, welcher Teil ausgefuehrt wird
 // ----------------------------------------------------------------------------
-if (CHARGE_LOCK_ACTIVE && !chargeLockReady) {
+if (CHARGE_LOCK_ACTIVE && !chargeLockReady && regulationPlan === null) {
   console.log('[IBM] Kein gueltiges Ladesperre-Fenster fuer heute - Laden bleibt erlaubt');
 }
 
-if (CHARGE_LOCK_ACTIVE && chargeLockReady && inWindow(chargeLockStart, chargeLockEnd)) {
+if (CHARGE_LOCK_ACTIVE && regulationPlan !== null) {
+  console.log('[IBM] Zeitfenster Tag (' + fmtMinutes(nowMinutes) + ') - Laderegelung aktiv');
+  handleChargeRegulation(regulationPlan);
+} else if (CHARGE_LOCK_ACTIVE && chargeLockReady && inWindow(chargeLockStart, chargeLockEnd)) {
   console.log('[IBM] Zeitfenster Vormittag (' + fmtMinutes(nowMinutes) + ', ' + fmtMinutes(chargeLockStart) + '-' + fmtMinutes(chargeLockEnd) + ') - pruefe Ladesperre');
   handleChargeLock();
 } else if (DISCHARGE_ACTIVE && (dischargeStart === null || dischargeEnd === null)) {

@@ -29,6 +29,14 @@
 // stehender Altwert die PV-Erzeugung nicht abwuergt, wird es vor jedem
 // Steuerbefehl auf das Anlagenmaximum (30010) gesetzt.
 //
+// BEWUSST KEIN ibmLimitCharge: eine echte Ladeleistungs-Begrenzung ginge
+// nur ueber die Command-Charging-Modi des Remote EMS - die koennen die
+// Batterie aber auch aus dem NETZ laden, wenn die PV das Kommando nicht
+// deckt. Das verletzt den IBM-Grundsatz "geladen wird nur aus PV";
+// ausserdem ist das Ladelimit-Register im Spike noch nicht verifiziert.
+// Die Laderegelung des Kerns nutzt deshalb die PWM ueber ibmPreventCharge
+// (Modus 5 laedt nie aus dem Netz).
+//
 // Fail-Safe: Sigenergy kennt (Stand Protokoll V1.7) KEIN geraeteseitiges
 // Auto-Revert wie das SunSpec-InOutWRte_RvrtTms - faellt openHAB mit aktivem
 // Remote EMS aus, bleibt der kommandierte Zustand stehen. Der Kern setzt

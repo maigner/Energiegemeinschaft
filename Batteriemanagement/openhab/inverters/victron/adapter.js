@@ -1,7 +1,8 @@
 // ============================================================================
 // IBM - Wechselrichter-Adapter: Victron Energy (GX-Geraet, Modbus)
 //
-// Definiert die drei Funktionen des Adapter-Kontrakts (siehe control/core.js)
+// Definiert die Funktionen des Adapter-Kontrakts (siehe control/core.js),
+// einschliesslich des optionalen ibmLimitCharge (DVCC MaxChargeCurrent),
 // ueber die Settings-Register der ESS-Regelung auf dem GX-Geraet (Modbus TCP,
 // Unit-ID 100, offizielle Registerkarte aus dbus_modbustcp). Die Anlage
 // bleibt dabei in ihrem normalen ESS-Modus - BEWUSST KEIN ESS Mode 3
@@ -23,6 +24,12 @@
 //                          aktivierter Option "Feed-in excess solar charger
 //                          power" gilt das DVCC-Limit laut Victron-Doku NICHT
 //                          fuer die MPPTs - Spike-Punkt im README.
+//   - Laderegelung:        MaxChargeCurrent = Watt / VIC_BATTERY_VOLTAGE_V.
+//                          DVCC nimmt Ampere auf der Batterieseite; die
+//                          Umrechnung verwendet die nominelle Batterie-
+//                          spannung (Konstante unten, Spike-Punkt). Die
+//                          Ungenauigkeit ist unkritisch - der Regelkreis
+//                          des Kerns korrigiert ueber den Live-Ladestand.
 //   - forcierte Entladung: grid setpoint = -Watt. Der Setpoint wirkt am
 //                          NETZPUNKT: die Anlage speist genau ~Watt ins Netz,
 //                          die Batterie liefert zusaetzlich den Haushalt.
@@ -55,6 +62,12 @@ var VIC_DEFAULT_MAX_CHARGE_A = -1;
 // BatteryLife state 9 = "Batterien geladen halten" - in dem Modus haelt die
 // Anlage die Batterie voll und gibt sie nicht her; Entladung waere sinnlos.
 var VIC_BL_KEEP_CHARGED = 9;
+
+// Nominelle Batteriespannung fuer die Watt-zu-Ampere-Umrechnung der
+// Laderegelung (DVCC-Limit ist ein Batteriestrom). Victron-ESS-Anlagen sind
+// praktisch immer 48-V-Systeme (real 47-55 V unter Last) - im Spike am
+// Geraet verifizieren und bei 12/24-V-Anlagen anpassen.
+var VIC_BATTERY_VOLTAGE_V = 50;
 
 // Obergrenze des Setpoint-Registers (int16); der Kern begrenzt ohnehin
 // frueher (ABSOLUTE_MAX_DISCHARGE_W).
@@ -141,6 +154,17 @@ function ibmPreventCharge(minutes) {
   // Befehl im Fenster zyklisch erneuert und danach zuruecksetzt.
   var ok = __ibmVicSend('IBM_VIC_MaxChargeA', 0);
   return { ok: ok };
+}
+
+function ibmLimitCharge(watts, minutes) {
+  if (!__ibmVicGuard()) return { ok: false };
+  // Kein geraeteseitiges Auto-Revert - "minutes" traegt der Kern, der den
+  // Befehl zyklisch erneuert und ausserhalb des Fensters zuruecksetzt.
+  // Mindestens 1 A, damit ein kleines Watt-Soll nicht zur Voll-Sperre wird.
+  var amps = Math.round(watts / VIC_BATTERY_VOLTAGE_V);
+  if (amps < 1) amps = 1;
+  var ok = __ibmVicSend('IBM_VIC_MaxChargeA', amps);
+  return { ok: ok, appliedW: amps * VIC_BATTERY_VOLTAGE_V };
 }
 
 function ibmForceDischarge(watts, minutes) {

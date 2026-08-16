@@ -111,6 +111,9 @@ if [ -f "$items_db" ]; then
               IBM_LADELEISTUNG \
               IBM_LADERATE_MESSUNG \
               IBM_LADESPERRE_LOKAL_ENDE \
+              IBM_LADEREGELUNG \
+              IBM_LADEREGELUNG_SOLL \
+              IBM_LADEREGELUNG_STATUS \
               IBM_HAUSLAST \
               IBM_HAUSLAST_MESSUNG \
               IBM_NACHT_ZIEL \

@@ -10,6 +10,7 @@ einem RS485-Ethernet-Gateway** und den **Time-of-Use-Verkaufsfahrplan
 | --- | --- |
 | Reset (Werksverhalten) | `Time of Use enable (146) = 0` - die Anlage folgt wieder ihrem Grundmodus (Eigenverbrauch) |
 | Ladesperre | TOU an + alle 6 Slot-Leistungen (154-159) = 0 + Netzladen-Flags (172-177) = 0 |
+| Laderegelung | KEIN `ibmLimitCharge` - ein Ladestrom-Limit-Register ist nicht verifiziert, und laufend nachgefuehrte Limits wuerden EEPROM-Schreibzyklen kosten; der Kern nutzt die PWM ueber die Ladesperre (15-Minuten-Bloecke, EEPROM-schonend) |
 | Forcierte Entladung | TOU an + Slot-Leistungen in Watt + Slot-Ziel-SoC (166-171) auf der Entladeuntergrenze |
 | Fail-Safe | KEIN geraeteseitiges Auto-Revert bekannt - siehe Fail-Safe-Analyse |
 

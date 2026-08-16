@@ -25,13 +25,15 @@ Die gesamte Entscheidungslogik der Batteriesteuerung (Zeitfenster, Wolken,
 Pause, Kapazitaetsschaetzung, Leistungsberechnung) liegt herstellerneutral in
 `../control/core.js` und wird **nie kopiert**. Ein Profil liefert nur einen
 duennen **Adapter** (`INVERTER_ADAPTER_SCRIPT`), den das Setup dem Kern im
-selben Regel-Body voranstellt. Der Adapter definiert genau drei Funktionen:
+selben Regel-Body voranstellt. Der Adapter definiert drei Pflichtfunktionen
+und optional eine vierte:
 
 | Funktion | Semantik | Rueckgabe |
 | --- | --- | --- |
 | `ibmReset()` | Wechselrichter sofort auf Werksverhalten. Laeuft bei Toggle=ON in jedem Zyklus (auch waehrend der Pause); muss idempotent sein. | `{ ok }` |
 | `ibmPreventCharge(minutes)` | Batterieladen fuer `minutes` Minuten sperren. | `{ ok }` |
 | `ibmForceDischarge(watts, minutes)` | Entladung mit ~`watts` fuer `minutes` Minuten erzwingen. `watts` ist vom Kern bereits validiert und begrenzt. | `{ ok, appliedW? }` |
+| `ibmLimitCharge(watts, minutes)` | OPTIONAL. Ladeleistung fuer `minutes` Minuten auf ~`watts` begrenzen (nicht erzwingen - geladen wird weiter nur aus PV). Fehlt die Funktion, bildet die Laderegelung des Kerns die Begrenzung per PWM ueber `ibmPreventCharge` nach (gesperrte/freie 15-Minuten-Bloecke). NICHT ueber Kommandos implementieren, die aus dem Netz laden koennten. | `{ ok, appliedW? }` |
 
 `appliedW` ist die nach herstellerseitiger Quantisierung tatsaechlich
 kommandierte Leistung (z. B. Prozent-Rundung) - der Kapazitaetsschaetzer des
@@ -168,6 +170,9 @@ voraussetzen:
 | `IBM_LADELEISTUNG` | Number | Vom Kern gelernte Ladeleistung in kW (Anzeige) |
 | `IBM_LADERATE_MESSUNG` | String | Interner Zustand der Ladeleistungsschaetzung (JSON) |
 | `IBM_LADESPERRE_LOKAL_ENDE` | String | Vom Kern berechnetes Sperr-Ende `HH:MM` oder `-` (Anzeige/Status-Push) |
+| `IBM_LADEREGELUNG` | Switch | Ladeleistung dynamisch regeln (ersetzt das Sperrfenster, sobald die Schaetzungen belastbar sind) |
+| `IBM_LADEREGELUNG_SOLL` | String | Ziel-Ladeleistung der Regelung, `<watt> W` oder `-` (Anzeige/Status-Push) |
+| `IBM_LADEREGELUNG_STATUS` | String | Interner PWM-Zustand der Laderegelung (JSON) |
 | `IBM_ENTLADUNG_AKTIV` | Switch | Teilfunktion Entladung ein/aus |
 | `IBM_PAUSE_TAGE` | Number | Verbleibende Pausentage: solange > 0 plant der Kern nichts |
 

@@ -12,6 +12,7 @@ ESS-Modus:
 | --- | --- |
 | Reset (Werksverhalten) | Gemerkte Werkswerte zurueckschreiben: `grid setpoint (2700)` und `DVCC MaxChargeCurrent (2705)` |
 | Ladesperre | `DVCC MaxChargeCurrent (2705) = 0` - begrenzt den Ladestrom systemweit (Multi und MPPT) |
+| Laderegelung (ibmLimitCharge) | `DVCC MaxChargeCurrent (2705) = Watt / VIC_BATTERY_VOLTAGE_V` - die Umrechnung nutzt die nominelle Batteriespannung (Konstante im Adapter, Vorgabe 50 V fuer 48-V-Systeme); Ungenauigkeit regelt der Kern ueber den Live-Ladestand aus |
 | Forcierte Entladung | `grid setpoint (2700) = -Watt` - negativ heisst Einspeisung ins Netz |
 | Fail-Safe | KEIN geraeteseitiges Auto-Revert der Settings-Register - aber der ESS-Minimum-SoC wirkt als harter Boden (siehe Fail-Safe-Analyse) |
 
@@ -94,6 +95,11 @@ Checkliste (Ergebnis in die Tabelle unten eintragen, danach `profile.sh`/
 5. Ladesperre testen: `2705 = 0` schreiben. Pruefen: Batterie laedt NICHT
    (auch bei PV-Ueberschuss), PV versorgt Haushalt und Netz weiter,
    Batterie darf fuer den Haushalt weiter entladen. Danach `2705 = -1`.
+   Fuer die Laderegelung zusaetzlich einen Zwischenwert testen (z. B.
+   `2705 = 10`): die Ladeleistung soll sich auf etwa Strom x
+   Batteriespannung einpendeln. Die tatsaechliche Batteriespannung
+   dokumentieren und `VIC_BATTERY_VOLTAGE_V` im Adapter anpassen
+   (12/24-V-Systeme!).
 6. **DVCC vs. MPPT (Go/No-Go fuer die Ladesperre):** laut Victron-Doku
    gilt das DVCC-Ladestromlimit NICHT fuer die Solarlader, wenn die Option
    "Feed-in excess solar charger power" (DC-PV-Ueberschuss einspeisen,

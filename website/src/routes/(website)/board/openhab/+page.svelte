@@ -191,6 +191,20 @@
     }
 
     /**
+     * Kachel "Laden heute": begrenzt die dynamische Laderegelung der Anlage
+     * gerade die Ladeleistung, zeigt die Kachel die Ziel-Ladeleistung -
+     * sonst wie bisher das Sperrfenster.
+     * @param {any} d
+     * @returns {{ value: string, label: string }}
+     */
+    function ladenStat(d) {
+        if (typeof d.laderegelung_soll_w === "number") {
+            return { value: formatPowerW(d.laderegelung_soll_w), label: "Ladebegrenzung" };
+        }
+        return { value: sperreText(d), label: "Sperre heute" };
+    }
+
+    /**
      * Uptime aus dem gemeldeten Boot-Zeitpunkt (Lokalzeit der Anlage,
      * "YYYY-MM-DD HH:MM:SS"); null, wenn keiner vorliegt oder unlesbar.
      * @param {any} data
@@ -357,7 +371,7 @@
                                 num(d.wolkenvorschau, 0) !== null ? `${num(d.wolkenvorschau, 0)}%` : "-",
                                 "Wolkenvorschau",
                             )}
-                            {@render stat(sperreText(d), "Sperre heute")}
+                            {@render stat(ladenStat(d).value, ladenStat(d).label)}
                             {@render stat(
                                 batteryToGridW(d) !== null ? `${batteryToGridW(d)} W` : "-",
                                 "Einspeisung aus Batterie",

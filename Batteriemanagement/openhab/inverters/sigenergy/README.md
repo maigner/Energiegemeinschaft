@@ -9,6 +9,7 @@ Registerkarte auf Anlagenebene (Slave-Adresse 247), kein SunSpec:
 | --- | --- |
 | Reset (Werksverhalten) | `Remote EMS enable (40029) = 0` - die Anlage folgt wieder ihrem konfigurierten EMS-Modus |
 | Ladesperre | Modus 5 (Entladung, PV zuerst) + `ESS max discharging limit (40034) = 0` |
+| Laderegelung | KEIN `ibmLimitCharge` - die Command-Charging-Modi koennten aus dem Netz laden und das Ladelimit-Register ist nicht verifiziert (Spike-Punkt); der Kern nutzt die PWM ueber die Ladesperre |
 | Forcierte Entladung | Modus 6 (Entladung, Batterie zuerst) + Entladelimit in Watt |
 | Fail-Safe | KEIN geraeteseitiges Auto-Revert bekannt - siehe Fail-Safe-Analyse |
 

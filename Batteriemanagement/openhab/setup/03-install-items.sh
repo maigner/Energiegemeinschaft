@@ -116,6 +116,16 @@ Number IBM_LADELEISTUNG          "Geschaetzte Ladeleistung [%.1f kW]"          <
 String IBM_LADERATE_MESSUNG      "Ladeleistungsschaetzung (intern) [%s]"       <settings> (IBM)
 String IBM_LADESPERRE_LOKAL_ENDE "Lokales Ladesperre-Ende [%s]"                <time>     (IBM)
 
+// Laderegelung: statt des harten Sperrfensters wird die Ladeleistung
+// dynamisch geregelt - die Batterie laedt den ganzen Tag gerade schnell
+// genug, um am Abend voll zu sein, der restliche PV-Ueberschuss fliesst
+// laufend ins Netz. Braucht belastbare Kapazitaets- und Ladeleistungs-
+// schaetzung, sonst gilt das Sperrfenster als Rueckfall.
+// IBM_LADEREGELUNG_STATUS ist interner Zustand (JSON).
+Switch IBM_LADEREGELUNG          "Ladeleistung dynamisch regeln"               <switch>   (IBM)
+String IBM_LADEREGELUNG_SOLL     "Ziel-Ladeleistung [%s]"                      <energy>   (IBM)
+String IBM_LADEREGELUNG_STATUS   "Laderegelung (intern) [%s]"                  <settings> (IBM)
+
 // Hauslast (gelernt aus dem naechtlichen Ladestandsabfall unterhalb der
 // Entlade-Reserve) und Nachtziel der Entladung. IBM_HAUSLAST_MESSUNG und
 // IBM_NACHT_ZIEL sind interner Zustand (JSON).
@@ -182,6 +192,9 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     IBM_LADELEISTUNG,
     IBM_LADERATE_MESSUNG,
     IBM_LADESPERRE_LOKAL_ENDE,
+    IBM_LADEREGELUNG,
+    IBM_LADEREGELUNG_SOLL,
+    IBM_LADEREGELUNG_STATUS,
     IBM_HAUSLAST,
     IBM_HAUSLAST_MESSUNG,
     IBM_NACHT_ZIEL
