@@ -77,6 +77,12 @@ String Ischlstrom_Ladesperre_Datum    "Ladesperre-Fenster fuer [%s]"    <calenda
 // berechnet wurde (aus Erzeugungsprofil, Kapazitaet und Ladeleistung) -
 // die Steuerung uebernimmt es dann unveraendert
 Switch Ischlstrom_Ladesperre_Individuell "Sperr-Ende individualisiert"  <switch> (IBM)
+// Stundendaten fuer die Laderegelung (JSON mit datum/zeit/stunden):
+// Wolken_Stunden = stuendliche Bewoelkung des restlichen Tages,
+// Ladefaktoren = stuendliche Ladefaktoren des Erzeugungsprofils samt
+// Abend-Deadline (Token-API); '-' = keine Daten
+String Ischlstrom_Wolken_Stunden      "Wolken je Stunde (intern) [%s]"  <settings> (IBM)
+String Ischlstrom_Ladefaktoren        "Ladefaktoren (intern) [%s]"      <settings> (IBM)
 // Nacht-Entladebudget von der Token-API: so viel kWh duerfen heute Nacht
 // eingespeist werden, ohne dass die Batterie am trueben Folgetag dem
 // eigenen Haus fehlt; '-' = kein Budget (Entladung bis zur Reserve)
@@ -125,6 +131,9 @@ String IBM_LADESPERRE_LOKAL_ENDE "Lokales Ladesperre-Ende [%s]"                <
 Switch IBM_LADEREGELUNG          "Ladeleistung dynamisch regeln"               <switch>   (IBM)
 String IBM_LADEREGELUNG_SOLL     "Ziel-Ladeleistung [%s]"                      <energy>   (IBM)
 String IBM_LADEREGELUNG_STATUS   "Laderegelung (intern) [%s]"                  <settings> (IBM)
+// Effektive (sonnengewichtete) Restladezeit bis zur Abend-Deadline, aus
+// den Stundendaten integriert; '-' = gerade nicht berechenbar
+String IBM_RESTLADEZEIT          "Effektive Restladezeit [%s]"                 <time>     (IBM)
 
 // Hauslast (gelernt aus dem naechtlichen Ladestandsabfall unterhalb der
 // Entlade-Reserve) und Nachtziel der Entladung. IBM_HAUSLAST_MESSUNG und
@@ -176,6 +185,8 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     Ischlstrom_Ladesperre_Ende,
     Ischlstrom_Ladesperre_Datum,
     Ischlstrom_Ladesperre_Individuell,
+    Ischlstrom_Wolken_Stunden,
+    Ischlstrom_Ladefaktoren,
     Ischlstrom_Nachtbudget,
     Ischlstrom_Nachtbudget_Zeit,
     IBM_MIN_BATTERY_CHARGE,
@@ -195,6 +206,7 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     IBM_LADEREGELUNG,
     IBM_LADEREGELUNG_SOLL,
     IBM_LADEREGELUNG_STATUS,
+    IBM_RESTLADEZEIT,
     IBM_HAUSLAST,
     IBM_HAUSLAST_MESSUNG,
     IBM_NACHT_ZIEL

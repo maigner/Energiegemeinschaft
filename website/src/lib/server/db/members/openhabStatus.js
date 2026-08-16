@@ -45,38 +45,52 @@ export const deleteOpenhabToken = async (id) => {
  * Speichert einen Status-Push einer Anlage. Nur vom Vorstand erzeugte
  * Tokens werden akzeptiert.
  *
+ * Die Anlagen melden minuetlich: schlanke Meldungen mit den Momentanwerten
+ * und alle 5 Minuten eine volle Meldung, die zusaetzlich Log, Versionen,
+ * apt-Updates und Systemzustand traegt (erkennbar am Feld `versions`).
+ * Volle Meldungen ersetzen den gespeicherten Stand komplett; schlanke
+ * werden hineingemischt, damit die zuletzt voll gemeldeten Felder am
+ * Dashboard sichtbar bleiben. Aeltere IBM-Pakete melden alle 5 Minuten
+ * ausschliesslich volle Meldungen und verhalten sich damit wie bisher.
+ *
  * @param {string} token
  * @param {string} name - Anlagenname aus ibm.conf, aktualisiert die Anzeige
  * @param {Record<string, any>} data
  * @returns {Promise<boolean>} true wenn gespeichert, false bei unbekanntem Token
  */
 export const pushOpenhabStatus = async (token, name, data) => {
+    const isFull = Object.prototype.hasOwnProperty.call(data, 'versions');
     const db = await middlewareDbConnection();
     try {
         const result = await db.query(
             `UPDATE members_openhabstatus
                 SET last_seen = now(),
                     name = COALESCE(NULLIF($2, ''), name),
-                    data = $3
+                    data = CASE WHEN $4 THEN $3::jsonb ELSE data || $3::jsonb END
               WHERE token = $1
              RETURNING id`,
-            [token, name, JSON.stringify(data)]
+            [token, name, JSON.stringify(data), isFull]
         );
         if (result.rowCount === 0) {
             return false;
         }
-        // Jeder Push wird zusaetzlich als Verlauf abgelegt; daraus entstehen
-        // die Diagramme auf der Detailseite. Alte Zeilen raeumt der taegliche
-        // Cron-Job auf (pruneOpenhabStatusHistory). Die Logmeldungen der
-        // Anlage (log_entries) bleiben aussen vor: sie wuerden jede
-        // 5-Minuten-Zeile um mehrere KB aufblasen und die Diagramme lesen
-        // sie nicht - angezeigt wird immer der Stand der letzten Meldung.
-        const { log_entries, ...historyData } = data;
-        await db.query(
-            `INSERT INTO members_openhabstatushistory (status_id, time, data)
-             VALUES ($1, now(), $2)`,
-            [result.rows[0].id, JSON.stringify(historyData)]
-        );
+        // Nur volle Meldungen wandern in den Verlauf; daraus entstehen die
+        // Diagramme auf der Detailseite (15-Minuten-Mittel, das 5-Minuten-
+        // Raster reicht dafuer) - so waechst die Tabelle trotz minuetlicher
+        // Pushes nicht schneller als bisher. Alte Zeilen raeumt der
+        // taegliche Cron-Job auf (pruneOpenhabStatusHistory). Die
+        // Logmeldungen der Anlage (log_entries) bleiben aussen vor: sie
+        // wuerden jede Zeile um mehrere KB aufblasen und die Diagramme
+        // lesen sie nicht - angezeigt wird immer der Stand der letzten
+        // Meldung.
+        if (isFull) {
+            const { log_entries, ...historyData } = data;
+            await db.query(
+                `INSERT INTO members_openhabstatushistory (status_id, time, data)
+                 VALUES ($1, now(), $2)`,
+                [result.rows[0].id, JSON.stringify(historyData)]
+            );
+        }
         return true;
     } finally {
         db.release();

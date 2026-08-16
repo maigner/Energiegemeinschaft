@@ -398,6 +398,24 @@ pages:
                         default:
                           - component: oh-label-card
                             config:
+                              title: Effektive Restladezeit
+                              item: IBM_RESTLADEZEIT
+                              footer: >-
+                                Sonnengewichtete Ladezeit, die bis zum Abend
+                                noch bleibt: jede Stunde zählt nur mit ihrem
+                                erwarteten Ertrag laut Prognose. Die Regelung
+                                teilt die fehlende Energie durch diese Zeit.
+                                "-" bedeutet: gerade nicht berechenbar.
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
                               title: Notfall-Ende (lokal gerechnet)
                               item: IBM_LADESPERRE_LOKAL_ENDE
                               footer: >-

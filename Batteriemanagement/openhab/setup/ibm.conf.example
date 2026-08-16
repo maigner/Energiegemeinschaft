@@ -80,6 +80,14 @@ CRON_INIT="0 */10 * * * ?"
 # jede Nacht um 1 verringert; bei 0 arbeitet die Steuerung wieder.
 CRON_PAUSE="0 30 0 * * ?"
 
+# Status-Push an das Vorstands-Dashboard: minuetlich die Momentanwerte;
+# den vollen Zustand (Log, Versionen, apt-Updates, Systemwerte) sammelt die
+# Regel nur in der Minute 2 jedes 5-Minuten-Rasters - der Zeitplan muss
+# diese Minuten also abdecken. Ein Paket-Update ersetzt den frueheren
+# 5-Minuten-Standard "0 2/5 * * * ?" automatisch (migrate_config); eigene
+# Werte bleiben unangetastet.
+CRON_STATUS="0 * * * * ?"
+
 # --- Startwerte der Konfigurations-Items ------------------------------------
 
 # Ladestand, unterhalb dessen nicht mehr entladen wird (Prozent)

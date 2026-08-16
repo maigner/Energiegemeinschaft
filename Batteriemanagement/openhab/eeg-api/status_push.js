@@ -3,9 +3,19 @@
 // Status-Token, das der Vorstand dort je Mitglied erzeugt und das bei der
 // Einrichtung in der ibm.conf hinterlegt wurde.
 //
+// Die Regel laeuft minuetlich (CRON_STATUS): jede Meldung traegt die
+// Momentanwerte (billige Item-Reads); der volle Zustand mit Log, Versionen,
+// apt-Updates und Systemwerten geht nur in der Minute 2 jedes
+// 5-Minuten-Rasters mit - die Sammler starten sonst unnoetig Prozesse auf
+// dem Pi. Der Server erkennt volle Meldungen am Feld `versions`, mischt
+// schlanke Meldungen in den letzten Stand und schreibt nur volle Meldungen
+// in die Verlaufstabelle (die Diagramme bleiben so im 5-Minuten-Raster).
+//
 // Die @...@-Platzhalter ersetzt 04-install-rules.sh anlagenspezifisch.
 
 var url = "https://ischlstrom.org/api/ibm/status/v1";
+
+var voll = (time.ZonedDateTime.now().minute() % 5) === 2;
 
 // Itemzustand als String; null bei fehlendem Item oder NULL/UNDEF.
 function stateOf(name) {
@@ -233,6 +243,9 @@ var payload = {
     // Ziel-Ladeleistung der dynamischen Laderegelung; das Item traegt
     // "<watt> W" oder "-" (keine Begrenzung) - numberOf liefert dann null.
     laderegelung_soll_w: numberOf('IBM_LADEREGELUNG_SOLL'),
+    // Effektive (sonnengewichtete) Restladezeit bis zur Abend-Deadline;
+    // das Item traegt "<stunden> h" oder "-" - numberOf liefert dann null.
+    restladezeit_h: numberOf('IBM_RESTLADEZEIT'),
     min_battery_charge: numberOf('IBM_MIN_BATTERY_CHARGE'),
     min_entladeleistung_w: numberOf('Minimale_Entladeleistung_Batterieeinspeisung'),
     max_entladeleistung_w: numberOf('Maximale_Entladeleistung_Batterieeinspeisung'),
@@ -246,13 +259,17 @@ var payload = {
     ladesperre_datum: stateOf('Ischlstrom_Ladesperre_Datum'),
     ladesperre_individuell: stateOf('Ischlstrom_Ladesperre_Individuell'),
     nachtbudget_kwh: stateOf('Ischlstrom_Nachtbudget'),
-    hauslast_w: numberOf('IBM_HAUSLAST'),
-    log_entries: collectLogEntries(),
-    versions: collectVersions(),
-    apt_updates: collectAptUpdates(),
-    system: collectSystemHealth()
+    hauslast_w: numberOf('IBM_HAUSLAST')
   }
 };
+
+// Teure Sammler (starten Prozesse, lesen Logs) nur bei der vollen Meldung.
+if (voll) {
+  payload.data.log_entries = collectLogEntries();
+  payload.data.versions = collectVersions();
+  payload.data.apt_updates = collectAptUpdates();
+  payload.data.system = collectSystemHealth();
+}
 
 var response = actions.HTTP.sendHttpPostRequest(url, "application/json", JSON.stringify(payload), 15000);
 
@@ -262,7 +279,7 @@ if (response === null) {
   try {
     var jsonData = JSON.parse(response);
     if (jsonData.ok) {
-      console.log("[IBM][Status] Status gemeldet (Ladestand: " + payload.data.soc + ").");
+      console.log("[IBM][Status] Status gemeldet (Ladestand: " + payload.data.soc + (voll ? ", voll" : "") + ").");
     } else {
       console.error("[IBM][Status] API-Fehler: " + (jsonData.error || response));
     }

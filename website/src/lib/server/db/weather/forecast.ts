@@ -51,6 +51,30 @@ function getNoonTimeWindow(): { start: Date; end: Date } {
 }
 
 
+/**
+ * Stündliche Bewölkung vom Beginn der laufenden Stunde bis Mitternacht
+ * (Lokalzeit Europe/Vienna). Für die dynamische Laderegelung der
+ * IBM-Anlagen: die Steuerung gewichtet damit jede verbleibende Stunde bis
+ * zur Abend-Deadline einzeln, statt mit einem einzigen Mittelwert zu
+ * rechnen (der Mittelwert von getCloudForecastNextSunshineWindow gilt dem
+ * jeweils nächsten Mittagsfenster und ab 12:00 damit dem morgigen Tag).
+ */
+export const getCloudForecastHoursToday = async () => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        SELECT
+            to_char(time AT TIME ZONE 'Europe/Vienna', 'HH24:MI') AS zeit,
+            cloud_cover
+        FROM weather_weatherdata
+        WHERE time >= date_trunc('hour', now())
+          AND (time AT TIME ZONE 'Europe/Vienna')::date = (now() AT TIME ZONE 'Europe/Vienna')::date
+        ORDER BY time ASC;
+    `);
+    sql.release();
+    return result?.rows ?? [];
+};
+
+
 export const getCloudForecastNextSunshineWindow = async () => {
 
 

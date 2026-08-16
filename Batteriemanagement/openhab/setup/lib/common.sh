@@ -316,6 +316,20 @@ migrate_config_item() {
   migrated_keys="${migrated_keys} ${key}"
 }
 
+# Ersetzt den ALTEN Vorgabewert eines Schluessels durch den neuen: nur wenn
+# der Schluessel exakt auf dem frueheren Standard steht (der Betreiber ihn
+# also nie angepasst hat), wird der neue Standard eingetragen. Ein bewusst
+# gesetzter eigener Wert bleibt unangetastet.
+#   $1 Schluessel  $2 alter Standardwert  $3 neuer Standardwert
+migrate_config_default() {
+  local key="$1" old="$2" new="$3" current
+  current="$(sed -n "s/^${key}=\"\{0,1\}\([^\"]*\)\"\{0,1\}\$/\1/p" "$IBM_CONF" | head -n 1)"
+  [ "$current" = "$old" ] || return 0
+  conf_set "$key" "$new"
+  printf -v "$key" '%s' "$new"
+  migrated_keys="${migrated_keys} ${key}"
+}
+
 migrate_config() {
   # Ohne Schreibrecht (z. B. Aufruf ohne root) nichts anfassen - der
   # naechste Lauf mit sudo holt die Migration nach.
@@ -325,6 +339,9 @@ migrate_config() {
   migrate_config_item BATTERY_POWER_ITEM "$INVERTER_BATTERY_POWER_PLACEHOLDER" detect_battery_power_items
   migrate_config_item GRID_POWER_ITEM "$INVERTER_GRID_POWER_PLACEHOLDER" detect_grid_power_items
   migrate_config_item PV_POWER_ITEM "$INVERTER_PV_POWER_PLACEHOLDER" detect_pv_power_items
+  # Status-Push seit 2026-08 minuetlich (voller Zustand weiterhin alle
+  # 5 Minuten); aeltere Installationen tragen noch den 5-Minuten-Cron.
+  migrate_config_default CRON_STATUS "0 2/5 * * * ?" "0 * * * * ?"
 
   if [ -n "$migrated_keys" ]; then
     log "ibm.conf um neue Schluessel ergaenzt (Paket-Update):${migrated_keys}"

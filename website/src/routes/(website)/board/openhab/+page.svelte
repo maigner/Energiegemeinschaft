@@ -373,6 +373,10 @@
                             )}
                             {@render stat(ladenStat(d).value, ladenStat(d).label)}
                             {@render stat(
+                                typeof d.restladezeit_h === "number" ? `${d.restladezeit_h} h` : "-",
+                                "Restladezeit",
+                            )}
+                            {@render stat(
                                 batteryToGridW(d) !== null ? `${batteryToGridW(d)} W` : "-",
                                 "Einspeisung aus Batterie",
                             )}

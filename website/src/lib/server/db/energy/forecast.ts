@@ -275,6 +275,80 @@ export const getIndividualChargeWindowEnd = async (
 };
 
 /**
+ * Stündliche Ladefaktoren (0..1) des heutigen Tages für die dynamische
+ * Laderegelung der IBM-Anlagen: je Stunde das Mittel der vier
+ * 15-Minuten-Slots von Erzeugung / bestem Slot des Laufs -- dieselbe
+ * Normierung wie beim individualisierten Sperr-Ende. Die Steuerung am Pi
+ * multipliziert den Faktor mit ihrer gelernten Ladeleistung und integriert
+ * so die effektive Restladezeit bis zur Abend-Deadline (Crossover-Ende
+ * minus Puffer), die hier mitgeliefert wird. Geliefert werden die Stunden
+ * von der laufenden Stunde bis zur Deadline-Stunde. null, wenn der
+ * Prognosetag keine Berechnung hergibt (keine Slots, keine Erzeugung, kein
+ * abendlicher Crossover).
+ */
+export const getChargeFactorsToday = async (runId: number) => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        SELECT (EXTRACT(hour FROM timestamp AT TIME ZONE 'Europe/Vienna') * 60
+              + EXTRACT(minute FROM timestamp AT TIME ZONE 'Europe/Vienna'))::int AS minute_of_day,
+               generation_kwh,
+               consumption_kwh
+        FROM metering_energyforecast
+        WHERE run_id = $1
+          AND (timestamp AT TIME ZONE 'Europe/Vienna')::date = (now() AT TIME ZONE 'Europe/Vienna')::date
+        ORDER BY 1
+    `, [runId]);
+    sql.release();
+
+    const slots = (result?.rows ?? []).map((r: any) => ({
+        minute: Number(r.minute_of_day),
+        gen: Number(r.generation_kwh),
+        cons: Number(r.consumption_kwh),
+    }));
+    if (slots.length === 0) return null;
+
+    const maxGen = await getRunMaxGeneration(runId);
+    if (maxGen === null) return null;
+
+    let crossoverEnd: number | null = null;
+    for (const s of slots) {
+        if (s.gen >= s.cons) crossoverEnd = s.minute + 15;
+    }
+    if (crossoverEnd === null) return null;
+    const deadline = crossoverEnd - IBM_FULL_BUFFER_MIN;
+
+    const nowMinute = (() => {
+        const parts = new Intl.DateTimeFormat('de-AT', {
+            timeZone: 'Europe/Vienna', hour: '2-digit', minute: '2-digit', hour12: false
+        }).formatToParts(new Date());
+        const h = Number(parts.find(p => p.type === 'hour')?.value);
+        const m = Number(parts.find(p => p.type === 'minute')?.value);
+        return h * 60 + m;
+    })();
+
+    const perHour = new Map<number, { sum: number; n: number }>();
+    for (const s of slots) {
+        const hour = Math.floor(s.minute / 60);
+        if ((hour + 1) * 60 <= Math.floor(nowMinute / 60) * 60) continue; // Stunde vorbei
+        if (hour * 60 >= deadline) continue;                              // nach der Deadline
+        const acc = perHour.get(hour) ?? { sum: 0, n: 0 };
+        acc.sum += Math.min(Math.max(s.gen / maxGen, 0), 1);
+        acc.n += 1;
+        perHour.set(hour, acc);
+    }
+    if (perHour.size === 0) return null;
+
+    const stunden = [...perHour.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([hour, acc]) => ({
+            zeit: fmtMinutes(hour * 60),
+            faktor: Math.round(acc.sum / acc.n * 1000) / 1000,
+        }));
+
+    return { deadline: fmtMinutes(deadline), stunden };
+};
+
+/**
  * Nacht-Entladebudget in kWh für eine Anlage: was der kommende Tag laut
  * Prognoseprofil in die Batterie laden kann (Ladeleistung mal normierte
  * Erzeugung der nächsten 24 Stunden), abzüglich Eigenbedarfsreserve und mit

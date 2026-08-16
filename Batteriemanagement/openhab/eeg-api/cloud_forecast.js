@@ -24,7 +24,27 @@ if (response !== null) {
         } catch (e2) {
           // Item fehlt bei aelteren Installationen - Steuerung laeuft dann ohne Aktualitaetspruefung
         }
-        console.log("[IBM] Wolkenvorschau aktualisiert: " + value);
+
+        // 4. Stundenwerte fuer den Rest des heutigen Tages (dynamische
+        //    Laderegelung). Datum und Abrufzeit wandern mit ins JSON - die
+        //    Steuerung verwirft veraltete oder fremde Tage selbst. '-' wenn
+        //    der Server (noch) keine Stundenwerte liefert.
+        var stundenText = "-";
+        if (Array.isArray(jsonData.wolken.stunden) && jsonData.wolken.stunden.length > 0
+            && typeof jsonData.wolken.datum === "string") {
+          stundenText = JSON.stringify({
+            datum: jsonData.wolken.datum,
+            zeit: time.ZonedDateTime.now().toString(),
+            stunden: jsonData.wolken.stunden
+          });
+        }
+        try {
+          items.getItem("Ischlstrom_Wolken_Stunden").postUpdate(stundenText);
+        } catch (e3) {
+          // Item fehlt bei aelteren Installationen - Setup-Skript 03 erneut ausfuehren
+        }
+        console.log("[IBM] Wolkenvorschau aktualisiert: " + value
+          + (stundenText === "-" ? "" : " (+" + jsonData.wolken.stunden.length + " Stundenwerte)"));
       }
     }
   } catch (e) {

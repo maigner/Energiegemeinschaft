@@ -155,6 +155,8 @@ voraussetzen:
 | `Ischlstrom_Ladesperre_Start` / `_Ende` | String | Ladesperre-Fenster, `HH:MM` oder `-` |
 | `Ischlstrom_Ladesperre_Datum` | String | Gueltigkeitstag des Fensters, `YYYY-MM-DD` |
 | `Ischlstrom_Ladesperre_Individuell` | Switch | ON = Ende kam individualisiert von der Token-API; der Kern uebernimmt es unveraendert |
+| `Ischlstrom_Wolken_Stunden` | String | Stuendliche Bewoelkung des restlichen Tages (JSON mit datum/zeit/stunden) oder `-` |
+| `Ischlstrom_Ladefaktoren` | String | Stuendliche Ladefaktoren des Erzeugungsprofils samt Abend-Deadline (JSON, Token-API) oder `-` |
 | `Ischlstrom_Nachtbudget` | String | Nacht-Entladebudget in kWh (Token-API) oder `-`; der Kern entlaedt nur bis Abend-Ladestand minus Budget |
 | `Ischlstrom_Nachtbudget_Zeit` | String | Abrufzeitpunkt des Budgets (Aktualitaetspruefung) |
 | `IBM_HAUSLAST` | Number | Vom Kern gelernte Hauslast in W (Anzeige/Status-Push) |
@@ -173,6 +175,7 @@ voraussetzen:
 | `IBM_LADEREGELUNG` | Switch | Ladeleistung dynamisch regeln (ersetzt das Sperrfenster, sobald die Schaetzungen belastbar sind) |
 | `IBM_LADEREGELUNG_SOLL` | String | Ziel-Ladeleistung der Regelung, `<watt> W` oder `-` (Anzeige/Status-Push) |
 | `IBM_LADEREGELUNG_STATUS` | String | Interner PWM-Zustand der Laderegelung (JSON) |
+| `IBM_RESTLADEZEIT` | String | Effektive (sonnengewichtete) Restladezeit bis zur Abend-Deadline, `<stunden> h` oder `-` (Anzeige/Status-Push) |
 | `IBM_ENTLADUNG_AKTIV` | Switch | Teilfunktion Entladung ein/aus |
 | `IBM_PAUSE_TAGE` | Number | Verbleibende Pausentage: solange > 0 plant der Kern nichts |
 

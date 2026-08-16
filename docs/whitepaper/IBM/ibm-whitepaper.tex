@@ -202,7 +202,7 @@ Regel & Aufgabe & Zeitplan \\
 \code{ibm\_crossover} & Crossover-Zeiten abrufen & täglich 04:05 \\
 \code{ibm\_ladesperre} & Ladefenster und Nachtbudget abrufen & stündlich \\
 \code{ibm\_battery\_control} & Adapter + Kern: entscheiden und steuern & alle 5\,min \\
-\code{ibm\_status\_push} & Zustand an das Dashboard melden & alle 5\,min \\
+\code{ibm\_status\_push} & Zustand an das Dashboard melden & jede Minute \\
 \code{ibm\_init} & Startwerte setzen, solange Items \code{NULL} sind & alle 10\,min \\
 \code{ibm\_pause} & Pausentage herunterzählen & täglich 00:30 \\
 \code{ibm\_watchdog} & Wechselrichter nach IP-Wechsel wiederfinden & bei Bedarf \\
@@ -225,9 +225,9 @@ individualisierten erfordern das Status-Token der Anlage.
 Endpunkt & Methode & Inhalt & Zugriff \\
 \midrule
 \code{/api/eeginfo/ladefenster/v1} & GET & Community-Ladefenster & öffentlich \\
-\code{/api/ibm/ladefenster/v1} & POST & individuelles Fenster + Nachtbudget & Token \\
+\code{/api/ibm/ladefenster/v1} & POST & Fenster + Nachtbudget + Ladefaktoren & Token \\
 \code{/api/eeginfo/crossover/v1} & GET & Crossover-Zeiten der Woche & öffentlich \\
-\code{/api/wolken/vorschau/v1} & GET & Bewölkung im nächsten Mittagsfenster & öffentlich \\
+\code{/api/wolken/vorschau/v1} & GET & Bewölkung: Mittagsfenster + Stundenwerte & öffentlich \\
 \code{/api/ibm/status/v1} & POST & Status-Push der Anlage & Token \\
 \bottomrule
 \end{tabular}
@@ -325,14 +325,34 @@ aufgefrischt). Anders als das Ladefenster sind sie also kein
 Prognoseprodukt, sondern ein saisonales Klimamittel; sie ändern sich
 langsam und sind deshalb als Wochenwert ausreichend genau.
 
-\subsection{Wolkenvorschau}
+\subsection{Wolkenvorschau und Stundenwerte}
 
 Die Wolkenvorschau ist der mittlere Bewölkungsgrad über dem nächsten
 Mittagsfenster von 10:00 bis 14:00 (nach 12:00 zählt bereits das Fenster
 von morgen), berechnet aus den stündlich importierten
-Open-Meteo-Vorhersagedaten. Fehlen Wetterdaten, antwortet die API bewusst
-mit einem Fehler statt mit 0, denn 0\% würde von den Gateways als voller
-Sonnenschein gelesen.
+Open-Meteo-Vorhersagedaten. Sie steuert die nächtliche Entladung, die
+genau diese Frage stellt: Wird die Batterie morgen wieder voll? Fehlen
+Wetterdaten, antwortet die API bewusst mit einem Fehler statt mit 0, denn
+0\% würde von den Gateways als voller Sonnenschein gelesen.
+
+Für die Laderegelung, die bis in den Abend läuft, ist ein einzelner
+Mittagswert zu grob und ab 12:00 sogar der falsche Tag. Dieselbe API
+liefert deshalb zusätzlich die \emph{stündlichen} Bewölkungswerte vom
+Beginn der laufenden Stunde bis Mitternacht, samt Gültigkeitsdatum. Das
+Gateway legt sie als JSON ab; die Regelung gewichtet damit jede
+verbleibende Stunde einzeln (Abschnitt~\ref{sec:ladesperre}).
+
+\subsection{Ladefaktoren}\label{sec:ladefaktoren}
+
+Mit dem individualisierten Ladefenster liefert die Token-API außerdem die
+stündlichen \emph{Ladefaktoren} des heutigen Tages: je Stunde das Mittel
+der normierten Erzeugung $G_s / G_{\max}^{\text{Lauf}}$ über die vier
+Viertelstunden-Slots (dieselbe Normierung wie in
+Abschnitt~\ref{sec:individuell}), dazu die Abend-Deadline. Ein Faktor von
+0,6 heißt: In dieser Stunde lädt die Anlage voraussichtlich mit 60\% ihrer
+gelernten Spitzenrate. Anders als die Bewölkung enthalten die Faktoren
+auch den Sonnenstand, sie sind also das physikalisch genauere Gewicht für
+die Restladezeit der Laderegelung.
 
 % ============================================================================
 \section{Teil A: Laderegelung am Tag}\label{sec:ladesperre}
@@ -342,31 +362,47 @@ Sonnenschein gelesen.
 
 An sonnigen Tagen wird die Ladeleistung der Batterie dynamisch geregelt.
 In jedem Fünf-Minuten-Zyklus berechnet der Kern die Ziel-Ladeleistung neu:
-fehlende Energie geteilt durch die verbleibende Zeit bis zur Abend-Deadline
-$t_D$ (Abend-Crossover minus 60~Minuten), mit einem wolkenabhängigen
-Sicherheitsfaktor,
+fehlende Energie geteilt durch die \emph{effektive Restladezeit} bis zur
+Abend-Deadline $t_D$ (Abend-Crossover minus 60~Minuten),
 \begin{equation}
   P_{\text{Soll}}(t) \;=\;
-  \frac{(0{,}95 - \text{SoC}(t)) \cdot C}{t_D - t}
-  \cdot \Bigl(1{,}1 + \frac{w}{100} \cdot 0{,}5\Bigr)
+  \frac{(0{,}95 - \text{SoC}(t)) \cdot C}{T_{\text{eff}}(t)} \cdot 1{,}1,
+  \qquad
+  T_{\text{eff}}(t) \;=\; \sum_{h\,\in\,[t,\,t_D)} f_h \cdot \Delta t_h
   \label{eq:psoll}
 \end{equation}
-mit Kapazität $C$ in kWh, Live-Ladestand $\text{SoC}(t)$ als Anteil und
-Bewölkung $w$ in Prozent: je bedeckter die (unter der Schwelle liegende)
-Vorschau, desto früher und schneller wird geladen. Die Batterie lädt so den
-ganzen Tag gerade schnell genug, um am Abend voll zu sein; der gesamte
-restliche PV-Überschuss fließt laufend in die Gemeinschaft. Weil auf den
-Live-Ladestand geregelt wird, ist der Kreis geschlossen: Zieht es zu,
-bleibt der Ladestand zurück, $P_{\text{Soll}}$ steigt und die Begrenzung
-löst sich von selbst; wird es sonniger als vorhergesagt, sinkt
-$P_{\text{Soll}}$ und mehr geht ins Netz. Prognosefehler regeln sich so
-alle fünf Minuten aus, statt einmal am Vormittag verwettet zu werden.
+mit Kapazität $C$ in kWh und Live-Ladestand $\text{SoC}(t)$ als Anteil.
+Die Restzeit ist sonnengewichtet: Jede verbleibende Stunde $h$ zählt nur
+mit ihrem erwarteten Ertragsfaktor $f_h$ und ihrer Überlappung
+$\Delta t_h$ mit $[t, t_D)$. Der Faktor kommt in absteigender Priorität
+aus den stündlichen Ladefaktoren der Token-API
+($f_h = G_h / G_{\max}^{\text{Lauf}}$, Abschnitt~\ref{sec:ladefaktoren};
+physikalisch exakt inklusive Sonnenstand), sonst aus den stündlichen
+Bewölkungswerten der Wolken-API ($f_h = 1 - w_h/100$). Nur wenn beides
+fehlt (älterer Server), zählt jede Stunde gleich
+($T_{\text{eff}} = t_D - t$) und statt des festen Aufschlags 1,1 gleicht
+ein wolkenabhängiger Sicherheitsfaktor $1{,}1 + w/100 \cdot 0{,}5$ den
+Nachmittagsabfall pauschal aus.
+
+Die Batterie lädt so den ganzen Tag gerade schnell genug, um am Abend voll
+zu sein; der gesamte restliche PV-Überschuss fließt laufend in die
+Gemeinschaft. Weil auf den Live-Ladestand geregelt wird, ist der Kreis
+geschlossen: Zieht es zu, bleibt der Ladestand zurück, $P_{\text{Soll}}$
+steigt und die Begrenzung löst sich von selbst; wird es sonniger als
+vorhergesagt, sinkt $P_{\text{Soll}}$ und mehr geht ins Netz.
+Prognosefehler regeln sich so alle fünf Minuten aus, statt einmal am
+Vormittag verwettet zu werden. Die aktuelle effektive Restladezeit zeigt
+das Gateway auf seiner Bedienseite an und meldet sie per Status-Push an
+das Vorstands-Dashboard.
 
 Geregelt wird nur zwischen dem Fensterbeginn des Servers (erster
 Sonnenschein der Tagesprognose, gültig nur für das mitgelieferte Datum) und
-der Abend-Deadline, und nur bei frischer, sonniger Wolkenvorschau: Liegt
-die Bewölkung über der Schwelle (Vorgabe 75\%), bleibt das Laden frei, denn
-an einem trüben Tag würde die Batterie sonst womöglich gar nicht mehr voll.
+der Abend-Deadline, und nur bei frischer, sonniger Vorschau: Liegt die
+Bewölkung über der Schwelle (Vorgabe 75\%), bleibt das Laden frei, denn an
+einem trüben Tag würde die Batterie sonst womöglich gar nicht mehr voll.
+Der Wächter verwendet dafür die mittlere Bewölkung der Reststunden bis zur
+Deadline; nur ohne Stundendaten die Mittagsfenster-Vorschau (die ab 12:00
+bereits den morgigen Tag meint).
 
 \subsection{Umsetzung: direktes Limit oder Puls-Weiten-Modulation}
 
@@ -637,14 +673,18 @@ also Eigenverbrauchsoptimierung, ist immer der sichere Rückfall.
 
 \subsection{Status-Push und Vorstands-Dashboard}
 
-Auf Wunsch meldet jede Anlage alle fünf Minuten ihren Zustand an den
-Server: Ladestand, Wechselrichter-Status, Batterie-, Netz-, PV- und
-Lastleistung, alle Schalterstellungen, die gelernten Kennwerte, die zuletzt
-empfangenen Steuersignale, die Warnungen und Fehler aus dem openHAB-Log der
-letzten 24~Stunden, Versionsstände (IBM-Paket, openHAB, Java,
-Betriebssystem), ausstehende Betriebssystem-Updates und den Systemzustand
-des Pi (CPU-Temperatur, Unterspannungs-Register, SD-Karten-Füllstand,
-RAM/Swap, Boot-Zeitpunkt). Übertragen werden ausschließlich diese
+Auf Wunsch meldet jede Anlage minütlich ihren Zustand an den Server:
+Ladestand, Wechselrichter-Status, Batterie-, Netz-, PV- und Lastleistung,
+alle Schalterstellungen, die gelernten Kennwerte, die zuletzt empfangenen
+Steuersignale sowie Ziel-Ladeleistung und effektive Restladezeit der
+Laderegelung. Alle fünf Minuten geht zusätzlich der volle Zustand mit: die
+Warnungen und Fehler aus dem openHAB-Log der letzten 24~Stunden,
+Versionsstände (IBM-Paket, openHAB, Java, Betriebssystem), ausstehende
+Betriebssystem-Updates und der Systemzustand des Pi (CPU-Temperatur,
+Unterspannungs-Register, SD-Karten-Füllstand, RAM/Swap, Boot-Zeitpunkt);
+diese Sammler starten eigene Prozesse und laufen deshalb nicht minütlich.
+Der Server mischt schlanke Meldungen in den letzten Stand und legt nur
+volle Meldungen im Verlauf ab. Übertragen werden ausschließlich diese
 Betriebsdaten, keine Verbrauchsdaten des Haushalts.
 
 Der Vorstand sieht alle Anlagen live auf einem Dashboard

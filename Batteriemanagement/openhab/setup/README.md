@@ -61,10 +61,15 @@ werden mit dem Wert eingetragen, den der Assistent heute vorgeben wuerde —
 bei der automatischen Einrichtung der Standard-Itemname aus dem
 Wechselrichter-Profil, am klassischen Weg das bereits verknuepfte Item.
 Ein vorhandener, bewusst leer gesetzter Schluessel bleibt unangetastet.
-Manuelles Nachtragen in der `ibm.conf` ist damit nicht noetig; nur was
-eine Rueckfrage braucht (etwa das Status-Push-Token), fragt der jeweilige
-Schritt beim Update selbst nach. Wer neue Schluessel einfuehrt, ergaenzt
-sie in `migrate_config`.
+Aendert sich der **Vorgabewert** eines bestehenden Schluessels, zieht
+`migrate_config_default` ihn nach — aber nur, wenn der Schluessel noch
+exakt auf dem frueheren Standard steht (ein bewusst angepasster Wert
+bleibt unangetastet); so wurde etwa der Status-Push-Zeitplan von alle
+5 Minuten auf minuetlich umgestellt. Manuelles Nachtragen in der
+`ibm.conf` ist damit nicht noetig; nur was eine Rueckfrage braucht (etwa
+das Status-Push-Token), fragt der jeweilige Schritt beim Update selbst
+nach. Wer neue Schluessel einfuehrt (oder Vorgaben aendert), ergaenzt sie
+in `migrate_config`.
 
 ## Neues Paket veroeffentlichen
 
@@ -199,6 +204,8 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `Ischlstrom_Crossover_Ende` | String | API `/api/eeginfo/crossover/v1` |
 | `Ischlstrom_Ladesperre_Start` / `_Ende` | String | API `/api/eeginfo/ladefenster/v1` |
 | `Ischlstrom_Ladesperre_Datum` | String | Tag, fuer den das Ladesperre-Fenster gilt |
+| `Ischlstrom_Wolken_Stunden` | String | Stuendliche Bewoelkung des restlichen Tages (JSON, Wolken-API) |
+| `Ischlstrom_Ladefaktoren` | String | Stuendliche Ladefaktoren des Erzeugungsprofils samt Abend-Deadline (JSON, Token-API) |
 | `IBM_MIN_BATTERY_CHARGE` | Number | Einstellung |
 | `Minimale_Entladeleistung_Batterieeinspeisung` | Number | Einstellung |
 | `Maximale_Entladeleistung_Batterieeinspeisung` | Number | Einstellung |
@@ -212,6 +219,7 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `IBM_LADEREGELUNG` | Switch | Ladeleistung dynamisch regeln statt Sperrfenster (siehe unten) |
 | `IBM_LADEREGELUNG_SOLL` | String | Ziel-Ladeleistung der Regelung, `<watt> W` oder `-` |
 | `IBM_LADEREGELUNG_STATUS` | String | Interner PWM-Zustand der Laderegelung (JSON) |
+| `IBM_RESTLADEZEIT` | String | Effektive (sonnengewichtete) Restladezeit bis zur Abend-Deadline, `<stunden> h` oder `-` |
 
 Das Entladefenster folgt den Crossover-Zeiten der Gemeinschaft
 (`Ischlstrom_Crossover_Start`/`_Ende`): entladen wird vom abendlichen bis zum
@@ -246,15 +254,22 @@ Sobald die Anlage ihre Batteriekapazitaet und Ladeleistung belastbar
 geschaetzt hat, ersetzt ein geschlossener Regelkreis das harte Sperrfenster
 (`IBM_LADEREGELUNG`, Vorgabe `ON`): In jedem 5-Minuten-Zyklus berechnet die
 Steuerung die **Ziel-Ladeleistung** neu — fehlende Energie (bis 95%
-Ladestand) geteilt durch die verbleibende Zeit bis eine Stunde vor dem
-abendlichen Crossover, multipliziert mit einem wolkenabhaengigen
-Sicherheitsfaktor (1,1 bei klarem Himmel bis 1,6 bei 100% Bewoelkung: je
-bedeckter, desto frueher und schneller wird geladen). Die Batterie laedt so
-den ganzen Tag gerade schnell genug, um am Abend voll zu sein; der gesamte
-restliche PV-Ueberschuss fliesst laufend in die Gemeinschaft statt erst nach
-einem Sperr-Ende. Weil auf den **Live-Ladestand** geregelt wird, korrigieren
-sich Prognosefehler von selbst: zieht es zu, bleibt der Ladestand zurueck,
-die Ziel-Leistung steigt und die Begrenzung loest sich.
+Ladestand) geteilt durch die **effektive Restladezeit** bis eine Stunde vor
+dem abendlichen Crossover. Die Restzeit ist sonnengewichtet: jede
+verbleibende Stunde zaehlt nur mit ihrem erwarteten Ertrag, bevorzugt aus
+den stuendlichen Ladefaktoren des Erzeugungsprofils (Token-API, exakt
+inklusive Sonnenstand), sonst aus den stuendlichen Bewoelkungswerten der
+Wolken-API (Faktor 1 minus Wolken/100). Der aktuelle Wert steht in
+`IBM_RESTLADEZEIT` (Karte auf der Laden-Seite, Status-Push an das
+Dashboard). Nur wenn beides fehlt (aelterer Server), zaehlt jede Stunde
+gleich und ein wolkenabhaengiger Sicherheitsfaktor (1,1 bei klarem Himmel
+bis 1,6 bei 100% Bewoelkung) gleicht den Nachmittagsabfall pauschal aus.
+Die Batterie laedt so den ganzen Tag gerade schnell genug, um am Abend voll
+zu sein; der gesamte restliche PV-Ueberschuss fliesst laufend in die
+Gemeinschaft statt erst nach einem Sperr-Ende. Weil auf den
+**Live-Ladestand** geregelt wird, korrigieren sich Prognosefehler von
+selbst: zieht es zu, bleibt der Ladestand zurueck, die Ziel-Leistung steigt
+und die Begrenzung loest sich.
 
 Umgesetzt wird die Begrenzung je nach Wechselrichter: Definiert der Adapter
 die optionale Funktion `ibmLimitCharge` (SunSpec-/Victron-Profile), wird die
@@ -268,10 +283,13 @@ geht mit dem Status-Push an das Vorstands-Dashboard.
 
 Alle Sicherungen des Sperrfensters gelten unveraendert: eingegriffen wird
 nur bei gueltigem Tagesfenster (Datum, erster Sonnenschein) und frischer,
-sonniger Wolkenvorschau. Fehlt eine Voraussetzung — auch die Schaetzungen
-auf einer frisch installierten Anlage — gilt automatisch das klassische
-Sperrfenster mit Server-/Lokal-Ende als Rueckfall; bei `IBM_LADEREGELUNG=OFF`
-dauerhaft.
+sonniger Wolkenvorschau. Der Truebe-Waechter verwendet dabei bevorzugt die
+mittlere Bewoelkung der **Reststunden bis zur Deadline** (aus
+`Ischlstrom_Wolken_Stunden`); nur ohne Stundendaten die
+Mittagsfenster-Vorschau, die ab 12:00 bereits den morgigen Tag meint.
+Fehlt eine Voraussetzung — auch die Schaetzungen auf einer frisch
+installierten Anlage — gilt automatisch das klassische Sperrfenster mit
+Server-/Lokal-Ende als Rueckfall; bei `IBM_LADEREGELUNG=OFF` dauerhaft.
 
 ### Dynamische Entladeleistung (Batteriegroesse wird geschaetzt)
 
@@ -332,7 +350,7 @@ Inhalt in der Code-Ansicht einfuegen.
 | `ibm_crossover.js` | `../eeg-api/crossover.js` | taeglich 04:05 |
 | `ibm_ladesperre.js` | `../eeg-api/ladefenster.js` | stuendlich :50 |
 | `ibm_battery_control.js` | Adapter des Profils + `../control/core.js` | alle 5 Minuten |
-| `ibm_status_push.js` (optional) | `../eeg-api/status_push.js` | alle 5 Minuten |
+| `ibm_status_push.js` (optional) | `../eeg-api/status_push.js` | jede Minute (voller Zustand alle 5 Minuten) |
 | `ibm_init.js` | generiert | alle 10 Minuten |
 | `ibm_pause.js` | generiert | taeglich 00:30 |
 | `ibm_watchdog.js` (optional) | generiert | bei Bridge-OFFLINE + alle 15 Minuten |
@@ -340,10 +358,20 @@ Inhalt in der Code-Ansicht einfuegen.
 ## Status-Push (Vorstands-Dashboard)
 
 Auf Wunsch (Frage im Assistenten, `INSTALL_STATUS_PUSH=1`) meldet die Anlage
-alle 5 Minuten ihren Zustand an `<IBM_API_BASE>/api/ibm/status/v1` — der
+**jede Minute** ihren Zustand an `<IBM_API_BASE>/api/ibm/status/v1` — der
 Vorstand sieht alle Anlagen dann live unter
 <https://ischlstrom.org/board/openhab> (Ladestand, Wechselrichter-Status,
-Schalterstellungen, geschaetzte Kapazitaet, letzte Meldung). Die
+Schalterstellungen, geschaetzte Kapazitaet, letzte Meldung). Minuetlich
+gehen nur die Momentanwerte (billige Item-Reads); der **volle Zustand**
+(Log, Versionen, apt-Updates, Systemwerte — die Sammler starten Prozesse
+auf dem Pi) geht in der Minute 2 jedes 5-Minuten-Rasters mit. Der Server
+erkennt volle Meldungen am Feld `versions`, mischt schlanke Meldungen in
+den letzten Stand und schreibt nur volle Meldungen in die Verlaufstabelle —
+die Diagramme und das Tabellenwachstum bleiben also im 5-Minuten-Raster.
+Bei Bestandsanlagen ersetzt `migrate_config` beim Paket-Update den alten
+5-Minuten-Standard (`CRON_STATUS="0 2/5 * * * ?"`) automatisch durch den
+minuetlichen; ein bewusst angepasster eigener Zeitplan bleibt unangetastet.
+Die
 **Momentanwerte** (PV-Leistung, Netzleistung, Batterieleistung) kommen aus
 den Items `PV_POWER_ITEM`, `GRID_POWER_ITEM` und `BATTERY_POWER_ITEM` der
 `ibm.conf` (bei der automatischen Einrichtung legt `03-install-items.sh`

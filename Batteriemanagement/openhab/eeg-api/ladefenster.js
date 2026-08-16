@@ -66,7 +66,28 @@ if (response !== null) {
       } catch (e) {
         console.error("[IBM] Items fuer Individualisierung/Nachtbudget fehlen - Setup-Skript 03 erneut ausfuehren.");
       }
-      console.log("[IBM] Ladesperre-Fenster aktualisiert (" + fenster.datum + "): " + start + " - " + ende + (individuell ? " (individuell)" : "") + (budget !== "-" ? " | Nachtbudget " + budget + " kWh" : ""));
+
+      // Stuendliche Ladefaktoren des Erzeugungsprofils samt Abend-Deadline:
+      // die Laderegelung integriert daraus die effektive Restladezeit.
+      // Datum und Abrufzeit wandern mit ins JSON - die Steuerung verwirft
+      // veraltete oder fremde Tage selbst. '-' ohne Faktoren (aelterer
+      // Server, kein Prognoseprofil).
+      var lf = fenster.ladefaktoren;
+      var faktorenText = "-";
+      if (lf && Array.isArray(lf.stunden) && lf.stunden.length > 0 && typeof lf.deadline === "string") {
+        faktorenText = JSON.stringify({
+          datum: String(fenster.datum),
+          zeit: time.ZonedDateTime.now().toString(),
+          deadline: lf.deadline,
+          stunden: lf.stunden
+        });
+      }
+      try {
+        items.getItem("Ischlstrom_Ladefaktoren").postUpdate(faktorenText);
+      } catch (e2) {
+        // Item fehlt bei aelteren Installationen - Setup-Skript 03 erneut ausfuehren
+      }
+      console.log("[IBM] Ladesperre-Fenster aktualisiert (" + fenster.datum + "): " + start + " - " + ende + (individuell ? " (individuell)" : "") + (budget !== "-" ? " | Nachtbudget " + budget + " kWh" : "") + (faktorenText === "-" ? "" : " | " + lf.stunden.length + " Ladefaktoren bis " + lf.deadline));
     }
   } catch (e) {
     console.error("[IBM] Fehler beim Parsen der Antwort: " + e.message);

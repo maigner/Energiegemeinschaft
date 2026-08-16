@@ -95,6 +95,8 @@ if [ -f "$items_db" ]; then
               Ischlstrom_Ladesperre_Ende \
               Ischlstrom_Ladesperre_Datum \
               Ischlstrom_Ladesperre_Individuell \
+              Ischlstrom_Wolken_Stunden \
+              Ischlstrom_Ladefaktoren \
               Ischlstrom_Nachtbudget \
               Ischlstrom_Nachtbudget_Zeit \
               IBM_MIN_BATTERY_CHARGE \
@@ -114,6 +116,7 @@ if [ -f "$items_db" ]; then
               IBM_LADEREGELUNG \
               IBM_LADEREGELUNG_SOLL \
               IBM_LADEREGELUNG_STATUS \
+              IBM_RESTLADEZEIT \
               IBM_HAUSLAST \
               IBM_HAUSLAST_MESSUNG \
               IBM_NACHT_ZIEL \

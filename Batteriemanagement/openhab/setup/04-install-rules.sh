@@ -30,7 +30,7 @@ status_unconfigured=0
 INSTALL_STATUS_PUSH="${INSTALL_STATUS_PUSH:-0}"
 IBM_ANLAGE_NAME="${IBM_ANLAGE_NAME:-}"
 IBM_STATUS_TOKEN="${IBM_STATUS_TOKEN:-}"
-CRON_STATUS="${CRON_STATUS:-0 2/5 * * * ?}"
+CRON_STATUS="${CRON_STATUS:-0 * * * * ?}"
 
 # NAME=VALUE in der ibm.conf setzen (bestehende Zeile ersetzen, sonst anhaengen).
 conf_set() {
@@ -55,7 +55,7 @@ if [ "$status_needs_input" = "1" ] && [ "${IBM_ASSUME_YES:-0}" = "1" ]; then
   INSTALL_STATUS_PUSH=0
 elif [ "$status_needs_input" = "1" ]; then
   echo "[IBM]"
-  echo "[IBM] Die Anlage kann alle 5 Minuten ihren Zustand (Ladestand, Status des"
+  echo "[IBM] Die Anlage kann jede Minute ihren Zustand (Ladestand, Status des"
   echo "[IBM] Wechselrichters, Einstellungen) an ischlstrom.org melden. Der"
   echo "[IBM] Vorstand sieht alle Anlagen dann auf einem Dashboard und erkennt"
   echo "[IBM] Ausfaelle frueh. Dafuer wird das Status-Token dieser Anlage"

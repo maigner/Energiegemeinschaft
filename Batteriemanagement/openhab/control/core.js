@@ -143,10 +143,20 @@ var CHARGE_RATE_MIN_SAMPLES = 3;       // erst ab so vielen Stichproben verwende
 // und Ladeleistungsschaetzung, gueltiges Tagesfenster, frische sonnige
 // Wolkenvorschau. Fehlt etwas, gilt das klassische Sperrfenster mit
 // Server-/Lokal-Ende als Rueckfall.
+// Die Restzeit bis zur Deadline wird sonnengewichtet ("effektive
+// Restladezeit"): bevorzugt aus den stuendlichen Ladefaktoren der Token-API
+// (Erzeugungsprofil der Tagesprognose, exakt inklusive Sonnenstand), sonst
+// aus den stuendlichen Wolkenwerten der Wolken-API (Faktor 1 - Wolken/100).
+// Nur wenn beides fehlt (alter Server), zaehlt jede Reststunde gleich und
+// der wolkenabhaengige Sicherheitsfaktor REG_SAFETY_SUNNY/CLOUDY gleicht
+// den Nachmittagsabfall pauschal aus.
 var FALLBACK_REGULATION_ACTIVE = true;
 var REG_TARGET_SOC = 95;        // bis hier gilt die Batterie als voll (darueber drosselt der WR selbst)
-var REG_SAFETY_SUNNY = 1.1;     // Sicherheitsfaktor bei 0% Wolken
+var REG_SAFETY_FIXED = 1.1;     // Sicherheitsfaktor bei sonnengewichteter Restladezeit
+var REG_SAFETY_SUNNY = 1.1;     // Rueckfall ohne Stundendaten: Sicherheitsfaktor bei 0% Wolken
 var REG_SAFETY_CLOUDY = 1.6;    // ... bei 100% Wolken (linear interpoliert)
+var REG_HOURLY_MAX_AGE_HOURS = 3; // aeltere Stundendaten gelten als veraltet (wie die Wolkenvorschau)
+var REG_MIN_EFF_HOURS = 0.05;   // Untergrenze der effektiven Restzeit (Divisionsschutz)
 var REG_BLOCK_SLOTS = 3;        // PWM-Blocklaenge in Slots (3 x 5 min = 15 min)
 var REG_MIN_DUTY = 0.1;         // kleinere Sperranteile: gar nicht begrenzen
 var REG_MAX_DUTY = 0.9;         // groessere: auf 90% begrenzen - ein Schaetzfehler darf das Laden nie ganz wuergen
@@ -730,6 +740,99 @@ function writeRegulationState(st) {
   if (item !== null) item.postUpdate(JSON.stringify(st));
 }
 
+// --- Laderegelung: stundenbasierte Restladezeit -----------------------------
+// Liest ein Stunden-JSON-Item ({datum, zeit, stunden: [{zeit: "HH:MM", ...}]})
+// und liefert das geparste Objekt - oder null, wenn es fehlt, nicht fuer
+// heute gilt oder der Abruf zu lange her ist. Veraltete oder fremde Tage
+// duerfen die Regelung nicht treiben (gleiche Philosophie wie bei der
+// Wolkenvorschau).
+function readHourlyJson(itemName) {
+  var item = readItem(itemName);
+  if (item === null) return null;
+  var state = String(item.state);
+  if (state === 'NULL' || state === 'UNDEF' || state === '' || state === '-') return null;
+  var parsed;
+  try {
+    parsed = JSON.parse(state);
+  } catch (e) {
+    return null;
+  }
+  if (parsed === null || typeof parsed !== 'object' || !Array.isArray(parsed.stunden)) return null;
+  var m = now.monthValue();
+  var d = now.dayOfMonth();
+  var today = now.year() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+  if (String(parsed.datum) !== today) return null;
+  try {
+    var fetched = time.ZonedDateTime.parse(String(parsed.zeit));
+    if (time.Duration.between(fetched, now).toHours() >= REG_HOURLY_MAX_AGE_HOURS) return null;
+  } catch (e) {
+    return null;
+  }
+  return parsed;
+}
+
+// Ueberlappung der Stunde ab `zeit` ("HH:MM") mit [jetzt, deadline) in Stunden.
+function hourOverlapH(zeit, deadlineMin) {
+  var match = String(zeit).match(/^(\d{1,2}):(\d{2})/);
+  if (match === null) return 0;
+  var start = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+  var overlap = Math.min(start + 60, deadlineMin) - Math.max(start, nowMinutes);
+  return overlap > 0 ? overlap / 60 : 0;
+}
+
+// Effektive (sonnengewichtete) Restladezeit bis zur Deadline in Stunden:
+// bevorzugt aus den Ladefaktoren der Token-API, sonst aus den stuendlichen
+// Wolkenwerten. null, wenn keine brauchbaren Stundendaten vorliegen - dann
+// rechnet die Regelung mit der ungewichteten Restzeit weiter.
+function effectiveChargeHours(deadlineMin) {
+  var faktoren = readHourlyJson('Ischlstrom_Ladefaktoren');
+  if (faktoren !== null) {
+    var sum = 0;
+    var any = false;
+    for (var i = 0; i < faktoren.stunden.length; i++) {
+      var f = parseFloat(faktoren.stunden[i].faktor);
+      if (isNaN(f)) continue;
+      if (f < 0) f = 0;
+      if (f > 1) f = 1;
+      sum += f * hourOverlapH(faktoren.stunden[i].zeit, deadlineMin);
+      any = true;
+    }
+    if (any) return { hours: sum, quelle: 'Erzeugungsprofil' };
+  }
+  var wolken = readHourlyJson('Ischlstrom_Wolken_Stunden');
+  if (wolken !== null) {
+    var wsum = 0;
+    var wany = false;
+    for (var j = 0; j < wolken.stunden.length; j++) {
+      var w = parseFloat(wolken.stunden[j].wolken);
+      if (isNaN(w) || w < 0 || w > 100) continue;
+      wsum += (1 - w / 100) * hourOverlapH(wolken.stunden[j].zeit, deadlineMin);
+      wany = true;
+    }
+    if (wany) return { hours: wsum, quelle: 'Wolkenstunden' };
+  }
+  return null;
+}
+
+// Mittlere Bewoelkung der Reststunden bis zur Deadline - fuer den
+// Truebe-Waechter der Regelung. null ohne Stundendaten; dann gilt wie
+// bisher die Mittagsfenster-Vorschau (die ab 12:00 allerdings schon den
+// morgigen Tag meint).
+function remainingCloudMean(deadlineMin) {
+  var wolken = readHourlyJson('Ischlstrom_Wolken_Stunden');
+  if (wolken === null) return null;
+  var sum = 0;
+  var hours = 0;
+  for (var i = 0; i < wolken.stunden.length; i++) {
+    var w = parseFloat(wolken.stunden[i].wolken);
+    if (isNaN(w) || w < 0 || w > 100) continue;
+    var ov = hourOverlapH(wolken.stunden[i].zeit, deadlineMin);
+    sum += w * ov;
+    hours += ov;
+  }
+  return hours > 0 ? Math.round(sum / hours) : null;
+}
+
 // Plant den aktuellen Steuer-Slot der Laderegelung - oder null, wenn die
 // Regelung gerade nicht zustaendig ist (dann gilt das klassische
 // Sperrfenster). Rueckgabe:
@@ -742,11 +845,6 @@ function chargeRegulationPlan() {
   var deadline = EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN;
   if (nowMinutes < CHARGE_LOCK_START_MIN || nowMinutes >= deadline) return null;
 
-  // Wie beim Sperrfenster: eingegriffen wird nur bei frischer, sonniger
-  // Vorschau - sonst laedt die Batterie frei (Fail-safe).
-  var clouds = cloudForecast();
-  if (clouds === null || clouds >= CLOUD_THRESHOLD) return null;
-
   var capacityKwh = estimatedCapacityKwh();
   var rateKw = estimatedChargeKw();
   if (capacityKwh === null || rateKw === null) {
@@ -756,19 +854,49 @@ function chargeRegulationPlan() {
   var soc = parseFloat(items.getItem('@IBM_SOC_ITEM@').numericState);
   if (isNaN(soc) || soc < 0 || soc > 100) return null;
 
-  // Ziel-Ladeleistung: fehlende Energie / verbleibende Zeit, mit
-  // wolkenabhaengigem Sicherheitsfaktor (je bedeckter, desto frueher voll).
+  // Truebe-Waechter: bevorzugt die mittlere Bewoelkung der Reststunden bis
+  // zur Deadline (richtiger Tag, richtiges Zeitfenster); ohne Stundendaten
+  // wie bisher die Mittagsfenster-Vorschau. Ueber der Schwelle laedt die
+  // Batterie frei - als Entscheidung der Regelung (nicht als Rueckfall ins
+  // Sperrfenster, das denselben trueben Tag sonst anhand der
+  // Mittags-Vorschau womoeglich doch sperren wuerde). Ohne verlaessliche
+  // Vorschau gilt das Sperrfenster, das dann selbst nicht sperrt.
+  var clouds = cloudForecast();
+  var restClouds = remainingCloudMean(deadline);
+  var guardClouds = (restClouds !== null) ? restClouds : clouds;
+  if (guardClouds === null) return null;
+  if (guardClouds >= CLOUD_THRESHOLD) {
+    console.log('[IBM][Laderegelung] Wolken=' + guardClouds + '% (>=' + CLOUD_THRESHOLD + '%) - Rest des Tages trueb, Laden bleibt frei');
+    return { sperren: false, limitW: null, sollW: 0, aktiv: false };
+  }
+
+  // Ziel-Ladeleistung: fehlende Energie / verbleibende Zeit. Die Restzeit
+  // ist sonnengewichtet (effectiveChargeHours), sobald Stundendaten
+  // vorliegen - jede Stunde zaehlt dann nur mit ihrem erwarteten Ertrag.
+  // Nur ohne Stundendaten zaehlt jede Stunde gleich und der
+  // wolkenabhaengige Sicherheitsfaktor gleicht pauschal aus.
   var missingKwh = Math.max(0, (REG_TARGET_SOC - soc) / 100 * capacityKwh);
-  var remainingH = (deadline - nowMinutes) / 60;
-  var safety = REG_SAFETY_SUNNY + clouds / 100 * (REG_SAFETY_CLOUDY - REG_SAFETY_SUNNY);
-  var sollKw = missingKwh / remainingH * safety;
+  var effRest = effectiveChargeHours(deadline);
+  var restH;
+  var restQuelle;
+  var safety;
+  if (effRest !== null) {
+    restH = Math.max(effRest.hours, REG_MIN_EFF_HOURS);
+    restQuelle = effRest.quelle;
+    safety = REG_SAFETY_FIXED;
+  } else {
+    restH = (deadline - nowMinutes) / 60;
+    restQuelle = 'ungewichtet';
+    safety = REG_SAFETY_SUNNY + guardClouds / 100 * (REG_SAFETY_CLOUDY - REG_SAFETY_SUNNY);
+  }
+  var sollKw = missingKwh / restH * safety;
   var duty = (missingKwh <= 0) ? 0 : 1 - sollKw / rateKw;
   if (duty <= REG_MIN_DUTY) duty = 0;
   if (duty > REG_MAX_DUTY) duty = REG_MAX_DUTY;
   var sollW = Math.round(sollKw * 1000);
   console.log('[IBM][Laderegelung] SoC=' + soc + '%, fehlen ~' + (Math.round(missingKwh * 10) / 10)
-    + ' kWh, ' + (Math.round(remainingH * 10) / 10) + ' h bis ' + fmtMinutes(deadline)
-    + ', Wolken=' + clouds + '% -> Ziel ' + sollW + ' W (Laderate ' + rateKw + ' kW, Sperranteil '
+    + ' kWh, Restladezeit ' + (Math.round(restH * 10) / 10) + ' h (' + restQuelle + ') bis ' + fmtMinutes(deadline)
+    + ', Wolken=' + guardClouds + '% -> Ziel ' + sollW + ' W (Laderate ' + rateKw + ' kW, Sperranteil '
     + Math.round(duty * 100) + '%)');
 
   // Direkte Begrenzung, wenn der Adapter sie kann: Ziel-Leistung quantisiert
@@ -948,6 +1076,22 @@ if (regulationPlan !== null && regulationPlan.aktiv) {
 } else {
   publishItem('IBM_LADEREGELUNG_SOLL', '-');
 }
+
+// Effektive Restladezeit fuer Anzeige und Status-Push: sonnengewichtete
+// Ladezeit, die bis zur Abend-Deadline noch bleibt. Unabhaengig vom Plan
+// berechnet (auch bei abgeschalteter Regelung informativ), '-' ausserhalb
+// des Tages oder ohne Stundendaten.
+var restladezeitText = '-';
+if (EVENING_CROSSOVER_MIN !== null) {
+  var restDeadline = EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN;
+  if (nowMinutes < restDeadline) {
+    var restEff = effectiveChargeHours(restDeadline);
+    if (restEff !== null) {
+      restladezeitText = (Math.round(restEff.hours * 10) / 10) + ' h';
+    }
+  }
+}
+publishItem('IBM_RESTLADEZEIT', restladezeitText);
 
 // ----------------------------------------------------------------------------
 // Lokale Ladesperre: eigenes Sperr-Ende aus Batteriegroesse und Ladeleistung

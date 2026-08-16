@@ -515,7 +515,7 @@ CRON_CROSSOVER="0 5 4 * * ?"
 CRON_LADESPERRE="0 50 * * * ?"
 CRON_INIT="0 */10 * * * ?"
 CRON_PAUSE="0 30 0 * * ?"
-CRON_STATUS="0 2/5 * * * ?"
+CRON_STATUS="0 * * * * ?"
 
 # --- Startwerte -------------------------------------------------------------
 DEFAULT_MIN_BATTERY_CHARGE=${DEFAULT_MIN_BATTERY_CHARGE}
@@ -533,9 +533,11 @@ DEFAULT_ENTLADUNG_AKTIV=ON
 DEFAULT_DYNAMISCHE_LEISTUNG=ON
 
 # --- Status-Push ------------------------------------------------------------
-# Meldet den Anlagenzustand alle 5 Minuten an <IBM_API_BASE>/api/ibm/status/v1
-# (Vorstands-Dashboard unter /board/openhab). Das Token erzeugt der Vorstand
-# dort je Mitglied; ohne gueltiges Token weist der Server die Meldung ab.
+# Meldet den Anlagenzustand jede Minute an <IBM_API_BASE>/api/ibm/status/v1
+# (Vorstands-Dashboard unter /board/openhab): minuetlich die Momentanwerte,
+# alle 5 Minuten (Minute 2/5) zusaetzlich Log, Versionen, apt-Updates und
+# Systemzustand. Das Token erzeugt der Vorstand dort je Mitglied; ohne
+# gueltiges Token weist der Server die Meldung ab.
 INSTALL_STATUS_PUSH=${INSTALL_STATUS_PUSH}
 IBM_ANLAGE_NAME="${IBM_ANLAGE_NAME}"
 IBM_STATUS_TOKEN="${IBM_STATUS_TOKEN}"

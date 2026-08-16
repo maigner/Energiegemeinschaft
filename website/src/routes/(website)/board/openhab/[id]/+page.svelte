@@ -74,6 +74,9 @@
                                   : ""
                         }`
                       : "heute keine",
+            // Effektive (sonnengewichtete) Restladezeit bis zur
+            // Abend-Deadline; null, wenn die Anlage keine meldet.
+            restladezeit: num(d.restladezeit_h),
             // Ziel-Ladeleistung der dynamischen Laderegelung; null, wenn
             // gerade nicht begrenzt wird (dann zeigt die Karte das
             // Sperrfenster).
@@ -527,6 +530,11 @@
                     bm.wolken !== null
                         ? `${bm.wolken}%${bm.schwelle !== null ? ` (Sperre unter ${bm.schwelle}%)` : ""}`
                         : "unbekannt",
+                    "",
+                )}
+                {@render systemStat(
+                    "Effektive Restladezeit",
+                    bm.restladezeit !== null ? `${bm.restladezeit} h` : "-",
                     "",
                 )}
                 {@render systemStat(

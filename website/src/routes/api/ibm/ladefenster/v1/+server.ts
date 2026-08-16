@@ -3,6 +3,7 @@ import {
     getLatestForecastRun,
     getTodayChargeWindow,
     getIndividualChargeWindowEnd,
+    getChargeFactorsToday,
     getNightDischargeBudget,
     IBM_FALLBACK_HOUSE_LOAD_W
 } from '$lib/server/db/energy/forecast';
@@ -32,6 +33,12 @@ import { getOpenhabPlantByToken } from '$lib/server/db/members/openhabStatus';
  * Steuerung entlädt nachts nur bis "Abend-Ladestand minus Budget"; bei einer
  * Mehrtages-Schlechtwetterfront ist das Budget 0 und die Batterie bleibt
  * dem eigenen Haushalt.
+ *
+ * Außerdem: `ladefaktoren` -- die stündlichen Ladefaktoren des heutigen
+ * Tages samt Abend-Deadline (siehe getChargeFactorsToday). Die dynamische
+ * Laderegelung am Pi integriert daraus die effektive Restladezeit. Die
+ * Faktoren sind normiert (0..1) und brauchen keine Schätzwerte der Anlage;
+ * null, wenn der Prognosetag keine Berechnung hergibt.
  */
 
 /** @type {import('./$types').RequestHandler} */
@@ -101,13 +108,16 @@ export async function POST({ request }) {
         );
     }
 
+    const ladefaktoren = await getChargeFactorsToday(run.id);
+
     return json({
         ladefenster: {
             datum: fenster.datum,
             start: fenster.start,
             ende,
             individuell,
-            nachtbudget_kwh: nachtbudgetKwh
+            nachtbudget_kwh: nachtbudgetKwh,
+            ladefaktoren
         }
     });
 }

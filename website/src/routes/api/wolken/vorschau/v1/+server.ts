@@ -1,4 +1,4 @@
-import { getCloudForecastNextSunshineWindow } from '$lib/server/db/weather/forecast.js';
+import { getCloudForecastNextSunshineWindow, getCloudForecastHoursToday } from '$lib/server/db/weather/forecast.js';
 import { json } from '@sveltejs/kit';
 
 function getAverageCloudCover(forecast: Array<{ cloud_cover: number }>): number {
@@ -25,8 +25,19 @@ export async function GET(event) {
     const averageCloudCover = getAverageCloudCover(forecast);
     console.log(averageCloudCover); // e.g., 94.0
 
+    // Stundenwerte fuer den Rest des heutigen Tages (dynamische Laderegelung
+    // der IBM-Anlagen). `vorschau` bleibt das naechste Mittagsfenster - die
+    // naechtliche Entladung braucht genau das. Aeltere Clients ignorieren
+    // die Zusatzfelder einfach.
+    const heute = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Vienna' })
+        .format(new Date());
+    const stunden = (await getCloudForecastHoursToday() ?? [])
+        .map((row: any) => ({ zeit: String(row.zeit), wolken: Number(row.cloud_cover) }))
+        .filter((s: any) => /^\d{2}:\d{2}$/.test(s.zeit)
+            && Number.isFinite(s.wolken) && s.wolken >= 0 && s.wolken <= 100);
+
     return json(
-        { wolken: { vorschau: averageCloudCover } }
+        { wolken: { vorschau: averageCloudCover, datum: heute, stunden } }
     );
 
 }
