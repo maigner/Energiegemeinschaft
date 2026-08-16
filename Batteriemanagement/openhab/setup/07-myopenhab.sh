@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
-# 06 - openHAB Cloud: zeigt UUID und Secret fuer die Registrierung auf
-# myopenhab.org an. Aendert nichts an der Installation.
+# 07 - openHAB Cloud: zeigt UUID und Secret fuer die Registrierung auf der
+# ISCHLSTROM-Cloud (hac.ischlstrom.org) an. Aendert nichts an der Installation.
 #
 # Das Addon 'openhabcloud' traegt 02-install-addons.sh in addons.cfg ein.
 # Beim ersten Start erzeugt es das Secret unter
@@ -66,22 +66,22 @@ secret="$(tr -d '[:space:]' < "$secret_file")"
 cat <<ANLEITUNG
 [IBM]
 [IBM] ===========================================================
-[IBM]  openHAB Cloud - Registrierung auf myopenhab.org
+[IBM]  openHAB Cloud - Registrierung auf $IBM_CLOUD_BASE_URL
 [IBM] ===========================================================
 [IBM]
 [IBM]   UUID   : ${uuid}
 [IBM]   Secret : ${secret}
 [IBM]
 [IBM] So wird die Anlage registriert:
-[IBM]   1. https://myopenhab.org aufrufen und ueber "Sign up" ein Konto
+[IBM]   1. $IBM_CLOUD_BASE_URL aufrufen und ueber "Register" ein Konto
 [IBM]      anlegen (E-Mail-Adresse und Passwort des Mitglieds).
 [IBM]   2. Dabei die obige UUID und das Secret eintragen.
-[IBM]      (Spaeter aenderbar unter myopenhab.org -> Account.)
-[IBM]   3. Kurz warten, bis myopenhab.org die Anlage als "Online" zeigt.
+[IBM]      (Spaeter aenderbar unter Account.)
+[IBM]   3. Kurz warten, bis die Cloud die Anlage als "Online" zeigt.
 [IBM]      Verbindet sie sich nicht, openHAB einmal neu starten:
 [IBM]        sudo systemctl restart openhab.service
 [IBM]
 [IBM] Danach ist die Main UI von unterwegs erreichbar:
-[IBM]   https://home.myopenhab.org   (Login mit dem myopenhab-Konto)
+[IBM]   https://remote.hac.ischlstrom.org   (Login mit dem Cloud-Konto)
 [IBM]
 ANLEITUNG

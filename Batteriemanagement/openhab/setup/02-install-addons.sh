@@ -33,7 +33,7 @@ cat <<HINWEIS
 [IBM]                                   rrd4j liefert die Daten fuer Analyze/Diagramme)
 HINWEIS
 if [ "$INSTALL_CLOUD" = "1" ]; then
-  echo "[IBM]   misc        = openhabcloud    (Fernzugriff ueber myopenhab.org)"
+  echo "[IBM]   misc        = openhabcloud    (Fernzugriff ueber $IBM_CLOUD_BASE_URL)"
 fi
 cat <<HINWEIS
 [IBM]
@@ -59,6 +59,10 @@ if [ "$INSTALL_PERSISTENCE" = "1" ]; then
 fi
 if [ "$INSTALL_CLOUD" = "1" ]; then
   addons_cfg_add "misc" "openhabcloud"
+  # Eigene Cloud-Instanz statt der Vorgabe myopenhab.org. Wird auch bei
+  # Bestandsanlagen umgestellt - das Konto des Mitglieds muss dann auf der
+  # neuen Instanz existieren (UUID/Secret dort eintragen).
+  services_cfg_set "$OPENHAB_CONF/services/openhabcloud.cfg" "baseURL" "$IBM_CLOUD_BASE_URL/"
 fi
 
 chown "$OPENHAB_USER:$OPENHAB_GROUP" "$ADDONS_CFG" 2>/dev/null || true

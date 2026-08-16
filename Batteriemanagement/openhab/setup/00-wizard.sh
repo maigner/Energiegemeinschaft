@@ -328,11 +328,11 @@ fi
 
 # --- 7. openHAB Cloud -------------------------------------------------------
 echo "[IBM]"
-echo "[IBM] Mit openHAB Cloud (myopenhab.org) ist die Anlage von unterwegs"
+echo "[IBM] Mit der ISCHLSTROM-Cloud (hac.ischlstrom.org) ist die Anlage von unterwegs"
 echo "[IBM] erreichbar und kann Benachrichtigungen aufs Handy schicken."
 echo "[IBM] Dafuer wird das Addon 'openhabcloud' installiert; am Ende der"
 echo "[IBM] Installation werden UUID und Secret fuer die Registrierung angezeigt."
-if confirm "openHAB Cloud (myopenhab.org) einrichten?"; then
+if confirm "openHAB Cloud (hac.ischlstrom.org) einrichten?"; then
   INSTALL_CLOUD=1
 else
   INSTALL_CLOUD=0
@@ -594,7 +594,7 @@ cat <<ZUSAMMENFASSUNG
 [IBM]   Ladestand min. : ${DEFAULT_MIN_BATTERY_CHARGE} %
 [IBM]   Entladung      : ${DEFAULT_MIN_DISCHARGE_W} - ${DEFAULT_MAX_DISCHARGE_W} W
 [IBM]   Addons         : $([ "$INSTALL_ADDONS" = "1" ] && echo "ueber addons.cfg" || echo "manuell in der Main UI")
-[IBM]   openHAB Cloud  : $([ "$INSTALL_CLOUD" = "1" ] && echo "ja (myopenhab.org)" || echo "nein")
+[IBM]   openHAB Cloud  : $([ "$INSTALL_CLOUD" = "1" ] && echo "ja (hac.ischlstrom.org)" || echo "nein")
 [IBM]   Watchdog       : $([ "$INSTALL_WATCHDOG" = "1" ] && echo "ja (${INVERTER_HOST_THING_UID})" || echo "nein")
 [IBM]   Overview-Seite : $([ "$INSTALL_OVERVIEW" = "1" ] && echo "ja" || echo "nein")
 [IBM]   Fernwartung    : $([ "$INSTALL_WIREGUARD" = "1" ] && echo "ja (${WG_ADDRESS} -> ${WG_SERVER_ENDPOINT})" || echo "nein")

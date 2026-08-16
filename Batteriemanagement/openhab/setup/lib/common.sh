@@ -23,6 +23,10 @@ IBM_INVERTER_DIR="${IBM_INVERTER_DIR:-$IBM_SCRIPT_DIR/inverters}"
 
 IBM_CONF="${IBM_CONF:-$IBM_SETUP_DIR/ibm.conf}"
 
+# Eigene openHAB-Cloud-Instanz (ersetzt myopenhab.org). Ohne Pfad-Anteil,
+# ohne abschliessenden Schraegstrich.
+IBM_CLOUD_BASE_URL="${IBM_CLOUD_BASE_URL:-https://hac.ischlstrom.org}"
+
 log()  { echo "[IBM] $*"; }
 warn() { echo "[IBM] WARNUNG: $*" >&2; }
 die()  { echo "[IBM] FEHLER: $*" >&2; exit 1; }
@@ -760,10 +764,10 @@ ensure_api_token() {
 # System
 # ---------------------------------------------------------------------------
 
-# Setzt einen Schluessel in services/runtime.cfg. Eintraege dort gehen der
-# Main-UI-Einstellung vor. Idempotent; geaenderte Datei wird gesichert.
-runtime_cfg_set() {
-  local key="$1" value="$2" cfg="$OPENHAB_CONF/services/runtime.cfg"
+# Setzt einen Schluessel in einer Datei unter services/. Idempotent;
+# geaenderte Datei wird gesichert.
+services_cfg_set() {
+  local cfg="$1" key="$2" value="$3"
   if [ -f "$cfg" ] && grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$cfg"; then
     if grep -qE "^[[:space:]]*${key}[[:space:]]*=[[:space:]]*${value}[[:space:]]*$" "$cfg"; then
       log "${key} bereits ${value} ($cfg)."
@@ -779,6 +783,12 @@ runtime_cfg_set() {
     chown "$OPENHAB_USER:$OPENHAB_GROUP" "$cfg" 2>/dev/null || true
     log "${key}=${value} gesetzt ($cfg)."
   fi
+}
+
+# Setzt einen Schluessel in services/runtime.cfg. Eintraege dort gehen der
+# Main-UI-Einstellung vor.
+runtime_cfg_set() {
+  services_cfg_set "$OPENHAB_CONF/services/runtime.cfg" "$1" "$2"
 }
 
 # Setzt System- und openHAB-Zeitzone, damit die zeitgesteuerten Regeln in

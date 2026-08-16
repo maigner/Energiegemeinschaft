@@ -164,9 +164,10 @@ INSTALL_ADDONS=1
 # ueberleben.
 INSTALL_PERSISTENCE=1
 
-# openHAB Cloud (myopenhab.org) einrichten: traegt das Addon 'openhabcloud'
-# in addons.cfg ein (Kategorie misc); 07-myopenhab.sh zeigt danach UUID und
-# Secret fuer die Registrierung des Kontos auf myopenhab.org an.
+# openHAB Cloud einrichten: traegt das Addon 'openhabcloud' in addons.cfg
+# ein (Kategorie misc) und setzt die baseURL auf die eigene Cloud-Instanz
+# (hac.ischlstrom.org); 07-myopenhab.sh zeigt danach UUID und Secret fuer
+# die Registrierung des Kontos an.
 INSTALL_CLOUD=1
 
 # Main-UI-Seiten (Overview + Unterseiten) per REST API installieren (braucht

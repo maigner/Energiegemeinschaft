@@ -17,7 +17,7 @@
 #   9. /opt/ischlstrom selbst
 #
 # NICHT angetastet: das openHAB-Admin-Konto, das Linux-Passwort, die
-# Regionaleinstellungen (Zeitzone/Sprache) und die myopenhab-Identitaet
+# Regionaleinstellungen (Zeitzone/Sprache) und die openHAB-Cloud-Identitaet
 # (UUID/Secret) - eine Neuinstallation verwendet sie einfach wieder.
 #
 #   sudo /opt/ischlstrom/openhab/setup/purge-ibm.sh
@@ -194,7 +194,7 @@ cat <<ENDE
 [IBM] ===========================================================
 [IBM]
 [IBM] Uebrig geblieben (absichtlich): Admin-Konto der Main UI,
-[IBM] Linux-Passwort, Zeitzone/Region, myopenhab-UUID/-Secret.
+[IBM] Linux-Passwort, Zeitzone/Region, Cloud-UUID/-Secret.
 [IBM]
 [IBM] Neuinstallation:
 [IBM]   curl -fsSL ${IBM_API_BASE:-https://ischlstrom.org}/ibm/install.sh -o install.sh

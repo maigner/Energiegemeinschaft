@@ -26,8 +26,8 @@ Wechselrichters und die gewuenschten Optionen). Ein bereits vorhandenes
 Thing wird erkannt und weiterverwendet (siehe
 [Wechselrichter automatisch anlegen](#wechselrichter-automatisch-anlegen)).
 Wurde openHAB Cloud gewuenscht, zeigt die Installation am Ende UUID und
-Secret fuer die Registrierung auf myopenhab.org an (siehe
-[openHAB Cloud](#openhab-cloud-myopenhaborg)).
+Secret fuer die Registrierung auf der ISCHLSTROM-Cloud an (siehe
+[openHAB Cloud](#openhab-cloud-hacischlstromorg)).
 
 Die Kurzform funktioniert ebenfalls — die Abfragen lesen von `/dev/tty`, nicht
 von stdin:
@@ -112,10 +112,10 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 | `04-install-rules.sh` | Erzeugt die zeitgesteuerten Regeln in `automation/js/` und (falls gewuenscht) den Netzwerk-Watchdog. |
 | `05-install-overview.sh` | Schreibt die IBM-Seiten (Overview + Unterseiten) per REST API in die Main UI (braucht `OH_API_TOKEN`; bestehende Seiten werden vorher gesichert). |
 | `06-verify.sh` | Prueft das Ergebnis, zeigt die letzten `[IBM]`-Logzeilen. Aendert nichts. |
-| `07-myopenhab.sh` | Zeigt UUID und Secret fuer die Registrierung auf myopenhab.org an (wartet ggf. auf das Cloud-Addon). Aendert nichts. |
+| `07-myopenhab.sh` | Zeigt UUID und Secret fuer die Registrierung auf der ISCHLSTROM-Cloud (hac.ischlstrom.org) an (wartet ggf. auf das Cloud-Addon). Aendert nichts. |
 | `08-install-wireguard.sh` | Richtet den WireGuard-Tunnel zum Wartungsserver ein und baut die SSH-Haertung aelterer Versionen zurueck - die Anmeldung durch den Tunnel laeuft per Passwort (siehe [Fernwartung](#fernwartung-wireguard)). |
 | `10-change-passwords.sh` | Aendert die Standardpasswoerter des Linux-Benutzers `openhabian` und der Karaf-Konsole (siehe [Standardpasswoerter aendern](#standardpasswoerter-aendern)). |
-| `purge-ibm.sh` | Entfernt das Batteriemanagement komplett wieder (Things, Regeln, Items, Seiten, Token, WireGuard, `/opt/ischlstrom`) und setzt die Anlage auf "frisches openHABian + Admin-Konto" zurueck - fuer Test-Wiederholungen oder Ausserbetriebnahme. Admin-Konto, Linux-Passwort, Zeitzone und myopenhab-Identitaet bleiben. |
+| `purge-ibm.sh` | Entfernt das Batteriemanagement komplett wieder (Things, Regeln, Items, Seiten, Token, WireGuard, `/opt/ischlstrom`) und setzt die Anlage auf "frisches openHABian + Admin-Konto" zurueck - fuer Test-Wiederholungen oder Ausserbetriebnahme. Admin-Konto, Linux-Passwort, Zeitzone und Cloud-Identitaet (UUID/Secret) bleiben. |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
 
 `install-ibm.sh` setzt ausserdem die Regionaleinstellungen - das, was sonst
@@ -492,14 +492,22 @@ sudo -u openhab /etc/openhab/scripts/ibm_rediscover.sh --force
 
 Alle Meldungen erscheinen mit dem Praefix `[IBM][Watchdog]` im openhab.log.
 
-## openHAB Cloud (myopenhab.org)
+## openHAB Cloud (hac.ischlstrom.org)
 
 Auf Wunsch (Frage im Assistenten, `INSTALL_CLOUD=1`) richtet das Setup den
-**openHAB Cloud Connector** ein. Damit ist die Main UI von unterwegs unter
-`https://home.myopenhab.org` erreichbar und die Anlage kann
-Benachrichtigungen an die openHAB-App schicken.
+**openHAB Cloud Connector** ein — verbunden mit der **eigenen
+openHAB-Cloud-Instanz der Gemeinschaft** unter `https://hac.ischlstrom.org`
+(selbst gehostete openHAB Cloud auf s1, ersetzt myopenhab.org).
+`02-install-addons.sh` setzt dafuer die `baseURL` in
+`services/openhabcloud.cfg`; bei Bestandsanlagen stellt ein Paket-Update
+die Anlage damit auf die eigene Cloud um — das Konto des Mitglieds muss
+dann dort registriert sein, sonst ist die Anlage aus der Ferne nicht mehr
+erreichbar. Damit ist die Main UI von unterwegs unter
+`https://remote.hac.ischlstrom.org` erreichbar und die Anlage kann
+Benachrichtigungen an die openHAB-App schicken (in der App als Remote-URL
+`https://hac.ischlstrom.org` eintragen).
 
-Fuer die Registrierung braucht myopenhab.org zwei Werte der Installation:
+Fuer die Registrierung braucht die Cloud zwei Werte der Installation:
 
 | Wert | Datei auf dem Pi |
 | --- | --- |
@@ -514,15 +522,22 @@ Anleitung an. Jederzeit erneut abrufbar:
 sudo /opt/ischlstrom/openhab/setup/07-myopenhab.sh
 ```
 
-Registrierung: auf <https://myopenhab.org> ueber *Sign up* ein Konto anlegen
-(E-Mail-Adresse und Passwort des Mitglieds) und dabei UUID und Secret
-eintragen — beides ist spaeter unter *Account* aenderbar. Sobald die Anlage
-verbunden ist, zeigt myopenhab.org sie als *Online*; falls nicht, openHAB
+Registrierung: auf <https://hac.ischlstrom.org> ueber *Register* ein Konto
+anlegen (E-Mail-Adresse und Passwort des Mitglieds) und dabei UUID und
+Secret eintragen — beides ist spaeter unter *Account* aenderbar. Sobald die
+Anlage verbunden ist, zeigt die Cloud sie als *Online*; falls nicht, openHAB
 einmal neu starten (`sudo systemctl restart openhab.service`).
 
 Standardmaessig werden dabei **keine Items** zur Cloud uebertragen
 (exponiert) — die Verbindung dient nur dem Fernzugriff auf die UI und den
 Benachrichtigungen.
+
+Die Cloud-Instanz selbst laeuft als Docker-Stack auf s1
+(`/home/martin/openhab-cloud/deployment/docker-compose/`, offizielles Image
+`openhab/openhab-cloud`), hinter Caddy; `hac.ischlstrom.org` ist die
+Website samt REST-Schnittstelle fuer App und Connector,
+`remote.hac.ischlstrom.org` der Proxy-Host fuer den Fernzugriff auf die
+Main UI (Basic Auth mit dem Cloud-Konto).
 
 ## Fernwartung (WireGuard)
 

@@ -63,7 +63,7 @@ log "=== Schritt 11/12: Standardpasswoerter ==="
 "$here/10-change-passwords.sh" \
   || warn "Passwoerter nicht geaendert - spaeter erneut: sudo $here/10-change-passwords.sh"
 
-log "=== Schritt 12/12: openHAB Cloud (myopenhab.org) ==="
+log "=== Schritt 12/12: openHAB Cloud (hac.ischlstrom.org) ==="
 "$here/07-myopenhab.sh" \
   || warn "openHAB Cloud noch nicht abgeschlossen - spaeter erneut: sudo $here/07-myopenhab.sh"
 
@@ -92,7 +92,7 @@ cat <<ENDE
 ENDE
 
 if [ "$INSTALL_CLOUD" = "1" ]; then
-  log "  5. Konto auf https://myopenhab.org anlegen - UUID und Secret stehen"
+  log "  5. Konto auf https://hac.ischlstrom.org anlegen - UUID und Secret stehen"
   log "     oben (erneut anzeigen: sudo $here/07-myopenhab.sh)."
 fi
 
