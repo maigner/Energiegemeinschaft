@@ -761,3 +761,37 @@ pages:
                                 Obergrenze fürs Einspeisen. Die Vorgabe passt
                                 für die meisten Anlagen.
                                 Gilt nur ohne automatische Entladeleistung.
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-toggle-card
+                            config:
+                              title: Netzladeschutz
+                              item: IBM_NETZLADESCHUTZ
+                              color: blue
+                              footer: >-
+                                Grundsatz der Gemeinschaft: die Batterie lädt
+                                nur aus der eigenen PV, nie aus dem Netz.
+                                Erkennt IBM 15 Minuten lang, dass die Batterie
+                                netto aus dem Netz lädt (z. B. durch einen
+                                Zeitplan am Wechselrichter), sperrt es das
+                                Laden. Schutzladungen bei fast leerer
+                                Batterie werden nie blockiert.
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-label-card
+                            config:
+                              title: Ladung aus dem Netz
+                              item: IBM_NETZLADUNG
+                              footer: >-
+                                Aktuelle Netto-Ladung der Batterie aus dem
+                                Netz. Sollte immer 0 W sein; dauerhaft höhere
+                                Werte zeigen einen Zeitplan oder eine
+                                Fehlkonfiguration am Wechselrichter.

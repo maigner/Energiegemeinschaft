@@ -45,6 +45,12 @@ Regeln fuer Adapter:
   ablaufen (Schedule wie beim GEN24, Revert-Timeout wie bei SunSpec 124).
   Kann der Hersteller das nicht, dokumentiert das Profil-README das
   Restrisiko ausdruecklich.
+* **Nie aus dem Netz laden:** Kein Adapter verwendet Kommandos, die die
+  Batterie aus dem Netz laden koennten (Lade-Kommandos,
+  Command-Charging-Modi, TOU-Netzladen-Flags) - Sperren, Begrenzen und
+  Entladen genuegen fuer alle IBM-Funktionen. Den Rest (Zeitplaene oder
+  Fehlkonfiguration am Geraet selbst) sichert der Netzladeschutz des Kerns
+  zur Laufzeit ab.
 * Kein `rules.JSRule(...)`, kein Top-Level-`return` - der Adapter ist ein
   reiner Skriptkoerper vor dem Kern.
 * Nur `@IBM_...@`-Platzhalter verwenden (ersetzt von
@@ -176,6 +182,9 @@ voraussetzen:
 | `IBM_LADEREGELUNG_SOLL` | String | Ziel-Ladeleistung der Regelung, `<watt> W` oder `-` (Anzeige/Status-Push) |
 | `IBM_LADEREGELUNG_STATUS` | String | Interner PWM-Zustand der Laderegelung (JSON) |
 | `IBM_RESTLADEZEIT` | String | Effektive (sonnengewichtete) Restladezeit bis zur Abend-Deadline, `<stunden> h` oder `-` (Anzeige/Status-Push) |
+| `IBM_NETZLADESCHUTZ` | Switch | Netzladeschutz des Kerns: erkannte Netto-Netzladung sperrt das Laden |
+| `IBM_NETZLADUNG` | Number | Aktuelle Netto-Ladung der Batterie aus dem Netz in W (Anzeige/Status-Push) |
+| `IBM_NETZLADE_WAECHTER` | String | Interner Zustand des Netzladeschutzes (JSON) |
 | `IBM_ENTLADUNG_AKTIV` | Switch | Teilfunktion Entladung ein/aus |
 | `IBM_PAUSE_TAGE` | Number | Verbleibende Pausentage: solange > 0 plant der Kern nichts |
 

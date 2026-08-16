@@ -144,6 +144,15 @@ DEFAULT_LADESPERRE_LOKAL=ON
 # solange sie fehlen (oder bei OFF), gilt das Sperrfenster wie oben.
 DEFAULT_LADEREGELUNG=ON
 
+# Netzladeschutz: die Batterie laedt nur aus der eigenen PV, nie aus dem
+# Netz (Grundsatz der Gemeinschaft). IBM kommandiert selbst nie Netzladen;
+# dieser Waechter erkennt zusaetzlich Netto-Netzladung durch Zeitplaene
+# oder Fehlkonfiguration am Wechselrichter (Batterie laedt und gleichzeitig
+# wird bezogen, 3 Zyklen in Folge) und sperrt dann das Laden. Bei fast
+# leerer Batterie (unter 15%) wird nur gewarnt - Schutzladungen des
+# Wechselrichters werden nie blockiert.
+DEFAULT_NETZLADESCHUTZ=ON
+
 # --- Optionen ---------------------------------------------------------------
 
 # Addons ueber addons.cfg installieren.

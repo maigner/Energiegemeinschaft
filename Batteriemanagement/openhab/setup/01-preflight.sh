@@ -117,6 +117,9 @@ if [ -f "$items_db" ]; then
               IBM_LADEREGELUNG_SOLL \
               IBM_LADEREGELUNG_STATUS \
               IBM_RESTLADEZEIT \
+              IBM_NETZLADESCHUTZ \
+              IBM_NETZLADUNG \
+              IBM_NETZLADE_WAECHTER \
               IBM_HAUSLAST \
               IBM_HAUSLAST_MESSUNG \
               IBM_NACHT_ZIEL \

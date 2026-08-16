@@ -252,6 +252,9 @@
         if (d.inverter_status && d.inverter_status !== "ONLINE") {
             issues.push({ text: `Wechselrichter ${d.inverter_status}`, color: "red" });
         }
+        if (typeof d.netzladung_w === "number" && d.netzladung_w > 0) {
+            issues.push({ text: `Lädt aus dem Netz (${Math.round(d.netzladung_w)} W)`, color: "red" });
+        }
         if (d.hauptschalter === "OFF") {
             issues.push({ text: "Batteriemanagement aus", color: "yellow" });
         } else {

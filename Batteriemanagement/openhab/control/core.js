@@ -66,6 +66,10 @@
 // Thing-UID-Literale), niemals werfen - Fehler fangen und { ok: false }
 // zurueckgeben. Adapter verlassen sich nur auf die openhab-js-Globals
 // (items, actions, time, Quantity, console), nicht auf Helfer des Kerns.
+// GRUNDSATZ: Kein Adapter verwendet Kommandos, die die Batterie aus dem
+// Netz laden koennten (Lade-Kommandos, Command-Charging-Modi,
+// TOU-Netzladen-Flags) - Sperren, Begrenzen und Entladen genuegen. Den
+// Rest sichert der Netzladeschutz des Kerns zur Laufzeit ab.
 // ---------------------------------------------------------------------------
 //
 // Dieses Skript ist die Vorlage fuer alle Anlagen und wird pro Kunde NICHT
@@ -165,6 +169,28 @@ var REG_HYST_OFF = 1.0;         // Sperrschuld, unter der ein Sperr-Block wieder
 var REG_DEBT_MAX = 6;           // Anti-Windup der Sperrschuld
 var REG_MAX_GAP_MIN = 12;       // laengere Luecke -> PWM-Zustand neu aufsetzen
 var REG_LIMIT_STEP_W = 100;     // Quantisierung der direkten Leistungsbegrenzung
+
+// --- Netzladeschutz ---------------------------------------------------------
+// Grundsatz: Die Batterie laedt nur aus der eigenen PV, nie aus dem Netz.
+// IBM selbst kommandiert nie Netzladen (kein Adapter nutzt Lade-Kommandos,
+// siehe Adapter-Kontrakt). Dieser Waechter erkennt zusaetzlich, wenn die
+// Batterie NETTO aus dem Netz laedt - etwa durch eine Geraeteeinstellung
+// des Mitglieds (TOU-Netzladen, Fahrplaene anderer Apps) oder eine
+// Fehlkonfiguration: Batterie laedt UND gleichzeitig wird bezogen, jeweils
+// ueber NETZLADE_THRESHOLD_W. Weil die Leistungs-Items nicht im selben
+// Moment abgetastet werden (Wolkenluecken, Binding-Polling), wird erst
+// nach NETZLADE_TRIGGER_CYCLES aufeinanderfolgenden Zyklen gesperrt - und
+// nur oberhalb von NETZLADE_MIN_SOC, damit Schutzladungen des
+// Wechselrichters bei fast leerer Batterie (Zwangs-/Erhaltungsladung des
+// BMS) nie blockiert werden; darunter wird nur gewarnt. Die aktuelle
+// Netto-Netzladung steht in IBM_NETZLADUNG (Anzeige, Status-Push,
+// Dashboard-Warnung). Vorzeichen wie ueberall: Batterie + = Entladen,
+// - = Laden; Netz + = Bezug, - = Einspeisung.
+var FALLBACK_NETZLADESCHUTZ = true;
+var NETZLADE_THRESHOLD_W = 250;   // Laden UND Bezug muessen darueber liegen
+var NETZLADE_TRIGGER_CYCLES = 3;  // so viele Zyklen in Folge (15 min), dann wird gesperrt
+var NETZLADE_MIN_SOC = 15;        // darunter nur warnen (Schutzladung des Wechselrichters)
+var NETZLADE_MAX_GAP_MIN = 12;    // laengere Luecke -> Zaehler neu aufsetzen
 
 var FALLBACK_DISCHARGE_ACTIVE = true;
 
@@ -713,6 +739,43 @@ function localChargeLockEnd() {
   return Math.min(deadline - chargeMinutes, LOCAL_LATEST_END_MIN);
 }
 
+// --- Netzladeschutz: Erkennung und Zustand ----------------------------------
+// Zustand als JSON in einem String-Item (persistiert):
+//   zaehler  aufeinanderfolgende Zyklen mit erkannter Netto-Netzladung
+//   zeit     Zeitpunkt des letzten Laufs (Lueckenerkennung)
+
+function readNetzladeState() {
+  var item = readItem('IBM_NETZLADE_WAECHTER');
+  if (item === null) return null;
+  var state = String(item.state);
+  if (state === 'NULL' || state === 'UNDEF' || state === '') return {};
+  try {
+    var parsed = JSON.parse(state);
+    return (parsed !== null && typeof parsed === 'object') ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function writeNetzladeState(st) {
+  var item = readItem('IBM_NETZLADE_WAECHTER');
+  if (item !== null) item.postUpdate(JSON.stringify(st));
+}
+
+// Aktuelle Netto-Netzladung der Batterie in Watt: min(Ladeleistung, Bezug),
+// wenn beide ueber der Schwelle liegen, sonst 0. null, wenn Batterie- oder
+// Netzleistungs-Item fehlen (dann bleibt der Waechter aus).
+function currentNetzladungW() {
+  var batt = readItem('@IBM_BATTERY_POWER_ITEM@');
+  var grid = readItem('@IBM_GRID_POWER_ITEM@');
+  if (batt === null || grid === null) return null;
+  var chargingW = -parseFloat(batt.numericState); // Batterie negativ = laden
+  var importW = parseFloat(grid.numericState);    // Netz positiv = Bezug
+  if (isNaN(chargingW) || isNaN(importW)) return null;
+  if (chargingW < NETZLADE_THRESHOLD_W || importW < NETZLADE_THRESHOLD_W) return 0;
+  return Math.round(Math.min(chargingW, importW));
+}
+
 // --- Laderegelung: PWM-Zustand und Slot-Planung -----------------------------
 // PWM-Zustand als JSON in einem String-Item (persistiert):
 //   schuld     angesammelte Sperrschuld in Slots (Bresenham-Akkumulator:
@@ -1060,6 +1123,53 @@ if (pauseDays >= 1) {
 }
 
 // ----------------------------------------------------------------------------
+// Netzladeschutz: die Batterie laedt nur aus PV, nie aus dem Netz
+// ----------------------------------------------------------------------------
+// Laeuft in jedem Zyklus (Tag und Nacht). Greift der Schutz, wird in
+// diesem Zyklus NUR die Ladesperre kommandiert und die regulaere Steuerung
+// ausgesetzt - sie wuerde die Sperre sonst gleich wieder ueberschreiben.
+var NETZLADESCHUTZ_ACTIVE = onOff('IBM_NETZLADESCHUTZ', FALLBACK_NETZLADESCHUTZ);
+var netzladeBlock = false;
+(function () {
+  var w = currentNetzladungW();
+  var display = readItem('IBM_NETZLADUNG');
+  if (display !== null && w !== null) display.postUpdate(w);
+  var st = readNetzladeState();
+  if (st === null) return; // Item fehlt (aeltere Installation) - Waechter aus
+  if (w === null || w <= 0) {
+    if (typeof st.zaehler === 'number' && st.zaehler > 0) {
+      writeNetzladeState({ zaehler: 0, zeit: now.toString() });
+    }
+    return;
+  }
+  var prev = null;
+  try {
+    if (st.zeit) prev = time.ZonedDateTime.parse(String(st.zeit));
+  } catch (e) {
+    prev = null;
+  }
+  var zaehler = (typeof st.zaehler === 'number' && prev !== null
+    && time.Duration.between(prev, now).toMinutes() <= NETZLADE_MAX_GAP_MIN)
+    ? st.zaehler : 0;
+  zaehler += 1;
+  writeNetzladeState({ zaehler: zaehler, zeit: now.toString() });
+  console.log('[IBM][Netzladeschutz] Batterie laedt netto ~' + w + ' W aus dem Netz ('
+    + zaehler + '. Zyklus in Folge)');
+  if (!NETZLADESCHUTZ_ACTIVE) return;
+  if (zaehler < NETZLADE_TRIGGER_CYCLES) return;
+  var soc = parseFloat(items.getItem('@IBM_SOC_ITEM@').numericState);
+  if (isNaN(soc) || soc < NETZLADE_MIN_SOC) {
+    console.log('[IBM][Netzladeschutz] Ladestand ' + soc + '% unter ' + NETZLADE_MIN_SOC
+      + '% - vermutlich Schutzladung des Wechselrichters, nur Warnung');
+    return;
+  }
+  var res = ibmPreventCharge(IBM_SLOT_MINUTES);
+  netzladeBlock = true;
+  console.log('[IBM][Netzladeschutz] Laden gesperrt fuer ' + IBM_SLOT_MINUTES
+    + ' min (nur aus PV, nie aus dem Netz) | ok=' + (res && res.ok === true));
+})();
+
+// ----------------------------------------------------------------------------
 // Laderegelung: Ladeleistung dynamisch regeln statt Sperrfenster
 // ----------------------------------------------------------------------------
 // Liefert die Planung einen Slot (alle Voraussetzungen erfuellt), ersetzt
@@ -1143,6 +1253,7 @@ if (regulationPlan !== null) {
 // sonst das Limit statt der Anlage messen und die Schaetzung nach unten
 // ziehen.
 function sampleChargeRate() {
+  if (netzladeBlock) return; // gesperrter Slot - keine Messstrecke
   if (!LOCAL_LOCK_ACTIVE && !REGULATION_ACTIVE) return;
   if (!chargeLockDateOk || CHARGE_LOCK_START_MIN === null || EVENING_CROSSOVER_MIN === null) return;
   var capacityKwh = estimatedCapacityKwh();
@@ -1328,7 +1439,9 @@ if (CHARGE_LOCK_ACTIVE && !chargeLockReady && regulationPlan === null) {
   console.log('[IBM] Kein gueltiges Ladesperre-Fenster fuer heute - Laden bleibt erlaubt');
 }
 
-if (CHARGE_LOCK_ACTIVE && regulationPlan !== null) {
+if (netzladeBlock) {
+  console.log('[IBM] Netzladeschutz hat das Laden gesperrt - regulaere Steuerung in diesem Zyklus ausgesetzt');
+} else if (CHARGE_LOCK_ACTIVE && regulationPlan !== null) {
   console.log('[IBM] Zeitfenster Tag (' + fmtMinutes(nowMinutes) + ') - Laderegelung aktiv');
   handleChargeRegulation(regulationPlan);
 } else if (CHARGE_LOCK_ACTIVE && chargeLockReady && inWindow(chargeLockStart, chargeLockEnd)) {

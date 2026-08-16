@@ -246,6 +246,10 @@ var payload = {
     // Effektive (sonnengewichtete) Restladezeit bis zur Abend-Deadline;
     // das Item traegt "<stunden> h" oder "-" - numberOf liefert dann null.
     restladezeit_h: numberOf('IBM_RESTLADEZEIT'),
+    // Netzladeschutz: aktuelle Netto-Netzladung der Batterie (0 = alles in
+    // Ordnung; > 0 zeigt das Dashboard als rote Warnung).
+    netzladeschutz: stateOf('IBM_NETZLADESCHUTZ'),
+    netzladung_w: numberOf('IBM_NETZLADUNG'),
     min_battery_charge: numberOf('IBM_MIN_BATTERY_CHARGE'),
     min_entladeleistung_w: numberOf('Minimale_Entladeleistung_Batterieeinspeisung'),
     max_entladeleistung_w: numberOf('Maximale_Entladeleistung_Batterieeinspeisung'),

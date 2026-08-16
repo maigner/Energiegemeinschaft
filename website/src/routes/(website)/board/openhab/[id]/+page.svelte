@@ -77,6 +77,13 @@
             // Effektive (sonnengewichtete) Restladezeit bis zur
             // Abend-Deadline; null, wenn die Anlage keine meldet.
             restladezeit: num(d.restladezeit_h),
+            // Netzladeschutz: aktuelle Netto-Netzladung der Batterie in W
+            // (0 = in Ordnung) und ob der Schutz abgeschaltet wurde.
+            netzladung:
+                typeof d.netzladung_w === "number" && Number.isFinite(d.netzladung_w)
+                    ? Math.round(d.netzladung_w)
+                    : null,
+            netzladeschutzAus: d.netzladeschutz === "OFF",
             // Ziel-Ladeleistung der dynamischen Laderegelung; null, wenn
             // gerade nicht begrenzt wird (dann zeigt die Karte das
             // Sperrfenster).
@@ -536,6 +543,19 @@
                     "Effektive Restladezeit",
                     bm.restladezeit !== null ? `${bm.restladezeit} h` : "-",
                     "",
+                )}
+                {@render systemStat(
+                    "Netzladeschutz",
+                    bm.netzladung !== null && bm.netzladung > 0
+                        ? `lädt aus dem Netz (${bm.netzladung} W)`
+                        : bm.netzladeschutzAus
+                          ? "abgeschaltet"
+                          : "in Ordnung",
+                    bm.netzladung !== null && bm.netzladung > 0
+                        ? RED
+                        : bm.netzladeschutzAus
+                          ? AMBER
+                          : GREEN,
                 )}
                 {@render systemStat(
                     "Mindest-Ladestand",

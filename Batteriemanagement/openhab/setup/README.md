@@ -220,6 +220,9 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `IBM_LADEREGELUNG_SOLL` | String | Ziel-Ladeleistung der Regelung, `<watt> W` oder `-` |
 | `IBM_LADEREGELUNG_STATUS` | String | Interner PWM-Zustand der Laderegelung (JSON) |
 | `IBM_RESTLADEZEIT` | String | Effektive (sonnengewichtete) Restladezeit bis zur Abend-Deadline, `<stunden> h` oder `-` |
+| `IBM_NETZLADESCHUTZ` | Switch | Netzladeschutz: erkannte Netto-Netzladung sperrt das Laden (siehe unten) |
+| `IBM_NETZLADUNG` | Number | Aktuelle Netto-Ladung der Batterie aus dem Netz in W (0 = in Ordnung) |
+| `IBM_NETZLADE_WAECHTER` | String | Interner Zustand des Netzladeschutzes (JSON) |
 
 Das Entladefenster folgt den Crossover-Zeiten der Gemeinschaft
 (`Ischlstrom_Crossover_Start`/`_Ende`): entladen wird vom abendlichen bis zum

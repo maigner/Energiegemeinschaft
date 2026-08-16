@@ -135,6 +135,16 @@ String IBM_LADEREGELUNG_STATUS   "Laderegelung (intern) [%s]"                  <
 // den Stundendaten integriert; '-' = gerade nicht berechenbar
 String IBM_RESTLADEZEIT          "Effektive Restladezeit [%s]"                 <time>     (IBM)
 
+// Netzladeschutz: die Batterie laedt nur aus PV, nie aus dem Netz. Erkennt
+// die Steuerung mehrere Zyklen in Folge Netto-Netzladung (Batterie laedt
+// und gleichzeitig wird bezogen), sperrt sie das Laden - ausser bei fast
+// leerer Batterie (Schutzladung des Wechselrichters). IBM_NETZLADUNG zeigt
+// die aktuelle Netto-Netzladung; IBM_NETZLADE_WAECHTER ist interner
+// Zustand (JSON).
+Switch IBM_NETZLADESCHUTZ        "Netzladeschutz (nur aus PV laden)"           <shield>   (IBM)
+Number IBM_NETZLADUNG            "Ladung aus dem Netz [%.0f W]"                <energy>   (IBM)
+String IBM_NETZLADE_WAECHTER     "Netzladeschutz (intern) [%s]"                <settings> (IBM)
+
 // Hauslast (gelernt aus dem naechtlichen Ladestandsabfall unterhalb der
 // Entlade-Reserve) und Nachtziel der Entladung. IBM_HAUSLAST_MESSUNG und
 // IBM_NACHT_ZIEL sind interner Zustand (JSON).
@@ -207,6 +217,8 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     IBM_LADEREGELUNG_SOLL,
     IBM_LADEREGELUNG_STATUS,
     IBM_RESTLADEZEIT,
+    IBM_NETZLADESCHUTZ,
+    IBM_NETZLADE_WAECHTER,
     IBM_HAUSLAST,
     IBM_HAUSLAST_MESSUNG,
     IBM_NACHT_ZIEL
@@ -260,6 +272,7 @@ ${battery_persist}
     IBM_BATTERIE_KAPAZITAET,
     IBM_LADELEISTUNG,
     IBM_HAUSLAST,
+    IBM_NETZLADUNG,
     IBM_BATTERIE_NETZEINSPEISUNG
         : strategy = everyChange, everyMinute
 }

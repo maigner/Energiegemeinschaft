@@ -645,6 +645,20 @@ also Eigenverbrauchsoptimierung, ist immer der sichere Rückfall.
     auf 90\% Sperranteil bzw. mindestens 10\% der gelernten Ladeleistung.
     Selbst ein grober Schätzfehler lässt die Batterie weiter laden, und der
     Regelkreis korrigiert ihn über den Live-Ladestand.
+  \item \textbf{Nie aus dem Netz laden:} Der Grundsatz ist doppelt
+    abgesichert. Erstens per Konstruktion: Kein Adapter verwendet Kommandos,
+    die die Batterie aus dem Netz laden könnten (keine Lade-Kommandos,
+    keine Command-Charging-Modi; der Deye-Adapter nullt die
+    TOU-Netzladen-Flags sogar aktiv in jedem Zyklus, der Victron-Setpoint
+    ist auf Einspeisung geklemmt). Zweitens zur Laufzeit: Ein
+    Netzladeschutz im Kern erkennt, wenn die Batterie netto aus dem Netz
+    lädt (Laden und Netzbezug gleichzeitig über 250\,W), etwa durch einen
+    Zeitplan oder eine Fehlkonfiguration am Wechselrichter selbst. Nach
+    drei Zyklen in Folge (15~Minuten, gegen Messrauschen und versetzte
+    Abtastung der Leistungswerte) sperrt er das Laden; unter 15\%
+    Ladestand warnt er nur, damit Schutzladungen des Wechselrichters bei
+    fast leerer Batterie nie blockiert werden. Der aktuelle Wert geht als
+    rote Warnung an das Vorstands-Dashboard.
   \item \textbf{Plausibilitätsfenster überall:} Jede Konfigurations- und
     Messgröße wird gegen einen erlaubten Bereich geprüft; Unplausibles wird
     verworfen und durch den Rückfallwert ersetzt, mit Logmeldung.
