@@ -39,8 +39,8 @@ export const actions = {
             return fail(400, { message: 'Bitte ein Mitglied auswählen.' });
         }
 
-        const token = await createOpenhabToken(memberId);
-        return { created: token };
+        await createOpenhabToken(memberId);
+        return { created: true };
     },
 
     deleteToken: async ({ request }) => {

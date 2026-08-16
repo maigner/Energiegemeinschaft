@@ -415,7 +415,7 @@
     {/if}
     {#if form?.created}
         <p class="text-sm text-green-700 dark:text-green-400 mb-4">
-            Token erstellt: <code class="font-mono">{form.created}</code>
+            Token erstellt. Kopieren über die Tabelle unten.
         </p>
     {/if}
 
@@ -435,16 +435,13 @@
                         <TableBodyCell>{anlage.memberName}</TableBodyCell>
                         <TableBodyCell>{anlage.name || "-"}</TableBodyCell>
                         <TableBodyCell>
-                            <div class="flex items-center gap-2">
-                                <code class="font-mono text-xs">{anlage.token}</code>
-                                <Button
-                                    size="xs"
-                                    color="light"
-                                    onclick={() => copyToken(anlage.token)}
-                                >
-                                    Kopieren
-                                </Button>
-                            </div>
+                            <Button
+                                size="xs"
+                                color="light"
+                                onclick={() => copyToken(anlage.token)}
+                            >
+                                Kopieren
+                            </Button>
                         </TableBodyCell>
                         <TableBodyCell>{formatLastSeen(anlage.createdAt)}</TableBodyCell>
                         <TableBodyCell>{formatLastSeen(anlage.lastSeen)}</TableBodyCell>
