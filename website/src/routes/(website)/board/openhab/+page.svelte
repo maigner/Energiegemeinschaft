@@ -364,11 +364,11 @@
                             {@render stat(batterieStat(d).value, batterieStat(d).label)}
                             {@render stat(
                                 num(d.batterie_kapazitaet) !== null ? `${num(d.batterie_kapazitaet)} kWh` : "-",
-                                "Kapazität",
+                                "Geschätzte Kapazität",
                             )}
                             {@render stat(
                                 num(d.ladeleistung_kw) !== null ? `${num(d.ladeleistung_kw)} kW` : "-",
-                                "Ladeleistung",
+                                "Gelernte Ladeleistung",
                             )}
                             {@render stat(
                                 num(d.wolkenvorschau, 0) !== null ? `${num(d.wolkenvorschau, 0)}%` : "-",
