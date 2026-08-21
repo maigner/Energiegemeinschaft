@@ -243,10 +243,13 @@ var NIGHT_BUDGET_MAX_KWH = 200;      // Plausibilitaetsfenster
 var NIGHT_TARGET_MAX_GAP_MIN = 60;   // laengere Luecke -> neue Nacht, Ziel neu
 
 // --- Hauslast-Schaetzung ----------------------------------------------------
-// Nach dem Entlade-Stopp versorgt der Wechselrichter das Haus allein aus
-// der Batterie - der naechtliche Ladestandsabfall unterhalb der Reserve
-// ergibt also direkt die Hauslast. Sie geht per Status-Push an den Server,
-// der daraus die Eigenbedarfsreserve des Nachtbudgets ableitet.
+// In jedem Nacht-Zyklus ohne Entladebefehl versorgt der Wechselrichter das
+// Haus allein aus der Batterie - der Ladestandsabfall ergibt also direkt
+// die Hauslast. Gemessen wird in allen solchen Abschnitten der Nacht (vor
+// dem ersten Entladen, nach dem Entlade-Stopp, bei Budget 0, Trueb-Stopp
+// oder unterhalb der Reserve); ein Entladebefehl setzt die Messstrecke
+// zurueck. Sie geht per Status-Push an den Server, der daraus die
+// Eigenbedarfsreserve des Nachtbudgets ableitet.
 var HOUSE_LOAD_MIN_SOC_DROP = 3;      // Prozentpunkte je Stichprobe
 var HOUSE_LOAD_MAX_STEP_GAP_MIN = 12; // laengere Luecke -> Messung neu aufsetzen
 var HOUSE_LOAD_MIN_SOC = 4;           // darunter drosselt der Wechselrichter selbst
@@ -572,7 +575,7 @@ function updateChargeRateEstimate(soc, capacityKwh) {
 //   basisSoc    Ladestand zu Beginn der laufenden Messstrecke (%)
 //   basisZeit   Beginn der Messstrecke
 //   letztZeit   Zeitpunkt des letzten Messlaufs (Lueckenerkennung)
-// Gemessen wird nur nachts unterhalb der Entlade-Reserve (sampleHouseLoad).
+// Gemessen wird nur nachts in Zyklen ohne Entladebefehl (sampleHouseLoad).
 
 function readHouseLoadState() {
   var item = readItem('IBM_HAUSLAST_MESSUNG');
@@ -594,6 +597,18 @@ function writeHouseLoadState(st) {
   if (display !== null && typeof st.watt === 'number') {
     display.postUpdate(Math.round(st.watt));
   }
+}
+
+// Bricht eine laufende Messstrecke ab (Schaetzung und Zaehler bleiben).
+// Die naechste Messung beginnt erst im naechsten Zyklus ohne Entladebefehl
+// - der gerade kommandierte Entlade-Slot darf nicht in die Hauslast laufen.
+function clearHouseLoadMeasurement() {
+  var st = readHouseLoadState();
+  if (st === null || typeof st.basisSoc !== 'number') return;
+  delete st.basisSoc;
+  delete st.basisZeit;
+  delete st.letztZeit;
+  writeHouseLoadState(st);
 }
 
 // Schreibt die Hauslastschaetzung fort: ist der Ladestand seit Beginn der
@@ -1329,21 +1344,25 @@ function sampleChargeRate() {
 }
 sampleChargeRate();
 
-// Hauslast lernen: nur nachts im Entladefenster, klar unterhalb der
-// Entlade-Reserve (dort speist die Steuerung sicher nicht mehr ein, die
-// Batterie versorgt allein das Haus) und oberhalb der Wechselrichter-
-// eigenen Reserve.
+// Hauslast lernen: nur nachts im Entladefenster und nur in Zyklen, in denen
+// die Steuerung nicht einspeist (die Batterie versorgt dann allein das
+// Haus), oberhalb der Wechselrichter-eigenen Reserve. Laeuft nach der
+// Zeitfenster-Weiche, damit der Entladebefehl dieses Zyklus bekannt ist;
+// er bricht die Messstrecke ab. Tagsueber (Laden) greift die Messung nicht.
+var dischargeCommanded = false;
 function sampleHouseLoad() {
   if (dischargeStart === null || dischargeEnd === null) return;
   if (!inWindow(dischargeStart, dischargeEnd)) return;
   var capacityKwh = estimatedCapacityKwh();
   if (capacityKwh === null) return;
+  if (dischargeCommanded) {
+    clearHouseLoadMeasurement();
+    return;
+  }
   var soc = parseFloat(items.getItem('@IBM_SOC_ITEM@').numericState);
-  var minSoc = num('IBM_MIN_BATTERY_CHARGE', 20, 5, 90);
-  if (isNaN(soc) || soc >= minSoc - 1 || soc < HOUSE_LOAD_MIN_SOC) return;
+  if (isNaN(soc) || soc < HOUSE_LOAD_MIN_SOC) return;
   updateHouseLoadEstimate(soc, capacityKwh);
 }
-sampleHouseLoad();
 
 // ----------------------------------------------------------------------------
 // Teil A: Laderegelung - Ladeleistung dynamisch begrenzen
@@ -1482,6 +1501,7 @@ function handleForcedDischarge() {
   var dischargeW = Math.round(dischargeMaxW - (clouds / 100) * (dischargeMaxW - dischargeMinW));
   console.log('[IBM][Entladung] Wolkenvorschau=' + clouds + '% -> dischargeW=' + dischargeW + 'W');
 
+  dischargeCommanded = true;
   var res = ibmForceDischarge(dischargeW, IBM_SLOT_MINUTES);
   var ok = res && res.ok === true;
   var appliedW = (res && typeof res.appliedW === 'number' && res.appliedW > 0) ? res.appliedW : dischargeW;
@@ -1514,3 +1534,5 @@ if (netzladeBlock) {
 } else {
   console.log('[IBM] Ausserhalb beider Zeitfenster (' + fmtMinutes(nowMinutes) + ') - keine Aktion');
 }
+
+sampleHouseLoad();

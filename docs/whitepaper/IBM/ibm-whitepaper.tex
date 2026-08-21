@@ -301,18 +301,25 @@ Mit dem individualisierten Ladefenster liefert der Server das
 Entladebudget der kommenden Nacht. Er summiert zunächst, was die Anlage in
 den nächsten 24~Stunden laut Prognoseprofil laden kann (dieselbe
 Integration wie in Abschnitt~\ref{sec:individuell}, über alle Slots der
-nächsten 24~Stunden), zieht eine Eigenbedarfsreserve von 24~Stunden
-gelernter Hauslast $P_{\text{Haus}}$ ab und behält einen Abschlag von 20\%
-ein:
+nächsten 24~Stunden), zieht eine Eigenbedarfsreserve ab und behält einen
+Abschlag von 20\% ein. Die Reserve ist die gelernte Hauslast
+$P_{\text{Haus}}$ über die Dauer $T_{\text{Reserve}}$, in der die
+Gemeinschaft in denselben 24~Stunden laut Prognose keinen Überschuss hat
+(Erzeugung unter Verbrauch): nachts immer, an einem trüben Folgetag auch
+tagsüber.
 \begin{equation}
   B \;=\; \max\Bigl(0,\; E_{\text{ladbar,24h}}
-    - \frac{P_{\text{Haus}}}{1000} \cdot 24\,\text{h}\Bigr) \cdot 0{,}8.
+    - \frac{P_{\text{Haus}}}{1000} \cdot T_{\text{Reserve}}\Bigr) \cdot 0{,}8.
 \end{equation}
-Meldet die Anlage keine plausible Hauslast (50 bis 3000\,W), rechnet der
-Server mit 500\,W. Bei mehrtägigem Schlechtwetter ist das Budget schlicht
-null: Die Batterie behält ihren Inhalt für das eigene Haus. Wie das
-Gateway das Budget in einen Ziel-Ladestand übersetzt, zeigt
-Gleichung~\eqref{eq:ziel}.
+Das Wetter des Folgetags steckt damit genau einmal im Budget, im ladbaren
+Ertrag und in der Reservedauer. Ein pauschaler Zuschlag von 24~Stunden
+Hauslast wäre dagegen eine Doppelzählung und drückte bei großen Batterien
+mit vorsichtig gelernter Ladeleistung selbst an klaren Tagen jedes Budget
+auf null. Meldet die Anlage keine plausible Hauslast (50 bis 3000\,W),
+rechnet der Server mit 300\,W, einer typischen nächtlichen Grundlast. Bei
+mehrtägigem Schlechtwetter ist das Budget schlicht null: Die Batterie
+behält ihren Inhalt für das eigene Haus. Wie das Gateway das Budget in
+einen Ziel-Ladestand übersetzt, zeigt Gleichung~\eqref{eq:ziel}.
 
 \subsection{Crossover-Zeiten}
 
@@ -555,8 +562,9 @@ Zwei Grenzen schützen den Haushalt vor einer leeren Batterie:
 \end{itemize}
 
 Nach dem Entlade-Stopp versorgt der Wechselrichter das Haus weiter aus der
-Batterie, bis zu seiner eigenen Reserve von wenigen Prozent; genau dieser
-Abschnitt liefert die Hauslast-Messung (Abschnitt~\ref{sec:lernen}).
+Batterie, bis zu seiner eigenen Reserve von wenigen Prozent. Diese und alle
+anderen Nachtabschnitte ohne Entladebefehl liefern die Hauslast-Messung
+(Abschnitt~\ref{sec:lernen}).
 
 % ============================================================================
 \section{Selbstlernende Anlagenkennwerte}\label{sec:lernen}
@@ -614,13 +622,20 @@ Stunde den Schnitt systematisch nach oben ziehen.
 
 \subsection{Nächtliche Hauslast}
 
-Nach dem Entlade-Stopp versorgt die Batterie allein das Haus. Der
-Ladestandsabfall klar unterhalb der Entlade-Reserve (und oberhalb der
+In jedem Nacht-Zyklus ohne Entladebefehl versorgt die Batterie allein das
+Haus. Der Ladestandsabfall in solchen Abschnitten (oberhalb der
 wechselrichtereigenen Reserve) ergibt daher direkt die Hauslast:
 Stichproben zwischen 50 und 3000\,W fließen mit Gewicht 0,3 in die
-Schätzung ein. Der Wert geht per Status-Push an den Server, der daraus die
-Eigenbedarfsreserve des Nachtbudgets ableitet; der Kreis zwischen lokalem
-Lernen und serverseitiger Individualisierung schließt sich hier.
+Schätzung ein; ein Entladebefehl bricht die laufende Messstrecke ab, die
+nächste beginnt im nächsten Zyklus ohne Entladung. Gemessen wird so vor dem
+ersten Entladen, nach dem Entlade-Stopp, bei Budget null, beim Trüb-Stopp
+und unterhalb der Reserve. Eine Messung nur unterhalb der Reserve, wie
+anfangs vorgesehen, käme bei großen Batterien nie zustande: Ohne Budget
+sinkt der Ladestand nicht unter die Reserve, ohne gelernte Hauslast bleibt
+das Budget beim Rückfallwert null. Der Wert geht per Status-Push an den
+Server, der daraus die Eigenbedarfsreserve des Nachtbudgets ableitet; der
+Kreis zwischen lokalem Lernen und serverseitiger Individualisierung
+schließt sich hier.
 
 % ============================================================================
 \section{Sicherheit und Robustheit}\label{sec:sicherheit}

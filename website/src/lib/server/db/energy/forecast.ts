@@ -177,15 +177,19 @@ const IBM_LATEST_END_MIN = 14 * 60;
 // Eingespeist werden darf nachts nur, was der kommende Tag der Anlage sicher
 // wieder in die Batterie lädt - sonst speist ein Mitglied nachts für die
 // Gemeinschaft ein und muss am trüben Folgetag selbst Strom zukaufen. Vom
-// ladbaren Tagesertrag geht eine Eigenbedarfsreserve (Hauslast über Nacht
-// und trüben Folgetag) ab, der Rest wird wegen der Prognosefehler nur mit
-// Abschlag freigegeben. Bei einer Mehrtages-Schlechtwetterfront ist das
+// ladbaren Tagesertrag geht eine Eigenbedarfsreserve ab: die Hauslast über
+// jene Stunden der nächsten 24, in denen die Gemeinschaft laut Prognose
+// keinen Überschuss hat (Erzeugung unter Verbrauch) - nachts immer, an einem
+// trüben Folgetag auch tagsüber. Das Wetter des Folgetags steckt so genau
+// einmal im Budget (ladbarer Ertrag und Reservedauer) und nicht zusätzlich
+// als pauschaler 24-Stunden-Zuschlag, der selbst an klaren Tagen jedes
+// Budget auf null drücken würde. Der Rest wird wegen der Prognosefehler nur
+// mit Abschlag freigegeben. Bei einer Mehrtages-Schlechtwetterfront ist das
 // Budget mehrere Tage in Folge 0 - die Batterie bleibt dem eigenen Haus.
-const IBM_NIGHT_RESERVE_HOURS = 24;
 const IBM_NIGHT_BUDGET_DISCOUNT = 0.8;
 // Hauslast-Annahme in Watt, solange die Anlage noch keine gelernte Hauslast
-// gepusht hat; bewusst eher hoch (mehr Reserve).
-export const IBM_FALLBACK_HOUSE_LOAD_W = 500;
+// gepusht hat: typische nächtliche Grundlast eines Haushalts.
+export const IBM_FALLBACK_HOUSE_LOAD_W = 300;
 
 const fmtMinutes = (m: number) => {
     const h = Math.floor(m / 60);
@@ -351,10 +355,11 @@ export const getChargeFactorsToday = async (runId: number) => {
 /**
  * Nacht-Entladebudget in kWh für eine Anlage: was der kommende Tag laut
  * Prognoseprofil in die Batterie laden kann (Ladeleistung mal normierte
- * Erzeugung der nächsten 24 Stunden), abzüglich Eigenbedarfsreserve und mit
- * Abschlag (Konstanten oben). Die Steuerung am Pi entlädt nachts nur bis
- * "Abend-Ladestand minus Budget". null, wenn der Lauf keine Slots für die
- * nächsten 24 Stunden hat.
+ * Erzeugung der nächsten 24 Stunden), abzüglich Eigenbedarfsreserve
+ * (Hauslast mal Stunden ohne Gemeinschafts-Überschuss in denselben 24
+ * Stunden) und mit Abschlag (Konstanten oben). Die Steuerung am Pi entlädt
+ * nachts nur bis "Abend-Ladestand minus Budget". null, wenn der Lauf keine
+ * Slots für die nächsten 24 Stunden hat.
  */
 export const getNightDischargeBudget = async (
     runId: number,
@@ -363,7 +368,7 @@ export const getNightDischargeBudget = async (
 ) => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`
-        SELECT generation_kwh
+        SELECT generation_kwh, consumption_kwh
         FROM metering_energyforecast
         WHERE run_id = $1
           AND timestamp > now()
@@ -378,10 +383,14 @@ export const getNightDischargeBudget = async (
     if (maxGen === null) return null;
 
     let chargeableKwh = 0;
+    let reserveHours = 0;
     for (const r of rows) {
-        chargeableKwh += chargeRateKw * (Number(r.generation_kwh) / maxGen) * 0.25;
+        const gen = Number(r.generation_kwh);
+        chargeableKwh += chargeRateKw * (gen / maxGen) * 0.25;
+        // Ohne Gemeinschafts-Überschuss haengt das Haus an der Batterie.
+        if (gen <= Number(r.consumption_kwh)) reserveHours += 0.25;
     }
-    const reserveKwh = (houseLoadW / 1000) * IBM_NIGHT_RESERVE_HOURS;
+    const reserveKwh = (houseLoadW / 1000) * reserveHours;
     const budget = Math.max(0, chargeableKwh - reserveKwh) * IBM_NIGHT_BUDGET_DISCOUNT;
     return Math.round(budget * 10) / 10;
 };
