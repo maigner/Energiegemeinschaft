@@ -13,7 +13,7 @@ auf s1 (Checkout von github.com/openhab/openhab-cloud; Compose-Projekt
 
 | Container | Image | Zweck |
 | --- | --- | --- |
-| `app` | `openhab/openhab-cloud:latest` (Docker Hub) | Node-App, lauscht auf 127.0.0.1:3000 |
+| `app` | `openhab/openhab-cloud:latest` (Docker Hub; auf s1 steht `latest` seit der Installation fuer 2.0.6) | Node-App, lauscht auf 127.0.0.1:3000 |
 | `mongodb` | `mongo:6` | Konten, UUIDs/Secrets, Geraete (Volume `mongo-data`) |
 | `redis` | `redis:7-alpine` | Sessions/Cache (Volume `redis-data`) |
 
@@ -50,6 +50,17 @@ Die wichtigsten Werte und zwei Fallen, die die Erstinstallation gekostet haben:
   `SMTP_SECURE=true`, Benutzer `info@ischlstrom.org` mit einem
   mailcow-App-Passwort). Die alten SES-Zugangsdaten stehen als Kommentar in
   der `.env` (Rollback), AWS SES wird nicht mehr verwendet.
+- **`FCM_SENDER_ID` und `FCM_SERVICE_FILE` muessen gesetzt sein** (Dummy-Werte
+  `0` und `/nonexistent`, `gcm`-Block im `config.json.template`), obwohl Push
+  bei uns nicht geht: die Android-App fragt `GET /api/v1/settings/notifications`
+  und erkennt den Server nur dann als openHAB Cloud, wenn die Antwort
+  `gcm.senderId` enthaelt. Ohne diese Erkennung behandelt sie ihn als normalen
+  openHAB-Server und laedt die Main UI unter `https://hac.ischlstrom.org/`,
+  also die Startseite der Cloud statt der Anlage (Symptom bei Mitglied 007,
+  behoben 22. August 2026). Mit der Erkennung holt sie `/api/v1/proxyurl` und
+  laedt die Main UI ueber `remote.hac.ischlstrom.org`. Die fehlende
+  Service-Datei loggt beim Start nur `FCM service account file not found`,
+  der FCM-Provider bleibt inaktiv.
 - `REGISTRATION_ENABLED` bleibt bewusst auf dem Standard `true`: die
   Mitglieder registrieren ihre Konten selbst (laufendes Onboarding). Ein
   Konto allein gewaehrt keinen Zugriff auf fremde Anlagen (dazu braeuchte es
@@ -84,7 +95,8 @@ Zwei bekannte Stolpersteine:
 - **Push-Benachrichtigungen funktionieren nicht**: die offiziellen
   openHAB-Apps koennen Pushes nur ueber die APNS/FCM-Zertifikate der openHAB
   Foundation (myopenhab.org) empfangen. Fernzugriff und UI gehen normal; nur
-  Benachrichtigungen bleiben stumm.
+  Benachrichtigungen bleiben stumm. Die Dummy-FCM-Werte (siehe oben) aendern
+  daran nichts, sie dienen nur der Cloud-Erkennung durch die App.
 
 ## Betrieb
 
@@ -98,6 +110,11 @@ cd /home/martin/openhab-cloud/deployment/docker-compose && docker compose up -d 
 
 # Update auf neues Image
 docker compose pull app && docker compose up -d app
+
+# Cloud-Erkennung durch die Apps pruefen (mit einem eigenen Cloud-Konto):
+# muss {"gcm":{"senderId":"0"}} bzw. die remote.-URL liefern
+curl -u KONTO:PASSWORT https://hac.ischlstrom.org/api/v1/settings/notifications
+curl -u KONTO:PASSWORT https://hac.ischlstrom.org/api/v1/proxyurl
 
 # Registrierte Konten pruefen (Fremdregistrierungen erkennen)
 docker exec openhab-cloud-ischlstrom-mongodb-1 mongosh openhab --quiet \
