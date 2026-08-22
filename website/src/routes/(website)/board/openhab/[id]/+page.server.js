@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { getOpenhabStatus, getOpenhabStatusHistory, getOpenhabStatuses } from '$lib/server/db/members/openhabStatus';
 import { newestVersion } from '$lib/versions';
 
-const HISTORY_DAYS = 7;
+const HISTORY_DAYS = 14;
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params }) {
