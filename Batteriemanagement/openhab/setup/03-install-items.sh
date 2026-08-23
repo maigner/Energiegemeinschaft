@@ -88,6 +88,10 @@ String Ischlstrom_Ladefaktoren        "Ladefaktoren (intern) [%s]"      <setting
 // eigenen Haus fehlt; '-' = kein Budget (Entladung bis zur Reserve)
 String Ischlstrom_Nachtbudget         "Nacht-Entladebudget [%s]"        <energy> (IBM)
 String Ischlstrom_Nachtbudget_Zeit    "Nachtbudget abgerufen [%s]"      <time>   (IBM)
+// Entladestart der Nacht von der Token-API: erster Slot, in dem die
+// Gemeinschaft laut Prognose deutlich im Defizit ist (HH:MM); '-' = kein
+// Wert, die Steuerung startet dann beim Abend-Crossover plus Abstand
+String Ischlstrom_Entladestart        "Entladung ab [%s]"               <time>   (IBM)
 
 // Vom Mitglied einstellbar
 Number IBM_MIN_BATTERY_CHARGE                       "Minimaler Ladestand Batterie [%.0f %%]" <batterylevel> (IBM)
@@ -206,6 +210,7 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     Ischlstrom_Ladefaktoren,
     Ischlstrom_Nachtbudget,
     Ischlstrom_Nachtbudget_Zeit,
+    Ischlstrom_Entladestart,
     IBM_MIN_BATTERY_CHARGE,
     Minimale_Entladeleistung_Batterieeinspeisung,
     Maximale_Entladeleistung_Batterieeinspeisung,

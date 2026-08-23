@@ -204,6 +204,8 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `Ischlstrom_Crossover_Ende` | String | API `/api/eeginfo/crossover/v1` |
 | `Ischlstrom_Ladesperre_Start` / `_Ende` | String | API `/api/eeginfo/ladefenster/v1` |
 | `Ischlstrom_Ladesperre_Datum` | String | Tag, fuer den das Ladesperre-Fenster gilt |
+| `Ischlstrom_Nachtbudget` / `_Zeit` | String | Nacht-Entladebudget in kWh (Token-API) oder `-`, samt Abrufzeitpunkt |
+| `Ischlstrom_Entladestart` | String | Entladestart der Nacht aus der Tagesprognose (Token-API), `HH:MM` oder `-` |
 | `Ischlstrom_Wolken_Stunden` | String | Stuendliche Bewoelkung des restlichen Tages (JSON, Wolken-API) |
 | `Ischlstrom_Ladefaktoren` | String | Stuendliche Ladefaktoren des Erzeugungsprofils samt Abend-Deadline (JSON, Token-API) |
 | `IBM_MIN_BATTERY_CHARGE` | Number | Einstellung |
@@ -226,12 +228,30 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `IBM_BATTERIE_NETZEINSPEISUNG_KWH` | Number | Einspeise-Zaehler: aufsummierte Energie aus der Batterie ins Netz in kWh (Nutzen-Indikator, Anzeige/Status-Push) |
 | `IBM_NETZEINSPEISUNG_ZAEHLER` | String | Interner Zustand des Einspeise-Zaehlers (JSON, praeziser Stand samt Zeitstempel) |
 
-Das Entladefenster folgt den Crossover-Zeiten der Gemeinschaft
-(`Ischlstrom_Crossover_Start`/`_Ende`): entladen wird vom abendlichen bis zum
-morgendlichen Crossover, also solange die Gemeinschaft mehr verbraucht als
-erzeugt. Liegen keine plausiblen Crossover-Zeiten vor (ischlstrom.org nie
-erreichbar gewesen oder Werte unbrauchbar), wird **nicht** entladen - ein
-Ersatz-Zeitfenster gibt es nicht.
+Das Entladefenster endet beim morgendlichen Crossover der Gemeinschaft
+(`Ischlstrom_Crossover_Start`, Wochenmittel). Der Beginn kommt tagesaktuell
+aus der Prognose (`Ischlstrom_Entladestart`, Token-API): der erste
+15-Minuten-Slot nach dem abendlichen Crossover, in dem das Defizit der
+Gemeinschaft mindestens ein Viertel ihres Verbrauchs und mindestens das
+Doppelte der Entladeleistung aller IBM-Anlagen erreicht. Erst dann nehmen
+die Mitglieder die Einspeisung sicher auf; direkt nach dem Crossover (und
+erst recht nach dem Wochenmittel `Ischlstrom_Crossover_Ende`, das an
+sonnigen Tagen zu frueh liegt) ginge sie an den Energielieferanten. Fehlt
+der Wert oder gilt er nicht fuer den heutigen Tag (`Ischlstrom_Ladesperre_Datum`),
+beginnt die Entladung eine Stunde nach dem abendlichen Crossover
+(`DISCHARGE_START_OFFSET_MIN` in `control/core.js`). Liegen keine plausiblen
+Crossover-Zeiten vor (ischlstrom.org nie erreichbar gewesen oder Werte
+unbrauchbar), wird **nicht** entladen - ein Ersatz-Zeitfenster gibt es nicht.
+
+Wie tief nachts entladen wird, begrenzt das **Nacht-Entladebudget**
+(`Ischlstrom_Nachtbudget`, Token-API): was der kommende Tag laut Prognose
+wieder in die Batterie laedt, abzueglich Hauslast-Reserve und Abschlag. Der
+Server rechnet dafuer mit der hoeheren von gelernter Ladeleistung
+(`IBM_LADELEISTUNG`, bewusst die untere Huellkurve) und der aus der
+Status-Historie beobachteten Spitzen-Ladeleistung der Anlage - die gelernte
+Rate allein wuerde das Budget an sonnigen Tagen auf einen Bruchteil
+druecken, weil sie oberhalb von 95% Ladestand und unter der Laderegelung
+keine Stichproben bekommt.
 
 Das Ladesperre-Fenster kommt aus der Tagesprognose
 (`/api/eeginfo/ladefenster/v1`, berechnet aus den Kurven von `/vorhersage`):

@@ -99,6 +99,7 @@ if [ -f "$items_db" ]; then
               Ischlstrom_Ladefaktoren \
               Ischlstrom_Nachtbudget \
               Ischlstrom_Nachtbudget_Zeit \
+              Ischlstrom_Entladestart \
               IBM_MIN_BATTERY_CHARGE \
               Minimale_Entladeleistung_Batterieeinspeisung \
               Maximale_Entladeleistung_Batterieeinspeisung \

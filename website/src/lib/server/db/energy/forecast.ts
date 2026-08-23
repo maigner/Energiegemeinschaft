@@ -191,6 +191,17 @@ const IBM_NIGHT_BUDGET_DISCOUNT = 0.8;
 // gepusht hat: typische nächtliche Grundlast eines Haushalts.
 export const IBM_FALLBACK_HOUSE_LOAD_W = 300;
 
+// --- Entladestart der Nacht --------------------------------------------------
+// Die Batterien sollen erst einspeisen, wenn die Gemeinschaft laut Prognose
+// sicher im Defizit ist - sonst landet die Nachteinspeisung direkt nach dem
+// Crossover beim Energielieferanten statt bei den Mitgliedern. Das Defizit
+// muss deshalb mindestens diesen Anteil des Gemeinschaftsverbrauchs
+// erreichen (Puffer fuer den Prognosefehler der Erzeugung) ...
+const IBM_DISCHARGE_MIN_DEFICIT_SHARE = 0.25;
+// ... und zugleich ein Vielfaches dessen, was die IBM-Flotte abends
+// zusammen ins Netz drueckt (Summe der maximalen Entladeleistungen).
+const IBM_DISCHARGE_FLEET_FACTOR = 2;
+
 const fmtMinutes = (m: number) => {
     const h = Math.floor(m / 60);
     const mm = m % 60;
@@ -216,17 +227,10 @@ const getRunMaxGeneration = async (runId: number) => {
 };
 
 /**
- * Individualisiertes Ladesperre-Ende ("HH:MM") für eine Anlage mit der
- * gegebenen Batteriekapazität und Ladeleistung - oder null, wenn die Anlage
- * laut Profil den ganzen Tag zum Laden braucht (dann keine Sperre) oder der
- * Prognosetag keine Berechnung hergibt (kein Profil, keine Erzeugung, kein
- * abendlicher Crossover). Plausibilität der Eingaben prüft der Aufrufer.
+ * Die 15-Minuten-Slots des heutigen Tages (Europe/Vienna) eines Laufs, als
+ * Minute des Tages mit Erzeugung und Verbrauch in kWh je Slot.
  */
-export const getIndividualChargeWindowEnd = async (
-    runId: number,
-    capacityKwh: number,
-    chargeRateKw: number
-) => {
+const getTodaySlots = async (runId: number) => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`
         SELECT (EXTRACT(hour FROM timestamp AT TIME ZONE 'Europe/Vienna') * 60
@@ -239,12 +243,26 @@ export const getIndividualChargeWindowEnd = async (
         ORDER BY 1
     `, [runId]);
     sql.release();
-
-    const slots = (result?.rows ?? []).map((r: any) => ({
+    return (result?.rows ?? []).map((r: any) => ({
         minute: Number(r.minute_of_day),
         gen: Number(r.generation_kwh),
         cons: Number(r.consumption_kwh),
     }));
+};
+
+/**
+ * Individualisiertes Ladesperre-Ende ("HH:MM") für eine Anlage mit der
+ * gegebenen Batteriekapazität und Ladeleistung - oder null, wenn die Anlage
+ * laut Profil den ganzen Tag zum Laden braucht (dann keine Sperre) oder der
+ * Prognosetag keine Berechnung hergibt (kein Profil, keine Erzeugung, kein
+ * abendlicher Crossover). Plausibilität der Eingaben prüft der Aufrufer.
+ */
+export const getIndividualChargeWindowEnd = async (
+    runId: number,
+    capacityKwh: number,
+    chargeRateKw: number
+) => {
+    const slots = await getTodaySlots(runId);
     if (slots.length === 0) return null;
 
     // Normierung gegen den besten Slot des Laufs: an trüben Tagen liegt das
@@ -291,24 +309,7 @@ export const getIndividualChargeWindowEnd = async (
  * abendlicher Crossover).
  */
 export const getChargeFactorsToday = async (runId: number) => {
-    const sql = await middlewareDbConnection();
-    const result = await sql.query(`
-        SELECT (EXTRACT(hour FROM timestamp AT TIME ZONE 'Europe/Vienna') * 60
-              + EXTRACT(minute FROM timestamp AT TIME ZONE 'Europe/Vienna'))::int AS minute_of_day,
-               generation_kwh,
-               consumption_kwh
-        FROM metering_energyforecast
-        WHERE run_id = $1
-          AND (timestamp AT TIME ZONE 'Europe/Vienna')::date = (now() AT TIME ZONE 'Europe/Vienna')::date
-        ORDER BY 1
-    `, [runId]);
-    sql.release();
-
-    const slots = (result?.rows ?? []).map((r: any) => ({
-        minute: Number(r.minute_of_day),
-        gen: Number(r.generation_kwh),
-        cons: Number(r.consumption_kwh),
-    }));
+    const slots = await getTodaySlots(runId);
     if (slots.length === 0) return null;
 
     const maxGen = await getRunMaxGeneration(runId);
@@ -353,9 +354,42 @@ export const getChargeFactorsToday = async (runId: number) => {
 };
 
 /**
+ * Entladestart der heutigen Nacht ("HH:MM") für die IBM-Anlagen: der erste
+ * Slot nach dem abendlichen Crossover des Prognosetags, in dem das Defizit
+ * der Gemeinschaft (Verbrauch minus Erzeugung) mindestens
+ * IBM_DISCHARGE_MIN_DEFICIT_SHARE des Verbrauchs und mindestens
+ * IBM_DISCHARGE_FLEET_FACTOR mal die Entladeleistung der Flotte erreicht.
+ * Ab dann nimmt die Gemeinschaft die Nachteinspeisung sicher auf. null, wenn
+ * der Prognosetag keinen abendlichen Crossover oder kein ausreichendes
+ * Defizit hat - die Steuerung am Pi fällt dann auf den wöchentlichen
+ * Crossover plus festen Abstand zurück.
+ */
+export const getTodayDischargeStart = async (runId: number, fleetDischargeKw: number) => {
+    const slots = await getTodaySlots(runId);
+    if (slots.length === 0) return null;
+
+    let crossoverEnd: number | null = null;
+    for (const s of slots) {
+        if (s.minute >= 12 * 60 && s.gen >= s.cons) crossoverEnd = s.minute + 15;
+    }
+    if (crossoverEnd === null) return null;
+
+    for (const s of slots) {
+        if (s.minute < crossoverEnd) continue;
+        const deficitKw = (s.cons - s.gen) * 4;
+        const neededKw = Math.max(
+            s.cons * 4 * IBM_DISCHARGE_MIN_DEFICIT_SHARE,
+            fleetDischargeKw * IBM_DISCHARGE_FLEET_FACTOR
+        );
+        if (deficitKw >= neededKw) return fmtMinutes(s.minute);
+    }
+    return null;
+};
+
+/**
  * Nacht-Entladebudget in kWh für eine Anlage: was der kommende Tag laut
- * Prognoseprofil in die Batterie laden kann (Ladeleistung mal normierte
- * Erzeugung der nächsten 24 Stunden), abzüglich Eigenbedarfsreserve
+ * Prognoseprofil in die Batterie laden kann (Spitzen-Ladeleistung der Anlage
+ * mal normierte Erzeugung der nächsten 24 Stunden), abzüglich Eigenbedarfsreserve
  * (Hauslast mal Stunden ohne Gemeinschafts-Überschuss in denselben 24
  * Stunden) und mit Abschlag (Konstanten oben). Die Steuerung am Pi entlädt
  * nachts nur bis "Abend-Ladestand minus Budget". null, wenn der Lauf keine

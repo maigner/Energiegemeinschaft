@@ -53,6 +53,10 @@ if (response !== null) {
       // Kommt nur von der individualisierten API; '-' heisst kein Budget
       // (die Steuerung entlaedt dann wie bisher bis zur Reserve).
       var budget = (typeof fenster.nachtbudget_kwh === "number") ? String(fenster.nachtbudget_kwh) : "-";
+      // Entladestart der Nacht: erster Slot, in dem die Gemeinschaft laut
+      // Prognose deutlich im Defizit ist. '-' heisst kein Wert (die
+      // Steuerung startet dann beim Abend-Crossover plus Abstand).
+      var entladestart = (typeof fenster.entladestart === "string" && /^\d{2}:\d{2}$/.test(fenster.entladestart)) ? fenster.entladestart : "-";
 
       items.getItem("Ischlstrom_Ladesperre_Start").postUpdate(start);
       items.getItem("Ischlstrom_Ladesperre_Ende").postUpdate(ende);
@@ -65,6 +69,11 @@ if (response !== null) {
         items.getItem("Ischlstrom_Nachtbudget_Zeit").postUpdate(time.ZonedDateTime.now().toString());
       } catch (e) {
         console.error("[IBM] Items fuer Individualisierung/Nachtbudget fehlen - Setup-Skript 03 erneut ausfuehren.");
+      }
+      try {
+        items.getItem("Ischlstrom_Entladestart").postUpdate(entladestart);
+      } catch (e3) {
+        console.error("[IBM] Item Ischlstrom_Entladestart fehlt - Setup-Skript 03 erneut ausfuehren.");
       }
 
       // Stuendliche Ladefaktoren des Erzeugungsprofils samt Abend-Deadline:
@@ -87,7 +96,7 @@ if (response !== null) {
       } catch (e2) {
         // Item fehlt bei aelteren Installationen - Setup-Skript 03 erneut ausfuehren
       }
-      console.log("[IBM] Ladesperre-Fenster aktualisiert (" + fenster.datum + "): " + start + " - " + ende + (individuell ? " (individuell)" : "") + (budget !== "-" ? " | Nachtbudget " + budget + " kWh" : "") + (faktorenText === "-" ? "" : " | " + lf.stunden.length + " Ladefaktoren bis " + lf.deadline));
+      console.log("[IBM] Ladesperre-Fenster aktualisiert (" + fenster.datum + "): " + start + " - " + ende + (individuell ? " (individuell)" : "") + (budget !== "-" ? " | Nachtbudget " + budget + " kWh" : "") + (entladestart !== "-" ? " | Entladung ab " + entladestart : "") + (faktorenText === "-" ? "" : " | " + lf.stunden.length + " Ladefaktoren bis " + lf.deadline));
     }
   } catch (e) {
     console.error("[IBM] Fehler beim Parsen der Antwort: " + e.message);

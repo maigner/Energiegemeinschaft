@@ -5,9 +5,14 @@ import {
     getIndividualChargeWindowEnd,
     getChargeFactorsToday,
     getNightDischargeBudget,
+    getTodayDischargeStart,
     IBM_FALLBACK_HOUSE_LOAD_W
 } from '$lib/server/db/energy/forecast';
-import { getOpenhabPlantByToken } from '$lib/server/db/members/openhabStatus';
+import {
+    getOpenhabPlantByToken,
+    getObservedPeakChargeKw,
+    getActiveFleetDischargeKw
+} from '$lib/server/db/members/openhabStatus';
 
 /**
  * Individualisiertes Ladesperre-Fenster für eine IBM-Anlage (Regel
@@ -32,7 +37,17 @@ import { getOpenhabPlantByToken } from '$lib/server/db/members/openhabStatus';
  * Folgetag selbst Strom zukaufen muss (siehe getNightDischargeBudget). Die
  * Steuerung entlädt nachts nur bis "Abend-Ladestand minus Budget"; bei einer
  * Mehrtages-Schlechtwetterfront ist das Budget 0 und die Batterie bleibt
- * dem eigenen Haushalt.
+ * dem eigenen Haushalt. Gerechnet wird das Budget mit der höheren von
+ * gelernter Ladeleistung und beobachteter Spitzen-Ladeleistung aus der
+ * Status-Historie (`nachtbudget_rate_kw`): die gelernte Rate ist bewusst
+ * die untere Hüllkurve und würde das Budget an sonnigen Tagen auf einen
+ * Bruchteil drücken.
+ *
+ * `entladestart` -- ab wann die Nachteinspeisung heute beginnen soll
+ * (siehe getTodayDischargeStart): erst wenn die Gemeinschaft laut Prognose
+ * deutlich im Defizit ist, damit die Einspeisung bei den Mitgliedern landet
+ * und nicht beim Energielieferanten. null, wenn die Prognose das nicht
+ * hergibt; die Steuerung fällt dann auf Crossover plus Abstand zurück.
  *
  * Außerdem: `ladefaktoren` -- die stündlichen Ladefaktoren des heutigen
  * Tages samt Abend-Deadline (siehe getChargeFactorsToday). Die dynamische
@@ -84,6 +99,7 @@ export async function POST({ request }) {
     let ende = fenster.ende;
     let individuell = false;
     let nachtbudgetKwh = null;
+    let nachtbudgetRateKw = null;
 
     if (plausibel && fenster.start && fenster.ende) {
         const individualEnde = await getIndividualChargeWindowEnd(run.id, capacity, rate);
@@ -94,14 +110,18 @@ export async function POST({ request }) {
         individuell = true;
     }
 
-    // Das Nachtbudget braucht nur die Ladeleistung; die gelernte Hauslast
-    // der Anlage bestimmt die Eigenbedarfsreserve (Fallback, solange sie
-    // noch nicht gepusht wird).
+    // Das Nachtbudget braucht nur die Ladeleistung - die höhere von
+    // gelernter Rate (untere Hüllkurve, fürs Sperr-Ende gedacht) und
+    // beobachteter Spitzen-Ladeleistung aus der Status-Historie; die
+    // gelernte Hauslast der Anlage bestimmt die Eigenbedarfsreserve
+    // (Fallback, solange sie noch nicht gepusht wird).
     if (plausibel) {
         const houseLoadW = Number(plant.data?.hauslast_w);
+        const observedKw = await getObservedPeakChargeKw(plant.id);
+        nachtbudgetRateKw = Math.min(30, Math.max(rate, observedKw ?? 0));
         nachtbudgetKwh = await getNightDischargeBudget(
             run.id,
-            rate,
+            nachtbudgetRateKw,
             Number.isFinite(houseLoadW) && houseLoadW >= 50 && houseLoadW <= 3000
                 ? houseLoadW
                 : IBM_FALLBACK_HOUSE_LOAD_W
@@ -109,6 +129,7 @@ export async function POST({ request }) {
     }
 
     const ladefaktoren = await getChargeFactorsToday(run.id);
+    const entladestart = await getTodayDischargeStart(run.id, await getActiveFleetDischargeKw());
 
     return json({
         ladefenster: {
@@ -117,6 +138,8 @@ export async function POST({ request }) {
             ende,
             individuell,
             nachtbudget_kwh: nachtbudgetKwh,
+            nachtbudget_rate_kw: nachtbudgetRateKw,
+            entladestart,
             ladefaktoren
         }
     });

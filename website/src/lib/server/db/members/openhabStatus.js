@@ -222,6 +222,76 @@ export const getOpenhabStatus = async (statusId) => {
 };
 
 /**
+ * Beobachtete Spitzen-Ladeleistung einer Anlage in kW, aus dem Verlauf der
+ * letzten `days` Tage: je Tag die hoechste gemeldete Batterieladung
+ * (battery_power_w negativ = Laden), davon das obere Quartil - also die
+ * Ladeleistung an einem typischen guten Tag, ohne dass ein einzelner
+ * Ausreisser zaehlt. Sie bestimmt zusammen mit der gelernten Ladeleistung
+ * das Nacht-Entladebudget (Token-API /api/ibm/ladefenster): die gelernte
+ * Rate ist bewusst die untere Huellkurve (fuer das Sperr-Ende richtig),
+ * unterschaetzt aber, was ein sonniger Tag wieder in die Batterie laedt.
+ * null, wenn weniger als 3 Tage mit Ladung vorliegen.
+ *
+ * @param {number} statusId - members_openhabstatus.id
+ * @param {number} [days]
+ * @returns {Promise<number | null>}
+ */
+export const getObservedPeakChargeKw = async (statusId, days = 7) => {
+    const db = await middlewareDbConnection();
+    try {
+        const result = await db.query(
+            `WITH daily AS (
+                SELECT (time AT TIME ZONE 'Europe/Vienna')::date AS d,
+                       MAX(-(data->>'battery_power_w')::float) AS peak_w
+                  FROM members_openhabstatushistory
+                 WHERE status_id = $1
+                   AND time > now() - make_interval(days => $2)
+                   AND jsonb_typeof(data->'battery_power_w') = 'number'
+                 GROUP BY 1
+                HAVING MAX(-(data->>'battery_power_w')::float) > 0
+             )
+             SELECT count(*)::int AS days,
+                    percentile_cont(0.75) WITHIN GROUP (ORDER BY peak_w) AS peak_w
+               FROM daily`,
+            [statusId, days]
+        );
+        const row = result.rows[0];
+        if (!row || row.days < 3 || row.peak_w == null) return null;
+        return Math.round(Number(row.peak_w) / 100) / 10;
+    } finally {
+        db.release();
+    }
+};
+
+/**
+ * Summe der eingestellten maximalen Entladeleistung aller aktiven
+ * IBM-Anlagen in kW (Hauptschalter ON, Entladung aktiv, in der letzten
+ * Stunde gemeldet). Dient dem Entladestart der Nacht als Mass dafuer, wie
+ * viel die Flotte abends ins Netz drueckt (siehe getTodayDischargeStart).
+ * Eine Anlage ohne Einstellung zaehlt mit 3 kW.
+ *
+ * @returns {Promise<number>}
+ */
+export const getActiveFleetDischargeKw = async () => {
+    const db = await middlewareDbConnection();
+    try {
+        const result = await db.query(
+            `SELECT COALESCE(SUM(CASE WHEN jsonb_typeof(data->'max_entladeleistung_w') = 'number'
+                                      THEN (data->>'max_entladeleistung_w')::float
+                                      ELSE 3000 END), 0) / 1000 AS kw
+               FROM members_openhabstatus
+              WHERE last_seen > now() - interval '1 hour'
+                AND data->>'hauptschalter' = 'ON'
+                AND COALESCE(data->>'entladung_aktiv', 'ON') = 'ON'`
+        );
+        const kw = Number(result.rows[0]?.kw);
+        return Number.isFinite(kw) ? kw : 0;
+    } finally {
+        db.release();
+    }
+};
+
+/**
  * Anonyme Kennzahlen fuer die oeffentliche IBM-Seite: Anzahl der Anlagen,
  * die schon melden, davon aktuell online, und die Summe der geschaetzten
  * Batteriekapazitaeten. Keine Namen, keine Mitgliedsdaten.

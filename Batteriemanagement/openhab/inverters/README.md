@@ -165,6 +165,7 @@ voraussetzen:
 | `Ischlstrom_Ladefaktoren` | String | Stuendliche Ladefaktoren des Erzeugungsprofils samt Abend-Deadline (JSON, Token-API) oder `-` |
 | `Ischlstrom_Nachtbudget` | String | Nacht-Entladebudget in kWh (Token-API) oder `-`; der Kern entlaedt nur bis Abend-Ladestand minus Budget |
 | `Ischlstrom_Nachtbudget_Zeit` | String | Abrufzeitpunkt des Budgets (Aktualitaetspruefung) |
+| `Ischlstrom_Entladestart` | String | Entladestart der Nacht aus der Tagesprognose (Token-API), `HH:MM` oder `-`; ohne Wert startet der Kern eine Stunde nach dem Abend-Crossover |
 | `IBM_HAUSLAST` | Number | Vom Kern gelernte Hauslast in W (Anzeige/Status-Push) |
 | `IBM_HAUSLAST_MESSUNG` | String | Interner Zustand der Hauslastschaetzung (JSON) |
 | `IBM_NACHT_ZIEL` | String | Interner Zustand: festgehaltener Ziel-Ladestand der laufenden Nacht (JSON) |

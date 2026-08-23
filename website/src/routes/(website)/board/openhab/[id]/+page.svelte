@@ -114,6 +114,12 @@
                 Number.isFinite(Number(d.nachtbudget_kwh))
                     ? Number(d.nachtbudget_kwh).toFixed(1)
                     : null,
+            // String-Item ('-' = kein Wert, dann Crossover plus Abstand)
+            entladestart:
+                typeof d.entladestart === "string" &&
+                /^\d{2}:\d{2}$/.test(d.entladestart)
+                    ? d.entladestart
+                    : null,
         };
     });
 
@@ -624,6 +630,13 @@
                     "Nacht-Entladebudget",
                     bm.nachtbudget !== null ? `${bm.nachtbudget} kWh` : "-",
                     bm.nachtbudget === "0.0" ? AMBER : "",
+                )}
+                {@render systemStat(
+                    "Entladung ab",
+                    bm.entladestart !== null
+                        ? `${bm.entladestart} Uhr (Prognose)`
+                        : "Crossover + 60 min",
+                    "",
                 )}
                 {@render systemStat(
                     "Batterie ins Netz gesamt",

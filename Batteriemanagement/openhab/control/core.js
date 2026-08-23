@@ -24,9 +24,14 @@
 //
 // Das Entladefenster folgt den taeglich von der API geholten Crossover-Zeiten
 // (Zeitpunkt, an dem die gemeinschaftliche Erzeugung den Verbrauch kreuzt):
-// entladen wird vom abendlichen bis zum morgendlichen Crossover. Liegen keine
-// plausiblen Crossover-Zeiten vor (ischlstrom.org nie erreichbar gewesen oder
-// Daten unbrauchbar), wird NICHT entladen - es gibt kein Ersatzfenster.
+// entladen wird bis zum morgendlichen Crossover. Der Beginn kommt bevorzugt
+// tagesaktuell von der Token-API (Ischlstrom_Entladestart: erster Slot, in
+// dem die Gemeinschaft laut Prognose deutlich im Defizit ist - so landet
+// die Einspeisung sicher bei den Mitgliedern und nicht beim
+// Energielieferanten); ohne gueltigen Wert gilt der abendliche Crossover
+// plus DISCHARGE_START_OFFSET_MIN. Liegen keine plausiblen Crossover-Zeiten
+// vor (ischlstrom.org nie erreichbar gewesen oder Daten unbrauchbar), wird
+// NICHT entladen - es gibt kein Ersatzfenster.
 //
 // ---------------------------------------------------------------------------
 // Adapter-Kontrakt
@@ -242,6 +247,13 @@ var NIGHT_BUDGET_MAX_AGE_HOURS = 3;  // Budget aelter -> gilt nicht mehr
 var NIGHT_BUDGET_MAX_KWH = 200;      // Plausibilitaetsfenster
 var NIGHT_TARGET_MAX_GAP_MIN = 60;   // laengere Luecke -> neue Nacht, Ziel neu
 
+// --- Entladestart -------------------------------------------------------------
+// Der woechentliche Crossover ist ein Mittelwert: an sonnigen Tagen ist die
+// Gemeinschaft danach noch im Plus, und die Nachteinspeisung ginge an den
+// Energielieferanten. Ohne tagesaktuellen Entladestart der Token-API beginnt
+// die Entladung deshalb erst so viele Minuten nach dem Abend-Crossover.
+var DISCHARGE_START_OFFSET_MIN = 60;
+
 // --- Hauslast-Schaetzung ----------------------------------------------------
 // In jedem Nacht-Zyklus ohne Entladebefehl versorgt der Wechselrichter das
 // Haus allein aus der Batterie - der Ladestandsabfall ergibt also direkt
@@ -340,6 +352,10 @@ var DISCHARGE_ACTIVE       = onOff('IBM_ENTLADUNG_AKTIV', FALLBACK_DISCHARGE_ACT
 // plausibel. Ausserhalb (oder ohne Daten) wird nicht entladen.
 var MORNING_CROSSOVER_MIN  = timeItemMinutes('Ischlstrom_Crossover_Start', 3, 12);
 var EVENING_CROSSOVER_MIN  = timeItemMinutes('Ischlstrom_Crossover_Ende', 12, 24);
+// Tagesaktueller Entladestart der Token-API (gilt nur fuer das Datum des
+// Ladesperre-Fensters, siehe dischargeStart unten); '-' oder unplausibel
+// ergibt null.
+var DISCHARGE_START_API_MIN = timeItemMinutes('Ischlstrom_Entladestart', 12, 24);
 
 // --- Kapazitaetsschaetzung --------------------------------------------------
 // Zustand der Schaetzung als JSON in einem String-Item (persistiert):
@@ -1094,10 +1110,18 @@ var chargeLockDateOk = chargeLockDateValid();
 var chargeLockReady = chargeLockStart !== null && chargeLockEnd !== null
   && chargeLockStart < chargeLockEnd && chargeLockDateOk;
 
-// Entladung: vom abendlichen bis zum morgendlichen Crossover - solange die
-// Gemeinschaft mehr verbraucht als erzeugt. Ohne plausible Crossover-Daten
-// bleibt die Entladung aus (null).
-var dischargeStart = EVENING_CROSSOVER_MIN;
+// Entladung: vom Entladestart bis zum morgendlichen Crossover - solange die
+// Gemeinschaft mehr verbraucht als erzeugt. Der Start kommt tagesaktuell
+// von der Token-API (nur am Gueltigkeitstag des Fensters; nach Mitternacht
+// ist das Datum von gestern, dann laeuft die Nacht ueber den Rueckfall
+// weiter), sonst Abend-Crossover plus Abstand. Ohne plausible
+// Crossover-Daten bleibt die Entladung aus (null).
+var dischargeStart = null;
+if (chargeLockDateOk && DISCHARGE_START_API_MIN !== null) {
+  dischargeStart = DISCHARGE_START_API_MIN;
+} else if (EVENING_CROSSOVER_MIN !== null) {
+  dischargeStart = Math.min(EVENING_CROSSOVER_MIN + DISCHARGE_START_OFFSET_MIN, 23 * 60 + 59);
+}
 var dischargeEnd   = MORNING_CROSSOVER_MIN;
 
 // Wolkenvorschau lesen: Wert 0-100 oder null, wenn ungueltig oder veraltet.
@@ -1529,7 +1553,7 @@ if (netzladeBlock) {
 } else if (DISCHARGE_ACTIVE && (dischargeStart === null || dischargeEnd === null)) {
   console.log('[IBM] Keine plausiblen Crossover-Zeiten von ischlstrom.org - Entladung bleibt aus');
 } else if (DISCHARGE_ACTIVE && inWindow(dischargeStart, dischargeEnd)) {
-  console.log('[IBM] Zeitfenster Nacht (' + fmtMinutes(nowMinutes) + ', ' + fmtMinutes(dischargeStart) + '-' + fmtMinutes(dischargeEnd) + ') - pruefe forcierte Entladung');
+  console.log('[IBM] Zeitfenster Nacht (' + fmtMinutes(nowMinutes) + ', ' + fmtMinutes(dischargeStart) + '-' + fmtMinutes(dischargeEnd) + (chargeLockDateOk && DISCHARGE_START_API_MIN !== null ? ', Start laut Prognose' : ', Start = Crossover + ' + DISCHARGE_START_OFFSET_MIN + ' min') + ') - pruefe forcierte Entladung');
   handleForcedDischarge();
 } else {
   console.log('[IBM] Ausserhalb beider Zeitfenster (' + fmtMinutes(nowMinutes) + ') - keine Aktion');
