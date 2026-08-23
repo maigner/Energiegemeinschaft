@@ -347,25 +347,37 @@ zu niedrig als zu hoch.
 
 Das Ladestands-Item und das Batterieleistungs-Item werden **nicht** angelegt —
 sie entstehen beim Verknuepfen der Channels in der Main UI und werden ueber
-`SOC_ITEM` bzw. `BATTERY_POWER_ITEM` nur referenziert (letzteres zeigt auf der
-Overview-Seite die aktuelle Entladeleistung der Batterie).
+`SOC_ITEM` bzw. `BATTERY_POWER_ITEM` nur referenziert (letzteres liefert in
+der Hero-Karte der Overview den Wert "Batterie laedt/entlaedt").
 
 Die Startwerte dieser Items stehen in `ibm.conf` (`DEFAULT_*`) und werden von
 `ibm_init.js` gesetzt, solange ein Item noch `NULL` ist. Danach ist alles in
 der Main UI aenderbar — **das Steuerungsskript wird pro Kunde nie angepasst**.
 
-**Main-UI-Seiten:** Die Seiten fuer die Main UI liegen in
-`../inverters/fronius/overview.yaml` — fuer die Bedienung am Handy aufgeteilt
-in eine kompakte Overview (Zustand, Hauptschalter, Navigation) und vier
-Unterseiten (`ibm_laden`, `ibm_einspeisen`, `ibm_pause`, `ibm_experten`).
+**Main-UI-Seiten:** Die Seiten fuer die Main UI liegen je Profil in
+`../inverters/<profil>/overview.yaml` (Referenz ist `fronius/`, die anderen
+sind davon abgeleitet und unterscheiden sich nur in den Item-Namen des
+Wechselrichters und den Werten der Hero-Karte). Gebaut fuer das Smartphone
+in der openHAB-App: alles einspaltig, Listen statt nebeneinander
+gequetschter Karten. Die Overview zeigt oben eine Hero-Karte (Ladestand als
+Halbkreis-Anzeige, Batterieleistung, Netzeinspeisung sofern das Profil ein
+Netzleistungs-Item hat, IBM-Status; Tippen oeffnet den Verlauf), darunter
+die Tageszeiten der Gemeinschaft (Ueberschuss ab/bis, Nachtbudget), den
+Hauptschalter und die Navigation zu vier Unterseiten (`ibm_laden`,
+`ibm_einspeisen`, `ibm_pause`, `ibm_experten`) mit Status-Badges (Ein/Aus,
+verbleibende Pausentage) und eine aufklappbare Erklaerung. In allen
+sichtbaren Texten heisst die Steuerung "Speichermanagement" - das Kuerzel
+IBM bleibt intern (Item-Namen, Skripte, Doku) und erscheint nie in der UI.
 Die Laden-Seite zeigt bewusst nur den Hauptschalter "Intelligentes Laden"
-(`IBM_LADESPERRE_AKTIV`) und die Statuskarten der Regelung
-(Ziel-Ladeleistung, effektive Restladezeit); alle Bedienelemente des
-klassischen Sperrfensters (`IBM_LADEREGELUNG`, `IBM_LADESPERRE_LOKAL`,
-Sperrzeiten, Bewoelkungs-Schwelle) liegen als Block "Notfallplan Laden
-(Sperrfenster)" auf der Expertenseite.
-Main-UI-Seiten
-liegen in der JSONDB, deshalb installiert `05-install-overview.sh` sie per
+(`IBM_LADESPERRE_AKTIV`) und die Werte der Regelung (Ziel-Ladeleistung,
+effektive Restladezeit); alle Bedienelemente des klassischen Sperrfensters
+(`IBM_LADEREGELUNG`, `IBM_LADESPERRE_LOKAL`, Sperrzeiten,
+Bewoelkungs-Schwelle) liegen als Block "Notfallplan Laden (Sperrfenster)"
+auf der Expertenseite. Die Einspeisen-Seite zeigt als "Einspeisung ab" den
+tagesaktuellen Entladestart (`Ischlstrom_Entladestart`), wenn einer
+vorliegt, sonst den Abend-Crossover. Die Seite `home` braucht ein `label`:
+ohne bricht die Seitenliste der Main UI (5.0) mit einem Fehler ab.
+Die Seiten liegen in der JSONDB, deshalb installiert `05-install-overview.sh` sie per
 REST API — dafuer wird das openHAB-API-Token gebraucht (`OH_API_TOKEN`, fragt
 der Assistent ab), und `build-dist.sh` wandelt jede Seite beim Paketbau nach
 `page-<uid>.json`. Bestehende Seiten werden vorher nach

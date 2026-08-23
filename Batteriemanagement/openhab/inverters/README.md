@@ -9,7 +9,8 @@ inverters/
   fronius/               <- Fronius GEN24 (Fronius-Binding, Batterie-Actions)
     profile.sh              Herstellerspezifische Werte
     adapter.js              Wechselrichter-Adapter (siehe unten)
-    overview.yaml           Main-UI-Seiten
+    overview.yaml           Main-UI-Seiten (Referenz; die anderen Profile
+                            sind davon abgeleitet, Aenderungen ueberall nachziehen)
     rediscover.sh           Netzwerksuche fuer den Watchdog
   fronius-snapinverter/  <- Fronius Symo Hybrid (Modbus, SunSpec Model 124)
   sigenergy/             <- Sigenergy SigenStor (Modbus, proprietaere Register)
@@ -88,7 +89,7 @@ Drei Vorlagen:
    | `INVERTER_SOC_PLACEHOLDER` | Standardname des Ladestands-Items; wird vom Setup durch das konfigurierte Item ersetzt |
    | `INVERTER_NOTES` | Hinweis fuer den Installateur |
 
-   Optional, fuer die Karte "Entladeleistung der Batterie" auf der
+   Optional, fuer den Wert "Batterie laedt/entlaedt" in der Hero-Karte der
    Overview-Seite (ohne diese Variablen entfaellt die Abfrage im
    Assistenten und die Ersetzung beim Installieren der Seiten):
 
@@ -96,7 +97,7 @@ Drei Vorlagen:
    | --- | --- |
    | `INVERTER_BATTERY_POWER_CHANNEL` | Channel mit der aktuellen Batterieleistung (+ entladen, - laden) |
    | `INVERTER_BATTERY_POWER_PLACEHOLDER` | Itemname in den Main-UI-Seiten, den das Setup durch `BATTERY_POWER_ITEM` ersetzt |
-   | `INVERTER_GRID_POWER_CHANNEL` | Channel mit der aktuellen Netzleistung (+ Bezug, - Einspeisung); zusammen mit der Batterieleistung berechnet `control/netzeinspeisung.js` daraus `IBM_BATTERIE_NETZEINSPEISUNG` (Karte "Netzeinspeisung aus der Batterie" - bisher nur im fronius-Profil) |
+   | `INVERTER_GRID_POWER_CHANNEL` | Channel mit der aktuellen Netzleistung (+ Bezug, - Einspeisung); zusammen mit der Batterieleistung berechnet `control/netzeinspeisung.js` daraus `IBM_BATTERIE_NETZEINSPEISUNG` (Wert "Davon ins Netz" in der Hero-Karte - bisher nur im fronius-Profil) |
    | `INVERTER_GRID_POWER_PLACEHOLDER` | Standard-Itemname der Netzleistung; wird durch `GRID_POWER_ITEM` ersetzt |
    | `INVERTER_PV_POWER_CHANNEL` | Channel mit der aktuellen PV-Leistung (Erzeugung); der Status-Push meldet sie an das Vorstands-Dashboard (Kachel "PV-Leistung") |
    | `INVERTER_PV_POWER_PLACEHOLDER` | Standard-Itemname der PV-Leistung; wird durch `PV_POWER_ITEM` ersetzt |

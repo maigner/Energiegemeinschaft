@@ -62,8 +62,10 @@ Checkliste (Ergebnis in die Tabelle unten eintragen, danach `profile.sh`/
    Writes zurueckfaellt -> `M124_HAS_RVRTTMS`. Das ist die Go/No-Go-Frage
    fuer den primaeren Fail-Safe (siehe unten).
 8. Model 160 (MPPT): ist die Batterielade-/entladeleistung lesbar? Wenn ja,
-   kann das Profil spaeter die Karte "Entladeleistung der Batterie"
-   nachruesten (Data-Thing + `INVERTER_BATTERY_POWER_PLACEHOLDER`).
+   kann das Profil spaeter den Wert "Batterie laedt/entlaedt" in der
+   Hero-Karte der Overview nachruesten (Data-Thing +
+   `INVERTER_BATTERY_POWER_PLACEHOLDER`, Block `batterie-stat` aus
+   `fronius/overview.yaml`).
 9. Unit-IDs enumerieren: welche antwortet fuer den Hybrid (Model 124
    vorhanden), welche fuer einen Nicht-Hybrid-Slave -> `MODBUS_UNIT_ID`.
 10. Energiesparmodus: Aufwachlatenz bei einem Entladebefehl messen; wird der
@@ -107,8 +109,8 @@ dagegen **bleiben stehen**. Deshalb:
 
 ## Bekannte Grenzen
 
-- Keine Karte "Entladeleistung der Batterie" auf der Overview-Seite,
-  bis Spike-Punkt 8 (Model 160) geklaert ist.
+- Die Hero-Karte der Overview zeigt nur den Ladestand (keine
+  Batterieleistung), bis Spike-Punkt 8 (Model 160) geklaert ist.
 - Beim manuellen Weg (ohne automatisches Anlegen) muessen die Modbus-Things
   von Hand angelegt werden; das Setup erwartet dann ein SoC-Item am
   `number`-Channel eines Data-Things. Empfohlen ist durchgehend die
