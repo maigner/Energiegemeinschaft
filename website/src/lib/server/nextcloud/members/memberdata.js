@@ -1,10 +1,26 @@
-import os from "os";
 import { nextcloudClient } from "../client";
-import path from "path";
-import fs from "fs";
 import * as XLSX from "xlsx";
 import { middlewareDbConnection } from "$lib/server/db/db";
 
+/**
+ * Datum aus dem Dateinamen (RC101533-EEG-Masterdata-YYYYMMDD.xlsx) als
+ * sortierbare Zahl. Dateien ohne Datum im Namen liefern 0.
+ * @param {string} basename
+ */
+const masterdataFileDate = (basename) => {
+    const match = /(\d{8})/.exec(basename);
+    return match ? Number(match[1]) : 0;
+};
+
+/**
+ * Importiert das aktuellste EEG-Faktura-Masterdata-Sheet aus Nextcloud.
+ * "Aktuellst" ist die Datei mit dem juengsten Datum im Dateinamen; bei
+ * gleichem Datum entscheidet die Aenderungszeit. Die Aenderungszeit allein
+ * ist nicht verlaesslich, weil der Nextcloud-Desktop-Client die lokale
+ * mtime beim Upload beibehaelt.
+ *
+ * @returns {Promise<{ file: { name: string, lastmod: string }, messages: string[] }>}
+ */
 export const importMemberDataFromNextcloud = async () => {
 
     // EEGFaktura Member sheet from Nextcloud
@@ -17,21 +33,19 @@ export const importMemberDataFromNextcloud = async () => {
         /^RC101533-EEG-Masterdata.*\.xlsx$/.test(item.basename)
     );
 
-    const latest = filtered.reduce((a, b) =>
-        new Date(a.lastmod) > new Date(b.lastmod) ? a : b
-    );
+    if (filtered.length === 0) {
+        throw new Error(`Keine Masterdata-Datei in Nextcloud unter ${dir} gefunden`);
+    }
 
-    //console.log({ latest });
-
-    // download latest to tmp
-    const tmpDir = os.tmpdir();
-
-    const localPath = path.join(tmpDir, latest.basename);
+    const latest = filtered.reduce((a, b) => {
+        const dateA = masterdataFileDate(a.basename);
+        const dateB = masterdataFileDate(b.basename);
+        if (dateA !== dateB) return dateA > dateB ? a : b;
+        return new Date(a.lastmod) > new Date(b.lastmod) ? a : b;
+    });
 
     // load file to buffer
     const fileContent = await nextcloud.getFileContents(latest.filename, { format: "binary" });
-
-    //fs.writeFileSync(localPath, fileContent, "binary");
 
     // open the xlsx, read the data and import to DB
 
@@ -49,7 +63,10 @@ export const importMemberDataFromNextcloud = async () => {
     // import meter point data
     const measurementPointMessages = await upsertMeasurementPointsFromSpreadsheet(rows);
 
-    return [...messages, ...measurementPointMessages];
+    return {
+        file: { name: latest.basename, lastmod: latest.lastmod },
+        messages: [...messages, ...measurementPointMessages]
+    };
 };
 
 
