@@ -108,8 +108,11 @@ von openHAB, weil die UUID nur beim Start gelesen wird) statt sie anzuzeigen;
 anzuzeigen und wartet bis zu drei Minuten auf den Handshake; der
 Hauptschalter steht danach auf `ON` (`DEFAULT_MAIN_SWITCH`); die Startseite
 der Main UI begruesst das Mitglied mit Vornamen ("Hallo Helga" statt
-"Uebersicht"; `IBM_MEMBER_FIRSTNAME` vom Server, gesetzt von
-`05-install-overview.sh` als Label der Home-Seite). Nach
+"Uebersicht"): der eingebaute Navbar-Titel ist ein fester i18n-Text,
+deshalb blendet die Home-Seite die Navbar aus (`hideNavbar`) und die
+Overview-Seite zeigt eine eigene Kopfzeile mit Datum und Begruessung
+(`IBM_MEMBER_FIRSTNAME` vom Server, eingesetzt von
+`05-install-overview.sh`; ohne Vornamen steht dort "Uebersicht"). Nach
 erfolgreichem Lauf loescht `ibm-firstboot` die `ibm-provision.conf` von der
 Karte und setzt `/var/lib/ischlstrom/provisioned`; der Code ist ab Phase
 `fertig` ungueltig (neuer Code: Dashboard, "Neuer Code"). Alle Zugangsdaten

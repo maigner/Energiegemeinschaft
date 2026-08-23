@@ -52,16 +52,19 @@ for src in "${pages[@]}"; do
   # Anlagenspezifische Items eintragen. BATTERY_POWER_ITEM ist optional -
   # ohne Wert bleibt der Platzhalter stehen (er ist zugleich der
   # Standard-Itemname beim Verknuepfen des Channels).
-  sed_script="s/${INVERTER_SOC_PLACEHOLDER}/${SOC_ITEM}/g"
+  # Begruessung der Kopfzeile: mit Vornamen (Provisionierung bzw. ibm.conf)
+  # "Hallo <Vorname>", sonst wie die Standard-Navbar "Uebersicht".
+  greeting="Übersicht"
+  [ -n "${IBM_MEMBER_FIRSTNAME:-}" ] && greeting="Hallo ${IBM_MEMBER_FIRSTNAME}"
+  sed_script="s/${INVERTER_SOC_PLACEHOLDER}/${SOC_ITEM}/g;s/HALLOIBMGREETING/${greeting}/g"
   if [ -n "$INVERTER_BATTERY_POWER_PLACEHOLDER" ] && [ -n "$BATTERY_POWER_ITEM" ]; then
     sed_script="${sed_script};s/${INVERTER_BATTERY_POWER_PLACEHOLDER}/${BATTERY_POWER_ITEM}/g"
   fi
   sed "$sed_script" "$src" > "$tmp"
 
-  # Persoenliche Begruessung: die Home-Seite traegt den Vornamen des
-  # Mitglieds als Titel ("Hallo Helga" statt "Uebersicht"/"Home"). Der
-  # Vorname kommt bei der Provisionierung vom Server (IBM_MEMBER_FIRSTNAME
-  # in ibm.conf); ohne ihn bleibt das Label aus der overview.yaml.
+  # Sidebar-Label der Home-Seite: mit Vornamen "Hallo <Name>". Der grosse
+  # Seitentitel kommt NICHT von hier (fest "Uebersicht" in der Main UI);
+  # den ersetzt die Kopfzeile der Overview-Seite (HALLOIBMGREETING oben).
   if [ "$uid" = "home" ] && [ -n "${IBM_MEMBER_FIRSTNAME:-}" ]; then
     IBM_OV_FILE="$tmp" IBM_OV_LABEL="Hallo ${IBM_MEMBER_FIRSTNAME}" python3 - <<'PY'
 import json, os

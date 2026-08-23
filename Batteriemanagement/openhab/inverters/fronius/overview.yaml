@@ -53,6 +53,11 @@ pages:
       # Ohne label bricht in der Main UI (5.0) die Seitenliste der Sidebar
       # mit einem Fehler ab - deshalb immer ein Label setzen.
       label: Home
+      # Navbar der Startseite ausblenden: ihr grosser Titel ist fest
+      # einprogrammiert ("Uebersicht", i18n-Text der Main UI) und laesst
+      # sich nicht umbenennen. Die Overview-Seite bringt stattdessen eine
+      # eigene Kopfzeile mit Datum und Begruessung mit (erster Block dort).
+      hideNavbar: true
       hiddenModelTabs:
         - locations
         - equipment
@@ -69,6 +74,35 @@ pages:
       label: ISCHLSTROM Batterie
     slots:
       default:
+        # Kopfzeile (ersetzt die ausgeblendete Navbar der Startseite,
+        # siehe home: hideNavbar): Datum und persoenliche Begruessung.
+        # HALLOIBMGREETING ersetzt 05-install-overview.sh durch
+        # "Hallo <Vorname>" (ohne Vornamen: "Uebersicht" wie bisher).
+        - component: oh-block
+          config: {}
+          slots:
+            default:
+              - component: f7-col
+                config: {}
+                slots:
+                  default:
+                    - component: div
+                      config:
+                        class: ibm-page-head
+                        stylesheet: >
+                          .ibm-page-head { padding: 10px 16px 0; }
+                          .ibm-page-head-date { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.55; font-weight: 600; }
+                          .ibm-page-head-title { font-size: 30px; font-weight: 700; line-height: 1.25; }
+                      slots:
+                        default:
+                          - component: div
+                            config:
+                              class: ibm-page-head-date
+                              content: "=dayjs().format('dddd, D. MMMM')"
+                          - component: div
+                            config:
+                              class: ibm-page-head-title
+                              content: HALLOIBMGREETING
         # Hero-Karte: Ladestand als Halbkreis-Anzeige, daneben die aktuelle
         # Batterieleistung und die Netzeinspeisung, unten der IBM-Status.
         # Tippen oeffnet den Verlauf von Ladestand und Batterieleistung.
