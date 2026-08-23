@@ -58,6 +58,22 @@ for src in "${pages[@]}"; do
   fi
   sed "$sed_script" "$src" > "$tmp"
 
+  # Persoenliche Begruessung: die Home-Seite traegt den Vornamen des
+  # Mitglieds als Titel ("Hallo Helga" statt "Uebersicht"/"Home"). Der
+  # Vorname kommt bei der Provisionierung vom Server (IBM_MEMBER_FIRSTNAME
+  # in ibm.conf); ohne ihn bleibt das Label aus der overview.yaml.
+  if [ "$uid" = "home" ] && [ -n "${IBM_MEMBER_FIRSTNAME:-}" ]; then
+    IBM_OV_FILE="$tmp" IBM_OV_LABEL="Hallo ${IBM_MEMBER_FIRSTNAME}" python3 - <<'PY'
+import json, os
+path = os.environ["IBM_OV_FILE"]
+with open(path) as f:
+    page = json.load(f)
+page.setdefault("config", {})["label"] = os.environ["IBM_OV_LABEL"]
+with open(path, "w") as f:
+    json.dump(page, f, ensure_ascii=False, indent=2)
+PY
+  fi
+
   # Bestehende Seite sichern (eine nie gespeicherte Seite liegt nicht in der
   # JSONDB - dann antwortet die API mit 404 und es gibt nichts zu sichern).
   backup="$state_dir/${uid}.page.bak-$(date +%Y%m%d%H%M%S).json"

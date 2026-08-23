@@ -83,6 +83,11 @@ IBM_STATUS_TOKEN=""
 # Anzeigename der Anlage am Dashboard (leer = Hostname).
 IBM_ANLAGE_NAME=""
 
+# Vorname des Mitglieds (kommt bei der Provisionierung vom Server). Die
+# Main UI begruesst damit auf der Startseite ("Hallo <Vorname>" statt
+# "Uebersicht"); leer = Label aus der overview.yaml des Profils.
+IBM_MEMBER_FIRSTNAME=""
+
 # --- Zeitplaene (Quartz-Cron, 6 Felder: sek min std tag monat wochentag) -----
 
 # Batteriesteuerung. Die Schedules gelten jeweils 5 Minuten, daher muss die

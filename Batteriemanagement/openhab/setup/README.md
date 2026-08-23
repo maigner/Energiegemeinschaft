@@ -106,7 +106,10 @@ vom Server nach `userdata/uuid` und `userdata/openhabcloud/secret` (Neustart
 von openHAB, weil die UUID nur beim Start gelesen wird) statt sie anzuzeigen;
 `08-install-wireguard.sh` meldet den Public-Key an den Server statt ihn
 anzuzeigen und wartet bis zu drei Minuten auf den Handshake; der
-Hauptschalter steht danach auf `ON` (`DEFAULT_MAIN_SWITCH`). Nach
+Hauptschalter steht danach auf `ON` (`DEFAULT_MAIN_SWITCH`); die Startseite
+der Main UI begruesst das Mitglied mit Vornamen ("Hallo Helga" statt
+"Uebersicht"; `IBM_MEMBER_FIRSTNAME` vom Server, gesetzt von
+`05-install-overview.sh` als Label der Home-Seite). Nach
 erfolgreichem Lauf loescht `ibm-firstboot` die `ibm-provision.conf` von der
 Karte und setzt `/var/lib/ischlstrom/provisioned`; der Code ist ab Phase
 `fertig` ungueltig (neuer Code: Dashboard, "Neuer Code"). Alle Zugangsdaten

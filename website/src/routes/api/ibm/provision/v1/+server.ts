@@ -52,6 +52,7 @@ export async function POST({ request, url }) {
             INSTALL_STATUS_PUSH: '1',
             IBM_STATUS_TOKEN: plant.token,
             IBM_ANLAGE_NAME: plant.name,
+            IBM_MEMBER_FIRSTNAME: plant.member_first_name ?? '',
             DEFAULT_MIN_BATTERY_CHARGE: '20',
             DEFAULT_MIN_DISCHARGE_W: '1000',
             DEFAULT_MAX_DISCHARGE_W: '3000',

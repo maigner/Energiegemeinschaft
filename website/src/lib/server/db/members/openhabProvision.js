@@ -87,7 +87,7 @@ const PROVISION_COLUMNS = `
     s.cloud_account_state, s.cloud_account_error, s.mail_alias_state,
     s.linux_password, s.wifi_ssid, s.wifi_password,
     s.setup_phase, s.setup_message, s.setup_phase_at,
-    m.identifier AS member_identifier, m.name AS member_name, m.email AS member_email`;
+    m.identifier AS member_identifier, m.name AS member_name, m.first_name AS member_first_name, m.email AS member_email`;
 
 /**
  * Naechste freie Tunnel-IP. Belegt sind alle wg_address der Tabelle; die
