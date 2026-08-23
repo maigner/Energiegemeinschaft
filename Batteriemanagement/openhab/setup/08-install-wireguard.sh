@@ -184,6 +184,14 @@ handshake_ok() {
   [ -n "$ts" ] && [ "$ts" -gt 0 ]
 }
 
+# Provisioniert: Public-Key an den Server melden - der Timer auf s1 traegt
+# den Peer innerhalb einer Minute ein, dann steht der Tunnel von selbst.
+if [ "$IBM_PROVISIONED" = "1" ] && [ -n "$IBM_STATUS_TOKEN" ]; then
+  report_phase tunnel "Tunnel-IP ${WG_ADDRESS}, Public-Key gemeldet." "\"wg_public_key\":$(json_str "$PI_PUBLIC_KEY")"
+  waited=0
+  until handshake_ok || [ "$waited" -ge 180 ]; do sleep 10; waited=$((waited + 10)); done
+fi
+
 if handshake_ok; then
   log "Tunnel steht - Handshake mit dem Wartungsserver erfolgt."
 elif [ "${IBM_ASSUME_YES:-0}" = "1" ]; then

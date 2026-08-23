@@ -1,0 +1,10 @@
+[Unit]
+Description=IBM-Provisionierung jede Minute abgleichen
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=10s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

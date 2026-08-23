@@ -15,8 +15,26 @@
 #   IBM_BASE_URL     Quelle der Skripte     (Vorgabe: https://ischlstrom.org)
 #   IBM_DEST         Zielverzeichnis        (Vorgabe: /opt/ischlstrom)
 #   IBM_ASSUME_YES   1 = keine Rueckfragen, alle Vorgaben uebernehmen
+#   IBM_PROVISION_CODE  Provisionierungs-Code (Zero-Touch-Einrichtung, siehe
+#                    docs/ibm-setup-vereinfachung.md); wird sonst aus
+#                    /boot/firmware/ibm-provision.conf gelesen. Mit Code gibt
+#                    es keine Rueckfragen, alles kommt von ischlstrom.org.
 # ============================================================================
 set -euo pipefail
+
+# Provisionierung von der Boot-Partition der SD-Karte (vom Vorstand mit
+# "SD-Karte vorbereiten" erzeugt): nur Code und Server-URL.
+for f in /boot/firmware/ibm-provision.conf /boot/ibm-provision.conf; do
+  if [ -z "${IBM_PROVISION_CODE:-}" ] && [ -f "$f" ]; then
+    # shellcheck disable=SC1090
+    . "$f"
+    echo "[IBM] Provisionierung gelesen: $f"
+  fi
+done
+if [ -n "${IBM_PROVISION_CODE:-}" ]; then
+  export IBM_PROVISION_CODE IBM_ASSUME_YES=1
+  [ -n "${IBM_BASE_URL:-}" ] && export IBM_BASE_URL
+fi
 
 BASE_URL="${IBM_BASE_URL:-https://ischlstrom.org}"
 DEST="${IBM_DEST:-/opt/ischlstrom}"

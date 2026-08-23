@@ -19,6 +19,13 @@
     let activeUrl = $derived(page.url.pathname);
 
     let hasMultipleLocations = $derived((data.users?.length ?? 0) > 1);
+
+    // Speichermanagement-Seite des ersten Standorts mit Anlage
+    let plantHref = $derived(
+        (data.plantMembers?.length ?? 0) > 0
+            ? `/user/${data.plantMembers[0]}/speichermanagement`
+            : null,
+    );
 </script>
 
 <Navbar>
@@ -59,6 +66,18 @@
                     class="hover:text-green-600"
                 >
                     Meine Standorte
+                </NavLi>
+            {/if}
+
+            {#if plantHref}
+                <NavLi
+                    href={plantHref}
+                    onclick={() => toggle()}
+                    activeClass="text-green-600 bg-secundary-100"
+                    nonActiveClass="text-green-800"
+                    class="hover:text-green-600"
+                >
+                    Speichermanagement
                 </NavLi>
             {/if}
 

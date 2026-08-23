@@ -187,6 +187,12 @@ systemctl restart openhab.service || warn "Neustart fehlgeschlagen - bitte manue
 rm -rf /opt/ischlstrom
 log "entfernt: /opt/ischlstrom"
 
+# Zero-Touch-Provisionierung: Marker von ibm-firstboot entfernen, damit ein
+# erneuter Lauf (neuer Code vom Dashboard auf der Boot-Partition) wieder
+# startet. Die Unit selbst bleibt; ohne ibm-provision.conf tut sie nichts.
+rm -rf /var/lib/ischlstrom /run/ibm-provision.env
+log "entfernt: /var/lib/ischlstrom (Provisionierungs-Marker)"
+
 cat <<ENDE
 [IBM]
 [IBM] ===========================================================

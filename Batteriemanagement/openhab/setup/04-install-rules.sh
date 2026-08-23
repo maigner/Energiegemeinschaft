@@ -340,7 +340,7 @@ rules.JSRule({
   triggers: [triggers.GenericCronTrigger('${CRON_INIT}')],
   execute: (event) => {
     var defaults = {
-      'Schalte_ISCHLSTROM_Empfehlung_einaus': 'OFF',
+      'Schalte_ISCHLSTROM_Empfehlung_einaus': '${DEFAULT_MAIN_SWITCH}',
       'IBM_MIN_BATTERY_CHARGE': ${DEFAULT_MIN_BATTERY_CHARGE},
       'Minimale_Entladeleistung_Batterieeinspeisung': ${DEFAULT_MIN_DISCHARGE_W},
       'Maximale_Entladeleistung_Batterieeinspeisung': ${DEFAULT_MAX_DISCHARGE_W},

@@ -27,6 +27,42 @@ fi
 uuid_file="$OPENHAB_USERDATA/uuid"
 secret_file="$OPENHAB_USERDATA/openhabcloud/secret"
 
+# --- Provisioniert: Identitaet vom Server setzen -----------------------------
+# Bei der Zero-Touch-Einrichtung erzeugt der Server UUID und Secret und
+# legt das Cloud-Konto schon vor dem ersten Boot an. openHAB liest die UUID
+# nur beim Start (daher Neustart, wenn sie sich aendert); das Cloud-Addon
+# legt das Secret nur an, wenn die Datei fehlt - unsere gilt also, sobald
+# das Addon startet (02-install-addons.sh laeuft danach).
+if [ -n "$CLOUD_UUID" ] && [ -n "$CLOUD_SECRET" ]; then
+  changed=0
+  current_uuid="$( [ -f "$uuid_file" ] && tr -d '[:space:]' < "$uuid_file" || true )"
+  if [ "$current_uuid" != "$CLOUD_UUID" ]; then
+    printf '%s' "$CLOUD_UUID" > "$uuid_file"
+    chown "$OPENHAB_USER:$OPENHAB_GROUP" "$uuid_file"; chmod 600 "$uuid_file"
+    log "openHAB-UUID gesetzt: $CLOUD_UUID (war: ${current_uuid:-keine})"
+    changed=1
+  else
+    log "openHAB-UUID bereits $CLOUD_UUID."
+  fi
+  current_secret="$( [ -f "$secret_file" ] && tr -d '[:space:]' < "$secret_file" || true )"
+  if [ "$current_secret" != "$CLOUD_SECRET" ]; then
+    mkdir -p "$(dirname "$secret_file")"
+    (umask 077; printf '%s' "$CLOUD_SECRET" > "$secret_file")
+    chown -R "$OPENHAB_USER:$OPENHAB_GROUP" "$(dirname "$secret_file")"
+    log "Cloud-Secret gesetzt."
+    [ -n "$current_secret" ] && changed=1
+  else
+    log "Cloud-Secret bereits gesetzt."
+  fi
+  if [ "$changed" = "1" ] && systemctl is-active --quiet openhab.service 2>/dev/null; then
+    openhab_restart
+    wait_for_openhab_rest 600 || warn "openHAB antwortet nach dem Neustart noch nicht."
+  fi
+  log "Cloud-Identitaet gesetzt - das Konto ($IBM_CLOUD_BASE_URL) hat der Vorstand angelegt;"
+  log "die Anlage erscheint dort als Online, sobald das Cloud-Addon laeuft."
+  exit 0
+fi
+
 # --- UUID -------------------------------------------------------------------
 [ -f "$uuid_file" ] || die "UUID-Datei fehlt: $uuid_file - openHAB schon einmal gestartet?"
 uuid="$(tr -d '[:space:]' < "$uuid_file")"

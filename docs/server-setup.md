@@ -80,6 +80,56 @@ Skripte in `scripts/backup-s1/`:
   Achtung: die Dumps von s1 (PostgreSQL 16, Archivformat 1.15) brauchen
   einen pg_restore ab Version 16.
 
+## IBM-Provisionierung (ibm-provision-sync, seit 23. August 2026)
+
+Der Zero-Touch-Einrichtung der Raspberry Pis
+([ibm-setup-vereinfachung.md](ibm-setup-vereinfachung.md)) erledigt auf s1
+ein root-Timer, was die Website im Container nicht darf. Skripte in
+`scripts/ibm-provision/`, Einrichtung einmalig mit
+`scripts/ibm-provision/install-on-s1.sh` vom Entwicklungsrechner aus (kopiert
+nach s1 und startet dort `setup-on-s1.sh` als root; das Repo liegt nicht
+auf s1):
+
+- **`ibm-provision-sync.timer`** (jede Minute) ->
+  `/usr/local/sbin/ibm-provision-sync.sh`, Konfiguration
+  `/etc/ibm-provision.conf`. Log: `journalctl -u ibm-provision-sync`.
+- **WireGuard**: `/etc/wireguard/wg0.conf` wird aus
+  `wg0.base.conf` ([Interface]-Block) plus allen Peers aus
+  `members_openhabstatus` (`wg_address`, `wg_public_key`) erzeugt und per
+  `wg syncconf` nachgeladen; die DB ist die Registry, `wg_synced_at` der
+  Stempel. `setup-on-s1.sh` uebernimmt die bestehenden Peers einmalig
+  anhand des Kommentars `# <name> - <ip>` (Name = `members_openhabstatus.name`).
+  Peers von Hand nur noch in `wg0.base.conf` eintragen. Sicherung: der
+  Timer entfernt aus der `wg0.conf` nur Peers von Anlagen, die am
+  Dashboard geloescht wurden (`setup_phase = 'geloescht'`); jede andere
+  Verkleinerung wird verweigert, ausser
+  `sudo touch /etc/wireguard/ibm-allow-fewer-peers` liegt vor (ein Lauf).
+- **Anlage loeschen** (Dashboard "Anlage loeschen"): die Website markiert
+  nur (`setup_phase = 'geloescht'`, Cloud-Konto `delete`, Code und
+  Passwoerter sofort weg); der Timer nimmt den Peer aus der `wg0.conf`,
+  loescht das Cloud-Konto (`cloud-makeuser.js` mit `IBM_MODE=delete`) und
+  entfernt danach die Zeile samt Verlauf. Bis dahin zeigt das Dashboard
+  "Wird geloescht" mit "Loeschen zuruecknehmen".
+- **openHAB-Cloud-Konten**: fuer Zeilen mit `cloud_account_state`
+  `pending` oder `reset` laeuft `cloud-makeuser.js` per
+  `docker compose exec -T app node -` im Cloud-Container (nutzt dessen
+  `dist/models` und `config.json`; das offizielle Image hat kein eigenes
+  CLI). Es legt Benutzer, Konto und openHAB-Instanz (UUID/Secret) an bzw.
+  setzt das Passwort, `verifiedEmail = true`, keine Mail. Die Geheimnisse
+  kommen verschluesselt aus der DB (AES-256-GCM); den Schluessel
+  `IBM_SECRET_KEY` liest das Skript aus der `.env` der Website
+  (`WEBSITE_ENV`). Ergebnis: `created` bzw. `error` + Text am Dashboard.
+- **Website-`.env`** braucht dafuer `IBM_SECRET_KEY` (`openssl rand -hex 32`,
+  nie wechseln, sonst sind die gespeicherten Geheimnisse verloren),
+  `MAILCOW_URL`, `MAILCOW_API_KEY` (mailcow: System -> API, auf die IP von
+  s1 beschraenken) und `MAILCOW_ALIAS_GOTO`.
+- Django-Migration `members 0030` ist auf Prod eingespielt (23. August
+  2026). Seitdem zeigt `manage.py` direkt auf Prod: `settings.py` setzt
+  keinen `HOST` mehr (der hatte mit `"server"` den Service-Host
+  ueberschrieben, sodass `migrate` nur die Dev-DB traf); Host kommt aus
+  `middleware/eeg/.pg_service.conf` (s1), das Passwort aus
+  `middleware/eeg/.pgpass` (braucht die s1-Zeile, gitignored).
+
 Noch offen:
 
 1. Nextcloud AIO: Borg-Backup im Master-UI pruefen/aktivieren und die

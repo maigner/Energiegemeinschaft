@@ -1,0 +1,7 @@
+[Unit]
+Description=IBM-Provisionierung: WireGuard-Peers und openHAB-Cloud-Konten aus der DB
+After=network-online.target postgresql.service docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ibm-provision-sync.sh

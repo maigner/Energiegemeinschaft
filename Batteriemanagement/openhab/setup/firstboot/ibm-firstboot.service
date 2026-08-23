@@ -1,0 +1,13 @@
+[Unit]
+Description=ISCHLSTROM Speichermanagement - Zero-Touch-Einrichtung nach dem ersten Boot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/ibm-firstboot
+Restart=on-failure
+RestartSec=120
+
+[Install]
+WantedBy=multi-user.target

@@ -78,7 +78,23 @@ Die Anlagenseite dokumentiert
 [Batteriemanagement/openhab/setup/README.md](../Batteriemanagement/openhab/setup/README.md)
 (Abschnitt "openHAB Cloud"): das IBM-Setup setzt die `baseURL` des Cloud
 Connectors auf `https://hac.ischlstrom.org/`, `07-myopenhab.sh` zeigt
-UUID/Secret fuer die Registrierung. Kurzfassung je Mitglied:
+UUID/Secret fuer die Registrierung.
+
+**Seit 23. August 2026 (Zero-Touch-Provisionierung)** entstehen die Konten
+automatisch: "SD-Karte vorbereiten" auf `/board/openhab` erzeugt UUID,
+Secret, Benutzername `<nnn>@ischlstrom.org` (mailcow-**Alias** auf
+`info@ischlstrom.org`, kein Postfach - die Cloud prueft `verifiedEmail`
+nirgends, die Adresse dient nur dem Passwort-Reset) und ein
+alphanumerisches Passwort; der Timer `ibm-provision-sync` auf s1 legt das
+Konto per `scripts/ibm-provision/cloud-makeuser.js` im Container an (siehe
+[server-setup.md](server-setup.md)). Der Pi schreibt UUID/Secret in
+`userdata`; das Mitglied sieht die Zugangsdaten unter
+`/user/<nr>/speichermanagement` und kann dort ein neues Passwort anfordern.
+Damit kann `REGISTRATION_ENABLED` auf `false`, sobald alle Bestandskonten
+umgestellt sind. Der klassische Weg (unten) bleibt fuer Anlagen ohne
+Provisionierung.
+
+Kurzfassung je Mitglied (klassisch):
 
 1. Konto auf <https://hac.ischlstrom.org> registrieren (E-Mail + Passwort,
    dabei UUID/Secret der Anlage eintragen), warten bis die Anlage *Online*

@@ -3,7 +3,77 @@
 Richtet eine openHABian-Installation fuer das **ISCHLSTROM Batteriemanagement
 (IBM)** ein.
 
-## Ablauf beim Kunden
+## Zero-Touch-Einrichtung (Standardweg seit 2026-08)
+
+Plan und Hintergrund: [docs/ibm-setup-vereinfachung.md](../../../docs/ibm-setup-vereinfachung.md).
+Das Mitglied muss nichts am Pi tun; der Vorstand bereitet die SD-Karte vor:
+
+1. **Dashboard** <https://ischlstrom.org/board/openhab>, Abschnitt
+   "Einrichtung": Mitglied auswaehlen, "SD-Karte vorbereiten". Dabei
+   entstehen automatisch Status-Token, Tunnel-IP (Pool ab 10.88.0.11),
+   Linux-/Admin-Passwort, openHAB-Cloud-Identitaet (UUID/Secret),
+   Cloud-Konto `<nnn>@ischlstrom.org` samt Mail-Alias auf `info@` und ein
+   Provisionierungs-Code (60 Tage gueltig). Das Cloud-Konto und der
+   WireGuard-Peer werden vom Timer `ibm-provision-sync` auf s1 angelegt
+   (siehe `scripts/ibm-provision/`, [docs/server-setup.md](../../../docs/server-setup.md)).
+   Optional: Wechselrichter-Profil vorgeben (sonst erkennt es der Pi) und
+   WLAN-Zugang (LAN bleibt die Empfehlung).
+2. **Zip herunterladen** (`sd-<nnn>.zip`: `openhabian.conf`,
+   `ibm-provision.conf`, `README.txt`) und die Karte schreiben:
+
+   ```bash
+   sudo ./prepare-sd.sh sd-007.zip /dev/sdX
+   ```
+
+   `prepare-sd.sh` laedt das aktuelle openHABian-Image (64-bit) in den
+   Cache `/var/cache/ischlstrom`, schreibt es, traegt Hostname, Passwort,
+   Zeitzone und WLAN in die `openhabian.conf` der Boot-Partition ein, legt
+   `ibm-provision.conf` (nur Code und Server-URL) dazu und installiert in
+   der Root-Partition die systemd-Unit `ibm-firstboot` (`firstboot/`).
+   Ohne Linux: Image mit dem Raspberry Pi Imager schreiben, beide Dateien
+   auf die Boot-Partition kopieren; dann fehlt der Autostart und nach dem
+   ersten Boot ist einmal `curl -fsSL https://ischlstrom.org/ibm/install.sh | sudo bash`
+   per SSH noetig (liest den Code von der Karte, keine Rueckfragen).
+3. **Beim Mitglied**: Karte in den Pi, LAN-Kabel (gleiches Netz wie der
+   Wechselrichter) und Strom anstecken. openHABian installiert sich selbst
+   (30 bis 45 Minuten, Neustart), dann startet `ibm-firstboot` das Setup:
+   `00-provision.sh` loest den Code bei `POST /api/ibm/provision/v1` ein,
+   erkennt das Wechselrichter-Profil (Netzsuche aller Profile), schreibt
+   `ibm.conf`, und `install-ibm.sh` laeuft ohne Rueckfragen durch. Jeder
+   Schritt meldet seine Phase an `/api/ibm/provision/v1/result`; Dashboard
+   und Mitgliederbereich (`/user/<nr>/speichermanagement`) zeigen den
+   Fortschritt.
+4. **Wechselrichter-Passwort** (GEN24): das Mitglied (oder der Vorstand)
+   traegt es im Mitgliederbereich bzw. am Dashboard ein. Der Pi fragt in
+   der Phase `wartet_auf_passwort` alle zwei Minuten bei
+   `/api/ibm/provision/v1/secret` nach, der Server liefert es einmalig aus
+   und loescht es. Kommt innerhalb von 30 Minuten keines, laeuft die
+   Installation ohne weiter (Exit 75 = unvollstaendig) und `ibm-firstboot`
+   wiederholt sie alle 10 Minuten, bis alles fertig ist; das Passwort wird
+   dann per REST ins Bridge-Thing nachgetragen.
+
+Was bei der Provisionierung anders ist als am klassischen Weg: das
+openHAB-Admin-Konto legt `02b` selbst ueber die Karaf-Konsole an
+(`OH_ADMIN_USER`/`OH_ADMIN_PASSWORD`, gleiches Passwort wie der
+Linux-Benutzer `openhabian`); `07-myopenhab.sh` schreibt UUID und Secret
+vom Server nach `userdata/uuid` und `userdata/openhabcloud/secret` (Neustart
+von openHAB, weil die UUID nur beim Start gelesen wird) statt sie anzuzeigen;
+`08-install-wireguard.sh` meldet den Public-Key an den Server statt ihn
+anzuzeigen und wartet bis zu drei Minuten auf den Handshake; der
+Hauptschalter steht danach auf `ON` (`DEFAULT_MAIN_SWITCH`). Nach
+erfolgreichem Lauf loescht `ibm-firstboot` die `ibm-provision.conf` von der
+Karte und setzt `/var/lib/ischlstrom/provisioned`; der Code ist ab Phase
+`fertig` ungueltig (neuer Code: Dashboard, "Neuer Code"). Alle Zugangsdaten
+(Linux/Admin, Cloud-Konto, UUID/Secret) stehen am Dashboard, das
+Cloud-Konto auch im Mitgliederbereich.
+
+Die Schrittfolge von `install-ibm.sh` ist seit der Provisionierung fuer
+alle Wege gleich: zuerst, was keinen Wechselrichter braucht (Fernwartung,
+Passwoerter, Cloud-Identitaet, Addons), damit die Anlage fuer den Vorstand
+erreichbar ist, selbst wenn es beim Wechselrichter haengt; danach Preflight,
+Things, Items, Regeln, Overview, Verify.
+
+## Ablauf beim Kunden (klassischer Weg)
 
 1. openHABian-Image auf die SD-Karte flashen, Pi starten, Ersteinrichtung
    abwarten (dauert beim ersten Boot einige Minuten).
@@ -50,6 +120,7 @@ sudo IBM_ASSUME_YES=1 bash install.sh
 | `IBM_BASE_URL` | `https://ischlstrom.org` | Quelle des Pakets (z. B. Testserver) |
 | `IBM_DEST` | `/opt/ischlstrom` | Zielverzeichnis auf dem Pi |
 | `IBM_ASSUME_YES` | `0` | `1` = keine Rueckfragen |
+| `IBM_PROVISION_CODE` | aus `/boot/firmware/ibm-provision.conf` | Provisionierungs-Code (Zero-Touch); setzt `IBM_ASSUME_YES=1` |
 
 Bei einer erneuten Installation wird das alte Verzeichnis nach
 `openhab.bak-<zeitstempel>` gesichert und eine vorhandene `ibm.conf`
@@ -104,6 +175,7 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 
 | Skript | Wirkung |
 | --- | --- |
+| `00-provision.sh` | Zero-Touch: loest den Provisionierungs-Code bei ischlstrom.org ein, erkennt das Wechselrichter-Profil (Netzsuche aller Profile, bei Mehrdeutigkeit Phase `wechselrichter_unklar` und Wahl am Dashboard) und schreibt `ibm.conf`. Exit 75 = Server nicht erreichbar, spaeter erneut. |
 | `00-wizard.sh` | Fragt die Anlagendaten ab und schreibt `ibm.conf`. Erkennt ein vorhandenes Thing samt Items selbst; fehlt das Thing, sucht er den Wechselrichter im Netz und laesst ihn von `02b` automatisch anlegen. |
 | `01-preflight.sh` | Prueft Dienst, Quellskripte, API, Thing, Item und Item-Kollisionen. Aendert nichts. |
 | `02-install-addons.sh` | Traegt Binding, `jsscripting`, `mapdb`, `rrd4j` und (falls gewuenscht) `openhabcloud` in `addons.cfg` ein. |
@@ -116,6 +188,8 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 | `08-install-wireguard.sh` | Richtet den WireGuard-Tunnel zum Wartungsserver ein und baut die SSH-Haertung aelterer Versionen zurueck - die Anmeldung durch den Tunnel laeuft per Passwort (siehe [Fernwartung](#fernwartung-wireguard)). |
 | `10-change-passwords.sh` | Aendert die Standardpasswoerter des Linux-Benutzers `openhabian` und der Karaf-Konsole (siehe [Standardpasswoerter aendern](#standardpasswoerter-aendern)). |
 | `purge-ibm.sh` | Entfernt das Batteriemanagement komplett wieder (Things, Regeln, Items, Seiten, Token, WireGuard, `/opt/ischlstrom`) und setzt die Anlage auf "frisches openHABian + Admin-Konto" zurueck - fuer Test-Wiederholungen oder Ausserbetriebnahme. Admin-Konto, Linux-Passwort, Zeitzone und Cloud-Identitaet (UUID/Secret) bleiben. |
+| `prepare-sd.sh` | Nur auf dem Entwicklungsrechner (root): schreibt die SD-Karte fuer eine provisionierte Anlage aus dem Zip des Dashboards (Image, `openhabian.conf`, `ibm-provision.conf`, `ibm-firstboot`). |
+| `firstboot/` | `ibm-firstboot.sh` + systemd-Unit: startet nach der openHABian-Erstinstallation das Setup und wiederholt es alle 10 Minuten, bis es vollstaendig ist. |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
 
 `install-ibm.sh` setzt ausserdem die Regionaleinstellungen - das, was sonst

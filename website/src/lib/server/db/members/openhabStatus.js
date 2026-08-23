@@ -16,9 +16,17 @@ export const createOpenhabToken = async (memberId) => {
     const token = crypto.randomUUID().replaceAll('-', '');
     const db = await middlewareDbConnection();
     try {
+        // Die Provisionierungsspalten (Migration 0030) sind NOT NULL ohne
+        // DEFAULT - am klassischen Weg bleiben sie leer.
         await db.query(
-            `INSERT INTO members_openhabstatus (member_id, token, name, created_at, last_seen, data)
-             VALUES ($1, $2, '', now(), NULL, '{}')`,
+            `INSERT INTO members_openhabstatus
+                (member_id, token, name, created_at, last_seen, data,
+                 inverter_type, inverter_username, inverter_password, wg_address, wg_public_key,
+                 cloud_uuid, cloud_secret, cloud_username, cloud_password, cloud_account_state,
+                 cloud_account_error, mail_alias_state, linux_password, wifi_ssid, wifi_password,
+                 setup_phase, setup_message)
+             VALUES ($1, $2, '', now(), NULL, '{}',
+                     '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '')`,
             [memberId, token]
         );
         return token;

@@ -9,7 +9,7 @@ Digital infrastructure for **ischlstrom.org**, an Austrian energy community (Ene
 - **`website/`** — SvelteKit 5 app: public site + authenticated member/board/finance portals. This is the main deployed application. User-facing text is German.
 - **`middleware/`** — Django project (`eeg`) that owns and migrates the shared "middleware" Postgres schema. Rarely run as a server; it's the schema authority + Django admin.
 - **`notebooks/`** — Jupyter notebooks for accounting, energy analysis, weather, and SEPA XML generation (see per-directory READMEs).
-- **`Batteriemanagement/`**, **`scripts/`** — OpenHAB battery-control scripts and DB export/restore shell scripts.
+- **`Batteriemanagement/`**, **`scripts/`** — OpenHAB battery-control scripts and DB export/restore shell scripts. `scripts/ibm-provision/` is the s1 host side (root timer) of the zero-touch Pi provisioning; the website side lives in `website/src/lib/server/db/members/openhabProvision.js` + `routes/api/ibm/provision/`, the Pi side in `Batteriemanagement/openhab/setup/00-provision.sh`, `prepare-sd.sh`, `firstboot/`. Plan and status: `docs/ibm-setup-vereinfachung.md`. Secrets in `members_openhabstatus` are AES-GCM encrypted with `IBM_SECRET_KEY` from `website/.env` (never rotate casually).
 
 ## Databases (important architecture)
 

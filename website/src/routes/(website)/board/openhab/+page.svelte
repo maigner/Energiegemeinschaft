@@ -10,6 +10,8 @@
         Heading,
         Button,
         Select,
+        Input,
+        Label,
         Table,
         TableHead,
         TableHeadCell,
@@ -19,7 +21,9 @@
     } from "flowbite-svelte";
 
     import { compareVersions, newestVersion } from "$lib/versions";
-    import { inverterLabel } from "$lib/inverters";
+    import { inverterLabel, inverterOptions } from "$lib/inverters";
+    import { describePhase } from "$lib/setupPhases";
+    import MemberPicker from "./MemberPicker.svelte";
 
     let { data, form } = $props();
 
@@ -69,14 +73,39 @@
     );
 
     let selectedMemberId = $state("");
-    let memberOptions = $derived(
-        (data.members ?? []).map(
-            (/** @type {{ id: number, identifier: number, name: string }} */ m) => ({
-                value: String(m.id),
-                name: `${m.identifier}: ${m.name}`,
-            }),
+    let sdMemberId = $state("");
+    let sdInverterType = $state("");
+    let inverterChoices = [{ value: "", name: "automatisch erkennen" }, ...inverterOptions()];
+
+    // Sichtbar gemachte Geheimnisse je Anlage (Klick auf "anzeigen")
+    /** @type {Record<number, boolean>} */
+    let revealed = $state({});
+
+    /** Anlagen, die ueber "SD-Karte vorbereiten" angelegt wurden. */
+    let provisioned = $derived(
+        statuses.filter(
+            (/** @type {any} */ s) =>
+                s.provisioning?.code || s.provisioning?.setupPhase === "geloescht",
         ),
     );
+
+    /** @param {string | Date | null} d */
+    function formatDate(d) {
+        if (!d) return "-";
+        return new Date(d).toLocaleDateString("de-AT", { timeZone: "Europe/Vienna" });
+    }
+
+    /**
+     * Badge-Farbe fuer einen Zustand der Provisionierung.
+     * @param {string} state
+     * @returns {"green" | "yellow" | "red" | "gray"}
+     */
+    function stateColor(state) {
+        if (state === "created" || state === "synced") return "green";
+        if (state === "pending" || state === "reset") return "yellow";
+        if (state.startsWith("error")) return "red";
+        return "gray";
+    }
 
     /** @param {string | Date | null} lastSeen */
     function formatLastSeen(lastSeen) {
@@ -339,11 +368,22 @@
                     </p>
 
                     {#if status === "wartet"}
-                        <p class="text-sm text-gray-600 dark:text-gray-300">
-                            Diese Anlage hat noch keine Daten gemeldet. Das
-                            Token unten bei der Einrichtung des openHABian
-                            angeben.
-                        </p>
+                        {#if anlage.provisioning?.code}
+                            {@const phase = describePhase(anlage.provisioning.setupPhase)}
+                            <p class="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                                Einrichtung: {phase.label}
+                            </p>
+                            <Progressbar progress={phase.progress} color={phase.failed ? "red" : phase.waiting ? "yellow" : "blue"} />
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Details unten unter "Einrichtung".
+                            </p>
+                        {:else}
+                            <p class="text-sm text-gray-600 dark:text-gray-300">
+                                Diese Anlage hat noch keine Daten gemeldet. Das
+                                Token unten bei der Einrichtung des openHABian
+                                angeben.
+                            </p>
+                        {/if}
                     {:else}
                         <div class="mb-3">
                             <div class="flex justify-between text-sm mb-1">
@@ -406,12 +446,199 @@
         </div>
     {/if}
 
+    <Heading tag="h2" class="text-xl font-semibold mb-3">Einrichtung (SD-Karte vorbereiten)</Heading>
+    <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
+        Mitglied auswählen, fertig: Token, Tunnel-IP, Passwörter, Cloud-Konto
+        und Mail-Alias entstehen automatisch. Danach das Zip herunterladen und
+        mit <code>setup/prepare-sd.sh sd-NNN.zip /dev/sdX</code> auf die
+        SD-Karte schreiben. Der Pi richtet sich beim ersten Start selbst ein
+        und meldet hier seinen Fortschritt.
+    </p>
+
+    {#if !data.secretsConfigured}
+        <p class="text-sm text-red-600 mb-4">
+            IBM_SECRET_KEY fehlt in der .env der Website (erzeugen mit
+            <code>openssl rand -hex 32</code>). Ohne den Schlüssel kann nichts
+            vorbereitet werden.
+        </p>
+    {:else if !data.mailcowConfigured}
+        <p class="text-sm text-yellow-700 dark:text-yellow-400 mb-4">
+            MAILCOW_API_KEY ist nicht gesetzt: Mail-Aliase werden nicht
+            angelegt (Zustand "skipped").
+        </p>
+    {/if}
+
+    <form
+        method="POST"
+        action="?/prepareSd"
+        use:enhance
+        class="flex flex-wrap items-end gap-3 mb-6"
+    >
+        <div class="w-80">
+            <MemberPicker name="memberId" members={data.members ?? []} bind:value={sdMemberId} />
+        </div>
+        <div class="w-64">
+            <Select name="inverterType" items={inverterChoices} bind:value={sdInverterType} />
+        </div>
+        <!-- autocomplete="new-password": sonst haelt der Browser Text- plus
+             Passwortfeld fuer ein Login und fuellt gespeicherte Zugangsdaten ein -->
+        <div class="w-48">
+            <Label for="sd-wifi-ssid" class="text-xs">WLAN-Name (optional, sonst LAN)</Label>
+            <Input id="sd-wifi-ssid" name="wifiSsid" placeholder="SSID" size="sm" autocomplete="off" data-1p-ignore data-lpignore="true" />
+        </div>
+        <div class="w-48">
+            <Label for="sd-wifi-pw" class="text-xs">WLAN-Passwort</Label>
+            <Input id="sd-wifi-pw" name="wifiPassword" type="password" size="sm" autocomplete="new-password" data-1p-ignore data-lpignore="true" />
+        </div>
+        <Button type="submit" disabled={!sdMemberId || !data.secretsConfigured}>SD-Karte vorbereiten</Button>
+    </form>
+
+    {#if form?.prepared}
+        <p class="text-sm text-green-700 dark:text-green-400 mb-4">
+            Anlage vorbereitet. Zip herunterladen und die Karte schreiben.
+        </p>
+    {/if}
+    {#if form?.markedDeleted}
+        <p class="text-sm text-yellow-700 dark:text-yellow-400 mb-4">
+            Anlage zum Löschen vorgemerkt; der Abgleich auf s1 räumt Tunnel und Cloud-Konto ab.
+        </p>
+    {/if}
+
+    {#if provisioned.length > 0}
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-8">
+            {#each provisioned as anlage (anlage.id)}
+                {@const p = anlage.provisioning}
+                {@const phase = describePhase(p.setupPhase)}
+                {@const show = revealed[anlage.id] ?? false}
+                <Card class="max-w-none p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-lg font-semibold dark:text-white">
+                            {anlage.name} · {anlage.memberName}
+                        </span>
+                        <Badge color={phase.failed ? "red" : phase.done ? "green" : phase.waiting ? "yellow" : "blue"}>
+                            {phase.label}
+                        </Badge>
+                    </div>
+                    <Progressbar progress={phase.progress} color={phase.failed ? "red" : phase.done ? "green" : "blue"} class="mb-2" />
+                    {#if p.setupPhase === "geloescht"}
+                        <p class="text-xs text-yellow-700 dark:text-yellow-400 mb-2">
+                            Zum Löschen vorgemerkt: der Abgleich auf s1 entfernt Tunnel-Peer und
+                            Cloud-Konto und löscht die Anlage danach (höchstens ein paar Minuten).
+                        </p>
+                    {/if}
+                    {#if p.setupMessage}
+                        <p class="text-xs text-gray-600 dark:text-gray-300 mb-2 whitespace-pre-line">{p.setupMessage}</p>
+                    {/if}
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                        Letzte Phasenmeldung: {formatLastSeen(p.setupPhaseAt)}
+                        {#if p.provisionedAt}· Code eingelöst {formatLastSeen(p.provisionedAt)}{/if}
+                    </p>
+
+                    <div class="flex flex-wrap gap-1.5 mb-3">
+                        <Badge color={p.wgSynced ? "green" : p.wgPublicKey ? "yellow" : "gray"}>
+                            Tunnel {p.wgAddress}{p.wgSynced ? " aktiv" : p.wgPublicKey ? " wird eingetragen" : " wartet auf Pi"}
+                        </Badge>
+                        <Badge color={stateColor(p.cloudAccountState)}>
+                            Cloud-Konto {p.cloudAccountState || "-"}
+                        </Badge>
+                        <Badge color={stateColor(p.mailAliasState)}>
+                            Mail-Alias {p.mailAliasState || "-"}
+                        </Badge>
+                        <Badge color={p.inverterType ? "green" : "gray"}>
+                            {inverterLabel(p.inverterType) ?? "Wechselrichter: automatisch"}
+                        </Badge>
+                        <Badge color={p.inverterPasswordSet ? "green" : "gray"}>
+                            Wechselrichter-Passwort {p.inverterPasswordSet ? "hinterlegt" : "fehlt"}
+                        </Badge>
+                    </div>
+                    {#if p.cloudAccountError}
+                        <p class="text-xs text-red-600 mb-2">{p.cloudAccountError}</p>
+                    {/if}
+
+                    <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm mb-3">
+                        <span class="text-gray-500">Code</span>
+                        <span class="font-mono dark:text-white">{p.code ?? "-"} {#if p.expires}<span class="text-xs text-gray-500">(bis {formatDate(p.expires)})</span>{/if}</span>
+                        <span class="text-gray-500">Linux / openHAB-Admin</span>
+                        <span class="font-mono dark:text-white">openhabian / {show ? p.linuxPassword : "••••••••"}</span>
+                        <span class="text-gray-500">Cloud-Konto</span>
+                        <span class="font-mono dark:text-white">{p.cloudUsername} / {show ? p.cloudPassword : "••••••••"}</span>
+                        <span class="text-gray-500">Cloud-UUID / Secret</span>
+                        <span class="font-mono text-xs dark:text-white break-all">{p.cloudUuid} / {show ? p.cloudSecret : "••••••••"}</span>
+                        {#if p.wifiSsid}
+                            <span class="text-gray-500">WLAN</span>
+                            <span class="dark:text-white">{p.wifiSsid}</span>
+                        {/if}
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <Button size="xs" color="light" onclick={() => (revealed[anlage.id] = !show)}>
+                            {show ? "Verbergen" : "Passwörter anzeigen"}
+                        </Button>
+                        {#if p.setupPhase !== "geloescht"}
+                            <Button size="xs" href={`/board/openhab/${anlage.id}/sd-karte.zip`}>Zip herunterladen</Button>
+                            <form method="POST" action="?/renewCode" use:enhance>
+                                <input type="hidden" name="id" value={anlage.id} />
+                                <Button size="xs" color="light" type="submit">Neuer Code</Button>
+                            </form>
+                            <form method="POST" action="?/resetCloudPassword" use:enhance>
+                                <input type="hidden" name="id" value={anlage.id} />
+                                <Button size="xs" color="light" type="submit">Neues Cloud-Passwort</Button>
+                            </form>
+                        {/if}
+                        {#if p.setupPhase === "geloescht"}
+                            <form method="POST" action="?/undeletePlant" use:enhance>
+                                <input type="hidden" name="id" value={anlage.id} />
+                                <Button size="xs" color="yellow" type="submit">Löschen zurücknehmen</Button>
+                            </form>
+                        {:else}
+                            <form method="POST" action="?/deletePlant" use:enhance
+                                onsubmit={(/** @type {SubmitEvent} */ e) => {
+                                    if (!confirm(`Anlage ${anlage.name} wirklich löschen? Tunnel-Peer und Cloud-Konto werden entfernt, das Token widerrufen.`)) e.preventDefault();
+                                }}>
+                                <input type="hidden" name="id" value={anlage.id} />
+                                <Button size="xs" color="red" type="submit">Anlage löschen</Button>
+                            </form>
+                        {/if}
+                        {#if p.cloudAccountState.startsWith("error")}
+                            <form method="POST" action="?/retryCloud" use:enhance>
+                                <input type="hidden" name="id" value={anlage.id} />
+                                <Button size="xs" color="yellow" type="submit">Cloud-Konto erneut</Button>
+                            </form>
+                        {/if}
+                    </div>
+
+                    <div class="flex flex-wrap gap-3">
+                        <form method="POST" action="?/setInverterType" use:enhance class="flex items-end gap-2">
+                            <input type="hidden" name="id" value={anlage.id} />
+                            <div class="w-56">
+                                <Select name="inverterType" items={inverterChoices} value={p.inverterType} size="sm" />
+                            </div>
+                            <Button size="xs" color="light" type="submit">Profil setzen</Button>
+                        </form>
+                        <form method="POST" action="?/setInverterPassword" use:enhance class="flex items-end gap-2">
+                            <input type="hidden" name="id" value={anlage.id} />
+                            <div class="w-32">
+                                <Label for={`wr-user-${anlage.id}`} class="text-xs">WR-Benutzer</Label>
+                                <Input id={`wr-user-${anlage.id}`} name="username" value={p.inverterUsername || "customer"} size="sm" autocomplete="off" data-1p-ignore data-lpignore="true" />
+                            </div>
+                            <div class="w-40">
+                                <Label for={`wr-pw-${anlage.id}`} class="text-xs">Wechselrichter-Passwort</Label>
+                                <Input id={`wr-pw-${anlage.id}`} name="password" type="password" size="sm" autocomplete="new-password" data-1p-ignore data-lpignore="true" />
+                            </div>
+                            <Button size="xs" color="light" type="submit">Hinterlegen</Button>
+                        </form>
+                    </div>
+                </Card>
+            {/each}
+        </div>
+    {/if}
+
     <Heading tag="h2" class="text-xl font-semibold mb-3">Tokens</Heading>
     <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
-        Jede Anlage braucht ein eigenes Token. Es wird bei der Einrichtung
-        des openHABian im Assistenten angegeben (oder als IBM_STATUS_TOKEN
-        in die ibm.conf eingetragen) und erlaubt der Anlage, ihren Status zu
-        melden. Löschen widerruft das Token.
+        Klassischer Weg ohne SD-Karten-Vorbereitung: ein Token, das bei der
+        Einrichtung des openHABian im Assistenten angegeben wird (oder als
+        IBM_STATUS_TOKEN in der ibm.conf). Löschen widerruft das Token und
+        entfernt die Anlage samt Provisionierung.
     </p>
 
     <form
@@ -420,13 +647,8 @@
         use:enhance
         class="flex flex-wrap items-end gap-3 mb-4"
     >
-        <div class="w-72">
-            <Select
-                name="memberId"
-                items={memberOptions}
-                bind:value={selectedMemberId}
-                placeholder="Mitglied auswählen"
-            />
+        <div class="w-80">
+            <MemberPicker name="memberId" members={data.members ?? []} bind:value={selectedMemberId} />
         </div>
         <Button type="submit" disabled={!selectedMemberId}>Token erstellen</Button>
     </form>
@@ -472,7 +694,7 @@
                                 action="?/deleteToken"
                                 use:enhance
                                 onsubmit={(/** @type {SubmitEvent} */ e) => {
-                                    if (!confirm(`Token von ${anlage.memberName} wirklich löschen? Die Anlage kann dann nicht mehr melden.`)) {
+                                    if (!confirm(`Anlage von ${anlage.memberName} wirklich löschen? Token wird widerrufen; Tunnel-Peer und Cloud-Konto entfernt der Abgleich auf s1.`)) {
                                         e.preventDefault();
                                     }
                                 }}

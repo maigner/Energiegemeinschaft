@@ -33,6 +33,55 @@ class OpenhabStatus(models.Model):
     last_seen = models.DateTimeField(null=True, blank=True)
     data = models.JSONField(default=dict, blank=True)
 
+    # --- Provisionierung (Zero-Touch-Einrichtung, seit 2026-08) ------------
+    # Alles, was der Einrichtungsassistent frueher am Pi abgefragt hat,
+    # entsteht beim "SD-Karte vorbereiten" auf /board/openhab und wird dem
+    # Pi ueber POST /api/ibm/provision/v1 in einem Stueck geliefert. Felder
+    # mit Geheimnissen (cloud_secret, cloud_password, linux_password,
+    # inverter_password, wifi_password) speichert die Website verschluesselt
+    # (AES-256-GCM, Schluessel IBM_SECRET_KEY in website/.env; Format
+    # "enc1:<iv>:<tag>:<ciphertext>", Base64). Siehe
+    # docs/ibm-setup-vereinfachung.md.
+    provision_code = models.CharField(max_length=40, null=True, blank=True, unique=True)
+    provision_expires = models.DateTimeField(null=True, blank=True)
+    provisioned_at = models.DateTimeField(null=True, blank=True)
+    # Wechselrichter-Profil (Verzeichnis unter inverters/); leer = der Pi
+    # erkennt es selbst und meldet das Ergebnis zurueck.
+    inverter_type = models.CharField(max_length=50, blank=True, default="")
+    inverter_username = models.CharField(max_length=100, blank=True, default="")
+    # Passwort am Wechselrichter (GEN24): vom Mitglied oder Vorstand
+    # eingetragen, vom Pi einmal abgeholt und danach serverseitig geloescht.
+    inverter_password = models.CharField(max_length=500, blank=True, default="")
+    # WireGuard-Fernwartung: Tunnel-IP aus dem Pool (ab 10.88.0.11) und der
+    # vom Pi gemeldete Public-Key; der Timer ibm-provision-sync auf s1
+    # schreibt daraus die wg0.conf und stempelt wg_synced_at.
+    wg_address = models.CharField(max_length=20, blank=True, default="")
+    wg_public_key = models.CharField(max_length=100, blank=True, default="")
+    wg_synced_at = models.DateTimeField(null=True, blank=True)
+    # openHAB-Cloud (hac.ischlstrom.org): Identitaet der Anlage (UUID/Secret,
+    # serverseitig erzeugt, vom Pi in userdata geschrieben) und das Konto
+    # des Mitglieds (Alias <nnn>@ischlstrom.org). cloud_account_state:
+    # '' | pending | created | reset | error; den Zustandswechsel macht der
+    # s1-Timer (Konto per Skript im Cloud-Container anlegen).
+    cloud_uuid = models.CharField(max_length=64, blank=True, default="")
+    cloud_secret = models.CharField(max_length=200, blank=True, default="")
+    cloud_username = models.CharField(max_length=200, blank=True, default="")
+    cloud_password = models.CharField(max_length=200, blank=True, default="")
+    cloud_account_state = models.CharField(max_length=20, blank=True, default="")
+    cloud_account_error = models.TextField(blank=True, default="")
+    # Mail-Alias <nnn>@ischlstrom.org -> info@ (mailcow-API):
+    # '' | created | error: ... | skipped
+    mail_alias_state = models.CharField(max_length=200, blank=True, default="")
+    # Passwort des Linux-Benutzers openhabian und des openHAB-Admin-Kontos
+    linux_password = models.CharField(max_length=200, blank=True, default="")
+    # Optionales WLAN fuer die openhabian.conf der SD-Karte
+    wifi_ssid = models.CharField(max_length=100, blank=True, default="")
+    wifi_password = models.CharField(max_length=200, blank=True, default="")
+    # Einrichtungsphase, vom Pi gemeldet (POST /api/ibm/provision/v1/result)
+    setup_phase = models.CharField(max_length=50, blank=True, default="")
+    setup_message = models.TextField(blank=True, default="")
+    setup_phase_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         verbose_name_plural = "Openhab statuses"
 

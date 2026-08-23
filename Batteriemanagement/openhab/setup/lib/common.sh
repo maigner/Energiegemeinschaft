@@ -280,6 +280,20 @@ load_config() {
   INVERTER_USERNAME="${INVERTER_USERNAME:-}"
   INVERTER_PASSWORD="${INVERTER_PASSWORD:-}"
 
+  # Hauptschalter nach der Installation: OFF am klassischen Weg (erst nach
+  # bewusstem Einschalten wird gesteuert), ON bei der Provisionierung (der
+  # Vorstand hat die Anlage ja angelegt).
+  DEFAULT_MAIN_SWITCH="${DEFAULT_MAIN_SWITCH:-OFF}"
+
+  # Zero-Touch-Provisionierung (00-provision.sh): Cloud-Identitaet und
+  # openHAB-Admin-Konto kommen vom Server statt aus Dateien/Main UI.
+  IBM_PROVISIONED="${IBM_PROVISIONED:-0}"
+  CLOUD_UUID="${CLOUD_UUID:-}"
+  CLOUD_SECRET="${CLOUD_SECRET:-}"
+  OH_ADMIN_USER="${OH_ADMIN_USER:-}"
+  OH_ADMIN_PASSWORD="${OH_ADMIN_PASSWORD:-}"
+  IBM_STATUS_TOKEN="${IBM_STATUS_TOKEN:-}"
+
   load_profile "$INVERTER_TYPE"
 
   migrate_config
@@ -355,15 +369,32 @@ migrate_config() {
 }
 
 # Setzt einen Schluessel in der bestehenden ibm.conf (Wert in Anfuehrungs-
-# zeichen). Nur fuer Werte ohne '|', '&' und '"' verwenden (Tokens, Flags).
+# zeichen). Beliebige Werte erlaubt - Sonderzeichen (\ " $ `) werden fuer
+# die Bash-Doppelquotes entschaerft; der Rest der Datei bleibt unangetastet.
 conf_set() {
   local key="$1" value="$2"
   [ -f "$IBM_CONF" ] || die "conf_set: $IBM_CONF fehlt."
-  if grep -qE "^${key}=" "$IBM_CONF"; then
-    sed -i -E "s|^${key}=.*|${key}=\"${value}\"|" "$IBM_CONF"
-  else
-    printf '%s="%s"\n' "$key" "$value" >> "$IBM_CONF"
-  fi
+  IBM_CS_KEY="$key" IBM_CS_VALUE="$value" IBM_CS_FILE="$IBM_CONF" python3 - <<'PY'
+import os, re
+key, value, path = os.environ["IBM_CS_KEY"], os.environ["IBM_CS_VALUE"], os.environ["IBM_CS_FILE"]
+esc = re.sub(r'([\\"$`])', r'\\\1', value)
+line = f'{key}="{esc}"'
+with open(path) as f:
+    lines = f.read().split("\n")
+pat = re.compile(r'^' + re.escape(key) + r'=')
+found = False
+for i, l in enumerate(lines):
+    if pat.match(l):
+        lines[i] = line
+        found = True
+if not found:
+    if lines and lines[-1] == "":
+        lines.insert(len(lines) - 1, line)
+    else:
+        lines.append(line)
+with open(path, "w") as f:
+    f.write("\n".join(lines))
+PY
 }
 
 # ---------------------------------------------------------------------------
@@ -758,6 +789,95 @@ ensure_api_token() {
   conf_set OH_API_TOKEN "$token"
   chmod 600 "$IBM_CONF" 2>/dev/null || true
   log "openHAB-API-Token 'ibm' fuer Benutzer '$admin_user' erzeugt und in ibm.conf eingetragen."
+}
+
+# ---------------------------------------------------------------------------
+# Provisionierung (Zero-Touch-Einrichtung, docs/ibm-setup-vereinfachung.md)
+#
+# Der Pi meldet Einrichtungsphasen an den Server; Vorstands-Dashboard und
+# Mitgliederbereich zeigen sie an. Die Meldung braucht nur das
+# Status-Token (IBM_STATUS_TOKEN) und IBM_API_BASE; ohne beides ist sie
+# ein No-op. Fehler beim Melden brechen die Installation nie ab.
+# ---------------------------------------------------------------------------
+
+# JSON-String-Literal aus einem Bash-Wert (ohne python-Abhaengigkeit).
+json_str() {
+  local s="$1"
+  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; s="${s//$'\n'/\\n}"; s="${s//$'\t'/\\t}"; s="${s//$'\r'/}"
+  printf '"%s"' "$s"
+}
+
+# POST an <IBM_API_BASE>/api/ibm/provision/v1<pfad> mit JSON-Body; Antwort
+# auf stdout. Rueckgabe 1 bei Netz-/HTTP-Fehler.
+provision_api() {
+  local path="$1" body="$2" base="${IBM_API_BASE:-${IBM_BASE_URL:-https://ischlstrom.org}}"
+  curl -fsS -m 20 -X POST -H 'Content-Type: application/json' \
+    -d "$body" "${base}/api/ibm/provision/v1${path}" 2>/dev/null
+}
+
+# report_phase <phase> [meldung] [zusatz-json-felder]
+# Phasen: konfiguration wechselrichter_suche wechselrichter_unklar tunnel
+# passwoerter cloud addons wartet_auf_passwort wechselrichter items regeln
+# overview fertig fehler:<schritt>
+report_phase() {
+  local phase="$1" message="${2:-}" extra="${3:-}" body
+  [ -n "${IBM_STATUS_TOKEN:-}" ] || return 0
+  body="{\"token\":$(json_str "$IBM_STATUS_TOKEN"),\"phase\":$(json_str "$phase"),\"message\":$(json_str "$message"),\"hostname\":$(json_str "$(hostname)")${extra:+,$extra}}"
+  IBM_LAST_REPORT="$(provision_api /result "$body" || true)"
+  [ -n "$IBM_LAST_REPORT" ] || warn "Phase '$phase' konnte nicht an den Server gemeldet werden (kein Abbruch)."
+  return 0
+}
+
+# Liest ein Feld aus der letzten Server-Antwort (IBM_LAST_REPORT), z. B.
+# inverter_type oder inverter_password_set. Leer, wenn nicht vorhanden.
+report_field() {
+  local field="$1"
+  printf '%s' "${IBM_LAST_REPORT:-}" | python3 -c '
+import json, sys
+try:
+    v = json.load(sys.stdin).get(sys.argv[1], "")
+except Exception:
+    v = ""
+print("" if v is None else (str(v).lower() if isinstance(v, bool) else v))
+' "$field" 2>/dev/null || true
+}
+
+# Wartet, bis die openHAB REST API antwortet (max. Sekunden als Argument).
+wait_for_openhab_rest() {
+  local timeout="${1:-600}" waited=0 code
+  while [ "$waited" -lt "$timeout" ]; do
+    code="$(curl -s -o /dev/null -w '%{http_code}' -m 5 http://127.0.0.1:8080/rest/ || true)"
+    [ "$code" = "200" ] && return 0
+    sleep 5; waited=$((waited + 5))
+  done
+  return 1
+}
+
+# Legt den openHAB-Admin-Benutzer ueber die Karaf-Konsole an, falls noch
+# keiner existiert - der einzige Schritt, fuer den sonst die Main UI vor
+# dem Setup gebraucht wuerde. Braucht OH_ADMIN_USER und OH_ADMIN_PASSWORD
+# (aus der Provisionierung). Idempotent: existiert ein Administrator, wird
+# nichts geaendert.
+ensure_admin_user() {
+  [ -n "${OH_ADMIN_USER:-}" ] && [ -n "${OH_ADMIN_PASSWORD:-}" ] || return 0
+  case "$OH_ADMIN_PASSWORD" in *[!A-Za-z0-9._-]*)
+    warn "OH_ADMIN_PASSWORD enthaelt Zeichen, die die Karaf-Konsole nicht vertraegt - Admin-Konto nicht angelegt."; return 1 ;;
+  esac
+  local out
+  out="$(console_exec "openhab:users list")" \
+    || { warn "Karaf-Konsole nicht erreichbar - Admin-Konto nicht angelegt."; return 1; }
+  if printf '%s\n' "$out" | grep -qi 'administrator'; then
+    log "openHAB-Admin-Konto existiert bereits."
+    return 0
+  fi
+  out="$(console_exec "openhab:users add $OH_ADMIN_USER $OH_ADMIN_PASSWORD administrator")" || true
+  if console_exec "openhab:users list" | grep -qi 'administrator'; then
+    log "openHAB-Admin-Konto '$OH_ADMIN_USER' angelegt."
+    return 0
+  fi
+  warn "Admin-Konto konnte nicht angelegt werden. Konsolen-Ausgabe:"
+  printf '%s\n' "$out" | sed 's/^/[IBM]   /' >&2
+  return 1
 }
 
 # ---------------------------------------------------------------------------

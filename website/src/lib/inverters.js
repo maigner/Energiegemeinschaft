@@ -12,6 +12,13 @@ const INVERTER_LABELS = {
 };
 
 /**
+ * Auswahlliste der Profile (fuer Formulare): [{ value, name }].
+ */
+export function inverterOptions() {
+    return Object.entries(INVERTER_LABELS).map(([value, name]) => ({ value, name }));
+}
+
+/**
  * Anzeigename zu einem gemeldeten inverter_type; unbekannte Slugs werden
  * unveraendert angezeigt. null, wenn die Anlage (noch) keinen Typ meldet
  * (altes IBM-Paket).

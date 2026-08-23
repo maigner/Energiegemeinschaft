@@ -88,7 +88,10 @@ WSGI_APPLICATION = 'eeg.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "HOST": "server",
+        # Host, Benutzer und Port kommen aus dem Service eeg-middleware
+        # (.pg_service.conf: s1.ischlstrom.org = Prod), das Passwort aus
+        # .pgpass. Kein HOST hier: ein gesetzter HOST ueberschreibt den
+        # Service-Host (frueher "server" = Dev-DB, und migrate traf nie Prod).
         "NAME": "ischlstrom_middleware",
         "OPTIONS": {
             "service": "eeg-middleware",
