@@ -9,6 +9,8 @@ import {
     randomCloudSecret
 } from '$lib/server/secrets';
 import { ensureMailcowAlias } from '$lib/server/mailcow';
+import firstbootScript from '../../../../../../Batteriemanagement/openhab/setup/firstboot/ibm-firstboot.sh?raw';
+import firstbootService from '../../../../../../Batteriemanagement/openhab/setup/firstboot/ibm-firstboot.service?raw';
 
 // Zero-Touch-Provisionierung der IBM-Anlagen (docs/ibm-setup-vereinfachung.md).
 // "SD-Karte vorbereiten" auf /board/openhab legt hier alles an, was der
@@ -520,6 +522,46 @@ export function renderProvisionConf(plant, baseUrl) {
 # Wird nach erfolgreicher Einrichtung automatisch geloescht.
 IBM_PROVISION_CODE=${plant.provision_code}
 IBM_BASE_URL=${baseUrl}
+`;
+}
+
+/**
+ * Inhalt der user-data fuer die Boot-Partition (ersetzt die Vorlage des
+ * Images): cloud-init liest sie beim ersten Boot (NoCloud-Datasource
+ * seedfrom /boot/firmware) und installiert damit die systemd-Unit
+ * ibm-firstboot im Root-Dateisystem. So braucht die SD-Karte keinen
+ * ext4-Zugriff (funktioniert also auch von macOS/Raspberry Pi Imager aus)
+ * und der Pi keinen SSH-Zugriff: ibm-firstboot wartet die
+ * openHABian-Erstinstallation ab und startet dann die Einrichtung.
+ * Inhalt ist fuer alle Anlagen gleich; die Anlage steckt in
+ * ibm-provision.conf.
+ */
+export function renderUserData() {
+    // YAML-Block-Scalar: jede Zeile 6 Stellen einruecken, Leerzeilen bleiben leer
+    const block = (/** @type {string} */ text) => text
+        .replace(/\n$/, '')
+        .split('\n')
+        .map((line) => (line ? '      ' + line : ''))
+        .join('\n');
+    return `#cloud-config
+# ISCHLSTROM Speichermanagement - Zero-Touch-Autostart der Einrichtung.
+# Erzeugt von ischlstrom.org/board/openhab - auf die Boot-Partition der
+# SD-Karte kopieren (ersetzt die mitgelieferte user-data-Vorlage).
+# cloud-init (im Raspberry-Pi-OS-Image enthalten) installiert damit beim
+# ersten Boot die systemd-Unit ibm-firstboot; sie wartet, bis openHABian
+# fertig installiert ist, und richtet dann das Speichermanagement ein.
+write_files:
+  - path: /usr/local/sbin/ibm-firstboot
+    permissions: '0755'
+    content: |
+${block(firstbootScript)}
+  - path: /etc/systemd/system/ibm-firstboot.service
+    permissions: '0644'
+    content: |
+${block(firstbootService)}
+runcmd:
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, --now, ibm-firstboot.service]
 `;
 }
 

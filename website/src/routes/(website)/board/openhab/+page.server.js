@@ -3,6 +3,7 @@ import { getOpenhabStatuses, createOpenhabToken } from '$lib/server/db/members/o
 import {
     provisionPlant,
     listProvisioning,
+    getProvisioning,
     renewProvisionCode,
     setInverterType,
     setInverterCredentials,
@@ -11,6 +12,7 @@ import {
     deletePlant,
     undeletePlant
 } from '$lib/server/db/members/openhabProvision';
+import { getImageStatus, startImageBuild, deleteImage } from '$lib/server/ibmImage';
 import { secretsConfigured } from '$lib/server/secrets';
 import { mailcowConfigured } from '$lib/server/mailcow';
 import { getMembers } from '$lib/server/db/members/member';
@@ -25,6 +27,11 @@ export async function load() {
     // Seite zeigt den Hinweis.
     const provisioning = secretsConfigured() ? await listProvisioning() : [];
     const provisioningById = new Map(provisioning.map((/** @type {any} */ p) => [p.id, p]));
+    // Stand des fertigen SD-Karten-Images je Anlage (Dateisystem, kein DB-Feld)
+    const imageById = new Map();
+    for (const p of provisioning) {
+        if (p.provision_code) imageById.set(p.id, await getImageStatus(p));
+    }
 
     return {
         secretsConfigured: secretsConfigured(),
@@ -62,7 +69,8 @@ export async function load() {
                     wifiSsid: p.wifi_ssid,
                     setupPhase: p.setup_phase,
                     setupMessage: p.setup_message,
-                    setupPhaseAt: p.setup_phase_at
+                    setupPhaseAt: p.setup_phase_at,
+                    image: imageById.get(s.id) ?? null
                 } : null
             };
         }),
@@ -143,6 +151,22 @@ export const actions = {
         return { cloudReset: id };
     },
 
+    // Fertiges SD-Karten-Image bauen (laeuft im Hintergrund, Stand kommt
+    // ueber load/getImageStatus; nur ein Bau gleichzeitig).
+    buildImage: async ({ request, url }) => {
+        const id = idOf(await request.formData());
+        if (!id) return fail(400, { message: 'Ungültige Anlage.' });
+        if (!secretsConfigured()) return fail(500, { message: 'IBM_SECRET_KEY fehlt in der .env der Website.' });
+        const plant = await getProvisioning(id);
+        if (!plant || !plant.provision_code) return fail(404, { message: 'Keine Provisionierung für diese Anlage.' });
+        try {
+            await startImageBuild(plant, `${url.protocol}//${url.host}`);
+            return { imageBuildStarted: id };
+        } catch (e) {
+            return fail(409, { message: e instanceof Error ? e.message : 'Image-Bau nicht möglich.' });
+        }
+    },
+
     retryCloud: async ({ request }) => {
         const id = idOf(await request.formData());
         if (!id) return fail(400, { message: 'Ungültige Anlage.' });
@@ -155,7 +179,9 @@ export const actions = {
     deletePlant: async ({ request }) => {
         const id = idOf(await request.formData());
         if (!id) return fail(400, { message: 'Ungültige Anlage.' });
+        const plant = await getProvisioning(id).catch(() => null);
         const result = await deletePlant(id);
+        if (plant?.name) await deleteImage(plant.name);
         return result === 'deleted' ? { deleted: true } : { markedDeleted: id };
     },
 

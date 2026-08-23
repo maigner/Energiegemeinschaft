@@ -449,10 +449,16 @@
     <Heading tag="h2" class="text-xl font-semibold mb-3">Einrichtung (SD-Karte vorbereiten)</Heading>
     <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
         Mitglied auswählen, fertig: Token, Tunnel-IP, Passwörter, Cloud-Konto
-        und Mail-Alias entstehen automatisch. Danach das Zip herunterladen und
-        mit <code>setup/prepare-sd.sh sd-NNN.zip /dev/sdX</code> auf die
-        SD-Karte schreiben. Der Pi richtet sich beim ersten Start selbst ein
-        und meldet hier seinen Fortschritt.
+        und Mail-Alias entstehen automatisch. Karte schreiben wahlweise mit
+        „Image erstellen“ — der Server baut das fertige
+        <code>pi-NNN.img.gz</code> zum Flashen mit dem Raspberry Pi Imager
+        (Windows, macOS, Linux) — oder mit dem Zip:
+        <code>setup/prepare-sd.sh sd-NNN.zip</code> (macOS/Linux) bzw. Imager
+        plus die drei Dateien auf die Boot-Partition kopieren. Der Pi richtet
+        sich beim ersten Start selbst ein (ohne SSH) und meldet hier seinen
+        Fortschritt. Geht eine Karte kaputt: „Neuer Code“, Image neu
+        erstellen, neue Karte flashen — nur das Wechselrichter-Passwort muss
+        danach neu hinterlegt werden.
     </p>
 
     {#if !data.secretsConfigured}
@@ -576,6 +582,17 @@
                         </Button>
                         {#if p.setupPhase !== "geloescht"}
                             <Button size="xs" href={`/board/openhab/${anlage.id}/sd-karte.zip`}>Zip herunterladen</Button>
+                            <form method="POST" action="?/buildImage" use:enhance>
+                                <input type="hidden" name="id" value={anlage.id} />
+                                <Button size="xs" color="light" type="submit" disabled={Boolean(p.image?.building)}>
+                                    {p.image?.image ? "Image neu erstellen" : "Image erstellen"}
+                                </Button>
+                            </form>
+                            {#if p.image?.image}
+                                <Button size="xs" href={`/board/openhab/${anlage.id}/image.img.gz`}>
+                                    Image herunterladen ({(p.image.image.size / 1e9).toFixed(1).replace(".", ",")} GB)
+                                </Button>
+                            {/if}
                             <form method="POST" action="?/renewCode" use:enhance>
                                 <input type="hidden" name="id" value={anlage.id} />
                                 <Button size="xs" color="light" type="submit">Neuer Code</Button>
@@ -606,6 +623,17 @@
                             </form>
                         {/if}
                     </div>
+                    {#if p.image?.building}
+                        <p class="text-xs text-gray-500 mb-2">
+                            Image wird gebaut: {p.image.building.phase} … (dauert einige Minuten, die Seite aktualisiert sich selbst)
+                        </p>
+                    {:else if p.image?.error}
+                        <p class="text-xs text-red-600 mb-2">Image-Bau fehlgeschlagen: {p.image.error.message}</p>
+                    {:else if p.image?.image?.stale}
+                        <p class="text-xs text-yellow-600 mb-2">
+                            Das Image ist mit einem alten oder abgelaufenen Code gebaut — „Image neu erstellen“, bevor es auf eine Karte kommt.
+                        </p>
+                    {/if}
 
                     <div class="flex flex-wrap gap-3">
                         <form method="POST" action="?/setInverterType" use:enhance class="flex items-end gap-2">

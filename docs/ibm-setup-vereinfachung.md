@@ -12,12 +12,21 @@ Prod, `IBM_SECRET_KEY`/`MAILCOW_*` in `website/.env.s1`,
 `scripts/ibm-provision/install-on-s1.sh` (vom Entwicklungsrechner), Deploy, dann ein
 Test-Pi mit `prepare-sd.sh`. Stufe 5 (Kit, Anleitung) ist offen.
 Abweichungen vom Plan unten: der Code gilt 60 statt 24 Tage (die Karte kann
-liegen); statt eines eigenen Images injiziert `prepare-sd.sh` die
-First-Boot-Unit direkt in die Root-Partition der Karte (openHABian bietet
-keinen Hook auf der Boot-Partition); das Cloud-Konto legt ein per
-`docker compose exec` eingespieltes Node-Skript an (das offizielle Image
-hat kein CLI); die Kommandos an den Pi (Stufe 4, optional) sind nicht
-gebaut.
+liegen); statt eines eigenen Images installiert cloud-init (im
+Raspberry-Pi-OS-Image enthalten, NoCloud-Datasource liest die
+Boot-Partition) die First-Boot-Unit beim ersten Boot aus einer `user-data`
+im `sd-<nnn>.zip` - die Karte braucht damit nur noch die FAT-Partition,
+`prepare-sd.sh` laeuft auch auf macOS und SSH auf den Pi entfaellt ganz;
+das Cloud-Konto legt ein per `docker compose exec` eingespieltes
+Node-Skript an (das offizielle Image hat kein CLI); die Kommandos an den
+Pi (Stufe 4, optional) sind nicht gebaut. Zusaetzlich baut die Website
+auf Wunsch ein fertiges Image je Anlage ("Image erstellen" am Dashboard,
+`website/src/lib/server/ibmImage.js`, Ablage im Docker-Volume
+`ischlstrom-images`): Basis-Image plus die drei Boot-Dateien, per mtools
+ohne Root eingespielt, als `pi-<nnn>.img.gz` fuer den Raspberry Pi
+Imager - damit klappt das Kartenschreiben auch unter Windows, und eine
+defekte Karte laesst sich per "Neuer Code" + neuem Image
+wiederherstellen (nur das Wechselrichter-Passwort ist neu einzutragen).
 
 ## Ausgangslage
 

@@ -25,3 +25,6 @@ vite.config.ts.timestamp-*
 # generiert von Batteriemanagement/openhab/setup/build-dist.sh
 static/ibm/ibm-openhab.tgz
 static/ibm/ibm-openhab.tgz.sha256
+
+# SD-Karten-Images im Dev-Modus (src/lib/server/ibmImage.js)
+/data/

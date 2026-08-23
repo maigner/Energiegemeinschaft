@@ -3,9 +3,11 @@
 # ibm-firstboot - startet die Zero-Touch-Einrichtung des ISCHLSTROM
 # Speichermanagements nach der openHABian-Erstinstallation.
 #
-# Wird von prepare-sd.sh in die Root-Partition der SD-Karte gelegt
-# (/usr/local/sbin/ibm-firstboot, systemd-Unit ibm-firstboot.service) und
-# laeuft bei jedem Boot, bis die Einrichtung abgeschlossen ist:
+# Wird von cloud-init beim ersten Boot aus der user-data der Boot-Partition
+# installiert (/usr/local/sbin/ibm-firstboot, systemd-Unit
+# ibm-firstboot.service; die user-data liegt im sd-Zip vom Dashboard und
+# wird von prepare-sd.sh bzw. von Hand auf die Karte kopiert) und laeuft
+# bei jedem Boot, bis die Einrichtung abgeschlossen ist:
 #
 #   1. Ohne /boot/firmware/ibm-provision.conf (Code vom Vorstand) nichts tun.
 #   2. Warten, bis openHABian fertig ist (/opt/openHABian-install-successful;

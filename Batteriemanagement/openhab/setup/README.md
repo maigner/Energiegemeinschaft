@@ -19,21 +19,36 @@ Das Mitglied muss nichts am Pi tun; der Vorstand bereitet die SD-Karte vor:
    Optional: Wechselrichter-Profil vorgeben (sonst erkennt es der Pi) und
    WLAN-Zugang (LAN bleibt die Empfehlung).
 2. **Zip herunterladen** (`sd-<nnn>.zip`: `openhabian.conf`,
-   `ibm-provision.conf`, `README.txt`) und die Karte schreiben:
+   `ibm-provision.conf`, `user-data`, `README.txt`) und die Karte
+   schreiben (macOS oder Linux; ohne Geraete-Argument listet das Skript
+   die Karten auf):
 
    ```bash
-   sudo ./prepare-sd.sh sd-007.zip /dev/sdX
+   sudo ./prepare-sd.sh sd-007.zip /dev/disk4    # macOS
+   sudo ./prepare-sd.sh sd-007.zip /dev/sdb      # Linux
    ```
 
    `prepare-sd.sh` laedt das aktuelle openHABian-Image (64-bit) in den
-   Cache `/var/cache/ischlstrom`, schreibt es, traegt Hostname, Passwort,
-   Zeitzone und WLAN in die `openhabian.conf` der Boot-Partition ein, legt
-   `ibm-provision.conf` (nur Code und Server-URL) dazu und installiert in
-   der Root-Partition die systemd-Unit `ibm-firstboot` (`firstboot/`).
-   Ohne Linux: Image mit dem Raspberry Pi Imager schreiben, beide Dateien
-   auf die Boot-Partition kopieren; dann fehlt der Autostart und nach dem
-   ersten Boot ist einmal `curl -fsSL https://ischlstrom.org/ibm/install.sh | sudo bash`
-   per SSH noetig (liest den Code von der Karte, keine Rueckfragen).
+   Cache (`/Library/Caches/ischlstrom` auf macOS, `/var/cache/ischlstrom`
+   auf Linux), schreibt es und bestueckt die Boot-Partition (FAT):
+   Hostname, Passwort, Zeitzone und WLAN kommen in die `openhabian.conf`
+   der Karte, `ibm-provision.conf` (nur Code und Server-URL) und
+   `user-data` daneben. Den Autostart installiert cloud-init (im Image
+   enthalten, NoCloud-Datasource liest die Boot-Partition) beim ersten
+   Boot aus der `user-data`: die systemd-Unit `ibm-firstboot`
+   (`firstboot/`). Es wird nur die FAT-Partition beschrieben, ext4-Zugriff
+   und SSH auf den Pi sind nicht noetig. Alternativ von Hand: Image mit
+   dem Raspberry Pi Imager schreiben (ohne eigene Anpassungen) und die
+   drei Konfigurationsdateien aus dem Zip auf die Boot-Partition kopieren
+   - der Effekt ist derselbe.
+
+   **Fertiges Image vom Server (auch Windows)**: am Dashboard "Image
+   erstellen" - die Website baut auf s1 das fertige `pi-<nnn>.img.gz`
+   (offizielles openHABian-Image plus die drei Dateien, eingespielt per
+   mtools; `website/src/lib/server/ibmImage.js`, dauert einige Minuten).
+   Danach "Image herunterladen" und mit dem Raspberry Pi Imager
+   ("Eigenes Image") oder balenaEtcher auf die Karte schreiben - auf
+   Windows, macOS oder Linux, ganz ohne Zip und Dateikopieren.
 3. **Beim Mitglied**: Karte in den Pi, LAN-Kabel (gleiches Netz wie der
    Wechselrichter) und Strom anstecken. openHABian installiert sich selbst
    (30 bis 45 Minuten, Neustart), dann startet `ibm-firstboot` das Setup:
@@ -72,6 +87,21 @@ alle Wege gleich: zuerst, was keinen Wechselrichter braucht (Fernwartung,
 Passwoerter, Cloud-Identitaet, Addons), damit die Anlage fuer den Vorstand
 erreichbar ist, selbst wenn es beim Wechselrichter haengt; danach Preflight,
 Things, Items, Regeln, Overview, Verify.
+
+### SD-Karte defekt (Restore)
+
+Alle Einstellungen einer Anlage liegen am Server, nicht auf der Karte -
+eine defekte Karte wird einfach neu bespielt: am Dashboard **"Neuer
+Code"** (der alte ist seit Phase `fertig` ungueltig), dann **"Image
+erstellen"** und die neue Karte flashen (oder Zip + `prepare-sd.sh`).
+Beim ersten Start laeuft dieselbe Zero-Touch-Einrichtung noch einmal
+durch; Tunnel-IP, Cloud-Konto, UUID/Secret und Passwoerter bleiben wie
+gehabt (den neuen WireGuard-Schluessel meldet der Pi selbst, der
+s1-Timer tauscht den Peer aus). Nur das **Wechselrichter-Passwort** muss
+neu hinterlegt werden (Dashboard oder Mitgliederbereich), weil der
+Server es nach einmaliger Auslieferung loescht. Lokale Historie am Pi
+(openHAB-Persistence) geht verloren; die Community-Daten liegen ohnehin
+auf s1.
 
 ## Ablauf beim Kunden (klassischer Weg)
 

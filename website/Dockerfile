@@ -2,7 +2,8 @@
 FROM node:23
 
 # Set timezone to Europe/Vienna (Salzburg)
-RUN apt-get update && apt-get install -y tzdata && \
+# xz-utils + mtools: SD-Karten-Image-Bau (src/lib/server/ibmImage.js)
+RUN apt-get update && apt-get install -y tzdata xz-utils mtools && \
     ln -fs /usr/share/zoneinfo/Europe/Vienna /etc/localtime && \
     echo "Europe/Vienna" > /etc/timezone && \
     dpkg-reconfigure -f noninteractive tzdata
