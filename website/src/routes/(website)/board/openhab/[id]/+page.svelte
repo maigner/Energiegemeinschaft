@@ -260,50 +260,26 @@
         },
     });
 
+    // Leistungsverlauf Batterie und Netz in einem Chart: die beiden
+    // Rohwerte (Fronius-Vorzeichen) plus die daraus abgeleiteten Flüsse
+    // zwischen Batterie und Netz. Die Netto-Ladung aus dem Netz dient der
+    // Kontrolle und muss dauerhaft auf der Nulllinie liegen.
     /** @type {import('apexcharts').ApexOptions} */
     let powerOptions = $derived({
         ...baseChart,
-        fill: {
-            type: "gradient",
-            gradient: { opacityFrom: 0.35, opacityTo: 0 },
-        },
+        chart: { ...baseChart.chart, type: "line" },
+        stroke: { width: [2, 2, 2, 2], curve: "straight" },
         series: [
             {
-                name: "Einspeisung aus der Batterie",
-                data: series(history, (r) => r.batteryToGridW),
-                color: "#1C64F2",
+                name: "Netz (Bezug positiv, Einspeisung negativ)",
+                data: series(history, (r) => r.gridPowerW),
+                color: "#6B7280",
             },
             {
-                name: "Batterieleistung (Entladen positiv)",
+                name: "Batterie (Entladen positiv, Laden negativ)",
                 data: series(history, (r) => r.batteryPowerW),
                 color: "#F59E0B",
             },
-        ],
-        yaxis: {
-            labels: {
-                formatter: (/** @type {number} */ v) => `${Math.round(v)} W`,
-            },
-        },
-    });
-
-    let hasPowerData = $derived(
-        history.some(
-            (/** @type {{ batteryPowerW: number | null }} */ r) =>
-                r.batteryPowerW !== null,
-        ),
-    );
-
-    // Energiefluss zwischen Batterie und Netz: Einspeisung an die
-    // Gemeinschaft und zur Verifikation die Netto-Ladung aus dem Netz -
-    // letztere muss dauerhaft auf der Nulllinie liegen.
-    /** @type {import('apexcharts').ApexOptions} */
-    let exchangeOptions = $derived({
-        ...baseChart,
-        fill: {
-            type: "gradient",
-            gradient: { opacityFrom: 0.35, opacityTo: 0 },
-        },
-        series: [
             {
                 name: "Batterie ins Netz (Einspeisung)",
                 data: series(history, (r) => r.batteryToGridW),
@@ -319,6 +295,102 @@
             labels: {
                 formatter: (/** @type {number} */ v) => `${Math.round(v)} W`,
             },
+        },
+        annotations: {
+            yaxis: [{ y: 0, borderColor: "#9CA3AF", strokeDashArray: 0 }],
+        },
+    });
+
+    let hasPowerData = $derived(
+        history.some(
+            (/** @type {{ batteryPowerW: number | null }} */ r) =>
+                r.batteryPowerW !== null,
+        ),
+    );
+
+    // Prognostizierter Wolkenverlauf heute und morgen: Gesamtbedeckung als
+    // Fläche, die drei Schichten als Linien. Die Wolken-Schwelle der
+    // Ladesperre (falls gemeldet) und der aktuelle Zeitpunkt als Markierung.
+    let cloudForecast = $derived(data.cloudForecast ?? []);
+
+    /** @type {import('apexcharts').ApexOptions} */
+    let cloudOptions = $derived({
+        ...baseChart,
+        chart: { ...baseChart.chart, type: "line" },
+        stroke: { width: [3, 1.5, 1.5, 1.5], curve: "smooth" },
+        fill: {
+            type: ["gradient", "solid", "solid", "solid"],
+            gradient: { opacityFrom: 0.35, opacityTo: 0 },
+        },
+        series: [
+            {
+                name: "Bewölkung gesamt",
+                type: "area",
+                data: series(cloudForecast, (r) => r.cloudCover),
+                color: "#6B7280",
+            },
+            {
+                name: "tiefe Wolken",
+                type: "line",
+                data: series(cloudForecast, (r) => r.cloudCoverLow),
+                color: "#1C64F2",
+            },
+            {
+                name: "mittelhohe Wolken",
+                type: "line",
+                data: series(cloudForecast, (r) => r.cloudCoverMid),
+                color: "#0E9F6E",
+            },
+            {
+                name: "hohe Wolken",
+                type: "line",
+                data: series(cloudForecast, (r) => r.cloudCoverHigh),
+                color: "#E3A008",
+            },
+        ],
+        xaxis: {
+            ...baseChart.xaxis,
+            labels: {
+                datetimeUTC: false,
+                datetimeFormatter: { day: "dd.MM.", hour: "HH:mm" },
+            },
+        },
+        yaxis: {
+            min: 0,
+            max: 100,
+            labels: {
+                formatter: (/** @type {number} */ v) => `${Math.round(v)}%`,
+            },
+        },
+        annotations: {
+            xaxis: [
+                {
+                    x: Date.now(),
+                    borderColor: "#9CA3AF",
+                    strokeDashArray: 4,
+                    label: {
+                        text: "jetzt",
+                        orientation: "horizontal",
+                        style: { background: "#9CA3AF", color: "#fff" },
+                    },
+                },
+            ],
+            yaxis:
+                bm.schwelle !== null
+                    ? [
+                          {
+                              y: Number(bm.schwelle),
+                              borderColor: "#DC2626",
+                              strokeDashArray: 4,
+                              label: {
+                                  text: `Sperre unter ${bm.schwelle}%`,
+                                  position: "left",
+                                  textAnchor: "start",
+                                  style: { background: "#DC2626", color: "#fff" },
+                              },
+                          },
+                      ]
+                    : [],
         },
     });
 
@@ -462,9 +534,18 @@
             </Heading>
             {#if hasPowerData}
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    Einspeisung aus der Batterie ist der Anteil der
-                    Batterie-Entladung, der tatsächlich ins Netz fließt (der
-                    Rest deckt den Haushalt).
+                    Netzleistung (Bezug positiv, Einspeisung negativ) und
+                    Batterieleistung (Entladen positiv, Laden negativ) sowie die
+                    daraus abgeleiteten Flüsse: Einspeisung aus der Batterie ist
+                    der Anteil der Entladung, der tatsächlich ins Netz fließt
+                    (der Rest deckt den Haushalt); die Netto-Ladung aus dem Netz
+                    dient der Kontrolle und muss praktisch auf 0 W liegen (wenige
+                    Watt Messrauschen sind normal, der Netzladeschutz greift ab
+                    250 W). In den letzten {data.historyDays} Tagen flossen {(
+                        data.batteryToGridKwh ?? 0
+                    ).toFixed(1)} kWh aus der Batterie ins Netz{bm.netzKwh !== null
+                        ? `, seit Zählerstart insgesamt ${bm.netzKwh} kWh`
+                        : ""}.
                 </p>
                 <Chart options={powerOptions} />
             {:else}
@@ -478,25 +559,6 @@
             {/if}
         </Card>
 
-        {#if hasPowerData}
-            <Card class="max-w-none p-4 md:p-6 mt-6">
-                <Heading tag="h2" class="text-lg font-semibold mb-2">
-                    Batterie und Netz
-                </Heading>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    Einspeisung aus der Batterie an die Gemeinschaft und zur
-                    Kontrolle die Netto-Ladung aus dem Netz - diese Linie muss
-                    praktisch auf 0 W liegen (wenige Watt Messrauschen sind
-                    normal, der Netzladeschutz greift ab 250 W). In den letzten {data.historyDays}
-                    Tagen flossen {(data.batteryToGridKwh ?? 0).toFixed(1)} kWh
-                    aus der Batterie ins Netz{bm.netzKwh !== null
-                        ? `, seit Zählerstart insgesamt ${bm.netzKwh} kWh`
-                        : ""}.
-                </p>
-                <Chart options={exchangeOptions} />
-            </Card>
-        {/if}
-
         {#if hasSystemHistory}
             <Card class="max-w-none p-4 md:p-6 mt-6">
                 <Heading tag="h2" class="text-lg font-semibold mb-2">
@@ -509,6 +571,23 @@
                 <Chart options={systemOptions} />
             </Card>
         {/if}
+    {/if}
+
+    {#if cloudForecast.length > 0}
+        <Card class="max-w-none p-4 md:p-6 mt-6">
+            <Heading tag="h2" class="text-lg font-semibold mb-2">
+                Wolkenprognose heute und morgen
+            </Heading>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                Stündliche Bewölkung laut Open-Meteo für den Standort der
+                Gemeinschaft: Gesamtbedeckung sowie tiefe, mittelhohe und hohe
+                Wolken. Die Ladesperre und die Laderegelung der Anlagen bauen
+                auf dieser Prognose auf{bm.schwelle !== null
+                    ? `; das Laden wird nur gesperrt, wenn die Vorschau für das Mittagsfenster unter ${bm.schwelle}% liegt`
+                    : ""}.
+            </p>
+            <Chart options={cloudOptions} />
+        </Card>
     {/if}
 
     {#if anlage.data?.versions || anlage.data?.apt_updates}

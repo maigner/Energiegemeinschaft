@@ -1,28 +1,31 @@
 import { middlewareDbConnection } from "$lib/server/db/db";
 
 
+/**
+ * Stündliche Bewölkungsprognose (gesamt, tief, mittel, hoch in Prozent)
+ * für heute und morgen, Tagesgrenzen in Europe/Vienna. Für den
+ * Wolkenverlauf auf der Anlagen-Detailseite.
+ */
 export const getCloudForecast = async () => {
     const sql = await middlewareDbConnection();
-    const result = await sql.query(`
-        SELECT
-            time,
-            temperature_2m,
-            cloud_cover,
-            cloud_cover_low,
-            cloud_cover_mid,
-            cloud_cover_high
-        FROM weather_weatherdata
-        WHERE time >= CURRENT_DATE
-        AND time < CURRENT_DATE + INTERVAL '2 days'
-        
-        ORDER BY time ASC;
-    `);
-    /**
-     * WHERE time >= CURRENT_DATE
-        AND time < CURRENT_DATE + INTERVAL '14 days'
-     */
-    sql.release();
-    return (result?.rows.length > 0 ? result?.rows : null);
+    try {
+        const result = await sql.query(`
+            SELECT
+                time,
+                temperature_2m,
+                cloud_cover,
+                cloud_cover_low,
+                cloud_cover_mid,
+                cloud_cover_high
+            FROM weather_weatherdata
+            WHERE time >= date_trunc('day', now() AT TIME ZONE 'Europe/Vienna') AT TIME ZONE 'Europe/Vienna'
+              AND time < (date_trunc('day', now() AT TIME ZONE 'Europe/Vienna') + INTERVAL '2 days') AT TIME ZONE 'Europe/Vienna'
+            ORDER BY time ASC;
+        `);
+        return result.rows;
+    } finally {
+        sql.release();
+    }
 };
 
 // Das Fenster wird in Server-Lokalzeit gebildet und ist nur korrekt, solange

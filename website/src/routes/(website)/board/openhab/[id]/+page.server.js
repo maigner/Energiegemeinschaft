@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { getOpenhabStatus, getOpenhabStatusHistory, getOpenhabStatuses } from '$lib/server/db/members/openhabStatus';
+import { getCloudForecast } from '$lib/server/db/weather/forecast';
 import { newestVersion } from '$lib/versions';
 
 const HISTORY_DAYS = 14;
@@ -19,6 +20,16 @@ export async function load({ params }) {
 
     const history = await getOpenhabStatusHistory(statusId, HISTORY_DAYS);
 
+    // Prognostizierter Wolkenverlauf heute und morgen (ein Standort fuer
+    // die ganze Gemeinschaft), Basis der Ladesperre/-regelung.
+    const cloudForecast = (await getCloudForecast()).map((/** @type {any} */ row) => ({
+        time: row.time.toISOString(),
+        cloudCover: Number(row.cloud_cover),
+        cloudCoverLow: Number(row.cloud_cover_low),
+        cloudCoverMid: Number(row.cloud_cover_mid),
+        cloudCoverHigh: Number(row.cloud_cover_high)
+    }));
+
     // Neuester Versionsstand je Komponente ueber alle Anlagen - die Seite
     // hebt damit hervor, wo diese Anlage hinterherhinkt. Das OS bleibt
     // aussen vor: unterschiedliche Distributionen sind kein Rueckstand.
@@ -35,6 +46,8 @@ export async function load({ params }) {
         time: row.bucket.toISOString(),
         soc: row.soc === null ? null : Number(row.soc),
         batteryPowerW: row.battery_power_w === null ? null : Number(row.battery_power_w),
+        // Netzleistung mit Fronius-Vorzeichen: + = Bezug, - = Einspeisung.
+        gridPowerW: row.grid_power_w === null ? null : Number(row.grid_power_w),
         // Einspeisung aus der Batterie bzw. Netto-Ladung aus dem Netz: je
         // Messpunkt in SQL abgeleitet (min aus Batterie- und Netzleistung),
         // dann auf 15 Minuten gemittelt.
@@ -67,6 +80,7 @@ export async function load({ params }) {
         },
         historyDays: HISTORY_DAYS,
         batteryToGridKwh,
-        history: mappedHistory
+        history: mappedHistory,
+        cloudForecast
     };
 }
