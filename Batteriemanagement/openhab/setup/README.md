@@ -103,6 +103,35 @@ Server es nach einmaliger Auslieferung loescht. Lokale Historie am Pi
 (openHAB-Persistence) geht verloren; die Community-Daten liegen ohnehin
 auf s1.
 
+### Aktionen am Dashboard
+
+Das Mitglied wird per Namenssuche gewaehlt ("SD-Karte vorbereiten");
+danach bietet das Dashboard je Anlage:
+
+- **Zip herunterladen**: `sd-<nnn>.zip` fuer `prepare-sd.sh`.
+- **Image erstellen** / **Image herunterladen**: fertiges `pi-<nnn>.img.gz`
+  vom Server. Der Hinweis "mit einem alten oder abgelaufenen Code gebaut"
+  bedeutet: das Image passt nicht mehr zum aktuellen Code, vor dem Flashen
+  also "Image neu erstellen".
+- **Neuer Code**: neuer Provisionierungs-Code (der alte wird ungueltig).
+- **Neues Cloud-Passwort**: setzt das Passwort des Cloud-Kontos neu.
+- **Cloud-Konto erneut** / **Mail-Alias erneut**: wiederholt das Anlegen
+  nach einem Fehler.
+- **Profil setzen**: Wechselrichter-Profil vorgeben oder korrigieren.
+- **Wechselrichter-Passwort** hinterlegen (der Server liefert es einmalig
+  an den Pi aus und loescht es danach).
+- **Passwoerter anzeigen**: Linux-/Admin-Passwort, Cloud-Konto und
+  UUID/Secret.
+- **Anlage loeschen** / **Loeschen zuruecknehmen**: das Loeschen ist
+  zweistufig. Die Website markiert die Anlage nur (`setup_phase =
+  'geloescht'`; Code und Wechselrichter-Passwort sind sofort weg, das
+  Cloud-Konto steht auf `delete`); der s1-Timer `ibm-provision-sync`
+  entfernt dann WireGuard-Peer und Cloud-Konto und danach die DB-Zeile.
+  Solange der Timer die Zeile noch nicht entfernt hat, laesst sich das
+  Loeschen zuruecknehmen (Peer bleibt bzw. wird wieder eingetragen, das
+  Cloud-Konto wird neu angelegt, neuer Code). Nur ein reines Status-Token
+  ohne Peer und Cloud-Konto wird sofort geloescht.
+
 ## Ablauf beim Kunden (klassischer Weg)
 
 1. openHABian-Image auf die SD-Karte flashen, Pi starten, Ersteinrichtung
@@ -129,7 +158,7 @@ Wurde openHAB Cloud gewuenscht, zeigt die Installation am Ende UUID und
 Secret fuer die Registrierung auf der ISCHLSTROM-Cloud an (siehe
 [openHAB Cloud](#openhab-cloud-hacischlstromorg)).
 
-Die Kurzform funktioniert ebenfalls — die Abfragen lesen von `/dev/tty`, nicht
+Die Kurzform funktioniert ebenfalls: die Abfragen lesen von `/dev/tty`, nicht
 von stdin:
 
 ```bash
@@ -154,16 +183,16 @@ sudo IBM_ASSUME_YES=1 bash install.sh
 
 Bei einer erneuten Installation wird das alte Verzeichnis nach
 `openhab.bak-<zeitstempel>` gesichert und eine vorhandene `ibm.conf`
-uebernommen — ein Update aendert bestehende Einstellungen der Anlage also
+uebernommen: ein Update aendert bestehende Einstellungen der Anlage also
 nicht. **Neue Konfig-Schluessel ergaenzt das Update aber automatisch**
 (`migrate_config` in `lib/common.sh`, laeuft bei jedem `load_config`):
 Schluessel, die in der uebernommenen `ibm.conf` noch gar nicht vorkommen,
-werden mit dem Wert eingetragen, den der Assistent heute vorgeben wuerde —
+werden mit dem Wert eingetragen, den der Assistent heute vorgeben wuerde:
 bei der automatischen Einrichtung der Standard-Itemname aus dem
 Wechselrichter-Profil, am klassischen Weg das bereits verknuepfte Item.
 Ein vorhandener, bewusst leer gesetzter Schluessel bleibt unangetastet.
 Aendert sich der **Vorgabewert** eines bestehenden Schluessels, zieht
-`migrate_config_default` ihn nach — aber nur, wenn der Schluessel noch
+`migrate_config_default` ihn nach, aber nur, wenn der Schluessel noch
 exakt auf dem frueheren Standard steht (ein bewusst angepasster Wert
 bleibt unangetastet); so wurde etwa der Status-Push-Zeitplan von alle
 5 Minuten auf minuetlich umgestellt. Manuelles Nachtragen in der
@@ -188,7 +217,7 @@ einen lokalen Test auch weiterhin einzeln ausgefuehrt werden.
 `build-dist.sh` legt das Paket in `website/static/ibm/` ab; SvelteKit liefert
 alles unter `static/` an der Wurzel aus, das Paket ist danach unter
 `https://ischlstrom.org/ibm/ibm-openhab.tgz` erreichbar. Tarball und
-Pruefsumme sind gitignored — sie werden bei jedem Release neu gebaut.
+Pruefsumme sind gitignored: sie werden bei jedem Release neu gebaut.
 Die Endung ist bewusst `.tgz`: Dateien auf `*.gz` liefert der Static-Server
 (sirv) mit `Content-Encoding: gzip` aus, Clients ohne `Accept-Encoding`
 bekaemen dann das entpackte Tar und die Pruefsumme schluege fehl.
@@ -202,6 +231,13 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 ## Die einzelnen Schritte
 
 `install-ibm.sh` fuehrt sie der Reihe nach aus; jedes laeuft auch einzeln.
+Die Tabelle ist nach Skriptnamen sortiert; die tatsaechliche Reihenfolge
+von `install-ibm.sh` ist: Konfiguration (`00-provision.sh` bei vorhandenem
+Provisionierungs-Code, sonst `00-wizard.sh`), Regionaleinstellungen, `08`
+(WireGuard), `10` (Passwoerter), `07` (Cloud-Identitaet, nur wenn eine
+`CLOUD_UUID` vom Server vorliegt), `02` (Addons), `01` (Preflight), `02b`,
+`03`, `04`, `05`, `06` und zuletzt `07` (klassische Registrierung, nur ohne
+Provisionierung).
 
 | Skript | Wirkung |
 | --- | --- |
@@ -214,11 +250,11 @@ um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 | `04-install-rules.sh` | Erzeugt die zeitgesteuerten Regeln in `automation/js/` und (falls gewuenscht) den Netzwerk-Watchdog. |
 | `05-install-overview.sh` | Schreibt die IBM-Seiten (Overview + Unterseiten) per REST API in die Main UI (braucht `OH_API_TOKEN`; bestehende Seiten werden vorher gesichert). |
 | `06-verify.sh` | Prueft das Ergebnis, zeigt die letzten `[IBM]`-Logzeilen. Aendert nichts. |
-| `07-myopenhab.sh` | Zeigt UUID und Secret fuer die Registrierung auf der ISCHLSTROM-Cloud (hac.ischlstrom.org) an (wartet ggf. auf das Cloud-Addon). Aendert nichts. |
+| `07-myopenhab.sh` | Bei der Provisionierung (`CLOUD_UUID`/`CLOUD_SECRET` vom Server): schreibt UUID und Secret nach `userdata/uuid` bzw. `userdata/openhabcloud/secret` und startet openHAB bei einer Aenderung neu. Sonst: zeigt UUID und Secret fuer die Registrierung auf der ISCHLSTROM-Cloud (hac.ischlstrom.org) an (wartet ggf. auf das Cloud-Addon) und aendert nichts. |
 | `08-install-wireguard.sh` | Richtet den WireGuard-Tunnel zum Wartungsserver ein und baut die SSH-Haertung aelterer Versionen zurueck - die Anmeldung durch den Tunnel laeuft per Passwort (siehe [Fernwartung](#fernwartung-wireguard)). |
 | `10-change-passwords.sh` | Aendert die Standardpasswoerter des Linux-Benutzers `openhabian` und der Karaf-Konsole (siehe [Standardpasswoerter aendern](#standardpasswoerter-aendern)). |
-| `purge-ibm.sh` | Entfernt das Batteriemanagement komplett wieder (Things, Regeln, Items, Seiten, Token, WireGuard, `/opt/ischlstrom`) und setzt die Anlage auf "frisches openHABian + Admin-Konto" zurueck - fuer Test-Wiederholungen oder Ausserbetriebnahme. Admin-Konto, Linux-Passwort, Zeitzone und Cloud-Identitaet (UUID/Secret) bleiben. |
-| `prepare-sd.sh` | Nur auf dem Entwicklungsrechner (root): schreibt die SD-Karte fuer eine provisionierte Anlage aus dem Zip des Dashboards (Image, `openhabian.conf`, `ibm-provision.conf`, `ibm-firstboot`). |
+| `purge-ibm.sh` | Entfernt das Batteriemanagement komplett wieder (Things, Regeln, Items, Seiten, Token, WireGuard, `/opt/ischlstrom`) und setzt die Anlage auf "frisches openHABian + Admin-Konto" zurueck - fuer Test-Wiederholungen oder Ausserbetriebnahme. Entfernt auch `/var/lib/ischlstrom` (Firstboot-Marker) und `/run/ibm-provision.env`, sodass die Zero-Touch-Einrichtung wiederholt werden kann. Admin-Konto, Linux-Passwort, Zeitzone und Cloud-Identitaet (UUID/Secret) bleiben. |
+| `prepare-sd.sh` | Nur auf dem Entwicklungsrechner (root): schreibt die SD-Karte fuer eine provisionierte Anlage aus dem Zip des Dashboards. Schreibt das Image und kopiert `openhabian.conf`, `ibm-provision.conf` und `user-data` auf die Boot-Partition; die systemd-Unit `ibm-firstboot` installiert cloud-init aus der `user-data` beim ersten Boot am Pi. |
 | `firstboot/` | `ibm-firstboot.sh` + systemd-Unit: startet nach der openHABian-Erstinstallation das Setup und wiederholt es alle 10 Minuten, bis es vollstaendig ist. |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
 
@@ -231,7 +267,7 @@ Region und Masssystem von openHAB (`org.openhab.i18n:*` in
 Vorgaben: `Europe/Vienna`, `de`, `AT`, `SI` - abweichend per
 Umgebungsvariable `IBM_TIMEZONE`, `IBM_LANGUAGE`, `IBM_REGION`.
 
-Die Skripte sind **idempotent** — ein erneuter Lauf ist jederzeit gefahrlos.
+Die Skripte sind **idempotent**: ein erneuter Lauf ist jederzeit gefahrlos.
 Geaenderte Dateien werden vorher als `*.bak-<zeitstempel>` gesichert,
 unveraenderte bleiben unangetastet.
 
@@ -278,15 +314,16 @@ ablehnt, bekommt wie bisher die Anleitung fuer die Main UI.
 
 ## Andere Wechselrichter
 
-Es gibt vier mitgelieferte Profile: `fronius` (GEN24, Batterie-Actions des
-Fronius-Bindings), `fronius-snapinverter` (aeltere Symo-Hybrid-Generation,
-Modbus/SunSpec Model 124), `sigenergy` (SigenStor, Modbus mit
-proprietaerer Registerkarte) und `deye` (Niedervolt-Hybride
-SG04LP3/SG05LP3, Modbus RTU hinter einem RS485-Ethernet-Gateway,
-TOU-Fahrplan). Alles Herstellerabhaengige steht in
+Es gibt fuenf mitgelieferte Profile: `fronius` (Fronius GEN24, Hybrid mit
+Batterie; Batterie-Actions des Fronius-Bindings), `fronius-snapinverter`
+(Fronius Symo Hybrid, SnapINverter-Generation; Modbus/SunSpec Model 124),
+`sigenergy` (Sigenergy SigenStor, Modbus mit proprietaerer Registerkarte),
+`deye` (Deye Hybrid SG04LP3/SG05LP3, Modbus RTU hinter einem
+RS485-Ethernet-Gateway, TOU-Fahrplan) und `victron` (Victron Energy ueber
+das GX-Geraet, Modbus). Alles Herstellerabhaengige steht in
 `../inverters/<hersteller>/profile.sh`; der Assistent listet automatisch auf,
 was dort liegt. Ein neuer Hersteller braucht **keine Aenderung an den
-Setup-Skripten** — siehe [../inverters/README.md](../inverters/README.md).
+Setup-Skripten**, siehe [../inverters/README.md](../inverters/README.md).
 
 Die Batteriesteuerung selbst ist zweigeteilt: die gesamte Entscheidungslogik
 (Zeitfenster, Wolken, Kapazitaetsschaetzung) liegt herstellerneutral in
@@ -366,7 +403,7 @@ gekappt am Slot des Ueberschussmaximums und um 14:00. Die morgendliche Verbrauch
 der Gemeinschaft wird so direkt aus der PV gedeckt, und die Batterien laden
 mitten in der Ueberschussspitze statt direkt nach dem Crossover: das haelt
 die Gemeinschaft nach dem Crossover im Plus, faengt Abregelungsverluste und
-verkuerzt die Standzeit bei 100 % Ladung. Geladen wird wie immer
+verkuerzt die Standzeit bei 100% Ladung. Geladen wird wie immer
 ausschliesslich aus der eigenen PV-Anlage, nie aus dem Netz oder von anderen
 Mitgliedern. Das Fenster gilt nur fuer das mitgelieferte Datum
 (`Ischlstrom_Ladesperre_Datum`); ist es veraltet, unplausibel oder liefert
@@ -374,7 +411,7 @@ die Prognose keinen Ueberschuss (`-`), wird nicht gesperrt. Die
 Wolken-Schwelle bleibt als zusaetzliche Bedingung bestehen: gesperrt wird nur
 bei sonniger Vorschau. Die Wolkenvorschau gilt als veraltet, wenn ihr
 letzter Abruf (`Ischlstrom_Wolkenvorschau_Zeit`) laenger als drei Stunden
-zurueckliegt — die Steuerung sperrt dann kein Laden und entlaedt nur mit
+zurueckliegt: die Steuerung sperrt dann kein Laden und entlaedt nur mit
 minimaler Leistung.
 
 ### Dynamische Laderegelung (ersetzt das Sperrfenster)
@@ -382,7 +419,7 @@ minimaler Leistung.
 Sobald die Anlage ihre Batteriekapazitaet und Ladeleistung belastbar
 geschaetzt hat, ersetzt ein geschlossener Regelkreis das harte Sperrfenster
 (`IBM_LADEREGELUNG`, Vorgabe `ON`): In jedem 5-Minuten-Zyklus berechnet die
-Steuerung die **Ziel-Ladeleistung** neu — fehlende Energie (bis 95%
+Steuerung die **Ziel-Ladeleistung** neu: fehlende Energie (bis 95%
 Ladestand) geteilt durch die **effektive Restladezeit** bis eine Stunde vor
 dem abendlichen Crossover. Die Restzeit ist sonnengewichtet: jede
 verbleibende Stunde zaehlt nur mit ihrem erwarteten Ertrag, bevorzugt aus
@@ -406,7 +443,7 @@ Ziel-Leistung direkt kommandiert. Sonst bildet eine Puls-Weiten-Modulation
 sie nach: gesperrte und freie **15-Minuten-Bloecke** im passenden
 Verhaeltnis ergeben im Mittel die Ziel-Leistung; eine Hysterese verhindert
 Flattern an den Blockgrenzen, und mehr als 90% der Slots werden nie
-gesperrt — ein Schaetzfehler kann das Laden also nie ganz wuergen. Das
+gesperrt: ein Schaetzfehler kann das Laden also nie ganz wuergen. Das
 aktuelle Soll steht in `IBM_LADEREGELUNG_SOLL` (`-` = keine Begrenzung) und
 geht mit dem Status-Push an das Vorstands-Dashboard.
 
@@ -416,8 +453,8 @@ sonniger Wolkenvorschau. Der Truebe-Waechter verwendet dabei bevorzugt die
 mittlere Bewoelkung der **Reststunden bis zur Deadline** (aus
 `Ischlstrom_Wolken_Stunden`); nur ohne Stundendaten die
 Mittagsfenster-Vorschau, die ab 12:00 bereits den morgigen Tag meint.
-Fehlt eine Voraussetzung — auch die Schaetzungen auf einer frisch
-installierten Anlage — gilt automatisch das klassische Sperrfenster mit
+Fehlt eine Voraussetzung (auch die Schaetzungen auf einer frisch
+installierten Anlage), gilt automatisch das klassische Sperrfenster mit
 Server-/Lokal-Ende als Rueckfall; bei `IBM_LADEREGELUNG=OFF` dauerhaft.
 
 ### Dynamische Entladeleistung (Batteriegroesse wird geschaetzt)
@@ -432,31 +469,31 @@ die Stichproben fliessen gleitend in die Schaetzung ein
 (`IBM_BATTERIE_KAPAZITAET`, interner Zustand in `IBM_KAPAZITAET_MESSUNG`).
 Unplausible Stichproben (unter 1 oder ueber 100 kWh) werden verworfen, und
 nach Luecken, nicht angewendeten Schedules oder steigendem Ladestand setzt die
-Messung neu auf. Eine typische Nacht liefert mehrere Stichproben — die
+Messung neu auf. Eine typische Nacht liefert mehrere Stichproben: die
 Schaetzung ist also meist schon nach der ersten Nacht belastbar.
 
 Ab drei akzeptierten Stichproben leitet die Steuerung die Entladeleistung als
 C-Rate aus der Schaetzung ab: minimal 0,1 C, maximal 0,3 C (eine
-10-kWh-Batterie speist also wie bisher mit 1000–3000 W ein, eine 5-kWh-Batterie
-mit 500–1500 W). Die Items `Minimale_/Maximale_Entladeleistung_...` bleiben der
+10-kWh-Batterie speist also wie bisher mit 1000 bis 3000 W ein, eine 5-kWh-Batterie
+mit 500 bis 1500 W). Die Items `Minimale_/Maximale_Entladeleistung_...` bleiben der
 Rueckfall, solange keine belastbare Schaetzung vorliegt oder
 `IBM_DYNAMISCHE_LEISTUNG` auf `OFF` steht. Unabhaengig davon gilt eine **harte
 Obergrenze von 5000 W** (`ABSOLUTE_MAX_DISCHARGE_W` im Steuerungsskript), die
 weder durch Einstellungen noch durch die Schaetzung ueberschritten werden kann.
 
-Die Schaetzung nutzt die kommandierte Leistung, nicht eine Messung — zieht der
+Die Schaetzung nutzt die kommandierte Leistung, nicht eine Messung: zieht der
 Haushalt nachts mehr, als kommandiert ist, faellt die Schaetzung etwas zu
 klein aus. Das ist gewollt konservativ: die abgeleitete Leistung ist dann eher
 zu niedrig als zu hoch.
 
-Das Ladestands-Item und das Batterieleistungs-Item werden **nicht** angelegt —
+Das Ladestands-Item und das Batterieleistungs-Item werden **nicht** angelegt:
 sie entstehen beim Verknuepfen der Channels in der Main UI und werden ueber
 `SOC_ITEM` bzw. `BATTERY_POWER_ITEM` nur referenziert (letzteres liefert in
 der Hero-Karte der Overview den Wert "Batterie laedt/entlaedt").
 
 Die Startwerte dieser Items stehen in `ibm.conf` (`DEFAULT_*`) und werden von
 `ibm_init.js` gesetzt, solange ein Item noch `NULL` ist. Danach ist alles in
-der Main UI aenderbar — **das Steuerungsskript wird pro Kunde nie angepasst**.
+der Main UI aenderbar: **das Steuerungsskript wird pro Kunde nie angepasst**.
 
 **Main-UI-Seiten:** Die Seiten fuer die Main UI liegen je Profil in
 `../inverters/<profil>/overview.yaml` (Referenz ist `fronius/`, die anderen
@@ -482,7 +519,7 @@ tagesaktuellen Entladestart (`Ischlstrom_Entladestart`), wenn einer
 vorliegt, sonst den Abend-Crossover. Die Seite `home` braucht ein `label`:
 ohne bricht die Seitenliste der Main UI (5.0) mit einem Fehler ab.
 Die Seiten liegen in der JSONDB, deshalb installiert `05-install-overview.sh` sie per
-REST API — dafuer wird das openHAB-API-Token gebraucht (`OH_API_TOKEN`, fragt
+REST API. Dafuer wird das openHAB-API-Token gebraucht (`OH_API_TOKEN`, fragt
 der Assistent ab), und `build-dist.sh` wandelt jede Seite beim Paketbau nach
 `page-<uid>.json`. Bestehende Seiten werden vorher nach
 `/var/lib/openhab/ibm/` gesichert. Ohne Token bleibt der manuelle Weg: je
@@ -505,15 +542,15 @@ Inhalt in der Code-Ansicht einfuegen.
 ## Status-Push (Vorstands-Dashboard)
 
 Auf Wunsch (Frage im Assistenten, `INSTALL_STATUS_PUSH=1`) meldet die Anlage
-**jede Minute** ihren Zustand an `<IBM_API_BASE>/api/ibm/status/v1` — der
+**jede Minute** ihren Zustand an `<IBM_API_BASE>/api/ibm/status/v1`: der
 Vorstand sieht alle Anlagen dann live unter
 <https://ischlstrom.org/board/openhab> (Ladestand, Wechselrichter-Status,
 Schalterstellungen, geschaetzte Kapazitaet, letzte Meldung). Minuetlich
 gehen nur die Momentanwerte (billige Item-Reads); der **volle Zustand**
-(Log, Versionen, apt-Updates, Systemwerte — die Sammler starten Prozesse
+(Log, Versionen, apt-Updates, Systemwerte: die Sammler starten Prozesse
 auf dem Pi) geht in der Minute 2 jedes 5-Minuten-Rasters mit. Der Server
 erkennt volle Meldungen am Feld `versions`, mischt schlanke Meldungen in
-den letzten Stand und schreibt nur volle Meldungen in die Verlaufstabelle —
+den letzten Stand und schreibt nur volle Meldungen in die Verlaufstabelle:
 die Diagramme und das Tabellenwachstum bleiben also im 5-Minuten-Raster.
 Bei Bestandsanlagen ersetzt `migrate_config` beim Paket-Update den alten
 5-Minuten-Standard (`CRON_STATUS="0 2/5 * * * ?"`) automatisch durch den
@@ -526,10 +563,10 @@ sie samt Channel-Verknuepfung an); fehlt eines, versucht es der Push unter
 dem Fronius-Standardnamen, sonst zeigt die jeweilige Kachel "-". Zusaetzlich
 gehen die **Fehler und Warnungen** aus dem openHAB-Log der letzten
 24 Stunden mit (`WARN`/`ERROR`-Zeilen aus `/var/log/openhab/openhab.log`,
-hoechstens 20 Eintraege, Meldungstext gekuerzt) — das Dashboard zeigt sie
+hoechstens 20 Eintraege, Meldungstext gekuerzt). Das Dashboard zeigt sie
 auf der Detailseite der Anlage, die Uebersicht zaehlt sie je Anlage.
 Ausserdem meldet die Anlage ihre **Versionsstaende**: den Stand des
-IBM-Pakets (aus der BUILD-INFO, beim Rendern der Regel gestempelt —
+IBM-Pakets (aus der BUILD-INFO, beim Rendern der Regel gestempelt:
 so erkennt der Vorstand Anlagen mit veraltetem Paket), die
 openHAB-Version, die Java-Runtime und das Betriebssystem. Dazu kommt die
 Zahl der **ausstehenden apt-Updates** (per `apt-get -s dist-upgrade`
@@ -539,7 +576,7 @@ die Debian-eigene apt-daily-Mechanik (`/etc/apt/apt.conf.d/02ibm-periodic`,
 `APT::Periodic::Update-Package-Lists`). **Sicherheitsupdates spielt die
 Anlage automatisch ein**: das Setup installiert `unattended-upgrades` und
 aktiviert es (`APT::Periodic::Unattended-Upgrade`) in der
-Debian-Standardkonfiguration — nur Pakete aus dem Debian-Security-Archiv,
+Debian-Standardkonfiguration: nur Pakete aus dem Debian-Security-Archiv,
 kein automatischer Reboot. openHAB selbst und die Pi-Firmware kommen aus
 anderen Repositories und werden nie automatisch aktualisiert; was das
 Dashboard als "ausstehend" zeigt, sind genau diese manuellen Updates.
@@ -560,6 +597,9 @@ Anzeigename `IBM_ANLAGE_NAME` (Vorgabe: Hostname). Meldungen mit unbekanntem
 Token weist der Server ab. Auf dem Server liegen die Tokens in der Tabelle
 `members_openhabstatus`; **Loeschen auf dem Dashboard widerruft das Token**,
 die Anlage kann dann nicht mehr melden, bis ein neues Token eingetragen wird.
+Ein reines Token ohne WireGuard-Peer und Cloud-Konto wird dabei sofort
+geloescht; eine provisionierte Anlage zweistufig ueber den s1-Timer (siehe
+[Aktionen am Dashboard](#aktionen-am-dashboard)).
 
 **Nachruesten** bei bestehender Installation: Token auf dem Dashboard
 erzeugen und einfach das Paket-Update einspielen (`curl ... install.sh`,
@@ -575,7 +615,7 @@ bleibt aus). Abschalten: `INSTALL_STATUS_PUSH=0` in `ibm.conf` eintragen,
 `automation/js/ibm_status_push.js` loeschen.
 
 Ausbleibende Meldungen zeigt das Dashboard an (gelb nach 15 Minuten, rot
-nach einer Stunde) — es eignet sich damit auch als einfache
+nach einer Stunde). Es eignet sich damit auch als einfache
 Ausfallueberwachung der openhabians.
 
 Ein Klick auf eine Anlage oeffnet die **Detailseite** mit Diagrammen der
@@ -612,9 +652,13 @@ automatisch, ohne dass am Router des Mitglieds etwas umgestellt werden muss:
    das Bridge-Thing eingetragen; das Binding verbindet sich daraufhin von
    selbst neu.
 
-Der Watchdog braucht ein **openHAB-API-Token** eines Admin-Benutzers
-(Main UI -> links unten auf den Benutzernamen klicken -> "Create new API
-token"). Der Assistent fragt danach; ohne Token wird der Watchdog
+Der Watchdog braucht ein **openHAB-API-Token** eines Admin-Benutzers. Im
+Normalfall erzeugt das Setup es selbst (`OH_API_TOKEN=auto`, die Vorgabe
+des Assistenten): ueber die Karaf-Konsole wird ein Token namens `ibm` fuer
+den ersten Admin-Benutzer angelegt (`ensure_api_token` in `lib/common.sh`).
+Nur als Rueckfall, wenn das fehlschlaegt, wird ein von Hand erzeugtes Token
+eingetragen (Main UI -> links unten auf den Benutzernamen klicken ->
+"Create new API token"). Ohne Token wird der Watchdog
 uebersprungen und kann spaeter nachgeruestet werden: `INSTALL_WATCHDOG=1`,
 `INVERTER_HOST_THING_UID` und `OH_API_TOKEN` in `ibm.conf` eintragen, dann
 `04-install-rules.sh` erneut ausfuehren. Das Token liegt danach in
@@ -631,28 +675,38 @@ Alle Meldungen erscheinen mit dem Praefix `[IBM][Watchdog]` im openhab.log.
 ## openHAB Cloud (hac.ischlstrom.org)
 
 Auf Wunsch (Frage im Assistenten, `INSTALL_CLOUD=1`) richtet das Setup den
-**openHAB Cloud Connector** ein — verbunden mit der **eigenen
+**openHAB Cloud Connector** ein, verbunden mit der **eigenen
 openHAB-Cloud-Instanz der Gemeinschaft** unter `https://hac.ischlstrom.org`
 (selbst gehostete openHAB Cloud auf s1, ersetzt myopenhab.org).
 `02-install-addons.sh` setzt dafuer die `baseURL` in
 `services/openhabcloud.cfg`; bei Bestandsanlagen stellt ein Paket-Update
-die Anlage damit auf die eigene Cloud um — das Konto des Mitglieds muss
+die Anlage damit auf die eigene Cloud um: das Konto des Mitglieds muss
 dann dort registriert sein, sonst ist die Anlage aus der Ferne nicht mehr
 erreichbar. Damit ist die Main UI von unterwegs unter
 `https://remote.hac.ischlstrom.org` erreichbar und die Anlage kann
 Benachrichtigungen an die openHAB-App schicken (in der App als Remote-URL
 `https://hac.ischlstrom.org` eintragen).
 
-Fuer die Registrierung braucht die Cloud zwei Werte der Installation:
+**Zero-Touch (Standardweg):** Bei der Provisionierung erzeugt der Server
+UUID und Secret und liefert sie mit dem Provisionierungs-Code aus;
+`07-myopenhab.sh` schreibt sie nach `userdata/uuid` und
+`userdata/openhabcloud/secret` (Neustart von openHAB bei einer Aenderung).
+Das Cloud-Konto (Benutzer `<nnn>@ischlstrom.org`) legt der s1-Timer
+`ibm-provision-sync` schon vorab an; die Zugangsdaten stehen im
+Mitgliederbereich (Speichermanagement) und am Dashboard. Eine
+Registrierung von Hand entfaellt.
+
+**Manuelle Registrierung (Rueckfall fuer den klassischen Weg):** Dafuer
+braucht die Cloud zwei Werte der Installation:
 
 | Wert | Datei auf dem Pi |
 | --- | --- |
 | UUID | `/var/lib/openhab/uuid` (legt openHAB beim ersten Start an) |
 | Secret | `/var/lib/openhab/openhabcloud/secret` (entsteht beim ersten Start des Cloud-Addons) |
 
-`07-myopenhab.sh` wartet auf das Secret (die Addon-Installation ueber
-`addons.cfg` kann einige Minuten dauern) und zeigt dann beide Werte mit der
-Anleitung an. Jederzeit erneut abrufbar:
+Am klassischen Weg wartet `07-myopenhab.sh` auf das Secret (die
+Addon-Installation ueber `addons.cfg` kann einige Minuten dauern) und zeigt
+dann beide Werte mit der Anleitung an. Jederzeit erneut abrufbar:
 
 ```bash
 sudo /opt/ischlstrom/openhab/setup/07-myopenhab.sh
@@ -660,12 +714,12 @@ sudo /opt/ischlstrom/openhab/setup/07-myopenhab.sh
 
 Registrierung: auf <https://hac.ischlstrom.org> ueber *Register* ein Konto
 anlegen (E-Mail-Adresse und Passwort des Mitglieds) und dabei UUID und
-Secret eintragen — beides ist spaeter unter *Account* aenderbar. Sobald die
+Secret eintragen (beides ist spaeter unter *Account* aenderbar). Sobald die
 Anlage verbunden ist, zeigt die Cloud sie als *Online*; falls nicht, openHAB
 einmal neu starten (`sudo systemctl restart openhab.service`).
 
 Standardmaessig werden dabei **keine Items** zur Cloud uebertragen
-(exponiert) — die Verbindung dient nur dem Fernzugriff auf die UI und den
+(exponiert). Die Verbindung dient nur dem Fernzugriff auf die UI und den
 Benachrichtigungen.
 
 Die Cloud-Instanz selbst laeuft als Docker-Stack auf s1
@@ -683,12 +737,26 @@ zum Pi. Auf Wunsch (Frage im Assistenten, `INSTALL_WIREGUARD=1`) richtet
 Wartungsserver ein. Der Pi haelt die Verbindung selbst offen
 (`PersistentKeepalive`), am Router des Mitglieds muss nichts geoeffnet
 werden, und durch den Tunnel laeuft ausschliesslich das Wartungsnetz
-(`10.88.0.0/24`) — der normale Internetverkehr bleibt unberuehrt.
+(`10.88.0.0/24`). Der normale Internetverkehr bleibt unberuehrt.
 
-**Adressplan:** Der Wartungsserver ist `10.88.0.1`, jede Anlage bekommt eine
-eindeutige Tunnel-IP ab `10.88.0.11` (`WG_ADDRESS`, fragt der Assistent ab).
-Die Peer-Liste in der `wg0.conf` des Servers ist die Registry — je Peer einen
-Kommentar mit Anlagenname und IP dazuschreiben.
+**Adressplan:** Der Wartungsserver ist `10.88.0.1`, jede Anlage bekommt
+eine eindeutige Tunnel-IP ab `10.88.0.11`. Bei der Provisionierung vergibt
+der Server sie aus dem Pool; am klassischen Weg fragt der Assistent sie ab
+(`WG_ADDRESS`).
+
+**Registry ist die Datenbank** (`members_openhabstatus`), nicht die
+`wg0.conf`: auf s1 enthaelt `/etc/wireguard/wg0.base.conf` den
+`[Interface]`-Block (plus eventuell nicht zuordenbare Alt-Peers); die
+`wg0.conf` erzeugt der Timer `ibm-provision-sync.sh` jede Minute neu aus
+dieser Basis und den Peers der Datenbank (Handeintraege in der `wg0.conf`
+werden dabei ueberschrieben). Der Pi meldet seinen Public-Key selbst an
+den Server (Phasenmeldung `tunnel`), der Timer traegt ihn ein, und
+`08-install-wireguard.sh` wartet bis zu 180 s auf den Handshake.
+Sicherung: der Timer schreibt nie eine `wg0.conf` mit weniger Peers als
+bisher, ausser die entfernten gehoeren zu geloeschten Anlagen (oder der
+Marker `/etc/wireguard/ibm-allow-fewer-peers` liegt vor). Details:
+`scripts/ibm-provision/` und
+[docs/server-setup.md](../../../docs/server-setup.md).
 
 ### Einmalig auf dem Wartungsserver
 
@@ -699,7 +767,9 @@ sudo ufw allow 51820/udp
 sudo systemctl enable --now wg-quick@wg0
 ```
 
-`/etc/wireguard/wg0.conf` auf dem Server:
+`/etc/wireguard/wg0.base.conf` auf dem Server (legt
+`scripts/ibm-provision/setup-on-s1.sh` aus einer bestehenden `wg0.conf`
+an):
 
 ```ini
 [Interface]
@@ -707,7 +777,8 @@ Address    = 10.88.0.1/24
 ListenPort = 51820
 PrivateKey = <Inhalt von server.key>
 
-# je Anlage ein [Peer]-Block, siehe unten
+# Die Peers traegt der Timer ibm-provision-sync aus der Datenbank in die
+# generierte wg0.conf ein; hier stehen nur nicht zuordenbare Alt-Peers.
 ```
 
 Danach den Public Key des Wartungsservers (`server.pub`) als
@@ -722,17 +793,19 @@ loeschen, wenn alle Anlagen das Setup einmal neu durchlaufen haben.
 
 ### Je Anlage
 
+Bei der Provisionierung laeuft das automatisch: der Server vergibt die
+Tunnel-IP, der Pi meldet seinen Public-Key, der Timer traegt den Peer ein,
+und `08-install-wireguard.sh` wartet bis zu 180 s auf den Handshake. Der
+Handeintrag gilt nur noch fuer den klassischen Weg:
+
 1. Der Assistent fragt die Tunnel-IP ab; `08-install-wireguard.sh` erzeugt
    das Schluesselpaar (`/etc/wireguard/ibm-pi.key`), schreibt die `wg0.conf`,
    startet den Tunnel und zeigt am Ende den fertigen `[Peer]`-Block an.
-2. Diesen Block auf dem Wartungsserver in `/etc/wireguard/wg0.conf`
-   eintragen und neu laden (bestehende Tunnel bleiben verbunden):
-
-   ```bash
-   sudo bash -c 'wg syncconf wg0 <(wg-quick strip wg0)'
-   ```
-
-3. Das Skript wartet auf Wunsch auf den ersten Handshake — so ist vor dem
+2. Diesen Block auf dem Wartungsserver in `/etc/wireguard/wg0.base.conf`
+   eintragen (nicht in die `wg0.conf`, die wird vom Timer ueberschrieben);
+   der Timer `ibm-provision-sync` uebernimmt ihn innerhalb einer Minute in
+   die generierte `wg0.conf`, bestehende Tunnel bleiben verbunden.
+3. Das Skript wartet auf Wunsch auf den ersten Handshake, so ist vor dem
    Verlassen der Anlage sicher, dass der Tunnel steht.
 
 Zugriff danach vom Wartungsserver aus (`ssh openhabian@10.88.0.<x>`) oder
@@ -822,7 +895,7 @@ ein und ersetzt dabei die anlagenspezifischen Werte: Thing-UID,
 Ladestands-Item und API-Basis-URL. Die Quellskripte bleiben dadurch
 unveraendert und weiterhin 1:1 in der Main UI verwendbar.
 
-Die Dateien in `automation/js/` sind **generiert** — Aenderungen dort gehen beim
+Die Dateien in `automation/js/` sind **generiert**: Aenderungen dort gehen beim
 naechsten Lauf verloren; stattdessen die Quelle im Repository anpassen und ein
 neues Paket veroeffentlichen.
 
@@ -834,7 +907,7 @@ Addons derselben Kategorie, die nur ueber die Main UI installiert wurden und
 nicht in der Datei stehen, koennen von openHAB entfernt werden.
 `02-install-addons.sh` ergaenzt bestehende Werte deshalb, statt sie zu
 ueberschreiben, legt ein Backup an und fragt vorher nach. Bei einer bereits
-eingerichteten Anlage vorher `Settings -> Add-ons` pruefen — oder im
+eingerichteten Anlage vorher `Settings -> Add-ons` pruefen, oder im
 Assistenten die Addon-Verwaltung ablehnen.
 
 **Datei-Items und UI-Items vertragen sich nicht.** Existiert eines der oben
@@ -858,9 +931,11 @@ geschriebene `.persist`-Datei bleibt dann stumm wirkungslos (kein
 `touch` neu an und prueft ueber die REST API, ob die Konfiguration angekommen
 ist; `06-verify.sh` prueft dasselbe.
 
-**Die Steuerung greift in die Hardware ein.** Der Hauptschalter
-`Schalte_ISCHLSTROM_Empfehlung_einaus` steht nach der Installation auf `OFF` —
-erst nach dem Einschalten wird gesteuert.
+**Die Steuerung greift in die Hardware ein.** Am klassischen Weg steht der
+Hauptschalter `Schalte_ISCHLSTROM_Empfehlung_einaus` nach der Installation
+auf `OFF`: erst nach dem Einschalten wird gesteuert. Bei der
+Provisionierung liefert der Server `DEFAULT_MAIN_SWITCH=ON`, der
+Hauptschalter steht dann von Anfang an auf `ON`.
 
 ## Fehlersuche
 
@@ -872,7 +947,7 @@ tail -f /var/log/openhab/openhab.log | grep '\[IBM\]'
 Alle Logmeldungen der IBM-Skripte sind mit `[IBM]` praefixiert.
 
 Laeuft eine Regel nicht, in der Main UI unter `Settings -> Rules` nach dem Tag
-`IBM` filtern und die Regel manuell ausfuehren — der Fehler steht dann im Log.
+`IBM` filtern und die Regel manuell ausfuehren: der Fehler steht dann im Log.
 
 Konfiguration neu erfassen:
 

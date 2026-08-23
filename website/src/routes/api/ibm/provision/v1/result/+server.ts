@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { reportSetup, SETUP_PHASES } from '$lib/server/db/members/openhabProvision';
+import { deleteImage } from '$lib/server/ibmImage';
 
 /**
  * Meldungen des Pi waehrend der Einrichtung (report_phase in
@@ -52,6 +53,13 @@ export async function POST({ request }) {
     }
 
     if (phase) console.log(`ibm setup phase (anlage ${row.id}): ${phase}`);
+
+    // Einrichtung abgeschlossen: das SD-Karten-Image wird nicht mehr
+    // gebraucht (rund 1,5 GB je Anlage auf s1). Fuer einen Neuaufbau gibt es
+    // ohnehin einen neuen Code und damit ein neues Image.
+    if (phase === 'fertig' && row.name) {
+        await deleteImage(row.name).catch(() => {});
+    }
 
     return json({
         ok: true,

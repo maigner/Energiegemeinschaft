@@ -9,8 +9,11 @@ import {
     randomCloudSecret
 } from '$lib/server/secrets';
 import { ensureMailcowAlias } from '$lib/server/mailcow';
-import firstbootScript from '../../../../../../Batteriemanagement/openhab/setup/firstboot/ibm-firstboot.sh?raw';
-import firstbootService from '../../../../../../Batteriemanagement/openhab/setup/firstboot/ibm-firstboot.service?raw';
+import { execFile } from 'node:child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { promisify } from 'node:util';
+import { dev } from '$app/environment';
 
 // Zero-Touch-Provisionierung der IBM-Anlagen (docs/ibm-setup-vereinfachung.md).
 // "SD-Karte vorbereiten" auf /board/openhab legt hier alles an, was der
@@ -414,7 +417,7 @@ export const reportSetup = async (token, report) => {
                     inverter_type = COALESCE(NULLIF($5, ''), inverter_type),
                     name = COALESCE(NULLIF($6, ''), name)
               WHERE token = $1
-             RETURNING id, inverter_type, inverter_password <> '' AS inverter_password_set,
+             RETURNING id, name, inverter_type, inverter_password <> '' AS inverter_password_set,
                        setup_phase, cloud_account_state, wg_synced_at`,
             [token, report.phase ?? '', report.message ?? '', report.wg_public_key ?? '',
              report.inverter_type ?? '', report.hostname ?? '']
@@ -442,6 +445,33 @@ export const requestCloudPasswordReset = async (id) => {
             [id, await encryptSecret(password)]
         );
         return password;
+    } finally {
+        db.release();
+    }
+};
+
+/**
+ * Mail-Alias erneut anlegen (nach einem Fehler, z. B. mailcow-API-Key
+ * noch nicht gueltig). Ergebnis steht wieder in mail_alias_state.
+ * @param {number} id
+ * @returns {Promise<string>} neuer Zustand
+ */
+export const retryMailAlias = async (id) => {
+    const db = await middlewareDbConnection();
+    try {
+        const row = (await db.query(
+            `SELECT cloud_username FROM members_openhabstatus WHERE id = $1`, [id]
+        )).rows[0];
+        if (!row?.cloud_username) return '';
+        let state;
+        try {
+            const r = await ensureMailcowAlias(row.cloud_username);
+            state = r === 'skipped' ? 'skipped' : 'created';
+        } catch (e) {
+            state = `error: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200);
+        }
+        await db.query(`UPDATE members_openhabstatus SET mail_alias_state = $2 WHERE id = $1`, [id, state]);
+        return state;
     } finally {
         db.release();
     }
@@ -526,6 +556,49 @@ IBM_BASE_URL=${baseUrl}
 }
 
 /**
+ * ibm-firstboot (Skript + systemd-Unit) aus Batteriemanagement/openhab/setup/
+ * firstboot/. Im Dev-Modus direkt aus dem Repository; sonst aus dem
+ * IBM-Paket static/ibm/ibm-openhab.tgz (build-dist.sh, kommt mit
+ * deploy-server.sh), damit die SD-Karte genau den Stand bekommt, den der
+ * Pi spaeter von ischlstrom.org laedt. Ein ?raw-Import ging nicht: der
+ * Docker-Build sieht nur website/.
+ * @returns {Promise<{ firstbootScript: string, firstbootService: string }>}
+ */
+async function firstbootFiles() {
+    const repoDir = path.resolve('../Batteriemanagement/openhab/setup/firstboot');
+    if (dev) {
+        try {
+            return {
+                firstbootScript: await fs.readFile(path.join(repoDir, 'ibm-firstboot.sh'), 'utf8'),
+                firstbootService: await fs.readFile(path.join(repoDir, 'ibm-firstboot.service'), 'utf8')
+            };
+        } catch {
+            // unten: Paket
+        }
+    }
+    let tgz = '';
+    for (const candidate of ['static/ibm/ibm-openhab.tgz', 'build/client/ibm/ibm-openhab.tgz']) {
+        try {
+            await fs.access(candidate);
+            tgz = candidate;
+            break;
+        } catch {
+            // naechster Kandidat
+        }
+    }
+    if (!tgz) throw new Error('IBM-Paket static/ibm/ibm-openhab.tgz fehlt (Batteriemanagement/openhab/setup/build-dist.sh).');
+    const extract = async (/** @type {string} */ member) => {
+        const { stdout } = await promisify(execFile)('tar', ['-xzOf', tgz, member], { maxBuffer: 1 << 20 });
+        if (!stdout) throw new Error(`${member} fehlt im IBM-Paket ${tgz}.`);
+        return stdout;
+    };
+    return {
+        firstbootScript: await extract('openhab/setup/firstboot/ibm-firstboot.sh'),
+        firstbootService: await extract('openhab/setup/firstboot/ibm-firstboot.service')
+    };
+}
+
+/**
  * Inhalt der user-data fuer die Boot-Partition (ersetzt die Vorlage des
  * Images): cloud-init liest sie beim ersten Boot (NoCloud-Datasource
  * seedfrom /boot/firmware) und installiert damit die systemd-Unit
@@ -536,7 +609,8 @@ IBM_BASE_URL=${baseUrl}
  * Inhalt ist fuer alle Anlagen gleich; die Anlage steckt in
  * ibm-provision.conf.
  */
-export function renderUserData() {
+export async function renderUserData() {
+    const { firstbootScript, firstbootService } = await firstbootFiles();
     // YAML-Block-Scalar: jede Zeile 6 Stellen einruecken, Leerzeilen bleiben leer
     const block = (/** @type {string} */ text) => text
         .replace(/\n$/, '')

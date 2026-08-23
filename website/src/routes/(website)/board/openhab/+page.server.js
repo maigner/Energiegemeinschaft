@@ -9,6 +9,7 @@ import {
     setInverterCredentials,
     requestCloudPasswordReset,
     retryCloudAccount,
+    retryMailAlias,
     deletePlant,
     undeletePlant
 } from '$lib/server/db/members/openhabProvision';
@@ -165,6 +166,14 @@ export const actions = {
         } catch (e) {
             return fail(409, { message: e instanceof Error ? e.message : 'Image-Bau nicht möglich.' });
         }
+    },
+
+    retryAlias: async ({ request }) => {
+        const id = idOf(await request.formData());
+        if (!id) return fail(400, { message: 'Ungültige Anlage.' });
+        const state = await retryMailAlias(id);
+        if (state.startsWith('error')) return fail(502, { message: `Mail-Alias: ${state}` });
+        return { aliasRetry: id };
     },
 
     retryCloud: async ({ request }) => {

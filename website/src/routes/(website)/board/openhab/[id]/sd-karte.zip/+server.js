@@ -55,7 +55,7 @@ Code: ${plant.provision_code} (gueltig bis ${new Date(plant.provision_expires).t
     const zip = buildZip([
         { name: 'openhabian.conf', content: renderOpenhabianConf(plant) },
         { name: 'ibm-provision.conf', content: renderProvisionConf(plant, baseUrl) },
-        { name: 'user-data', content: renderUserData() },
+        { name: 'user-data', content: await renderUserData() },
         { name: 'README.txt', content: readme }
     ]);
 

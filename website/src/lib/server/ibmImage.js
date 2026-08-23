@@ -216,7 +216,7 @@ async function build(plant, baseUrl, state) {
         const files = {
             'openhabian.conf': renderOpenhabianConf(plant),
             'ibm-provision.conf': renderProvisionConf(plant, baseUrl),
-            'user-data': renderUserData()
+            'user-data': await renderUserData()
         };
         for (const [file, content] of Object.entries(files)) {
             await fs.writeFile(path.join(tmp, file), content);

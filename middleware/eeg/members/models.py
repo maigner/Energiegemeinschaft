@@ -25,7 +25,10 @@ class OpenhabStatus(models.Model):
     creates the token for a member on /board/openhab; during setup it is
     stored on the pi (ibm.conf) and authenticates the status pushes of rule
     ibm_status_push.js to /api/ibm/status/v1. Deleting a row revokes the
-    token."""
+    token. Provisionierte Anlagen (Tunnel-Peer oder Cloud-Konto) werden am
+    Dashboard nur markiert (setup_phase = 'geloescht'); der s1-Timer
+    ibm-provision-sync entfernt Peer und Cloud-Konto und loescht die Zeile
+    danach selbst."""
     member = models.ForeignKey(Member, on_delete=models.CASCADE)
     token = models.CharField(max_length=200, unique=True)
     name = models.CharField(max_length=200, blank=True, default="")
@@ -40,7 +43,8 @@ class OpenhabStatus(models.Model):
     # mit Geheimnissen (cloud_secret, cloud_password, linux_password,
     # inverter_password, wifi_password) speichert die Website verschluesselt
     # (AES-256-GCM, Schluessel IBM_SECRET_KEY in website/.env; Format
-    # "enc1:<iv>:<tag>:<ciphertext>", Base64). Siehe
+    # "enc1:<iv>:<ciphertext+tag>", Base64, GCM-Tag als letzte 16 Byte am
+    # Ciphertext). Siehe
     # docs/ibm-setup-vereinfachung.md.
     provision_code = models.CharField(max_length=40, null=True, blank=True, unique=True)
     provision_expires = models.DateTimeField(null=True, blank=True)
@@ -61,8 +65,9 @@ class OpenhabStatus(models.Model):
     # openHAB-Cloud (hac.ischlstrom.org): Identitaet der Anlage (UUID/Secret,
     # serverseitig erzeugt, vom Pi in userdata geschrieben) und das Konto
     # des Mitglieds (Alias <nnn>@ischlstrom.org). cloud_account_state:
-    # '' | pending | created | reset | error; den Zustandswechsel macht der
-    # s1-Timer (Konto per Skript im Cloud-Container anlegen).
+    # '' | pending | created | reset | error | delete; den Zustandswechsel
+    # macht der s1-Timer (Konto per Skript im Cloud-Container anlegen,
+    # bei delete: Benutzer, Konto und openHAB-Instanz entfernen).
     cloud_uuid = models.CharField(max_length=64, blank=True, default="")
     cloud_secret = models.CharField(max_length=200, blank=True, default="")
     cloud_username = models.CharField(max_length=200, blank=True, default="")
@@ -77,7 +82,9 @@ class OpenhabStatus(models.Model):
     # Optionales WLAN fuer die openhabian.conf der SD-Karte
     wifi_ssid = models.CharField(max_length=100, blank=True, default="")
     wifi_password = models.CharField(max_length=200, blank=True, default="")
-    # Einrichtungsphase, vom Pi gemeldet (POST /api/ibm/provision/v1/result)
+    # Einrichtungsphase, vom Pi gemeldet (POST /api/ibm/provision/v1/result);
+    # serverseitig zusaetzlich 'geloescht' (Anlage am Dashboard geloescht,
+    # wartet auf den s1-Timer)
     setup_phase = models.CharField(max_length=50, blank=True, default="")
     setup_message = models.TextField(blank=True, default="")
     setup_phase_at = models.DateTimeField(null=True, blank=True)

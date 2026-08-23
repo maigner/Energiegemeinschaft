@@ -77,8 +77,11 @@ verwendet werden - beim Ergaenzen neuer Werte beides nachziehen.
 Die Anlagenseite dokumentiert
 [Batteriemanagement/openhab/setup/README.md](../Batteriemanagement/openhab/setup/README.md)
 (Abschnitt "openHAB Cloud"): das IBM-Setup setzt die `baseURL` des Cloud
-Connectors auf `https://hac.ischlstrom.org/`, `07-myopenhab.sh` zeigt
-UUID/Secret fuer die Registrierung.
+Connectors auf `https://hac.ischlstrom.org/`. `07-myopenhab.sh` schreibt
+bei provisionierten Anlagen die vom Server gelieferten Werte in
+`userdata/uuid` und `openhabcloud/secret` (mit openHAB-Neustart); ohne
+Provisionierung zeigt es UUID/Secret nur an, fuer die manuelle
+Registrierung.
 
 **Seit 23. August 2026 (Zero-Touch-Provisionierung)** entstehen die Konten
 automatisch: "SD-Karte vorbereiten" auf `/board/openhab` erzeugt UUID,
@@ -90,6 +93,12 @@ Konto per `scripts/ibm-provision/cloud-makeuser.js` im Container an (siehe
 [server-setup.md](server-setup.md)). Der Pi schreibt UUID/Secret in
 `userdata`; das Mitglied sieht die Zugangsdaten unter
 `/user/<nr>/speichermanagement` und kann dort ein neues Passwort anfordern.
+Zustaende in `members_openhabstatus.cloud_account_state`: `pending`/`reset`
+(Timer legt an bzw. setzt das Passwort), `created`, `error` (Text in
+`cloud_account_error`, am Dashboard sichtbar, "Cloud-Konto erneut"
+wiederholt), `delete` (Anlage am Dashboard geloescht: der Timer entfernt
+Benutzer, Konto und openHAB-Instanz mit `cloud-makeuser.js` und
+`IBM_MODE=delete`, danach verschwindet die DB-Zeile).
 Damit kann `REGISTRATION_ENABLED` auf `false`, sobald alle Bestandskonten
 umgestellt sind. Der klassische Weg (unten) bleibt fuer Anlagen ohne
 Provisionierung.

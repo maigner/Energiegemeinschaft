@@ -7,12 +7,20 @@ das Vorstands-Dashboard `/board/openhab` und die Status-API `/api/ibm/`.
 Repo, noch nicht auf einem Pi durchgespielt). Betriebsdoku:
 `Batteriemanagement/openhab/setup/README.md` (Abschnitt
 "Zero-Touch-Einrichtung"), `docs/server-setup.md` (s1-Timer),
-`docs/openhab-cloud.md`. Vor dem Rollout: Migration `members 0030` auf
-Prod, `IBM_SECRET_KEY`/`MAILCOW_*` in `website/.env.s1`,
-`scripts/ibm-provision/install-on-s1.sh` (vom Entwicklungsrechner), Deploy, dann ein
-Test-Pi mit `prepare-sd.sh`. Stufe 5 (Kit, Anleitung) ist offen.
-Abweichungen vom Plan unten: der Code gilt 60 statt 24 Tage (die Karte kann
-liegen); statt eines eigenen Images installiert cloud-init (im
+`docs/openhab-cloud.md`. Rollout-Stand 23. August 2026 abends: Migration
+`members 0030` auf Prod, `IBM_SECRET_KEY`/`MAILCOW_*` in `website/.env.s1`,
+`install-on-s1.sh` und Deploy sind erledigt; offen sind der mailcow-API-Key
+(wird noch mit 401 abgelehnt: in mailcow API aktivieren und Adressen
+freigeben, siehe `server-setup.md`) und der erste Test-Pi. Stufe 5 (Kit,
+Anleitung) ist offen.
+
+Der Plan unten ist das Original der Planung und wird nicht nachgezogen;
+Details darin (GET statt POST, Phasennamen, 24 Stunden Code-Gueltigkeit,
+Dateinamen wie `makeuser.ts` oder `build-image.sh`) sind teils ueberholt.
+Verbindlich fuer den Ist-Stand: das Setup-README und `server-setup.md`.
+
+Abweichungen vom Plan unten: der Code gilt 60 Tage statt 24 Stunden (die
+Karte kann liegen); statt eines eigenen Images installiert cloud-init (im
 Raspberry-Pi-OS-Image enthalten, NoCloud-Datasource liest die
 Boot-Partition) die First-Boot-Unit beim ersten Boot aus einer `user-data`
 im `sd-<nnn>.zip` - die Karte braucht damit nur noch die FAT-Partition,
@@ -377,11 +385,11 @@ abwaertskompatibel (bestehende Anlagen bekommen beim Paket-Update nur die
 
 ## Offene Entscheidungen
 
-1. Geheimnisse in der DB: verschluesselt ablegen (Vorschlag) oder nur
-   einmalig anzeigen und nicht speichern?
-2. Hauptschalter nach der Einrichtung: `ON` (Vorschlag) oder weiterhin `OFF`
-   mit Freigabe durch Mitglied oder Vorstand?
-3. Image-Variante A oder B: haengt vom Hook-Test in Stufe 3 ab.
+1. Entschieden: Geheimnisse liegen verschluesselt in der DB (AES-256-GCM,
+   `website/src/lib/server/secrets.js`).
+2. Entschieden: Hauptschalter nach provisionierter Einrichtung `ON`.
+3. Entschieden: weder A noch B, sondern cloud-init (`user-data` auf der
+   FAT-Partition) plus serverseitiger Image-Bau (`ibmImage.js`).
 4. Soll das Ganze schon mit Blick auf Stromkreis (mehrere Gemeinschaften)
    gebaut werden: dann gehoert die Basis-URL der Provisionierung in die
    SD-Karten-Datei (ist im Plan so vorgesehen) und die Tunnel-IP-Pools werden

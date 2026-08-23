@@ -121,8 +121,37 @@ auf s1):
   (`WEBSITE_ENV`). Ergebnis: `created` bzw. `error` + Text am Dashboard.
 - **Website-`.env`** braucht dafuer `IBM_SECRET_KEY` (`openssl rand -hex 32`,
   nie wechseln, sonst sind die gespeicherten Geheimnisse verloren),
-  `MAILCOW_URL`, `MAILCOW_API_KEY` (mailcow: System -> API, auf die IP von
-  s1 beschraenken) und `MAILCOW_ALIAS_GOTO`.
+  `MAILCOW_URL`, `MAILCOW_API_KEY` und `MAILCOW_ALIAS_GOTO`. Optional:
+  `IBM_IMAGE_DIR` (Ablage der SD-Images, Vorgabe
+  `/var/lib/ischlstrom/images`), `IBM_WG_SUBNET_PREFIX` (Vorgabe
+  `10.88.0`), `IBM_CLOUD_MAIL_DOMAIN` (Vorgabe `ischlstrom.org`).
+  mailcow-Key: System -> Konfiguration -> Zugang -> API, **API aktivieren**
+  (Lese-/Schreibzugriff) und bei "Zugriff erlauben von" neben den Adressen
+  von s1 (94.130.9.254, 2a01:4f8:10b:e1a::2) auch das Docker-Netz
+  `172.17.0.0/16` eintragen: die Website ruft die API aus dem Container
+  auf, mailcow sieht dann die Container-Adresse. Pruefen (liefert 401,
+  solange Key oder Adresse nicht passen):
+  `curl -H "X-API-Key: <key>" https://s1.ischlstrom.org/api/v1/get/alias/all`.
+  Nicht mehrfach mit falschem Key probieren, mailcow sperrt nach einigen
+  Fehlversuchen die Adresse. Schlaegt der Alias fehl, steht das am
+  Dashboard ("Mail-Alias error: ..."); "Mail-Alias erneut" wiederholt nur
+  diesen Schritt.
+- **SD-Karten-Image** (Dashboard "Image erstellen"): baut die Website
+  selbst im Container (`website/src/lib/server/ibmImage.js`): aktuelles
+  openHABian-Image von GitHub (Cache `base/`), `xz -dc`, die drei
+  Konfigurationsdateien per `mcopy` (mtools) in die FAT-Boot-Partition,
+  `gzip` -> `<name>.img.gz`, Download ueber
+  `/board/openhab/<id>/image.img.gz`. Dafuer: `xz-utils` + `mtools` im
+  Docker-Image (`website/Dockerfile`) und das Volume `ischlstrom-images`
+  auf `/var/lib/ischlstrom/images` (`website/run-docker.sh`), das den
+  Container-Neubau ueberlebt. Platz: rund 7 GB waehrend des Baus
+  (entpacktes Arbeits-Image), danach rund 1,5 GB je fertigem Image plus
+  1,5 GB Basis-Image. Das Image einer Anlage wird geloescht, sobald der
+  Pi die Phase `fertig` meldet oder die Anlage geloescht wird; es baut
+  immer nur ein Image gleichzeitig, ein Container-Neustart bricht den Bau
+  ab (Dashboard zeigt dann den Fehler, einfach neu starten).
+  Aufraeumen von Hand:
+  `docker exec ischlstrom-website ls -la /var/lib/ischlstrom/images`.
 - Django-Migration `members 0030` ist auf Prod eingespielt (23. August
   2026). Seitdem zeigt `manage.py` direkt auf Prod: `settings.py` setzt
   keinen `HOST` mehr (der hatte mit `"server"` den Service-Host
@@ -142,7 +171,9 @@ Noch offen:
    offen bleiben die uebrigen DBs (openhabian*, keila, KEM), mailcow und
    die Config-Tarballs.
 4. Plattenplatz beobachten: `journalctl -u s1-backup` zeigt Belegung und
-   freien Platz nach jedem Lauf.
+   freien Platz nach jedem Lauf. Stand 23. August 2026: 15 GB frei; der
+   Image-Bau braucht 7 GB, liegen mehrere fertige Images herum, wird es
+   eng (siehe SD-Karten-Image oben).
 5. openHAB Cloud: die MongoDB des Stacks (Konten, UUID/Secret der Anlagen)
    wird noch nicht gesichert - `mongodump` in `s1-backup.sh` ergaenzen
    (siehe [openhab-cloud.md](openhab-cloud.md)).

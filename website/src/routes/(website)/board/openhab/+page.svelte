@@ -450,14 +450,14 @@
     <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
         Mitglied auswählen, fertig: Token, Tunnel-IP, Passwörter, Cloud-Konto
         und Mail-Alias entstehen automatisch. Karte schreiben wahlweise mit
-        „Image erstellen“ — der Server baut das fertige
+        „Image erstellen“: der Server baut das fertige
         <code>pi-NNN.img.gz</code> zum Flashen mit dem Raspberry Pi Imager
-        (Windows, macOS, Linux) — oder mit dem Zip:
+        (Windows, macOS, Linux). Oder mit dem Zip:
         <code>setup/prepare-sd.sh sd-NNN.zip</code> (macOS/Linux) bzw. Imager
         plus die drei Dateien auf die Boot-Partition kopieren. Der Pi richtet
         sich beim ersten Start selbst ein (ohne SSH) und meldet hier seinen
         Fortschritt. Geht eine Karte kaputt: „Neuer Code“, Image neu
-        erstellen, neue Karte flashen — nur das Wechselrichter-Passwort muss
+        erstellen, neue Karte flashen; nur das Wechselrichter-Passwort muss
         danach neu hinterlegt werden.
     </p>
 
@@ -622,6 +622,12 @@
                                 <Button size="xs" color="yellow" type="submit">Cloud-Konto erneut</Button>
                             </form>
                         {/if}
+                        {#if (p.mailAliasState || "").startsWith("error") || p.mailAliasState === "skipped"}
+                            <form method="POST" action="?/retryAlias" use:enhance>
+                                <input type="hidden" name="id" value={anlage.id} />
+                                <Button size="xs" color="yellow" type="submit">Mail-Alias erneut</Button>
+                            </form>
+                        {/if}
                     </div>
                     {#if p.image?.building}
                         <p class="text-xs text-gray-500 mb-2">
@@ -631,7 +637,7 @@
                         <p class="text-xs text-red-600 mb-2">Image-Bau fehlgeschlagen: {p.image.error.message}</p>
                     {:else if p.image?.image?.stale}
                         <p class="text-xs text-yellow-600 mb-2">
-                            Das Image ist mit einem alten oder abgelaufenen Code gebaut — „Image neu erstellen“, bevor es auf eine Karte kommt.
+                            Das Image ist mit einem alten oder abgelaufenen Code gebaut. „Image neu erstellen“, bevor es auf eine Karte kommt.
                         </p>
                     {/if}
 

@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 # ============================================================================
-# 07 - openHAB Cloud: zeigt UUID und Secret fuer die Registrierung auf der
-# ISCHLSTROM-Cloud (hac.ischlstrom.org) an. Aendert nichts an der Installation.
+# 07 - openHAB Cloud. Zwei Betriebsarten:
+#
+# Provisioniert (CLOUD_UUID/CLOUD_SECRET vom Server): schreibt UUID und
+# Secret nach userdata/uuid bzw. userdata/openhabcloud/secret und startet
+# openHAB bei einer Aenderung neu (die UUID wird nur beim Start gelesen).
+#
+# Klassisch: zeigt UUID und Secret fuer die Registrierung auf der
+# ISCHLSTROM-Cloud (hac.ischlstrom.org) nur an und aendert nichts an der
+# Installation.
 #
 # Das Addon 'openhabcloud' traegt 02-install-addons.sh in addons.cfg ein.
 # Beim ersten Start erzeugt es das Secret unter

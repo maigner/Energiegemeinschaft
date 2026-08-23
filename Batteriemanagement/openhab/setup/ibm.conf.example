@@ -11,11 +11,15 @@
 # --- Anlage (MUSS angepasst werden) -----------------------------------------
 
 # Wechselrichter-Typ. Entspricht einem Verzeichnis unter ../inverters/:
-#   fronius              Fronius GEN24 (Fronius-Binding, Batterie-Actions)
-#   fronius-snapinverter Fronius Symo Hybrid, SnapINverter-Generation
-#                        (Modbus-Binding, SunSpec Model 124)
-#   sigenergy            Sigenergy SigenStor (Modbus-Binding, proprietaere
-#                        Registerkarte, Remote-EMS-Steuerung)
+#   fronius              Fronius GEN24 (Hybrid mit Batterie)
+#                        (Fronius-Binding, Batterie-Actions)
+#   fronius-snapinverter Fronius Symo Hybrid (SnapINverter, Modbus)
+#                        (SunSpec Model 124)
+#   sigenergy            Sigenergy SigenStor (Modbus)
+#                        (proprietaere Registerkarte, Remote-EMS-Steuerung)
+#   deye                 Deye Hybrid (SG04LP3/SG05LP3, Modbus)
+#                        (Modbus RTU hinter einem RS485-Ethernet-Gateway)
+#   victron              Victron Energy (GX, Modbus)
 INVERTER_TYPE="fronius"
 
 # UID des Wechselrichter-Things (bei den Modbus-Profilen: das SoC-Data-Thing
@@ -48,9 +52,36 @@ GRID_POWER_ITEM="Fronius_Symo_Inverter_Grid_Power"
 # das Vorstands-Dashboard. Leer = die Kachel "PV-Leistung" dort zeigt "-".
 PV_POWER_ITEM="Fronius_Symo_Inverter_Solar_Plant_Power"
 
+# --- Automatisches Anlegen des Wechselrichter-Things ------------------------
+
+# 1 = 02b-install-things.sh legt Bridge- und Wechselrichter-Thing selbst per
+# REST API an (siehe README, "Wechselrichter automatisch anlegen").
+AUTO_CREATE_THING=0
+
+# IP oder Hostname des Wechselrichters (fuer AUTO_CREATE_THING=1).
+INVERTER_HOST=""
+
+# Zugangsdaten des Wechselrichters, falls das Profil welche braucht
+# (beim GEN24 noetig fuer die Batteriesteuerung).
+INVERTER_USERNAME=""
+INVERTER_PASSWORD=""
+
 # --- ischlstrom API ---------------------------------------------------------
 
 IBM_API_BASE="https://ischlstrom.org"
+
+# --- Status-Push (Vorstands-Dashboard) ---------------------------------------
+
+# 1 = die Anlage meldet ihren Zustand an <IBM_API_BASE>/api/ibm/status/v1
+# (siehe README, "Status-Push").
+INSTALL_STATUS_PUSH=0
+
+# Status-Token der Anlage (erzeugt der Vorstand am Dashboard); ohne Token
+# bleibt der Push aus.
+IBM_STATUS_TOKEN=""
+
+# Anzeigename der Anlage am Dashboard (leer = Hostname).
+IBM_ANLAGE_NAME=""
 
 # --- Zeitplaene (Quartz-Cron, 6 Felder: sek min std tag monat wochentag) -----
 
@@ -153,6 +184,11 @@ DEFAULT_LADEREGELUNG=ON
 # Wechselrichters werden nie blockiert.
 DEFAULT_NETZLADESCHUTZ=ON
 
+# Hauptschalter nach der Installation: OFF am klassischen Weg (erst nach
+# bewusstem Einschalten wird gesteuert), ON bei der Zero-Touch-
+# Provisionierung (liefert der Server mit).
+DEFAULT_MAIN_SWITCH=OFF
+
 # --- Optionen ---------------------------------------------------------------
 
 # Addons ueber addons.cfg installieren.
@@ -178,8 +214,10 @@ INSTALL_OVERVIEW=1
 # --- openHAB REST API -------------------------------------------------------
 
 # API-Token eines Admin-Benutzers; gebraucht vom Netzwerk-Watchdog und von
-# der Installation der Overview-Seite. Erzeugen in der Main UI: links unten
-# auf den Benutzernamen klicken -> "Create new API token".
+# der Installation der Overview-Seite. "auto" = das Setup erzeugt selbst
+# eines ueber die Karaf-Konsole (Vorgabe des Assistenten); alternativ in
+# der Main UI erzeugen: links unten auf den Benutzernamen klicken ->
+# "Create new API token".
 OH_API_TOKEN=""
 
 # --- Netzwerk-Watchdog ------------------------------------------------------
@@ -227,3 +265,20 @@ WG_SSH_USER="openhabian"
 # Samba wird mitgeaendert) und der Karaf-Konsole (wird zufaellig erzeugt und
 # einmalig angezeigt). Passwoerter selbst stehen nie in dieser Datei.
 INSTALL_PASSWORD_CHANGE=1
+
+# --- Zero-Touch-Provisionierung ----------------------------------------------
+# Diese Schluessel schreibt 00-provision.sh beim Einloesen des
+# Provisionierungs-Codes; von Hand normalerweise nicht setzen.
+
+# 1 = Anlage wurde ueber den Provisionierungs-Code eingerichtet.
+IBM_PROVISIONED=0
+
+# openHAB-Cloud-Identitaet vom Server; 07-myopenhab.sh schreibt sie nach
+# userdata/uuid bzw. userdata/openhabcloud/secret.
+CLOUD_UUID=""
+CLOUD_SECRET=""
+
+# openHAB-Admin-Konto, das das Setup ueber die Karaf-Konsole anlegt
+# (gleiches Passwort wie der Linux-Benutzer openhabian).
+OH_ADMIN_USER=""
+OH_ADMIN_PASSWORD=""
