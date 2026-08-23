@@ -52,9 +52,9 @@ for src in "${pages[@]}"; do
   # Anlagenspezifische Items eintragen. BATTERY_POWER_ITEM ist optional -
   # ohne Wert bleibt der Platzhalter stehen (er ist zugleich der
   # Standard-Itemname beim Verknuepfen des Channels).
-  # Begruessung der Kopfzeile: mit Vornamen (Provisionierung bzw. ibm.conf)
-  # "Hallo <Vorname>", sonst wie die Standard-Navbar "Uebersicht".
-  greeting="Übersicht"
+  # Begruessungszeile unter dem Navbar-Titel: mit Vornamen (Provisionierung
+  # bzw. ibm.conf) "Hallo <Vorname>", ohne bleibt sie leer.
+  greeting=""
   [ -n "${IBM_MEMBER_FIRSTNAME:-}" ] && greeting="Hallo ${IBM_MEMBER_FIRSTNAME}"
   sed_script="s/${INVERTER_SOC_PLACEHOLDER}/${SOC_ITEM}/g;s/HALLOIBMGREETING/${greeting}/g"
   if [ -n "$INVERTER_BATTERY_POWER_PLACEHOLDER" ] && [ -n "$BATTERY_POWER_ITEM" ]; then

@@ -84,8 +84,8 @@ IBM_STATUS_TOKEN=""
 IBM_ANLAGE_NAME=""
 
 # Vorname des Mitglieds (kommt bei der Provisionierung vom Server). Die
-# Overview-Seite begruesst damit in ihrer Kopfzeile ("Hallo <Vorname>"
-# statt "Uebersicht"); leer = "Uebersicht".
+# Overview-Seite zeigt damit unter dem Titel "Uebersicht" die Zeile
+# "Hallo <Vorname>"; leer = keine Begruessungszeile.
 IBM_MEMBER_FIRSTNAME=""
 
 # --- Zeitplaene (Quartz-Cron, 6 Felder: sek min std tag monat wochentag) -----
