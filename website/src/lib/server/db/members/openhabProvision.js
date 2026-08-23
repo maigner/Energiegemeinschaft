@@ -40,9 +40,11 @@ export const SETUP_PHASES = [
     'addons',
     'wartet_auf_passwort',
     'wechselrichter',
+    'wartet_auf_wechselrichter',
     'items',
     'regeln',
     'overview',
+    'unvollstaendig',
     'fertig'
 ];
 

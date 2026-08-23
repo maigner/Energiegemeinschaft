@@ -14,9 +14,11 @@ export const SETUP_PHASES = [
     { key: 'addons', label: 'openHAB-Erweiterungen', progress: 45 },
     { key: 'wartet_auf_passwort', label: 'Wartet auf Wechselrichter-Passwort', progress: 50, waiting: true },
     { key: 'wechselrichter', label: 'Wechselrichter wird eingerichtet', progress: 60 },
+    { key: 'wartet_auf_wechselrichter', label: 'Wartet auf den Wechselrichter', progress: 60, waiting: true },
     { key: 'items', label: 'Datenpunkte', progress: 70 },
     { key: 'regeln', label: 'Steuerung', progress: 80 },
     { key: 'overview', label: 'Oberfläche', progress: 90 },
+    { key: 'unvollstaendig', label: 'Wartet, wird automatisch fortgesetzt', progress: 95, waiting: true },
     { key: 'fertig', label: 'Einrichtung abgeschlossen', progress: 100 }
 ];
 

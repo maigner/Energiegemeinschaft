@@ -2,4 +2,6 @@
 .pg_service.conf
 .pgpass
 .venv
-sk-latest
+sk-latestdocs/setup/*.aux
+docs/setup/*.log
+docs/setup/*.out

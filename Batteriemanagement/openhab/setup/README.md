@@ -16,8 +16,10 @@ Das Mitglied muss nichts am Pi tun; der Vorstand bereitet die SD-Karte vor:
    Provisionierungs-Code (60 Tage gueltig). Das Cloud-Konto und der
    WireGuard-Peer werden vom Timer `ibm-provision-sync` auf s1 angelegt
    (siehe `scripts/ibm-provision/`, [docs/server-setup.md](../../../docs/server-setup.md)).
-   Optional: Wechselrichter-Profil vorgeben (sonst erkennt es der Pi) und
-   WLAN-Zugang (LAN bleibt die Empfehlung).
+   Das Wechselrichter-Profil dabei gleich setzen (fuer den Standardablauf
+   unten noetig; die automatische Erkennung funktioniert nur, wenn der
+   Wechselrichter im selben Netz haengt). Optional WLAN-Zugang (LAN bleibt
+   die Empfehlung).
 2. **Zip herunterladen** (`sd-<nnn>.zip`: `openhabian.conf`,
    `ibm-provision.conf`, `user-data`, `README.txt`) und die Karte
    schreiben (macOS oder Linux; ohne Geraete-Argument listet das Skript
@@ -66,6 +68,35 @@ Das Mitglied muss nichts am Pi tun; der Vorstand bereitet die SD-Karte vor:
    Installation ohne weiter (Exit 75 = unvollstaendig) und `ibm-firstboot`
    wiederholt sie alle 10 Minuten, bis alles fertig ist; das Passwort wird
    dann per REST ins Bridge-Thing nachgetragen.
+
+### Standardablauf: Test im Netz des Vorstands
+
+Standard seit 2026-08: der Vorstand baut das Image, flasht die Karte und
+laesst den Pi zuerst **im eigenen Netz** installieren; erst die getestete
+Karte geht ans Mitglied. Schritt fuer Schritt in der Vorstands-Anleitung
+[docs/setup/](../../../docs/setup/) (PDF); Kurzfassung:
+
+1. "SD-Karte vorbereiten" **mit gesetztem Wechselrichter-Profil** (im
+   Testnetz gibt es den Wechselrichter nicht; ohne Profil wartet der Pi
+   in `wechselrichter_unklar`).
+2. "Image erstellen", herunterladen, flashen (Raspberry Pi Imager mit
+   "Eigenes Image" und ohne OS-Anpassungen, oder balenaEtcher).
+3. Pi per LAN-Kabel ins eigene Netz, Strom anstecken, Phasen am Dashboard
+   beobachten. Erwartetes Ende nach 30 bis 45 Minuten: Fernwartung,
+   Passwoerter, Cloud-Konto, Addons, Items und Regeln stehen; nur der
+   Wechselrichter-Schritt wartet, weil `02b` das Geraet nicht findet
+   (Phase `wartet_auf_wechselrichter`, danach Sammelphase
+   `unvollstaendig` mit den offenen Schritten). Das ist der gewollte
+   Endzustand des Tests, kein Fehler.
+4. Pruefen: `ssh openhabian@<tunnel-ip>` von s1 aus (Fernwartung) und
+   Anmeldung auf <https://remote.hac.ischlstrom.org> mit dem Cloud-Konto.
+5. Pi herunterfahren und ans Mitglied uebergeben (gleiches Netz wie der
+   Wechselrichter). `ibm-firstboot` wiederholt den Lauf alle 10 Minuten,
+   findet den Wechselrichter und fuehrt die Einrichtung bis `fertig`.
+   Das **Wechselrichter-Passwort** (GEN24) traegt das Mitglied erst nach
+   der Uebergabe im Mitgliederbereich ein; die Auslieferung laeuft ueber
+   das Status-Token, der Provisionierungs-Code wird dafuer nicht mehr
+   gebraucht (er darf zu dem Zeitpunkt auch abgelaufen sein).
 
 Was bei der Provisionierung anders ist als am klassischen Weg: das
 openHAB-Admin-Konto legt `02b` selbst ueber die Karaf-Konsole an

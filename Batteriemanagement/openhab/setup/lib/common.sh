@@ -817,8 +817,9 @@ provision_api() {
 
 # report_phase <phase> [meldung] [zusatz-json-felder]
 # Phasen: konfiguration wechselrichter_suche wechselrichter_unklar tunnel
-# passwoerter cloud addons wartet_auf_passwort wechselrichter items regeln
-# overview fertig fehler:<schritt>
+# passwoerter cloud addons wartet_auf_passwort wechselrichter
+# wartet_auf_wechselrichter items regeln overview unvollstaendig fertig
+# fehler:<schritt>
 report_phase() {
   local phase="$1" message="${2:-}" extra="${3:-}" body
   [ -n "${IBM_STATUS_TOKEN:-}" ] || return 0

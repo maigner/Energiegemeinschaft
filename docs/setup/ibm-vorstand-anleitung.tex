@@ -1,0 +1,207 @@
+% ============================================================================
+% Speichermanagement (IBM): Anleitung fuer den Vorstand
+% SD-Karte fuer ein neues Mitglied erstellen, testen und uebergeben.
+% Bauen: pdflatex ibm-vorstand-anleitung.tex  (zweimal fuer das Inhaltsverzeichnis)
+% Technischer Hintergrund: Batteriemanagement/openhab/setup/README.md
+% ============================================================================
+\documentclass[a4paper,11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{lmodern}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=black,urlcolor=blue!50!black]{hyperref}
+
+\newcommand{\dash}{Dashboard \url{https://ischlstrom.org/board/openhab}}
+\newcommand{\phase}[1]{\textsf{\small #1}}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE\bfseries Speichermanagement (IBM)}\\[0.3em]
+    {\large Anleitung für den Vorstand: SD-Karte für ein neues Mitglied}\\[0.3em]
+    {\small ISCHLSTROM Energiegemeinschaft, Stand: August 2026}
+\end{center}
+
+\section*{Worum es geht}
+
+Mitglieder mit Batteriespeicher bekommen von uns einen Raspberry Pi, der
+den Speicher im Sinn der Energiegemeinschaft steuert (laden, wenn Strom
+in der Gemeinschaft übrig ist). Die gesamte Einrichtung ist automatisiert:
+Der Vorstand erstellt am Dashboard eine SD-Karte, testet den Pi kurz im
+eigenen Netzwerk und übergibt ihn dann dem Mitglied. Beim Mitglied muss
+niemand etwas konfigurieren; der Pi meldet jeden Schritt an ischlstrom.org,
+den Fortschritt sehen Vorstand und Mitglied im Browser.
+
+\subsection*{Was man braucht}
+
+\begin{itemize}[nosep]
+    \item Vorstandszugang auf \dash
+    \item Raspberry Pi 4B mit Netzteil, SD-Karte ab 16 GB
+    \item einen Rechner mit SD-Kartenleser und dem Programm
+          \emph{Raspberry Pi Imager} (\url{https://www.raspberrypi.com/software/})
+          oder \emph{balenaEtcher}
+    \item ein freies LAN-Kabel am eigenen Router (für den Test)
+\end{itemize}
+
+\section{SD-Karte am Dashboard vorbereiten}
+
+Auf dem \dash{} im Abschnitt \emph{Einrichtung} das Mitglied per
+Namenssuche auswählen und \emph{SD-Karte vorbereiten} klicken. Dabei
+erzeugt der Server alles Nötige selbst: Passwörter, Fernwartungszugang,
+das openHAB-Cloud-Konto \texttt{<nr>@ischlstrom.org} und einen
+Provisionierungs-Code (60 Tage gültig).
+
+\textbf{Wichtig:} Dabei gleich das \emph{Wechselrichter-Profil} setzen
+(Fronius GEN24, Fronius SnapINverter, Sigenergy, Deye oder Victron; steht
+in der Anmeldung des Mitglieds, im Zweifel nachfragen). Ohne Profil
+versucht der Pi, den Wechselrichter im Netzwerk zu erkennen; in Ihrem
+Testnetz gibt es ihn aber nicht, und die Einrichtung bleibt bei
+\phase{Wechselrichter nicht eindeutig} stehen. Das Profil lässt sich
+notfalls auch später am Dashboard setzen, die Einrichtung wartet darauf.
+
+Hat das Mitglied kein LAN-Kabel am Aufstellort, können hier auch
+WLAN-Name und -Passwort des Mitglieds hinterlegt werden (LAN bleibt die
+Empfehlung).
+
+\section{Image erstellen und auf die Karte schreiben}
+
+\begin{enumerate}[nosep]
+    \item Am Dashboard bei der Anlage \emph{Image erstellen} klicken. Der
+          Server baut das fertige Karten-Image (aktuelles openHABian plus
+          unsere Konfiguration); das dauert einige Minuten. Danach
+          \emph{Image herunterladen} (Datei \texttt{pi-<nr>.img.gz},
+          etwa 1{,}5 GB).
+    \item Raspberry Pi Imager starten: bei \emph{Betriebssystem} ganz
+          unten \emph{Eigenes Image verwenden} wählen und die
+          heruntergeladene Datei auswählen (entpacken ist nicht nötig).
+          SD-Karte wählen und schreiben.
+    \item \textbf{Wichtig:} Die Frage \emph{"Möchten Sie OS-Anpassungen
+          anwenden?"} mit \textbf{Nein} beantworten. Eigene Anpassungen
+          (Hostname, WLAN, Benutzer) würden die mitgelieferte
+          Konfiguration überschreiben und die automatische Einrichtung
+          verhindern. Mit balenaEtcher stellt sich die Frage nicht.
+\end{enumerate}
+
+\section{Testlauf im eigenen Netzwerk}
+
+Die Karte in den Pi stecken, den Pi per LAN-Kabel mit dem eigenen Router
+verbinden und das Netzteil anstecken. Mehr ist nicht zu tun; nicht
+zwischendurch den Strom trennen. Der Pi installiert zuerst das
+Betriebssystem und openHAB (der längste Teil), dann richtet er sich bei
+ischlstrom.org ein. Insgesamt dauert das 30 bis 45 Minuten.
+
+Den Fortschritt zeigt das Dashboard bei der Anlage an (die Seite
+aktualisiert sich selbst), ebenso die Mitgliedsseite
+\emph{Speichermanagement}. Die Phasen laufen von
+\phase{Konfiguration geladen} über \phase{Fernwartung},
+\phase{Passwörter}, \phase{Cloud-Verbindung} bis \phase{Steuerung} und
+\phase{Oberfläche}.
+
+\subsection*{Erwartetes Ergebnis des Tests}
+
+Da es Ihren Testaufbau ohne Wechselrichter gibt, endet die Einrichtung
+absichtlich \textbf{nicht} auf "fertig", sondern bei
+
+\begin{center}
+    \phase{Wartet, wird automatisch fortgesetzt}
+\end{center}
+
+(gelber Balken). Das ist der gewollte Endzustand: Alles außer dem
+Wechselrichter ist eingerichtet und geprüft; den Wechselrichter findet
+der Pi erst beim Mitglied und macht dann von selbst weiter. Ein roter
+Balken (\phase{Fehler bei: \ldots}) ist dagegen ein echtes Problem,
+siehe Fehlerbehebung.
+
+Zwei Dinge kurz prüfen:
+
+\begin{itemize}[nosep]
+    \item Die Anlage zeigt am Dashboard einen Fernwartungs-Haken
+          (WireGuard verbunden) und "zuletzt gemeldet" mit frischer
+          Uhrzeit.
+    \item Anmeldung auf \url{https://remote.hac.ischlstrom.org} mit dem
+          Cloud-Konto der Anlage (Benutzer und Passwort stehen am
+          Dashboard unter \emph{Passwörter anzeigen}): die
+          openHAB-Oberfläche des Pi erscheint.
+\end{itemize}
+
+Danach den Pi vom Strom trennen (kurz warten, bis die grüne LED ruhig
+ist, oder vorher über die Cloud-Oberfläche herunterfahren).
+
+\section{Übergabe an das Mitglied}
+
+Der Pi kommt beim Mitglied \textbf{in dasselbe Netzwerk wie der
+Wechselrichter} (LAN-Kabel am Router bzw. das hinterlegte WLAN) und ans
+Netzteil. Der Pi setzt die Einrichtung selbst fort: Er sucht alle
+10 Minuten nach dem Wechselrichter, richtet ihn ein und meldet am Ende
+\phase{Einrichtung abgeschlossen}.
+
+\textbf{Nur beim Fronius GEN24}: Das Mitglied muss sein
+Wechselrichter-Passwort (Benutzer \texttt{customer} der
+Weboberfläche des GEN24) eintragen, und zwar auf seiner Seite
+\emph{Speichermanagement} auf ischlstrom.org (anmelden, Anlage
+auswählen, Feld \emph{Passwort des Wechselrichters}). Das kann vor oder
+nach dem Anstecken passieren; der Pi holt es sich automatisch. Das
+Passwort wird verschlüsselt übertragen, einmalig an den Pi ausgeliefert
+und danach am Server gelöscht. Die anderen Profile brauchen kein
+Passwort.
+
+Dem Mitglied zeigen bzw. mitgeben:
+
+\begin{itemize}[nosep]
+    \item Die Seite \emph{Speichermanagement} im Mitgliederbereich:
+          Fortschritt, Batterie-Ladestand, Cloud-Zugangsdaten.
+    \item Zugriff per openHAB-App (App Store / Play Store): als
+          Remote-URL \texttt{https://hac.ischlstrom.org} eintragen und
+          mit dem Cloud-Konto anmelden; im Browser
+          \url{https://remote.hac.ischlstrom.org}.
+\end{itemize}
+
+\section{Fehlerbehebung}
+
+\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}X@{}}
+    \toprule
+    \textbf{Anzeige am Dashboard} & \textbf{Was tun} \\
+    \midrule
+    \phase{Wechselrichter nicht eindeutig} &
+    Wechselrichter-Profil am Dashboard setzen (\emph{Profil setzen});
+    die Einrichtung macht von selbst weiter. \\
+    \addlinespace
+    \phase{Wartet auf Wechselrichter-Passwort} &
+    Nur GEN24: Mitglied (oder Vorstand am Dashboard) trägt das Passwort
+    ein; der Pi fragt alle zwei Minuten nach. \\
+    \addlinespace
+    \phase{Fehler bei: \ldots} (roter Balken) &
+    Einrichtung ist an diesem Schritt gescheitert. Kurz warten (der Pi
+    wiederholt vieles selbst); bleibt es rot, an den technischen
+    Betrieb melden (info@ischlstrom.org). \\
+    \addlinespace
+    Keine Phase, obwohl der Pi seit über einer Stunde läuft &
+    Netzwerkverbindung des Pi prüfen (LAN-Kabel, Router-Geräteliste).
+    Hinweis "mit einem alten oder abgelaufenen Code gebaut" am
+    Dashboard: \emph{Neuer Code}, dann \emph{Image erstellen} und die
+    Karte neu schreiben. \\
+    \addlinespace
+    Cloud-Konto oder Mail-Alias mit Fehler &
+    Knopf \emph{Cloud-Konto erneut} bzw. \emph{Mail-Alias erneut}
+    klicken. \\
+    \addlinespace
+    SD-Karte defekt &
+    \emph{Neuer Code}, \emph{Image erstellen}, neue Karte schreiben;
+    alle Einstellungen liegen am Server, es geht nichts verloren. Beim
+    GEN24 muss das Mitglied sein Wechselrichter-Passwort neu eintragen. \\
+    \bottomrule
+\end{tabularx}
+
+\vspace{1em}
+\begin{center}
+    \small Technische Details: \texttt{Batteriemanagement/openhab/setup/README.md}
+    im Repository \,\textbullet\, Fragen: info@ischlstrom.org
+\end{center}
+
+\end{document}

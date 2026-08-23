@@ -9,10 +9,14 @@ Repo, noch nicht auf einem Pi durchgespielt). Betriebsdoku:
 "Zero-Touch-Einrichtung"), `docs/server-setup.md` (s1-Timer),
 `docs/openhab-cloud.md`. Rollout-Stand 23. August 2026 abends: Migration
 `members 0030` auf Prod, `IBM_SECRET_KEY`/`MAILCOW_*` in `website/.env.s1`,
-`install-on-s1.sh` und Deploy sind erledigt; offen sind der mailcow-API-Key
-(wird noch mit 401 abgelehnt: in mailcow API aktivieren und Adressen
-freigeben, siehe `server-setup.md`) und der erste Test-Pi. Stufe 5 (Kit,
-Anleitung) ist offen.
+`install-on-s1.sh` und Deploy sind erledigt; der mailcow-API-Key ist seit
+23. August aktiviert (Alias-Anlage funktioniert), der erste Test-Pi
+(pi-223) laeuft. Standardablauf seit 2026-08-23: Image am Dashboard bauen,
+flashen und den Pi zuerst im Netz des Vorstands installieren lassen; die
+Anlage endet dort absichtlich in der Wartephase (`unvollstaendig`), beim
+Mitglied laeuft sie von selbst bis `fertig` (Details: Setup-README,
+Abschnitt "Standardablauf"). Vorstands-Anleitung: `docs/setup/`
+(LaTeX/PDF). Stufe 5 (Kit) ist offen.
 
 Der Plan unten ist das Original der Planung und wird nicht nachgezogen;
 Details darin (GET statt POST, Phasennamen, 24 Stunden Code-Gueltigkeit,

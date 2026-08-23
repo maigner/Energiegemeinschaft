@@ -28,6 +28,7 @@ require_openhab
 
 EX_TEMPFAIL=75
 incomplete=0
+incomplete_list=""
 
 # Bei der Provisionierung gibt es niemanden, der Rueckfragen beantwortet.
 if [ -n "${IBM_PROVISION_CODE:-}" ] || [ -f /boot/firmware/ibm-provision.conf ] || [ -f /boot/ibm-provision.conf ]; then
@@ -42,6 +43,7 @@ step() {
   "$here/$script" || rc=$?
   if [ "$rc" -eq "$EX_TEMPFAIL" ]; then
     incomplete=1
+    incomplete_list="${incomplete_list:+$incomplete_list, }$phase"
     warn "$script: noch nicht abgeschlossen - wird spaeter wiederholt."
   elif [ "$rc" -ne 0 ]; then
     if [ "$optional" = "1" ]; then
@@ -124,6 +126,10 @@ fi
 rm -f "${IBM_RUN_DIR:-/run}/ibm-provision.env"
 
 if [ "$incomplete" = "1" ]; then
+  # Sammelphase fuer Dashboard und Mitgliederbereich: die spaeteren Schritte
+  # haben ihre Phasen schon gemeldet, deshalb hier den Wartezustand samt der
+  # offenen Schritte nachtragen (ibm-firstboot wiederholt den Lauf).
+  report_phase unvollstaendig "Wartet auf: ${incomplete_list}. Der Lauf wird automatisch wiederholt."
   cat <<ENDE
 [IBM]
 [IBM] ===========================================================
