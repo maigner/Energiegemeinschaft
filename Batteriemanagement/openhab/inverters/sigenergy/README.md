@@ -45,8 +45,21 @@ einzelner Wechselrichter.
 
 Die Adressen in `profile.sh` und die Konstanten in `adapter.js` folgen dem
 offiziellen Sigenergy-Modbus-Protokoll (V1.7), sind aber noch **nicht am
-Geraet verifiziert**. Werkzeug: `mbpoll` oder ein kurzes pymodbus-Skript im
-LAN der Anlage; zum Testen ohne Anlage siehe `tools/sim_sigenstor.py`.
+Geraet verifiziert**. Desk-Check gegen Protokoll V2.5 (2025-02-19):
+Registerkarte, Modi (Appendix 6), Vorzeichen (30037: > 0 laden) und
+Zugriffsarten (RO = FC04, RW = FC04/06/16) unveraendert; der Abschnitt
+"Interaction timeout" beschreibt weiterhin nur Request-Timing (min. 1 s
+Abstand), kein Auto-Revert.
+
+Werkzeug: `tools/spike_sigenstor.py` arbeitet die Punkte 2-9 direkt gegen
+die Anlage ab (nur Standardbibliothek, laeuft am Laptop wie am Pi) -
+read-only per `reads`/`watch`, steuernd per `toggle`/`prevent`/`discharge`/
+`failsafe` (mit Bestaetigung, Sicherheits-Reset bei Ctrl+C), Aufraeumen per
+`reset`; alles landet in `spike_sigenstor.log`. Zum Testen ohne Anlage
+siehe `tools/sim_sigenstor.py`:
+
+    python3 tools/sim_sigenstor.py --port 5020 &
+    python3 tools/spike_sigenstor.py 127.0.0.1 --port 5020 --yes reads toggle
 
 Checkliste (Ergebnis in die Tabelle unten eintragen, danach `profile.sh`/
 `adapter.js` anpassen):
