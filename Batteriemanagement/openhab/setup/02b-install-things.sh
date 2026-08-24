@@ -36,28 +36,6 @@ command -v python3 >/dev/null 2>&1 || die "python3 fehlt (openHABian bringt es n
 
 EX_TEMPFAIL=75
 
-if [ -z "$INVERTER_HOST" ]; then
-  # Kein Wechselrichter bekannt. Standardablauf: die Karte laeuft zuerst im
-  # Netz des Vorstands, dort gibt es das Geraet nicht (00-provision.sh hat
-  # deshalb keine Adresse gefunden). Erneut suchen; ohne Treffer wird der
-  # Lauf spaeter wiederholt (ibm-firstboot alle 10 Minuten) - beim Mitglied
-  # findet die Suche das Geraet dann und die Einrichtung laeuft zu Ende.
-  if type inverter_scan_hosts >/dev/null 2>&1; then
-    mapfile -t ibm_scan_hosts < <(inverter_scan_hosts 2>/dev/null | head -n 5 || true)
-    INVERTER_HOST="${ibm_scan_hosts[0]:-}"
-  fi
-  if [ -n "$INVERTER_HOST" ]; then
-    conf_set INVERTER_HOST "$INVERTER_HOST"
-    log "Wechselrichter gefunden: $INVERTER_HOST"
-  elif [ "$IBM_PROVISIONED" = "1" ]; then
-    report_phase wartet_auf_wechselrichter "Der Wechselrichter (${INVERTER_LABEL}) ist im lokalen Netz nicht erreichbar. Sobald der Raspberry Pi im Netz des Wechselrichters laeuft, geht die Einrichtung von selbst weiter."
-    warn "Wechselrichter nicht im Netz gefunden - dieser Schritt wird spaeter wiederholt."
-    exit "$EX_TEMPFAIL"
-  else
-    die "INVERTER_HOST fehlt in ibm.conf."
-  fi
-fi
-
 REST="http://127.0.0.1:8080/rest"
 
 # --- 1. Thing-Manifest bestimmen ----------------------------------------------
@@ -147,7 +125,35 @@ until [ "$(auth_curl -o /dev/null -w '%{http_code}' -m 5 "$REST/things" || true)
 done
 log "REST API ist bereit."
 
-# --- 3c. Wechselrichter-Passwort (Provisionierung) ------------------------------
+# --- 3c. Wechselrichter-Adresse ------------------------------------------------
+# Erst NACH Admin-Konto und API-Token pruefen (Standardablauf: die Karte
+# laeuft zuerst im Netz des Vorstands, dort gibt es den Wechselrichter
+# nicht) - so sind Main UI, Cloud-Zugang und Token auch dann komplett,
+# wenn dieser Lauf hier endet. 00-provision.sh hat keine Adresse gefunden;
+# erneut suchen, ohne Treffer wird der Lauf spaeter wiederholt
+# (ibm-firstboot alle 10 Minuten) - beim Mitglied findet die Suche das
+# Geraet und die Einrichtung laeuft von selbst zu Ende.
+if [ -z "$INVERTER_HOST" ]; then
+  if type inverter_scan_hosts >/dev/null 2>&1; then
+    mapfile -t ibm_scan_hosts < <(inverter_scan_hosts 2>/dev/null | head -n 5 || true)
+    INVERTER_HOST="${ibm_scan_hosts[0]:-}"
+  fi
+  if [ -n "$INVERTER_HOST" ]; then
+    conf_set INVERTER_HOST "$INVERTER_HOST"
+    log "Wechselrichter gefunden: $INVERTER_HOST"
+    # Manifest wurde oben ohne Adresse gebaut - mit Adresse neu erzeugen,
+    # indem dieser Lauf wiederholt wird (schnell, alles andere steht schon).
+    exec "$0"
+  elif [ "$IBM_PROVISIONED" = "1" ]; then
+    report_phase wartet_auf_wechselrichter "Der Wechselrichter (${INVERTER_LABEL}) ist im lokalen Netz nicht erreichbar. Sobald der Raspberry Pi im Netz des Wechselrichters laeuft, geht die Einrichtung von selbst weiter."
+    warn "Wechselrichter nicht im Netz gefunden - dieser Schritt wird spaeter wiederholt."
+    exit "$EX_TEMPFAIL"
+  else
+    die "INVERTER_HOST fehlt in ibm.conf."
+  fi
+fi
+
+# --- 3d. Wechselrichter-Passwort (Provisionierung) ------------------------------
 # Braucht das Profil Zugangsdaten (GEN24) und liegen noch keine vor, holt
 # der Pi sie vom Server: das Mitglied (oder der Vorstand) traegt sie auf
 # ischlstrom.org ein, der Server liefert sie einmalig aus und loescht sie.

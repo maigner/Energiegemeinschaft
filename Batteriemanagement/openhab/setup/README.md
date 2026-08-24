@@ -83,7 +83,8 @@ Karte geht ans Mitglied. Schritt fuer Schritt in der Vorstands-Anleitung
    "Eigenes Image" und ohne OS-Anpassungen, oder balenaEtcher).
 3. Pi per LAN-Kabel ins eigene Netz, Strom anstecken, Phasen am Dashboard
    beobachten. Erwartetes Ende nach 30 bis 45 Minuten: Fernwartung,
-   Passwoerter, Cloud-Konto, Addons, Items und Regeln stehen; nur der
+   Passwoerter, Cloud-Konto, Addons, openHAB-Admin-Konto, Items, Regeln
+   und Main-UI-Seiten stehen; nur der
    Wechselrichter-Schritt wartet, weil `02b` das Geraet nicht findet
    (Phase `wartet_auf_wechselrichter`, danach Sammelphase
    `unvollstaendig` mit den offenen Schritten). Das ist der gewollte
