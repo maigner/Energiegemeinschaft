@@ -6,8 +6,10 @@ import {
     getChargeFactorsToday,
     getNightDischargeBudget,
     getTodayDischargeStart,
+    nightBudgetCloudFactor,
     IBM_FALLBACK_HOUSE_LOAD_W
 } from '$lib/server/db/energy/forecast';
+import { getCloudForecastNextSunshineWindow } from '$lib/server/db/weather/forecast';
 import {
     getOpenhabPlantByToken,
     getObservedPeakChargeKw,
@@ -41,7 +43,12 @@ import {
  * gelernter Ladeleistung und beobachteter Spitzen-Ladeleistung aus der
  * Status-Historie (`nachtbudget_rate_kw`): die gelernte Rate ist bewusst
  * die untere Hüllkurve und würde das Budget an sonnigen Tagen auf einen
- * Bruchteil drücken.
+ * Bruchteil drücken. Weil der Prognoselauf Tage alt sein kann, wird das
+ * Budget zusätzlich mit der aktuellen Wolkenvorschau des nächsten
+ * Sonnenfensters gekürzt (siehe nightBudgetCloudFactor; Faktor im Feld
+ * `nachtbudget_wolkenfaktor`, mittlere Bewölkung in `nachtbudget_wolken`).
+ * Das ersetzt den früheren harten Trüb-Stopp am Pi: bei bedeckter Vorschau
+ * wird nur weniger eingespeist, nicht gar nicht.
  *
  * `entladestart` -- ab wann die Nachteinspeisung heute beginnen soll
  * (siehe getTodayDischargeStart): erst wenn die Gemeinschaft laut Prognose
@@ -100,6 +107,8 @@ export async function POST({ request }) {
     let individuell = false;
     let nachtbudgetKwh = null;
     let nachtbudgetRateKw = null;
+    let nachtbudgetWolken = null;
+    let nachtbudgetWolkenfaktor = null;
 
     if (plausibel && fenster.start && fenster.ende) {
         const individualEnde = await getIndividualChargeWindowEnd(run.id, capacity, rate);
@@ -119,12 +128,21 @@ export async function POST({ request }) {
         const houseLoadW = Number(plant.data?.hauslast_w);
         const observedKw = await getObservedPeakChargeKw(plant.id);
         nachtbudgetRateKw = Math.min(30, Math.max(rate, observedKw ?? 0));
+        const wolken = await getCloudForecastNextSunshineWindow();
+        if (wolken && wolken.length > 0) {
+            const mittel = wolken.reduce((acc: number, w: any) => acc + Number(w.cloud_cover), 0) / wolken.length;
+            if (Number.isFinite(mittel)) {
+                nachtbudgetWolken = Math.round(mittel * 10) / 10;
+                nachtbudgetWolkenfaktor = nightBudgetCloudFactor(mittel);
+            }
+        }
         nachtbudgetKwh = await getNightDischargeBudget(
             run.id,
             nachtbudgetRateKw,
             Number.isFinite(houseLoadW) && houseLoadW >= 50 && houseLoadW <= 3000
                 ? houseLoadW
-                : IBM_FALLBACK_HOUSE_LOAD_W
+                : IBM_FALLBACK_HOUSE_LOAD_W,
+            nachtbudgetWolkenfaktor
         );
     }
 
@@ -139,6 +157,8 @@ export async function POST({ request }) {
             individuell,
             nachtbudget_kwh: nachtbudgetKwh,
             nachtbudget_rate_kw: nachtbudgetRateKw,
+            nachtbudget_wolken: nachtbudgetWolken,
+            nachtbudget_wolkenfaktor: nachtbudgetWolkenfaktor,
             entladestart,
             ladefaktoren
         }

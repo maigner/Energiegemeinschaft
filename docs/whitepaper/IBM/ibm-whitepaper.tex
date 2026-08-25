@@ -309,8 +309,16 @@ Gemeinschaft in denselben 24~Stunden laut Prognose keinen Überschuss hat
 tagsüber.
 \begin{equation}
   B \;=\; \max\Bigl(0,\; E_{\text{ladbar,24h}}
-    - \frac{P_{\text{Haus}}}{1000} \cdot T_{\text{Reserve}}\Bigr) \cdot 0{,}8.
+    - \frac{P_{\text{Haus}}}{1000} \cdot T_{\text{Reserve}}\Bigr) \cdot 0{,}8
+    \cdot f_{w}.
 \end{equation}
+Der Wolkenfaktor $f_w$ gleicht aus, dass der Prognoselauf mehrere Tage alt
+sein kann, während die Wolkenvorschau für das nächste Sonnenfenster
+stündlich nachgeladen wird: Bis zur Wolkenschwelle (85\%) ist $f_w = 1$,
+darüber fällt er linear auf 0,4 bei 100\% Bewölkung. Bei geschlossener
+Wolkendecke liefert eine PV-Anlage typisch noch ein Viertel bis die Hälfte
+eines klaren Tages, und das Profil hat den trüben Tag meist schon teilweise
+eingepreist; ein Faktor nahe null wäre also doppelt vorsichtig.
 Das Wetter des Folgetags steckt damit genau einmal im Budget, im ladbaren
 Ertrag und in der Reservedauer. Ein pauschaler Zuschlag von 24~Stunden
 Hauslast wäre dagegen eine Doppelzählung und drückte bei großen Batterien
@@ -515,12 +523,15 @@ am nächsten Tag sicher wieder voll wird; bei trüber Vorschau entsprechend
 weniger. Zwei Sonderfälle:
 
 \begin{itemize}
-  \item \textbf{Trüb-Stopp:} Liegt die Vorschau über der Wolkenschwelle
-    (dieselbe wie bei der Ladesperre), wird gar nicht eingespeist. Über
-    eine lange Nacht entlädt auch minimale Leistung die Batterie fast
-    vollständig; am trüben Folgetag müsste das Mitglied dann selbst Strom
-    zukaufen. Es gilt die Symmetrie: Nur wenn morgen früh gesperrt würde
-    (sonnig), wird heute Nacht auch eingespeist.
+  \item \textbf{Trübe Vorschau:} Liegt die Vorschau über der
+    Wolkenschwelle (dieselbe wie bei der Ladesperre), wird nicht mehr hart
+    gestoppt, sondern das Nachtbudget gekürzt
+    (Abschnitt~\ref{sec:nachtbudget}): Die Batterie speist nur den Teil
+    ein, den der bedeckte Folgetag voraussichtlich wieder nachlädt. Der
+    frühere Trüb-Stopp bleibt als Rückfall für Anlagen ohne wirksames
+    Budget: Dort würde sonst bis zur Reserve entladen, und über eine lange
+    Nacht entlädt auch minimale Leistung die Batterie fast vollständig; am
+    trüben Folgetag müsste das Mitglied dann selbst Strom zukaufen.
   \item \textbf{Ausfall der Vorschau:} Ist die Wolkenvorschau älter als
     drei Stunden oder ungültig, wird konservativ so entladen, als wäre der
     nächste Tag komplett bewölkt, also mit $P_{\min}$. Die Batterie läuft
@@ -629,6 +640,7 @@ Stichproben zwischen 50 und 3000\,W fließen mit Gewicht 0,3 in die
 Schätzung ein; ein Entladebefehl bricht die laufende Messstrecke ab, die
 nächste beginnt im nächsten Zyklus ohne Entladung. Gemessen wird so vor dem
 ersten Entladen, nach dem Entlade-Stopp, bei Budget null, beim Trüb-Stopp
+ohne Budget
 und unterhalb der Reserve. Eine Messung nur unterhalb der Reserve, wie
 anfangs vorgesehen, käme bei großen Batterien nie zustande: Ohne Budget
 sinkt der Ladestand nicht unter die Reserve, ohne gelernte Hauslast bleibt
