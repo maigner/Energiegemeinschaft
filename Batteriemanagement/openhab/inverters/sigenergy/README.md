@@ -121,6 +121,29 @@ wurde. Gelernt dabei:
   "Modus". "Remote EMS Scheduling Enable" war in der Endkunden-App nicht
   sichtbar (Installer-Manual Kap. 2.3.1.5).
 
+Nach dem Abbruch wurde der Betriebsmodus in der App wieder auf
+Eigenverbrauch zurueckgesetzt (im Fern-EMS-Modus ohne Master wuerde die
+Anlage sonst auf Kommandos warten). Wichtig fuer den naechsten Anlauf:
+sobald Port 502 offen ist, findet der Pi die Anlage beim naechsten
+10-Minuten-Lauf und beginnt mit der unverifizierten Registerkarte zu
+schreiben. Deshalb steht auf pi-223 der Hauptschalter
+`Schalte_ISCHLSTROM_Empfehlung_einaus` seit 2026-08-25 auf OFF: der Kern
+bricht dann vor dem zyklischen Reset ab (`control/core.js`, "Toggle=OFF -
+Tue nichts"), der Adapter schreibt nichts, das Bridge-Thing pollt nur
+(FC04). Die Init-Regel setzt den Schalter nur bei NULL/UNDEF auf ON, mapdb
+haelt den Zustand ueber Neustarts.
+
+Ablauf, sobald der Elektriker Modbus TCP freigeschaltet hat:
+
+1. Am Dashboard pruefen, dass `hauptschalter` im Status-Push noch OFF ist.
+2. Pi laufen lassen - `02b` findet die Anlage von selbst, das Thing geht
+   ONLINE, die Reads laufen bereits.
+3. Spike ueber den Pi fahren (`tools/spike_sigenstor.py`, per WireGuard
+   von s1 aus; Punkte 2 bis 10 der Checkliste), Registertabelle und
+   `SIGEN_HAS_AUTO_REVERT` befuellen, `profile.sh`/`adapter.js` anpassen
+   und auf den Pi bringen.
+4. Erst danach den Hauptschalter in der Main UI auf ON.
+
 Naechste Schritte: Elektriker/Installateur wegen Modbus-TCP-Freigabe
 kontaktieren (dabei Firmware-Stand erfragen); LAN-Kabel an den Energy
 Controller als Alternative zum WLAN. Werkzeug fuer den naechsten Anlauf:
