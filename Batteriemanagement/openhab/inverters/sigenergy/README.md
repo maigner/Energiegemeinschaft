@@ -101,6 +101,31 @@ Checkliste (Ergebnis in die Tabelle unten eintragen, danach `profile.sh`/
     oder muss er zyklisch erneuert werden? (IBM kommandiert ohnehin alle
     5 Minuten neu.)
 
+### Spike-Protokoll 2026-08-25 (Mitglied 223, EC 10.0, abgebrochen)
+
+Erster Anlauf vor Ort, Anlage im WLAN (192.168.7.107). Ergebnis: **Port 502
+blieb geschlossen** (connection refused, kein einziger offener TCP-Port),
+obwohl in der mySigen-App "ModBus TCP Server aktivieren" gesetzt, der
+Betriebsmodus auf Fern-EMS gestellt und die Anlage per App neu gestartet
+wurde. Gelernt dabei:
+
+- App-"Neustart"/"Ausschalten" betrifft nur den Leistungsteil - das
+  Kommunikationsmodul (und damit der Modbus-Server) startet dabei NICHT
+  neu; die IP der Anlage bleibt durchgehend online.
+- Community-Befunde (Home-Assistant-Integrationen): gleiches Muster ueber
+  WLAN mehrfach berichtet und dort nie geloest - funktionierende Setups
+  laufen ueber den Ethernet-Port; teils musste der Installateur/der
+  Sigenergy-Support Modbus TCP aus der Ferne freischalten.
+- mySigen-Pfade (Endkunden-App): Modbus unter Geraet -> Einstellungen ->
+  ModBus-Parameter; Betriebsmodus (inkl. Fern-EMS) am Home-Screen unter
+  "Modus". "Remote EMS Scheduling Enable" war in der Endkunden-App nicht
+  sichtbar (Installer-Manual Kap. 2.3.1.5).
+
+Naechste Schritte: Elektriker/Installateur wegen Modbus-TCP-Freigabe
+kontaktieren (dabei Firmware-Stand erfragen); LAN-Kabel an den Energy
+Controller als Alternative zum WLAN. Werkzeug fuer den naechsten Anlauf:
+`tools/spike_sigenstor.py <ip> reads` (siehe oben).
+
 ### Registertabelle (im Spike ausfuellen)
 
 | Register | Adresse | Typ | Gain | Gelesen/verifiziert |
