@@ -17,12 +17,32 @@ import { getImageStatus, startImageBuild, deleteImage } from '$lib/server/ibmIma
 import { secretsConfigured } from '$lib/server/secrets';
 import { mailcowConfigured } from '$lib/server/mailcow';
 import { getMembers } from '$lib/server/db/members/member';
+import { listConsentStates } from '$lib/server/db/members/consent';
+import {
+    SPEICHERMANAGEMENT_CONSENT_VERSION,
+    SPEICHERMANAGEMENT_CONSENT_SCOPE
+} from '$lib/consent/speichermanagement';
+
+/**
+ * Einwilligungsstand eines Mitglieds fuer die Badges:
+ * 'ok' | 'veraltet' (aeltere Textversion) | 'widerrufen' | 'fehlt'.
+ * @param {Map<number, any>} consents @param {number} identifier
+ */
+function consentState(consents, identifier) {
+    const c = consents.get(identifier);
+    if (!c) return 'fehlt';
+    if (c.granted_at) {
+        return c.text_version === SPEICHERMANAGEMENT_CONSENT_VERSION ? 'ok' : 'veraltet';
+    }
+    return c.revoked_at ? 'widerrufen' : 'fehlt';
+}
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load() {
 
     const statuses = await getOpenhabStatuses();
     const members = await getMembers();
+    const consents = await listConsentStates(SPEICHERMANAGEMENT_CONSENT_SCOPE);
     // Provisionierungsdaten (Geheimnisse entschluesselt) - nur lesbar, wenn
     // IBM_SECRET_KEY gesetzt ist; sonst bleibt der Abschnitt leer und die
     // Seite zeigt den Hinweis.
@@ -49,6 +69,7 @@ export async function load() {
                 lastSeen: s.last_seen,
                 ageSeconds: s.age_seconds === null ? null : Number(s.age_seconds),
                 data: s.data ?? {},
+                consent: consentState(consents, Number(s.member_identifier)),
                 provisioning: p ? {
                     code: p.provision_code,
                     expires: p.provision_expires,

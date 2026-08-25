@@ -8,12 +8,14 @@
         Badge,
         Progressbar,
         Button,
+        Checkbox,
         Input,
         Label,
         Indicator,
     } from "flowbite-svelte";
     import { describePhase } from "$lib/setupPhases";
     import { inverterLabel } from "$lib/inverters";
+    import ConsentText from "./ConsentText.svelte";
 
     let { data, form } = $props();
 
@@ -70,8 +72,50 @@
                 <a href="mailto:info@ischlstrom.org" class="underline">info@ischlstrom.org</a>.
             </p>
         </Card>
+    {:else if !data.consent.granted}
+        <!-- Einwilligung (DSGVO): ohne Zustimmung zum aktuellen Text keine
+             Anlagendaten und keine Eingaben. -->
+        <Card class="max-w-none">
+            <p class="text-lg font-semibold dark:text-white mb-2">
+                Ihre Einwilligung
+            </p>
+            {#if form?.consentRevoked || data.consent.revoked}
+                <p class="text-sm text-yellow-700 dark:text-yellow-400 mb-3">
+                    Sie haben Ihre Einwilligung widerrufen. Der Vorstand wurde
+                    verständigt und deaktiviert die Steuerung. Wenn Sie wieder
+                    teilnehmen möchten, können Sie unten erneut zustimmen.
+                </p>
+            {:else if data.consent.outdated}
+                <p class="text-sm text-yellow-700 dark:text-yellow-400 mb-3">
+                    Wir haben die Beschreibung der Datennutzung aktualisiert.
+                    Bitte lesen Sie den neuen Text und stimmen Sie ihm zu, um
+                    das Speichermanagement weiter zu nutzen.
+                </p>
+            {:else}
+                <p class="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                    Bevor es losgeht: Bitte lesen Sie, wie das
+                    Speichermanagement funktioniert und welche Daten wir dafür
+                    verwenden, und stimmen Sie dem zu.
+                </p>
+            {/if}
+            <ConsentText />
+            <form method="POST" action="?/grantConsent" use:enhance
+                class="border-t border-gray-200 dark:border-gray-700 mt-4 pt-4 space-y-3">
+                <Checkbox name="accept" required>
+                    Ich habe die Informationen gelesen und bin damit
+                    einverstanden, dass die ISCHLSTROM Energiegemeinschaft
+                    meinen Batteriespeicher wie beschrieben steuert und die
+                    genannten Daten dafür verarbeitet.
+                </Checkbox>
+                <Button type="submit">Zustimmen</Button>
+                {#if form?.message}
+                    <p class="text-sm text-red-600">{form.message}</p>
+                {/if}
+            </form>
+        </Card>
     {/if}
 
+    {#if data.consent.granted}
     {#each data.plants as plant (plant.id)}
         {@const phase = describePhase(plant.setupPhase)}
         {@const d = plant.data}
@@ -204,6 +248,22 @@
             {/if}
         </Card>
     {/each}
+
+    <div class="text-xs text-gray-500 dark:text-gray-400 flex flex-wrap items-center gap-x-2">
+        <span>
+            Einwilligung zur Datennutzung erteilt am
+            {data.consent.grantedAt
+                ? new Date(data.consent.grantedAt).toLocaleDateString("de-AT", { timeZone: "Europe/Vienna" })
+                : "-"}.
+        </span>
+        <form method="POST" action="?/revokeConsent" use:enhance
+            onsubmit={(/** @type {SubmitEvent} */ e) => {
+                if (!confirm("Einwilligung wirklich widerrufen? Die Steuerung Ihres Speichers wird dann beendet und Ihre Daten werden gelöscht.")) e.preventDefault();
+            }}>
+            <button type="submit" class="underline">Einwilligung widerrufen</button>
+        </form>
+    </div>
+    {/if}
 
     <p class="text-xs text-gray-500 dark:text-gray-400">
         Fragen zum Speichermanagement: <a href="mailto:info@ischlstrom.org" class="underline">info@ischlstrom.org</a>

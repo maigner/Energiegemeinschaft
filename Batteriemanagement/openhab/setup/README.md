@@ -99,6 +99,19 @@ Karte geht ans Mitglied. Schritt fuer Schritt in der Vorstands-Anleitung
    das Status-Token, der Provisionierungs-Code wird dafuer nicht mehr
    gebraucht (er darf zu dem Zeitpunkt auch abgelaufen sein).
 
+**Einwilligung (DSGVO):** Der Mitgliederbereich zeigt Anlagendaten und
+Eingaben erst, nachdem das Mitglied dem Einwilligungstext zugestimmt hat
+(`ConsentText.svelte` auf `/user/<nr>/speichermanagement`; Papier-Fallback
+`docs/setup/speichermanagement-einverstaendnis.pdf`, bei Textaenderungen
+beide anpassen und die Version in
+`website/src/lib/consent/speichermanagement.js` erhoehen). Erteilung und
+Widerruf landen als Nachweis in `members_consent` (Django-Model
+`members.Consent`, je Erteilung eine Zeile mit Textversion; Zeilen werden
+nie geloescht). Das Dashboard `/board/openhab` zeigt je Anlage ein Badge
+"Einwilligung" (erteilt/fehlt/veraltet/widerrufen); ein Widerruf schickt
+zusaetzlich eine Mail an info@ - die Steuerung deaktiviert der Vorstand
+dann von Hand (Token loeschen, Anlage entfernen).
+
 Was bei der Provisionierung anders ist als am klassischen Weg: das
 openHAB-Admin-Konto legt `02b` selbst ueber die Karaf-Konsole an
 (`OH_ADMIN_USER`/`OH_ADMIN_PASSWORD`, gleiches Passwort wie der

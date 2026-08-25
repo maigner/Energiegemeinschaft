@@ -1,0 +1,103 @@
+% ============================================================================
+% Speichermanagement: Einverstaendniserklaerung und Information zur
+% Datennutzung fuer neue Mitglieder (eine Seite, leicht verstaendlich).
+% Bauen: pdflatex speichermanagement-einverstaendnis.tex
+%
+% Standardweg ist die Online-Zustimmung im Mitgliederbereich
+% (/user/<nr>/speichermanagement, Komponente ConsentText.svelte); dieses
+% Blatt ist die inhaltsgleiche Papier-Variante (Ausdruck-Fallback). Bei
+% Textaenderungen BEIDE Stellen anpassen und die Version in
+% website/src/lib/consent/speichermanagement.js erhoehen.
+% Fakten: Batteriemanagement/openhab/setup/README.md (Abschnitt Status-Push),
+% Datenschutzerklaerung website/src/routes/(website)/datenschutz/
+% ============================================================================
+\documentclass[a4paper,10pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage[margin=1.9cm]{geometry}
+\usepackage{lmodern}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=black,urlcolor=blue!50!black]{hyperref}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE\bfseries Speichermanagement}\\[0.3em]
+    {\large Information zur Datennutzung und Einverständniserklärung}\\[0.3em]
+    {\small Verantwortlicher: Erneuerbare-Energie-Gemeinschaft ISCHLSTROM,
+     ZVR-Zahl 1915125185, Faschlweg 39, 4820 Bad Ischl,
+     info@ischlstrom.org \(\cdot\) Stand: August 2026}
+\end{center}
+
+\section*{Was das Speichermanagement macht}
+
+Sie bekommen von uns einen kleinen Computer (Raspberry Pi), der bei Ihnen
+neben dem Router steht. Er sorgt dafür, dass Ihr Batteriespeicher bevorzugt
+dann lädt, wenn in der Energiegemeinschaft Sonnenstrom übrig ist. So bleibt
+mehr Strom in der Gemeinschaft und Sie sparen Netzstrom. Die
+Sicherheitsfunktionen Ihres Wechselrichters bleiben dabei unverändert, und
+Sie können das Gerät jederzeit einfach abstecken.
+
+\section*{Welche Daten übertragen werden}
+
+Damit die Steuerung funktioniert und wir Ihnen bei Problemen helfen können,
+meldet das Gerät laufend an unseren Server:
+
+\begin{itemize}[nosep]
+    \item den \textbf{Ladestand} Ihres Batteriespeichers,
+    \item die aktuelle \textbf{Leistung} von Photovoltaik, Netz und Batterie,
+    \item den \textbf{technischen Zustand} des Geräts selbst
+          (z.\,B. Temperatur, anstehende Updates, Fehlermeldungen).
+\end{itemize}
+
+\textbf{Nicht übertragen} werden Verbrauchsdaten Ihres Haushalts oder
+Informationen über einzelne Geräte in Ihrem Haus. Falls Ihr
+Wechselrichter ein Passwort braucht (Fronius GEN24), wird es
+verschlüsselt gespeichert, einmalig an Ihr Gerät übertragen und danach
+am Server gelöscht.
+
+\section*{Wer die Daten sieht und wie lange wir sie speichern}
+
+Ihre Daten sehen nur Sie selbst (im Mitgliederbereich auf ischlstrom.org)
+und der Vorstand (zur Betreuung der Anlagen). Alles liegt auf den eigenen
+Servern des Vereins in der EU; wir geben nichts an Dritte weiter.
+Verlaufsdaten löschen wir automatisch nach 30 Tagen. Für die Wartung hat
+der Vorstand einen gesicherten Fernzugriff auf das Gerät; er wird nur
+genutzt, um die Anlage in Betrieb zu halten.
+
+\section*{Freiwilligkeit und Widerruf}
+
+Die Teilnahme ist freiwillig. Rechtsgrundlage ist Ihre Einwilligung
+(Art. 6 Abs. 1 lit. a DSGVO). Sie können sie jederzeit ohne Angabe von
+Gründen widerrufen, formlos per E-Mail an
+\href{mailto:info@ischlstrom.org}{info@ischlstrom.org} oder auf Ihrer
+Seite \emph{Speichermanagement} auf ischlstrom.org. Wir stellen die
+Steuerung und die Datenübertragung dann ein und löschen Ihre gespeicherten
+Daten. Der Widerruf berührt nicht die Rechtmäßigkeit der bis dahin
+erfolgten Verarbeitung. Ihnen stehen außerdem die Rechte auf Auskunft,
+Berichtigung, Löschung, Einschränkung der Verarbeitung und
+Datenübertragbarkeit zu; Beschwerden richten Sie an uns oder an die
+Österreichische Datenschutzbehörde (\url{https://www.dsb.gv.at}). Alle
+Einzelheiten finden Sie in unserer Datenschutzerklärung:
+\url{https://ischlstrom.org/datenschutz}
+
+\section*{Einverständniserklärung}
+
+Ich habe die Informationen oben gelesen und bin damit einverstanden, dass
+die ISCHLSTROM Energiegemeinschaft meinen Batteriespeicher wie beschrieben
+steuert und die genannten Daten dafür verarbeitet.
+
+\vspace{2em}
+\noindent
+\begin{tabular}{@{}p{0.45\textwidth}p{0.45\textwidth}@{}}
+    \rule{0.4\textwidth}{0.4pt} & \rule{0.4\textwidth}{0.4pt}\\
+    Name (in Blockschrift) & Mitgliedsnummer\\[2em]
+    \rule{0.4\textwidth}{0.4pt} & \rule{0.4\textwidth}{0.4pt}\\
+    Ort, Datum & Unterschrift\\
+\end{tabular}
+
+\end{document}

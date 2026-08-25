@@ -365,6 +365,11 @@
                         {#if inverterLabel(d.inverter_type)}
                             · {inverterLabel(d.inverter_type)}
                         {/if}
+                        {#if anlage.consent !== "ok"}
+                            <Badge color={anlage.consent === "widerrufen" ? "red" : "yellow"}>
+                                Einwilligung {anlage.consent}
+                            </Badge>
+                        {/if}
                     </p>
 
                     {#if status === "wartet"}
@@ -541,6 +546,9 @@
                     </p>
 
                     <div class="flex flex-wrap gap-1.5 mb-3">
+                        <Badge color={anlage.consent === "ok" ? "green" : anlage.consent === "widerrufen" ? "red" : "yellow"}>
+                            Einwilligung {anlage.consent === "ok" ? "erteilt" : anlage.consent}
+                        </Badge>
                         <Badge color={p.wgSynced ? "green" : p.wgPublicKey ? "yellow" : "gray"}>
                             Tunnel {p.wgAddress}{p.wgSynced ? " aktiv" : p.wgPublicKey ? " wird eingetragen" : " wartet auf Pi"}
                         </Badge>

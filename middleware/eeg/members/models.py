@@ -193,6 +193,33 @@ class MemberTombstone(models.Model):
         return f"{self.identifier} ({self.created_at:%Y-%m-%d})"
 
 
+class Consent(models.Model):
+    """Einwilligung eines Mitglieds (Art. 6 Abs. 1 lit. a DSGVO) samt
+    Nachweis (Art. 7 Abs. 1). Die Website schreibt die Zeilen direkt per
+    SQL (Mitgliederbereich, z. B. /user/<nr>/speichermanagement); Django
+    verwaltet nur das Schema. Je Erteilung eine Zeile mit der Version des
+    vorgelegten Texts (aendert sich der Text, wird neu zugestimmt); ein
+    Widerruf setzt revoked_at. Zeilen werden als Nachweis nie geloescht,
+    solange die Mitgliedschaft besteht. scope: bisher nur
+    "speichermanagement"."""
+    member = models.ForeignKey(Member, on_delete=models.CASCADE)
+    scope = models.CharField(max_length=50)
+    text_version = models.CharField(max_length=20)
+    granted_at = models.DateTimeField(auto_now_add=True)
+    # E-Mail-Adresse der Magic-Link-Sitzung, mit der zugestimmt wurde
+    granted_email = models.EmailField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["member", "scope"]),
+        ]
+
+    def __str__(self):
+        state = "widerrufen" if self.revoked_at else "aktiv"
+        return f"{self.member} {self.scope} v{self.text_version} ({state})"
+
+
 class MemberDataAccessLog(models.Model):
     """Protokolliert Zugriffe von Vorstandsmitgliedern auf Verbrauchsdaten
     fremder Mitglieder (Art. 32 DSGVO, Nachvollziehbarkeit). Geschrieben von
