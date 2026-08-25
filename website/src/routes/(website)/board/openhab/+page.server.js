@@ -11,7 +11,8 @@ import {
     retryCloudAccount,
     retryMailAlias,
     deletePlant,
-    undeletePlant
+    undeletePlant,
+    inverterPasswordState
 } from '$lib/server/db/members/openhabProvision';
 import { getImageStatus, startImageBuild, deleteImage } from '$lib/server/ibmImage';
 import { secretsConfigured } from '$lib/server/secrets';
@@ -77,6 +78,7 @@ export async function load() {
                     inverterType: p.inverter_type,
                     inverterUsername: p.inverter_username,
                     inverterPasswordSet: p.inverter_password_set,
+                    inverterPasswordState: inverterPasswordState({ ...p, data: s.data }),
                     wgAddress: p.wg_address,
                     wgPublicKey: p.wg_public_key,
                     wgSynced: p.wg_synced_at !== null,

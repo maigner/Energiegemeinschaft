@@ -294,6 +294,13 @@
             if (d.ladesperre_aktiv === "OFF") issues.push({ text: "Ladesperre aus", color: "gray" });
             if (d.entladung_aktiv === "OFF") issues.push({ text: "Entladung aus", color: "gray" });
         }
+        // Fronius-Binding ohne Bridge-Zugangsdaten (oder ohne erkannte
+        // Firmware): jeder Steuerzyklus schlaegt fehl, Messwerte kommen trotzdem.
+        if (Array.isArray(d.log_entries) && d.log_entries.some(
+            (/** @type {any} */ e) => typeof e?.message === "string" && e.message.includes("Battery control is not available")
+        )) {
+            issues.push({ text: "Batteriesteuerung nicht verfügbar (Bridge-Zugangsdaten?)", color: "red" });
+        }
         const counts = logCounts(d);
         if (counts?.errors) issues.push({ text: `${counts.errors} Fehler im Log`, color: "red" });
         if (counts?.warnings) issues.push({ text: `${counts.warnings} Warnungen im Log`, color: "yellow" });
@@ -428,6 +435,14 @@
                                 batteryToGridW(d) !== null ? `${batteryToGridW(d)} W` : "-",
                                 "Einspeisung aus Batterie",
                             )}
+                            {@render stat(
+                                num(d.hauslast_w, 0) !== null ? `${num(d.hauslast_w, 0)} W` : "-",
+                                "Gelernte Hauslast",
+                            )}
+                            {@render stat(
+                                num(d.nachtbudget_kwh, 1) !== null ? `${num(d.nachtbudget_kwh, 1)} kWh` : "-",
+                                "Nachtbudget",
+                            )}
                             {@render stat(uptimeText(d) ?? "-", "Uptime")}
                         </div>
 
@@ -561,8 +576,12 @@
                         <Badge color={p.inverterType ? "green" : "gray"}>
                             {inverterLabel(p.inverterType) ?? "Wechselrichter: automatisch"}
                         </Badge>
-                        <Badge color={p.inverterPasswordSet ? "green" : "gray"}>
-                            Wechselrichter-Passwort {p.inverterPasswordSet ? "hinterlegt" : "fehlt"}
+                        <Badge color={p.inverterPasswordState === "fehlt" ? "gray" : "green"}>
+                            Wechselrichter-Passwort {p.inverterPasswordState === "hinterlegt"
+                                ? "hinterlegt"
+                                : p.inverterPasswordState === "uebergeben"
+                                  ? "an den Pi übergeben"
+                                  : "fehlt"}
                         </Badge>
                     </div>
                     {#if p.cloudAccountError}

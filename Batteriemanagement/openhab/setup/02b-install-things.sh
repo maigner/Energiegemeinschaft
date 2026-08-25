@@ -39,6 +39,10 @@ EX_TEMPFAIL=75
 REST="http://127.0.0.1:8080/rest"
 
 # --- 1. Thing-Manifest bestimmen ----------------------------------------------
+# Als Funktion, weil das Manifest nach dem Passwort-Abruf (3d) noch einmal
+# gebaut wird - dann steht das Passwort schon im Bridge-Thing, statt per
+# REST nachgetragen werden zu muessen.
+build_things_manifest() {
 if type inverter_things_json >/dev/null 2>&1; then
   things_manifest="$(inverter_things_json)"
   [ -n "$things_manifest" ] || die "inverter_things_json() des Profils '$INVERTER_TYPE' liefert nichts."
@@ -85,6 +89,8 @@ print(json.dumps([
 PY
   )"
 fi
+}
+build_things_manifest
 
 first_thing_type="$(printf '%s' "$things_manifest" \
   | python3 -c 'import json, sys; print(json.load(sys.stdin)[0]["thingTypeUID"])')" \
@@ -187,17 +193,47 @@ print("INVERTER_PASSWORD=" + shlex.quote(d.get("password") or ""))')"
   if [ -z "$INVERTER_PASSWORD" ]; then
     warn "Noch kein Wechselrichter-Passwort - Things werden ohne Passwort angelegt."
     password_missing=1
+  else
+    build_things_manifest
   fi
   report_phase wechselrichter
 fi
 
 # Bridge-Thing existiert schon, Passwort erst jetzt bekannt (Wiederholungs-
-# lauf): Zugangsdaten per REST nachtragen.
+# lauf): Zugangsdaten per REST nachtragen. Direkt nach dem Anlegen hat das
+# Thing manchmal noch keinen Handler (das Binding registriert ihn
+# asynchron) - der PUT liefert dann 500 "no handler attached"; deshalb
+# mehrere Versuche. Danach wird per GET geprueft, ob Benutzer und Passwort
+# wirklich im Thing stehen: ohne sie meldet das Binding "Battery control is
+# not available" und die Steuerung laeuft ins Leere. Ergebnis in
+# credentials_ok (1 = im Thing, 0 = fehlgeschlagen, leer = nicht noetig).
+credentials_ok=""
+bridge_has_credentials() {
+  local uid="$1"
+  auth_curl -m 10 "$REST/things/$uid" | IBM_J_USER_PARAM="$INVERTER_USER_PARAM" \
+    IBM_J_PW_PARAM="$INVERTER_PASSWORD_PARAM" python3 -c '
+import json, os, sys
+try:
+    cfg = json.load(sys.stdin).get("configuration", {})
+except Exception:
+    sys.exit(1)
+e = os.environ
+ok = bool(cfg.get(e["IBM_J_PW_PARAM"]))
+if e.get("IBM_J_USER_PARAM"):
+    ok = ok and bool(cfg.get(e["IBM_J_USER_PARAM"]))
+sys.exit(0 if ok else 1)'
+}
+
 update_bridge_credentials() {
-  local uid="${INVERTER_HOST_THING_PREFIX}:ibm" code payload
+  local uid="${INVERTER_HOST_THING_PREFIX}:ibm" code payload attempt
   [ -n "$INVERTER_PASSWORD_PARAM" ] && [ -n "$INVERTER_HOST_THING_PREFIX" ] || return 0
   code="$(auth_curl -o /dev/null -w '%{http_code}' -m 10 "$REST/things/$uid" || true)"
   [ "$code" = "200" ] || return 0
+  if bridge_has_credentials "$uid"; then
+    log "Zugangsdaten stehen im Bridge-Thing: $uid"
+    credentials_ok=1
+    return 0
+  fi
   payload="$(IBM_J_USER_PARAM="$INVERTER_USER_PARAM" IBM_J_USER="$INVERTER_USERNAME" \
              IBM_J_PW_PARAM="$INVERTER_PASSWORD_PARAM" IBM_J_PW="$INVERTER_PASSWORD" python3 -c '
 import json, os
@@ -206,13 +242,19 @@ cfg = {e["IBM_J_PW_PARAM"]: e["IBM_J_PW"]}
 if e.get("IBM_J_USER_PARAM") and e.get("IBM_J_USER"):
     cfg[e["IBM_J_USER_PARAM"]] = e["IBM_J_USER"]
 print(json.dumps(cfg))')"
-  code="$(auth_curl -o /dev/null -w '%{http_code}' -m 10 -X PUT -H 'Content-Type: application/json' \
-            -d "$payload" "$REST/things/$uid/config" || true)"
-  if [ "$code" = "200" ]; then
-    log "Zugangsdaten im Bridge-Thing nachgetragen: $uid"
-  else
-    warn "Zugangsdaten konnten nicht ins Bridge-Thing geschrieben werden (HTTP $code)."
-  fi
+  for attempt in 1 2 3 4 5 6; do
+    code="$(auth_curl -o /dev/null -w '%{http_code}' -m 10 -X PUT -H 'Content-Type: application/json' \
+              -d "$payload" "$REST/things/$uid/config" || true)"
+    if [ "$code" = "200" ] && bridge_has_credentials "$uid"; then
+      log "Zugangsdaten im Bridge-Thing nachgetragen: $uid"
+      credentials_ok=1
+      return 0
+    fi
+    warn "Zugangsdaten noch nicht im Bridge-Thing (HTTP $code, Versuch $attempt/6) - warte 10 s."
+    sleep 10
+  done
+  warn "Zugangsdaten konnten nicht ins Bridge-Thing geschrieben werden: $uid"
+  credentials_ok=0
 }
 
 # --- 4. Things anlegen -------------------------------------------------------
@@ -275,5 +317,10 @@ fi
 
 if [ "$password_missing" = "1" ]; then
   warn "Wechselrichter-Passwort fehlt noch - dieser Schritt wird spaeter wiederholt."
+  exit "$EX_TEMPFAIL"
+fi
+if [ "$credentials_ok" = "0" ]; then
+  report_phase wechselrichter "Die Zugangsdaten des Wechselrichters konnten noch nicht in openHAB eingetragen werden - der Schritt wird wiederholt."
+  warn "Bridge-Thing ohne Zugangsdaten - dieser Schritt wird spaeter wiederholt."
   exit "$EX_TEMPFAIL"
 fi

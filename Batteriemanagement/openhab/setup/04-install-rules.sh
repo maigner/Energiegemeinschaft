@@ -501,3 +501,35 @@ fi
 
 log "Regeln installiert in $js_dir"
 log "openHAB laedt Dateien in diesem Verzeichnis automatisch neu."
+
+# --- Abhol-Regeln einmal sofort ausfuehren ------------------------------------
+# Crossover (taeglich 04:05), Ladefenster (stuendlich :50) und Wolkenvorschau
+# (stuendlich :40) liefern der Steuerung ihre Zeitfenster. Nach einer
+# (Neu-)Installation sind die Items bis zum naechsten Cron-Lauf NULL - beim
+# Crossover bis zu einem Tag lang, und ohne Crossover-Zeiten bleibt die
+# Entladung aus ("Keine plausiblen Crossover-Zeiten"). Deshalb hier per REST
+# anstossen, sobald openHAB die Regeldateien geladen hat.
+run_rule_once() {
+  local rule_id="$1" waited=0 code
+  [ -n "${OH_API_TOKEN:-}" ] && [ "$OH_API_TOKEN" != "auto" ] || return 0
+  while [ "$waited" -lt 90 ]; do
+    code="$(curl -s -o /dev/null -w '%{http_code}' -m 5 -H "Authorization: Bearer $OH_API_TOKEN" \
+              "http://127.0.0.1:8080/rest/rules/$rule_id" || true)"
+    [ "$code" = "200" ] && break
+    sleep 5; waited=$((waited + 5))
+  done
+  if [ "$code" != "200" ]; then
+    warn "Regel $rule_id nach 90 s nicht geladen - erster Lauf erfolgt per Cron."
+    return 0
+  fi
+  code="$(curl -s -o /dev/null -w '%{http_code}' -m 10 -X POST -H "Authorization: Bearer $OH_API_TOKEN" \
+            "http://127.0.0.1:8080/rest/rules/$rule_id/runnow" || true)"
+  if [ "$code" = "200" ]; then
+    log "Regel $rule_id einmal ausgefuehrt."
+  else
+    warn "Regel $rule_id konnte nicht gestartet werden (HTTP $code) - erster Lauf erfolgt per Cron."
+  fi
+}
+for rule_id in ibm_crossover ibm_ladesperre ibm_cloud_forecast; do
+  run_rule_once "$rule_id"
+done

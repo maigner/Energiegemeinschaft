@@ -2,7 +2,8 @@ import { error, fail } from '@sveltejs/kit';
 import {
     getMemberPlants,
     setInverterCredentials,
-    requestCloudPasswordReset
+    requestCloudPasswordReset,
+    inverterPasswordState
 } from '$lib/server/db/members/openhabProvision';
 import { secretsConfigured } from '$lib/server/secrets';
 import { getUsersByEmail } from '$lib/server/db/members/member';
@@ -68,6 +69,7 @@ export async function load({ params, parent }) {
             data: p.data ?? {},
             inverterType: p.inverter_type,
             inverterPasswordSet: Boolean(p.inverter_password_set),
+            inverterPasswordState: inverterPasswordState(p),
             cloudUsername: p.cloud_username,
             cloudPassword: p.cloud_password,
             cloudAccountState: p.cloud_account_state,

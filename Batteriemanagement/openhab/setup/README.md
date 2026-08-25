@@ -67,7 +67,21 @@ Das Mitglied muss nichts am Pi tun; der Vorstand bereitet die SD-Karte vor:
    und loescht es. Kommt innerhalb von 30 Minuten keines, laeuft die
    Installation ohne weiter (Exit 75 = unvollstaendig) und `ibm-firstboot`
    wiederholt sie alle 10 Minuten, bis alles fertig ist; das Passwort wird
-   dann per REST ins Bridge-Thing nachgetragen.
+   dann per REST ins Bridge-Thing nachgetragen (mit Wiederholung, weil das
+   frisch angelegte Thing noch keinen Handler haben kann) und per GET
+   verifiziert. Fehlen die Zugangsdaten im Bridge-Thing, endet 02b mit
+   Exit 75 und wird wiederholt; ein spaeterer Lauf von
+   `02b-install-things.sh` traegt sie aus `ibm.conf` nach. Ohne sie im
+   Thing meldet das Fronius-Binding in jedem Steuerzyklus "Battery control
+   is not available" (Messwerte kommen trotzdem); das Dashboard zeigt das
+   als rote Meldung "Batteriesteuerung nicht verfuegbar".
+
+Nach dem Installieren der Regeln stoesst `04-install-rules.sh` die drei
+Abhol-Regeln (Crossover, Ladefenster, Wolkenvorschau) einmal per REST an
+(`/rest/rules/<id>/runnow`), damit die Zeitfenster-Items nicht bis zum
+naechsten Cron-Lauf NULL bleiben - beim Crossover (taeglich 04:05) sonst bis
+zu einem Tag, in dem die Steuerung "Keine plausiblen Crossover-Zeiten"
+meldet und nicht entlaedt.
 
 ### Standardablauf: Test im Netz des Vorstands
 

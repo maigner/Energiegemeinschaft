@@ -364,6 +364,25 @@ export const setInverterCredentials = async (id, username, password) => {
 };
 
 /**
+ * Zustand des Wechselrichter-Passworts fuer die Anzeige. Der Server liefert
+ * das Passwort einmalig an den Pi aus und loescht es danach (siehe
+ * popInverterCredentials) - "leer" heisst also nicht zwingend "fehlt":
+ *   'hinterlegt'  liegt verschluesselt auf dem Server, Pi hat es noch nicht geholt
+ *   'uebergeben'  geloescht, der Pi hat es (Einrichtung fertig oder
+ *                 Wechselrichter meldet ONLINE)
+ *   'fehlt'       nie eingetragen oder nach einem Neu-Aufsetzen wieder noetig
+ * @param {{ inverter_password_set?: boolean, setup_phase?: string, data?: any }} row
+ * @returns {'hinterlegt' | 'uebergeben' | 'fehlt'}
+ */
+export const inverterPasswordState = (row) => {
+    if (row.inverter_password_set) return 'hinterlegt';
+    const phase = row.setup_phase ?? '';
+    const online = row.data?.inverter_status === 'ONLINE';
+    if (phase === 'fertig' || online) return 'uebergeben';
+    return 'fehlt';
+};
+
+/**
  * Wechselrichter-Zugangsdaten einmalig an den Pi ausliefern und danach
  * serverseitig loeschen (POST /api/ibm/provision/v1/secret). Transaktion:
  * erst lesen, dann loeschen.

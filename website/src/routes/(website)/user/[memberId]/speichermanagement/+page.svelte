@@ -180,6 +180,30 @@
                         </p>
                     {:else if form?.inverterPasswordSet}
                         <p class="text-sm text-green-700 dark:text-green-400">Gespeichert, danke.</p>
+                    {:else if plant.inverterPasswordState === "uebergeben"}
+                        <p class="text-sm text-green-700 dark:text-green-400">
+                            An Ihren Raspberry Pi übergeben und auf ischlstrom.org gelöscht.
+                        </p>
+                        <details class="mt-2">
+                            <summary class="text-xs text-gray-500 dark:text-gray-400 cursor-pointer">
+                                Passwort am Wechselrichter geändert oder Pi neu aufgesetzt? Neu eintragen
+                            </summary>
+                            <form method="POST" action="?/setInverterPassword" use:enhance class="flex flex-wrap items-end gap-2 mt-2">
+                                <input type="hidden" name="id" value={plant.id} />
+                                <div>
+                                    <Label for={`u${plant.id}`} class="text-xs">Benutzer</Label>
+                                    <Input id={`u${plant.id}`} name="username" value="customer" size="sm" class="w-32" autocomplete="off" data-1p-ignore data-lpignore="true" />
+                                </div>
+                                <div>
+                                    <Label for={`p${plant.id}`} class="text-xs">Passwort</Label>
+                                    <Input id={`p${plant.id}`} name="password" type="password" size="sm" class="w-48" autocomplete="new-password" data-1p-ignore data-lpignore="true" required />
+                                </div>
+                                <Button type="submit" size="sm">Speichern</Button>
+                            </form>
+                            {#if form?.message}
+                                <p class="text-sm text-red-600 mt-1">{form.message}</p>
+                            {/if}
+                        </details>
                     {:else}
                         <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">
                             Für die Batteriesteuerung braucht das Speichermanagement das
