@@ -301,18 +301,20 @@ export const getActiveFleetDischargeKw = async () => {
 
 /**
  * Anonyme Kennzahlen fuer die oeffentliche IBM-Seite: Anzahl der Anlagen,
- * die schon melden, davon aktuell online, und die Summe der geschaetzten
- * Batteriekapazitaeten. Keine Namen, keine Mitgliedsdaten.
+ * die aktuell online sind (letzte Meldung innerhalb der letzten Stunde),
+ * und die Summe ihrer geschaetzten Batteriekapazitaeten. Anlagen, die nur
+ * irgendwann einmal gemeldet haben, zaehlen nicht mit. Keine Namen, keine
+ * Mitgliedsdaten.
  */
 export const getPublicIbmStats = async () => {
     const db = await middlewareDbConnection();
     try {
         const result = await db.query(
-            `SELECT count(*) FILTER (WHERE last_seen IS NOT NULL)::int AS plants,
-                    count(*) FILTER (WHERE last_seen > now() - interval '1 hour')::int AS online,
-                    round(sum(CASE WHEN jsonb_typeof(data->'batterie_kapazitaet') = 'number'
-                                   THEN (data->>'batterie_kapazitaet')::numeric END))::int AS capacity_kwh
-               FROM members_openhabstatus`
+            `SELECT count(*)::int AS plants,
+                    coalesce(round(sum(CASE WHEN jsonb_typeof(data->'batterie_kapazitaet') = 'number'
+                                            THEN (data->>'batterie_kapazitaet')::numeric END)), 0)::int AS capacity_kwh
+               FROM members_openhabstatus
+              WHERE last_seen > now() - interval '1 hour'`
         );
         return result.rows[0] ?? null;
     } finally {
