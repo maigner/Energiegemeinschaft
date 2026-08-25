@@ -394,7 +394,6 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `Ischlstrom_Crossover_Ende` | String | API `/api/eeginfo/crossover/v1` |
 | `Ischlstrom_Ladesperre_Start` / `_Ende` | String | API `/api/eeginfo/ladefenster/v1` |
 | `Ischlstrom_Ladesperre_Datum` | String | Tag, fuer den das Ladesperre-Fenster gilt |
-| `Ischlstrom_Nachtbudget` / `_Zeit` | String | Nacht-Entladebudget in kWh (Token-API) oder `-`, samt Abrufzeitpunkt |
 | `Ischlstrom_Entladestart` | String | Entladestart der Nacht aus der Tagesprognose (Token-API), `HH:MM` oder `-` |
 | `Ischlstrom_Wolken_Stunden` | String | Stuendliche Bewoelkung des restlichen Tages (JSON, Wolken-API) |
 | `Ischlstrom_Ladefaktoren` | String | Stuendliche Ladefaktoren des Erzeugungsprofils samt Abend-Deadline (JSON, Token-API) |
@@ -433,21 +432,20 @@ beginnt die Entladung eine Stunde nach dem abendlichen Crossover
 Crossover-Zeiten vor (ischlstrom.org nie erreichbar gewesen oder Werte
 unbrauchbar), wird **nicht** entladen - ein Ersatz-Zeitfenster gibt es nicht.
 
-Wie tief nachts entladen wird, begrenzt das **Nacht-Entladebudget**
-(`Ischlstrom_Nachtbudget`, Token-API): was der kommende Tag laut Prognose
-wieder in die Batterie laedt, abzueglich Hauslast-Reserve und Abschlag. Der
-Server rechnet dafuer mit der hoeheren von gelernter Ladeleistung
-(`IBM_LADELEISTUNG`, bewusst die untere Huellkurve) und der aus der
-Status-Historie beobachteten Spitzen-Ladeleistung der Anlage - die gelernte
-Rate allein wuerde das Budget an sonnigen Tagen auf einen Bruchteil
-druecken, weil sie oberhalb von 95% Ladestand und unter der Laderegelung
-keine Stichproben bekommt. Weil der Prognoselauf Tage alt sein kann,
-kuerzt der Server das Budget zusaetzlich mit der stuendlich aktualisierten
-Wolkenvorschau des naechsten Sonnenfensters: bis 85% Bewoelkung voll, bei
-100% noch 40% (linear dazwischen; Konstanten in `forecast.ts`, kein
-Pi-Rollout noetig). Bei bedeckter Vorschau wird also weniger eingespeist,
-nicht gar nicht. Der fruehere harte Trueb-Stopp der Steuerung greift nur
-noch ohne wirksames Budget (kein Token, Server nicht erreichbar).
+Wie tief nachts entladen wird, begrenzt das **Nacht-Entladebudget**, das
+die Steuerung je Anlage selbst aus Batteriegroesse und Hausverbrauch
+rechnet (`IBM_NACHTBUDGET`, Anzeige und Status-Push): Unter der Reserve
+(`IBM_MIN_BATTERY_CHARGE`) plus dem Eigenbedarf des Hauses wird nicht
+entladen. Der Eigenbedarf ist die gelernte Hauslast (`IBM_HAUSLAST`, sonst
+300 W) mal die Stunden bis zum Vormittags-Crossover, mit Zuschlag 1,3
+(`NIGHT_RESERVE_FACTOR` in `control/core.js`); bei bedeckter Wolkenvorschau
+(ueber der Wolkenschwelle) oder ohne Vorschau haengt das Haus auch tagsueber
+an der Batterie, dann reicht die Reservedauer bis zum Abend-Crossover des
+Folgetags. Der Ziel-Ladestand wird in jedem Zyklus neu gerechnet, der
+verbleibende Eigenbedarf schrumpft also mit jeder Stunde Nacht. Ohne
+belastbare Kapazitaetsschaetzung (`IBM_BATTERIE_KAPAZITAET`) gilt nur die
+Reserve, und bei bedeckter Vorschau greift der harte Trueb-Stopp als
+Rueckfall. Der Server liefert kein Budget mehr.
 
 Das Ladesperre-Fenster kommt aus der Tagesprognose
 (`/api/eeginfo/ladefenster/v1`, berechnet aus den Kurven von `/vorhersage`):

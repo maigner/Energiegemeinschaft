@@ -108,9 +108,11 @@
             wolken: num(d.wolkenvorschau, 0),
             schwelle: num(d.wolken_schwelle, 0),
             hauslast: num(d.hauslast_w, 0),
-            // kommt als String-Item ('-' = kein Budget)
+            // vom Pi aus Kapazitaet und Hauslast gerechnet (null = noch
+            // keine Schaetzung; aeltere Pis schicken einen String)
             nachtbudget:
-                typeof d.nachtbudget_kwh === "string" &&
+                d.nachtbudget_kwh !== null &&
+                d.nachtbudget_kwh !== undefined &&
                 Number.isFinite(Number(d.nachtbudget_kwh))
                     ? Number(d.nachtbudget_kwh).toFixed(1)
                     : null,

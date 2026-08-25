@@ -173,51 +173,6 @@ const IBM_FULL_BUFFER_MIN = 60;
 // Später endet keine Sperre (die Steuerung am Pi ignoriert Enden ab 15:00).
 const IBM_LATEST_END_MIN = 14 * 60;
 
-// --- Nacht-Entladebudget ----------------------------------------------------
-// Eingespeist werden darf nachts nur, was der kommende Tag der Anlage sicher
-// wieder in die Batterie lädt - sonst speist ein Mitglied nachts für die
-// Gemeinschaft ein und muss am trüben Folgetag selbst Strom zukaufen. Vom
-// ladbaren Tagesertrag geht eine Eigenbedarfsreserve ab: die Hauslast über
-// jene Stunden der nächsten 24, in denen die Gemeinschaft laut Prognose
-// keinen Überschuss hat (Erzeugung unter Verbrauch) - nachts immer, an einem
-// trüben Folgetag auch tagsüber. Das Wetter des Folgetags steckt so genau
-// einmal im Budget (ladbarer Ertrag und Reservedauer) und nicht zusätzlich
-// als pauschaler 24-Stunden-Zuschlag, der selbst an klaren Tagen jedes
-// Budget auf null drücken würde. Der Rest wird wegen der Prognosefehler nur
-// mit Abschlag freigegeben. Bei einer Mehrtages-Schlechtwetterfront ist das
-// Budget mehrere Tage in Folge 0 - die Batterie bleibt dem eigenen Haus.
-const IBM_NIGHT_BUDGET_DISCOUNT = 0.8;
-// Das Prognoseprofil stammt aus dem letzten Prognoselauf und kann mehrere
-// Tage alt sein; die stündlich nachgeladene Wolkenvorschau für das nächste
-// Sonnenfenster ist das frischere Signal. Ab dieser mittleren Bewölkung
-// (dieselbe Schwelle wie die Ladesperre am Pi) wird das Budget zusätzlich
-// linear gekürzt, bei 100% Bewölkung auf den Mindestfaktor - statt des
-// früheren harten Trüb-Stopps am Pi, der auch an Tagen mit noch brauchbarem
-// Ertrag jede Nachteinspeisung unterband. Bei geschlossener Wolkendecke
-// liefert eine PV-Anlage typisch noch ein Viertel bis die Hälfte eines
-// klaren Tages; das Profil hat den trüben Tag meist schon teilweise
-// eingepreist, daher kein Faktor nahe null.
-export const IBM_NIGHT_BUDGET_CLOUD_THRESHOLD = 85;
-export const IBM_NIGHT_BUDGET_CLOUD_MIN_FACTOR = 0.4;
-
-/**
- * Kürzungsfaktor (0..1) des Nachtbudgets aus der mittleren Bewölkung des
- * nächsten Sonnenfensters: 1 unterhalb von IBM_NIGHT_BUDGET_CLOUD_THRESHOLD,
- * darüber linear bis IBM_NIGHT_BUDGET_CLOUD_MIN_FACTOR bei 100%. null
- * (keine Kürzung) bei fehlender Vorschau.
- */
-export const nightBudgetCloudFactor = (cloudCoverPct: number | null) => {
-    if (cloudCoverPct === null || !Number.isFinite(cloudCoverPct)) return null;
-    const w = Math.min(100, Math.max(0, cloudCoverPct));
-    if (w <= IBM_NIGHT_BUDGET_CLOUD_THRESHOLD) return 1;
-    const span = 100 - IBM_NIGHT_BUDGET_CLOUD_THRESHOLD;
-    const f = 1 - (w - IBM_NIGHT_BUDGET_CLOUD_THRESHOLD) / span * (1 - IBM_NIGHT_BUDGET_CLOUD_MIN_FACTOR);
-    return Math.round(f * 100) / 100;
-};
-// Hauslast-Annahme in Watt, solange die Anlage noch keine gelernte Hauslast
-// gepusht hat: typische nächtliche Grundlast eines Haushalts.
-export const IBM_FALLBACK_HOUSE_LOAD_W = 300;
-
 // --- Entladestart der Nacht --------------------------------------------------
 // Die Batterien sollen erst einspeisen, wenn die Gemeinschaft laut Prognose
 // sicher im Defizit ist - sonst landet die Nachteinspeisung direkt nach dem
@@ -411,52 +366,6 @@ export const getTodayDischargeStart = async (runId: number, fleetDischargeKw: nu
         if (deficitKw >= neededKw) return fmtMinutes(s.minute);
     }
     return null;
-};
-
-/**
- * Nacht-Entladebudget in kWh für eine Anlage: was der kommende Tag laut
- * Prognoseprofil in die Batterie laden kann (Spitzen-Ladeleistung der Anlage
- * mal normierte Erzeugung der nächsten 24 Stunden), abzüglich Eigenbedarfsreserve
- * (Hauslast mal Stunden ohne Gemeinschafts-Überschuss in denselben 24
- * Stunden), mit Abschlag (Konstanten oben) und mit dem Wolken-Kürzungsfaktor
- * aus nightBudgetCloudFactor (null = keine Kürzung). Die Steuerung am Pi
- * entlädt nachts nur bis "Abend-Ladestand minus Budget". null, wenn der Lauf
- * keine Slots für die nächsten 24 Stunden hat.
- */
-export const getNightDischargeBudget = async (
-    runId: number,
-    chargeRateKw: number,
-    houseLoadW: number,
-    cloudFactor: number | null = null
-) => {
-    const sql = await middlewareDbConnection();
-    const result = await sql.query(`
-        SELECT generation_kwh, consumption_kwh
-        FROM metering_energyforecast
-        WHERE run_id = $1
-          AND timestamp > now()
-          AND timestamp <= now() + interval '24 hours'
-    `, [runId]);
-    sql.release();
-
-    const rows = result?.rows ?? [];
-    if (rows.length === 0) return null;
-
-    const maxGen = await getRunMaxGeneration(runId);
-    if (maxGen === null) return null;
-
-    let chargeableKwh = 0;
-    let reserveHours = 0;
-    for (const r of rows) {
-        const gen = Number(r.generation_kwh);
-        chargeableKwh += chargeRateKw * (gen / maxGen) * 0.25;
-        // Ohne Gemeinschafts-Überschuss haengt das Haus an der Batterie.
-        if (gen <= Number(r.consumption_kwh)) reserveHours += 0.25;
-    }
-    const reserveKwh = (houseLoadW / 1000) * reserveHours;
-    const budget = Math.max(0, chargeableKwh - reserveKwh) * IBM_NIGHT_BUDGET_DISCOUNT
-        * (cloudFactor ?? 1);
-    return Math.round(budget * 10) / 10;
 };
 
 /**

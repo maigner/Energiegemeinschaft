@@ -164,12 +164,10 @@ voraussetzen:
 | `Ischlstrom_Ladesperre_Individuell` | Switch | ON = Ende kam individualisiert von der Token-API; der Kern uebernimmt es unveraendert |
 | `Ischlstrom_Wolken_Stunden` | String | Stuendliche Bewoelkung des restlichen Tages (JSON mit datum/zeit/stunden) oder `-` |
 | `Ischlstrom_Ladefaktoren` | String | Stuendliche Ladefaktoren des Erzeugungsprofils samt Abend-Deadline (JSON, Token-API) oder `-` |
-| `Ischlstrom_Nachtbudget` | String | Nacht-Entladebudget in kWh (Token-API) oder `-`; der Kern entlaedt nur bis Abend-Ladestand minus Budget |
-| `Ischlstrom_Nachtbudget_Zeit` | String | Abrufzeitpunkt des Budgets (Aktualitaetspruefung) |
 | `Ischlstrom_Entladestart` | String | Entladestart der Nacht aus der Tagesprognose (Token-API), `HH:MM` oder `-`; ohne Wert startet der Kern eine Stunde nach dem Abend-Crossover |
 | `IBM_HAUSLAST` | Number | Vom Kern gelernte Hauslast in W (Anzeige/Status-Push) |
 | `IBM_HAUSLAST_MESSUNG` | String | Interner Zustand der Hauslastschaetzung (JSON) |
-| `IBM_NACHT_ZIEL` | String | Interner Zustand: festgehaltener Ziel-Ladestand der laufenden Nacht (JSON) |
+| `IBM_NACHTBUDGET` | Number | Vom Kern aus Kapazitaet und Hauslast gerechnetes Nacht-Entladebudget in kWh, das heute Nacht noch ins Netz darf (Anzeige/Status-Push); NULL ohne Kapazitaetsschaetzung |
 | `IBM_BATTERIE_NETZEINSPEISUNG` | Number | Berechnet (ibm_netzeinspeisung.js): Anteil der Batterie-Entladung, der ins Netz fliesst, in W; NULL ohne Batterie-/Netzleistungs-Item |
 | `IBM_BATTERIE_NETZEINSPEISUNG_KWH` | Number | Einspeise-Zaehler des Kerns: aufsummierte Energie aus der Batterie ins Netz in kWh (Anzeige/Status-Push) |
 | `IBM_NETZEINSPEISUNG_ZAEHLER` | String | Interner Zustand des Einspeise-Zaehlers (JSON) |

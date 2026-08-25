@@ -230,48 +230,6 @@ export const getOpenhabStatus = async (statusId) => {
 };
 
 /**
- * Beobachtete Spitzen-Ladeleistung einer Anlage in kW, aus dem Verlauf der
- * letzten `days` Tage: je Tag die hoechste gemeldete Batterieladung
- * (battery_power_w negativ = Laden), davon das obere Quartil - also die
- * Ladeleistung an einem typischen guten Tag, ohne dass ein einzelner
- * Ausreisser zaehlt. Sie bestimmt zusammen mit der gelernten Ladeleistung
- * das Nacht-Entladebudget (Token-API /api/ibm/ladefenster): die gelernte
- * Rate ist bewusst die untere Huellkurve (fuer das Sperr-Ende richtig),
- * unterschaetzt aber, was ein sonniger Tag wieder in die Batterie laedt.
- * null, wenn weniger als 3 Tage mit Ladung vorliegen.
- *
- * @param {number} statusId - members_openhabstatus.id
- * @param {number} [days]
- * @returns {Promise<number | null>}
- */
-export const getObservedPeakChargeKw = async (statusId, days = 7) => {
-    const db = await middlewareDbConnection();
-    try {
-        const result = await db.query(
-            `WITH daily AS (
-                SELECT (time AT TIME ZONE 'Europe/Vienna')::date AS d,
-                       MAX(-(data->>'battery_power_w')::float) AS peak_w
-                  FROM members_openhabstatushistory
-                 WHERE status_id = $1
-                   AND time > now() - make_interval(days => $2)
-                   AND jsonb_typeof(data->'battery_power_w') = 'number'
-                 GROUP BY 1
-                HAVING MAX(-(data->>'battery_power_w')::float) > 0
-             )
-             SELECT count(*)::int AS days,
-                    percentile_cont(0.75) WITHIN GROUP (ORDER BY peak_w) AS peak_w
-               FROM daily`,
-            [statusId, days]
-        );
-        const row = result.rows[0];
-        if (!row || row.days < 3 || row.peak_w == null) return null;
-        return Math.round(Number(row.peak_w) / 100) / 10;
-    } finally {
-        db.release();
-    }
-};
-
-/**
  * Summe der eingestellten maximalen Entladeleistung aller aktiven
  * IBM-Anlagen in kW (Hauptschalter ON, Entladung aktiv, in der letzten
  * Stunde gemeldet). Dient dem Entladestart der Nacht als Mass dafuer, wie

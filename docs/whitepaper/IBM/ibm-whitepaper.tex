@@ -200,7 +200,7 @@ Regel & Aufgabe & Zeitplan \\
 \midrule
 \code{ibm\_cloud\_forecast} & Wolkenvorschau abrufen & stündlich \\
 \code{ibm\_crossover} & Crossover-Zeiten abrufen & täglich 04:05 \\
-\code{ibm\_ladesperre} & Ladefenster und Nachtbudget abrufen & stündlich \\
+\code{ibm\_ladesperre} & Ladefenster und Entladestart abrufen & stündlich \\
 \code{ibm\_battery\_control} & Adapter + Kern: entscheiden und steuern & alle 5\,min \\
 \code{ibm\_status\_push} & Zustand an das Dashboard melden & jede Minute \\
 \code{ibm\_init} & Startwerte setzen, solange Items \code{NULL} sind & alle 10\,min \\
@@ -225,7 +225,7 @@ individualisierten erfordern das Status-Token der Anlage.
 Endpunkt & Methode & Inhalt & Zugriff \\
 \midrule
 \code{/api/eeginfo/ladefenster/v1} & GET & Community-Ladefenster & öffentlich \\
-\code{/api/ibm/ladefenster/v1} & POST & Fenster + Nachtbudget + Ladefaktoren & Token \\
+\code{/api/ibm/ladefenster/v1} & POST & Fenster + Entladestart + Ladefaktoren & Token \\
 \code{/api/eeginfo/crossover/v1} & GET & Crossover-Zeiten der Woche & öffentlich \\
 \code{/api/wolken/vorschau/v1} & GET & Bewölkung: Mittagsfenster + Stundenwerte & öffentlich \\
 \code{/api/ibm/status/v1} & POST & Status-Push der Anlage & Token \\
@@ -297,37 +297,32 @@ mehr; es bleibt der Rückfall für Anlagen ohne belastbare Schätzwerte.
 
 \subsection{Nachtbudget}\label{sec:nachtbudget}
 
-Mit dem individualisierten Ladefenster liefert der Server das
-Entladebudget der kommenden Nacht. Er summiert zunächst, was die Anlage in
-den nächsten 24~Stunden laut Prognoseprofil laden kann (dieselbe
-Integration wie in Abschnitt~\ref{sec:individuell}, über alle Slots der
-nächsten 24~Stunden), zieht eine Eigenbedarfsreserve ab und behält einen
-Abschlag von 20\% ein. Die Reserve ist die gelernte Hauslast
-$P_{\text{Haus}}$ über die Dauer $T_{\text{Reserve}}$, in der die
-Gemeinschaft in denselben 24~Stunden laut Prognose keinen Überschuss hat
-(Erzeugung unter Verbrauch): nachts immer, an einem trüben Folgetag auch
-tagsüber.
+Das Entladebudget der Nacht rechnet nicht der Server, sondern jedes
+Gateway selbst, individuell aus Batteriegröße und Hausverbrauch: Die
+Batterie speist nur ein, was über der Reserve und dem Eigenbedarf des
+eigenen Hauses bis zum nächsten Gemeinschafts-Überschuss liegt. Der
+Eigenbedarf ist die gelernte Hauslast $P_{\text{Haus}}$
+(Abschnitt~\ref{sec:hauslast}, Rückfall 300\,W) über die Reservedauer
+$T_{\text{Reserve}}$ mit einem Sicherheitszuschlag von 30\%:
 \begin{equation}
-  B \;=\; \max\Bigl(0,\; E_{\text{ladbar,24h}}
-    - \frac{P_{\text{Haus}}}{1000} \cdot T_{\text{Reserve}}\Bigr) \cdot 0{,}8
-    \cdot f_{w}.
+  E_{\text{Reserve}} \;=\; \frac{P_{\text{Haus}}}{1000} \cdot T_{\text{Reserve}}
+    \cdot 1{,}3.
 \end{equation}
-Der Wolkenfaktor $f_w$ gleicht aus, dass der Prognoselauf mehrere Tage alt
-sein kann, während die Wolkenvorschau für das nächste Sonnenfenster
-stündlich nachgeladen wird: Bis zur Wolkenschwelle (85\%) ist $f_w = 1$,
-darüber fällt er linear auf 0,4 bei 100\% Bewölkung. Bei geschlossener
-Wolkendecke liefert eine PV-Anlage typisch noch ein Viertel bis die Hälfte
-eines klaren Tages, und das Profil hat den trüben Tag meist schon teilweise
-eingepreist; ein Faktor nahe null wäre also doppelt vorsichtig.
-Das Wetter des Folgetags steckt damit genau einmal im Budget, im ladbaren
-Ertrag und in der Reservedauer. Ein pauschaler Zuschlag von 24~Stunden
-Hauslast wäre dagegen eine Doppelzählung und drückte bei großen Batterien
-mit vorsichtig gelernter Ladeleistung selbst an klaren Tagen jedes Budget
-auf null. Meldet die Anlage keine plausible Hauslast (50 bis 3000\,W),
-rechnet der Server mit 300\,W, einer typischen nächtlichen Grundlast. Bei
-mehrtägigem Schlechtwetter ist das Budget schlicht null: Die Batterie
-behält ihren Inhalt für das eigene Haus. Wie das Gateway das Budget in
-einen Ziel-Ladestand übersetzt, zeigt Gleichung~\eqref{eq:ziel}.
+$T_{\text{Reserve}}$ reicht vom aktuellen Zeitpunkt bis zum
+Vormittags-Crossover. Liegt die Wolkenvorschau für das nächste
+Sonnenfenster über der Wolkenschwelle (oder fehlt sie), hängt das Haus
+auch tagsüber an der Batterie: Dann verlängert sich die Reservedauer bis
+zum Abend-Crossover des Folgetags, und bei kleinen Batterien oder hoher
+Hauslast bleibt so kein Budget übrig; die Batterie behält ihren Inhalt
+für das eigene Haus. Wie das Gateway daraus den Ziel-Ladestand bildet,
+zeigt Gleichung~\eqref{eq:ziel}.
+
+Diese lokale Rechnung hat den früheren serverseitigen Ansatz ersetzt, der
+das Budget aus dem Prognoseprofil und der beobachteten Spitzen-Ladeleistung
+ableitete: Ausreißer in der Ladeleistung ließen das Budget die
+Batteriekapazität übersteigen, womit die Grenze wirkungslos wurde. Was
+ein Haus bis zum nächsten Überschuss braucht, kennt das Gateway dagegen
+aus eigenen Messungen.
 
 \subsection{Crossover-Zeiten}
 
@@ -525,13 +520,14 @@ weniger. Zwei Sonderfälle:
 \begin{itemize}
   \item \textbf{Trübe Vorschau:} Liegt die Vorschau über der
     Wolkenschwelle (dieselbe wie bei der Ladesperre), wird nicht mehr hart
-    gestoppt, sondern das Nachtbudget gekürzt
-    (Abschnitt~\ref{sec:nachtbudget}): Die Batterie speist nur den Teil
-    ein, den der bedeckte Folgetag voraussichtlich wieder nachlädt. Der
-    frühere Trüb-Stopp bleibt als Rückfall für Anlagen ohne wirksames
-    Budget: Dort würde sonst bis zur Reserve entladen, und über eine lange
-    Nacht entlädt auch minimale Leistung die Batterie fast vollständig; am
-    trüben Folgetag müsste das Mitglied dann selbst Strom zukaufen.
+    gestoppt, sondern die Reservedauer des Nachtbudgets bis zum nächsten
+    Abend verlängert (Abschnitt~\ref{sec:nachtbudget}): Die Batterie
+    speist nur ein, was das Haus auch an einem bedeckten Folgetag nicht
+    braucht. Der frühere Trüb-Stopp bleibt als Rückfall für Anlagen ohne
+    Kapazitätsschätzung: Dort würde sonst bis zur Reserve entladen, und
+    über eine lange Nacht entlädt auch minimale Leistung die Batterie fast
+    vollständig; am trüben Folgetag müsste das Mitglied dann selbst Strom
+    zukaufen.
   \item \textbf{Ausfall der Vorschau:} Ist die Wolkenvorschau älter als
     drei Stunden oder ungültig, wird konservativ so entladen, als wäre der
     nächste Tag komplett bewölkt, also mit $P_{\min}$. Die Batterie läuft
@@ -556,20 +552,20 @@ Zwei Grenzen schützen den Haushalt vor einer leeren Batterie:
   \item \textbf{Reserve:} Unter den eingestellten Mindest-Ladestand
     (\code{IBM\_MIN\_BATTERY\_CHARGE}, plausibel zwischen 5 und 90\%) wird
     nie forciert entladen.
-  \item \textbf{Nachtbudget:} Die Token-API liefert mit dem Ladefenster ein
-    Entladebudget $B$ in kWh: so viel darf heute Nacht eingespeist werden,
-    ohne dass die Batterie am Folgetag dem eigenen Haus fehlt. Beim ersten
-    Entlade-Zyklus der Nacht wird daraus ein Ziel-Ladestand berechnet und
-    für die ganze Nacht festgehalten:
+  \item \textbf{Nachtbudget:} Aus der Eigenbedarfsreserve
+    $E_{\text{Reserve}}$ (Abschnitt~\ref{sec:nachtbudget}) und der
+    geschätzten Kapazität $C$ bildet das Gateway in jedem Zyklus den
+    Ziel-Ladestand der Nacht:
     \begin{equation}
       \text{SoC}_{\text{Ziel}} \;=\; \max\Bigl(\text{SoC}_{\min},\;
-        \text{SoC}_{\text{Abend}} - \frac{B}{C}\cdot 100\Bigr).
+        \text{SoC}_{\min} + \frac{E_{\text{Reserve}}}{C}\cdot 100\Bigr).
       \label{eq:ziel}
     \end{equation}
-    Das Festhalten verhindert, dass ein später aktualisiertes Budget in
-    derselben Nacht doppelt ausgegeben wird; eine Lücke von mehr als
-    60~Minuten gilt als neue Nacht. Ohne (aktuelles) Budget, etwa ohne
-    Token oder bei veraltetem Abruf, gilt wie zuvor nur die Reserve.
+    Tiefer wird nicht entladen; das verbleibende Budget
+    $B = (\text{SoC} - \text{SoC}_{\text{Ziel}}) \cdot C / 100$ zeigt die
+    Oberfläche an. Weil die Reservedauer mit jeder Stunde Nacht schrumpft,
+    sinkt das Ziel im Lauf der Nacht von selbst; ein Festhalten ist nicht
+    nötig. Ohne belastbare Kapazitätsschätzung gilt nur die Reserve.
 \end{itemize}
 
 Nach dem Entlade-Stopp versorgt der Wechselrichter das Haus weiter aus der
@@ -631,7 +627,7 @@ und die Sperre endet eher zu früh als zu spät. Die Dauergewichtung
 verhindert zugleich, dass schnelle Mittagsphasen mit vielen Stichproben je
 Stunde den Schnitt systematisch nach oben ziehen.
 
-\subsection{Nächtliche Hauslast}
+\subsection{Nächtliche Hauslast}\label{sec:hauslast}
 
 In jedem Nacht-Zyklus ohne Entladebefehl versorgt die Batterie allein das
 Haus. Der Ladestandsabfall in solchen Abschnitten (oberhalb der
@@ -643,11 +639,10 @@ ersten Entladen, nach dem Entlade-Stopp, bei Budget null, beim Trüb-Stopp
 ohne Budget
 und unterhalb der Reserve. Eine Messung nur unterhalb der Reserve, wie
 anfangs vorgesehen, käme bei großen Batterien nie zustande: Ohne Budget
-sinkt der Ladestand nicht unter die Reserve, ohne gelernte Hauslast bleibt
-das Budget beim Rückfallwert null. Der Wert geht per Status-Push an den
-Server, der daraus die Eigenbedarfsreserve des Nachtbudgets ableitet; der
-Kreis zwischen lokalem Lernen und serverseitiger Individualisierung
-schließt sich hier.
+sinkt der Ladestand nicht unter die Reserve. Aus dem Wert rechnet das
+Gateway die Eigenbedarfsreserve des Nachtbudgets
+(Abschnitt~\ref{sec:nachtbudget}); per Status-Push geht er auch an den
+Server, dort nur zur Anzeige.
 
 % ============================================================================
 \section{Sicherheit und Robustheit}\label{sec:sicherheit}

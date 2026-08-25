@@ -97,8 +97,6 @@ if [ -f "$items_db" ]; then
               Ischlstrom_Ladesperre_Individuell \
               Ischlstrom_Wolken_Stunden \
               Ischlstrom_Ladefaktoren \
-              Ischlstrom_Nachtbudget \
-              Ischlstrom_Nachtbudget_Zeit \
               Ischlstrom_Entladestart \
               IBM_MIN_BATTERY_CHARGE \
               Minimale_Entladeleistung_Batterieeinspeisung \
@@ -123,7 +121,7 @@ if [ -f "$items_db" ]; then
               IBM_NETZLADE_WAECHTER \
               IBM_HAUSLAST \
               IBM_HAUSLAST_MESSUNG \
-              IBM_NACHT_ZIEL \
+              IBM_NACHTBUDGET \
               IBM_BATTERIE_NETZEINSPEISUNG \
               IBM_BATTERIE_NETZEINSPEISUNG_KWH \
               IBM_NETZEINSPEISUNG_ZAEHLER; do

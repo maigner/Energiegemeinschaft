@@ -212,8 +212,9 @@ pages:
                                 Zwischen diesen Zeiten erzeugt die Gemeinschaft
                                 mehr Strom, als sie verbraucht - dann lädt die
                                 Batterie aus der eigenen PV. Danach speist sie
-                                ein, höchstens das Nachtbudget; bei
-                                Schlechtwetter bleibt sie dem eigenen Haushalt.
+                                ein, höchstens das Nachtbudget - was über dem
+                                Eigenbedarf des Hauses bis zum nächsten
+                                Überschuss liegt.
                             slots:
                               default:
                                 - component: oh-label-item
@@ -233,8 +234,8 @@ pages:
                                     title: Nachtbudget
                                     icon: f7:moon_fill
                                     iconColor: deeppurple
-                                    item: Ischlstrom_Nachtbudget
-                                    after: "=Number.isNaN(Number.parseFloat(items.Ischlstrom_Nachtbudget.state)) ? '-' : Number.parseFloat(items.Ischlstrom_Nachtbudget.state).toFixed(1).replace('.', ',') + ' kWh'"
+                                    item: IBM_NACHTBUDGET
+                                    after: "=Number.isNaN(Number.parseFloat(items.IBM_NACHTBUDGET.state)) ? '-' : Number.parseFloat(items.IBM_NACHTBUDGET.state).toFixed(1).replace('.', ',') + ' kWh'"
 
         # Hauptschalter und Navigation zu den Unterseiten; Badges zeigen den
         # Zustand der Funktionen, ohne dass man die Seite oeffnen muss.
@@ -486,13 +487,15 @@ pages:
                                 tagesaktuelle Zeit: eine Stunde nach dem
                                 Abend-Crossover), bis die Gemeinschaft am
                                 Morgen wieder mehr erzeugt als verbraucht.
-                                Nachtbudget: höchstens so viel kWh gehen ins
-                                Netz - das, was der morgige Tag laut Prognose
-                                sicher wieder in die Batterie lädt; bei
-                                Schlechtwetter 0, "-" heißt kein Budget, es
-                                gilt nur der Reserve-Ladestand. Hauslast:
-                                nächtlicher Verbrauch des Hauses, gelernt aus
-                                dem Ladestandsabfall unterhalb der Reserve.
+                                Nachtbudget: höchstens so viel kWh gehen noch
+                                ins Netz - der Rest bleibt als Reserve und
+                                Eigenbedarf (Hauslast mal Stunden bis zum
+                                nächsten Überschuss, bei Schlechtwetter bis
+                                zum nächsten Abend) im Haus; "-" heißt noch
+                                keine Schätzung, es gilt nur der
+                                Reserve-Ladestand. Hauslast: nächtlicher
+                                Verbrauch des Hauses, gelernt aus dem
+                                Ladestandsabfall ohne Einspeisung.
                             slots:
                               default:
                                 - component: oh-label-item
@@ -513,8 +516,8 @@ pages:
                                     title: Nachtbudget
                                     icon: f7:moon_fill
                                     iconColor: deeppurple
-                                    item: Ischlstrom_Nachtbudget
-                                    after: "=Number.isNaN(Number.parseFloat(items.Ischlstrom_Nachtbudget.state)) ? '-' : Number.parseFloat(items.Ischlstrom_Nachtbudget.state).toFixed(1).replace('.', ',') + ' kWh'"
+                                    item: IBM_NACHTBUDGET
+                                    after: "=Number.isNaN(Number.parseFloat(items.IBM_NACHTBUDGET.state)) ? '-' : Number.parseFloat(items.IBM_NACHTBUDGET.state).toFixed(1).replace('.', ',') + ' kWh'"
                                 - component: oh-label-item
                                   config:
                                     title: Geschätzte Hauslast

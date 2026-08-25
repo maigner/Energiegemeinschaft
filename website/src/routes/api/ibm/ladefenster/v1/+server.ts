@@ -4,15 +4,10 @@ import {
     getTodayChargeWindow,
     getIndividualChargeWindowEnd,
     getChargeFactorsToday,
-    getNightDischargeBudget,
-    getTodayDischargeStart,
-    nightBudgetCloudFactor,
-    IBM_FALLBACK_HOUSE_LOAD_W
+    getTodayDischargeStart
 } from '$lib/server/db/energy/forecast';
-import { getCloudForecastNextSunshineWindow } from '$lib/server/db/weather/forecast';
 import {
     getOpenhabPlantByToken,
-    getObservedPeakChargeKw,
     getActiveFleetDischargeKw
 } from '$lib/server/db/members/openhabStatus';
 
@@ -34,21 +29,10 @@ import {
  * Ohne Schätzwerte kommt das Community-Ende (individuell=false) -- die
  * Steuerung am Pi rechnet dann lokal weiter wie bisher.
  *
- * Zusätzlich (nur mit Schätzwerten): `nachtbudget_kwh` -- wie viel die
- * Anlage heute Nacht ins Netz einspeisen darf, ohne dass das Mitglied am
- * Folgetag selbst Strom zukaufen muss (siehe getNightDischargeBudget). Die
- * Steuerung entlädt nachts nur bis "Abend-Ladestand minus Budget"; bei einer
- * Mehrtages-Schlechtwetterfront ist das Budget 0 und die Batterie bleibt
- * dem eigenen Haushalt. Gerechnet wird das Budget mit der höheren von
- * gelernter Ladeleistung und beobachteter Spitzen-Ladeleistung aus der
- * Status-Historie (`nachtbudget_rate_kw`): die gelernte Rate ist bewusst
- * die untere Hüllkurve und würde das Budget an sonnigen Tagen auf einen
- * Bruchteil drücken. Weil der Prognoselauf Tage alt sein kann, wird das
- * Budget zusätzlich mit der aktuellen Wolkenvorschau des nächsten
- * Sonnenfensters gekürzt (siehe nightBudgetCloudFactor; Faktor im Feld
- * `nachtbudget_wolkenfaktor`, mittlere Bewölkung in `nachtbudget_wolken`).
- * Das ersetzt den früheren harten Trüb-Stopp am Pi: bei bedeckter Vorschau
- * wird nur weniger eingespeist, nicht gar nicht.
+ * Das Nacht-Entladebudget liefert die API nicht mehr: die Steuerung am Pi
+ * rechnet es selbst aus Batteriegroesse und gelernter Hauslast (siehe
+ * control/core.js, Nacht-Entladebudget) und meldet es per Status-Push
+ * (`nachtbudget_kwh`).
  *
  * `entladestart` -- ab wann die Nachteinspeisung heute beginnen soll
  * (siehe getTodayDischargeStart): erst wenn die Gemeinschaft laut Prognose
@@ -105,10 +89,6 @@ export async function POST({ request }) {
         && Number.isFinite(rate) && rate >= 0.3 && rate <= 30;
     let ende = fenster.ende;
     let individuell = false;
-    let nachtbudgetKwh = null;
-    let nachtbudgetRateKw = null;
-    let nachtbudgetWolken = null;
-    let nachtbudgetWolkenfaktor = null;
 
     if (plausibel && fenster.start && fenster.ende) {
         const individualEnde = await getIndividualChargeWindowEnd(run.id, capacity, rate);
@@ -117,33 +97,6 @@ export async function POST({ request }) {
             ? individualEnde
             : null;
         individuell = true;
-    }
-
-    // Das Nachtbudget braucht nur die Ladeleistung - die höhere von
-    // gelernter Rate (untere Hüllkurve, fürs Sperr-Ende gedacht) und
-    // beobachteter Spitzen-Ladeleistung aus der Status-Historie; die
-    // gelernte Hauslast der Anlage bestimmt die Eigenbedarfsreserve
-    // (Fallback, solange sie noch nicht gepusht wird).
-    if (plausibel) {
-        const houseLoadW = Number(plant.data?.hauslast_w);
-        const observedKw = await getObservedPeakChargeKw(plant.id);
-        nachtbudgetRateKw = Math.min(30, Math.max(rate, observedKw ?? 0));
-        const wolken = await getCloudForecastNextSunshineWindow();
-        if (wolken && wolken.length > 0) {
-            const mittel = wolken.reduce((acc: number, w: any) => acc + Number(w.cloud_cover), 0) / wolken.length;
-            if (Number.isFinite(mittel)) {
-                nachtbudgetWolken = Math.round(mittel * 10) / 10;
-                nachtbudgetWolkenfaktor = nightBudgetCloudFactor(mittel);
-            }
-        }
-        nachtbudgetKwh = await getNightDischargeBudget(
-            run.id,
-            nachtbudgetRateKw,
-            Number.isFinite(houseLoadW) && houseLoadW >= 50 && houseLoadW <= 3000
-                ? houseLoadW
-                : IBM_FALLBACK_HOUSE_LOAD_W,
-            nachtbudgetWolkenfaktor
-        );
     }
 
     const ladefaktoren = await getChargeFactorsToday(run.id);
@@ -155,10 +108,6 @@ export async function POST({ request }) {
             start: fenster.start,
             ende,
             individuell,
-            nachtbudget_kwh: nachtbudgetKwh,
-            nachtbudget_rate_kw: nachtbudgetRateKw,
-            nachtbudget_wolken: nachtbudgetWolken,
-            nachtbudget_wolkenfaktor: nachtbudgetWolkenfaktor,
             entladestart,
             ladefaktoren
         }

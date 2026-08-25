@@ -83,11 +83,6 @@ Switch Ischlstrom_Ladesperre_Individuell "Sperr-Ende individualisiert"  <switch>
 // Abend-Deadline (Token-API); '-' = keine Daten
 String Ischlstrom_Wolken_Stunden      "Wolken je Stunde (intern) [%s]"  <settings> (IBM)
 String Ischlstrom_Ladefaktoren        "Ladefaktoren (intern) [%s]"      <settings> (IBM)
-// Nacht-Entladebudget von der Token-API: so viel kWh duerfen heute Nacht
-// eingespeist werden, ohne dass die Batterie am trueben Folgetag dem
-// eigenen Haus fehlt; '-' = kein Budget (Entladung bis zur Reserve)
-String Ischlstrom_Nachtbudget         "Nacht-Entladebudget [%s]"        <energy> (IBM)
-String Ischlstrom_Nachtbudget_Zeit    "Nachtbudget abgerufen [%s]"      <time>   (IBM)
 // Entladestart der Nacht von der Token-API: erster Slot, in dem die
 // Gemeinschaft laut Prognose deutlich im Defizit ist (HH:MM); '-' = kein
 // Wert, die Steuerung startet dann beim Abend-Crossover plus Abstand
@@ -149,12 +144,14 @@ Switch IBM_NETZLADESCHUTZ        "Netzladeschutz (nur aus PV laden)"           <
 Number IBM_NETZLADUNG            "Ladung aus dem Netz [%.0f W]"                <energy>   (IBM)
 String IBM_NETZLADE_WAECHTER     "Netzladeschutz (intern) [%s]"                <settings> (IBM)
 
-// Hauslast (gelernt aus dem naechtlichen Ladestandsabfall unterhalb der
-// Entlade-Reserve) und Nachtziel der Entladung. IBM_HAUSLAST_MESSUNG und
-// IBM_NACHT_ZIEL sind interner Zustand (JSON).
+// Hauslast (gelernt aus dem naechtlichen Ladestandsabfall ohne
+// Entladebefehl; IBM_HAUSLAST_MESSUNG ist interner Zustand, JSON) und das
+// daraus vom Kern gerechnete Nacht-Entladebudget: so viel kWh duerfen
+// heute Nacht noch ins Netz, ohne dass die Batterie dem eigenen Haus bis
+// zum naechsten Gemeinschafts-Ueberschuss fehlt (NULL ohne Schaetzung).
 Number IBM_HAUSLAST              "Geschaetzte Hauslast [%.0f W]"               <energy>   (IBM)
 String IBM_HAUSLAST_MESSUNG      "Hauslastschaetzung (intern) [%s]"            <settings> (IBM)
-String IBM_NACHT_ZIEL            "Nachtziel Entladung (intern) [%s]"           <settings> (IBM)
+Number IBM_NACHTBUDGET           "Nacht-Entladebudget [%.1f kWh]"              <energy>   (IBM)
 
 // Berechnet von ibm_netzeinspeisung.js aus Batterie- und Netzleistung:
 // Anteil der Batterie-Entladung, der tatsaechlich ins Netz fliesst (der
@@ -208,8 +205,6 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     Ischlstrom_Ladesperre_Individuell,
     Ischlstrom_Wolken_Stunden,
     Ischlstrom_Ladefaktoren,
-    Ischlstrom_Nachtbudget,
-    Ischlstrom_Nachtbudget_Zeit,
     Ischlstrom_Entladestart,
     IBM_MIN_BATTERY_CHARGE,
     Minimale_Entladeleistung_Batterieeinspeisung,
@@ -235,7 +230,7 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     IBM_NETZEINSPEISUNG_ZAEHLER,
     IBM_HAUSLAST,
     IBM_HAUSLAST_MESSUNG,
-    IBM_NACHT_ZIEL
+    IBM_NACHTBUDGET
         : strategy = everyChange, restoreOnStartup
 }
 EOF
