@@ -441,7 +441,13 @@ Server rechnet dafuer mit der hoeheren von gelernter Ladeleistung
 Status-Historie beobachteten Spitzen-Ladeleistung der Anlage - die gelernte
 Rate allein wuerde das Budget an sonnigen Tagen auf einen Bruchteil
 druecken, weil sie oberhalb von 95% Ladestand und unter der Laderegelung
-keine Stichproben bekommt.
+keine Stichproben bekommt. Weil der Prognoselauf Tage alt sein kann,
+kuerzt der Server das Budget zusaetzlich mit der stuendlich aktualisierten
+Wolkenvorschau des naechsten Sonnenfensters: bis 85% Bewoelkung voll, bei
+100% noch 40% (linear dazwischen; Konstanten in `forecast.ts`, kein
+Pi-Rollout noetig). Bei bedeckter Vorschau wird also weniger eingespeist,
+nicht gar nicht. Der fruehere harte Trueb-Stopp der Steuerung greift nur
+noch ohne wirksames Budget (kein Token, Server nicht erreichbar).
 
 Das Ladesperre-Fenster kommt aus der Tagesprognose
 (`/api/eeginfo/ladefenster/v1`, berechnet aus den Kurven von `/vorhersage`):

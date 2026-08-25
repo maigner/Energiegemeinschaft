@@ -239,10 +239,12 @@ var MAX_CLOUD_AGE_HOURS = 3;
 // --- Nacht-Entladebudget ----------------------------------------------------
 // Eingespeist wird nachts nur, was der kommende Tag laut Server sicher
 // wieder in die Batterie laedt (Ischlstrom_Nachtbudget, von der Token-API
-// mit dem Ladefenster geliefert). Beim ersten Entladungs-Zyklus der Nacht
-// wird daraus ein Ziel-Ladestand berechnet und festgehalten; tiefer wird
-// nicht entladen. Ohne (aktuelles) Budget gilt wie bisher die Reserve
-// IBM_MIN_BATTERY_CHARGE.
+// mit dem Ladefenster geliefert; der Server kuerzt es bei bedeckter
+// Wolkenvorschau, statt dass hier hart gestoppt wird). Beim ersten
+// Entladungs-Zyklus der Nacht wird daraus ein Ziel-Ladestand berechnet und
+// festgehalten; tiefer wird nicht entladen. Ohne (aktuelles) Budget gilt
+// wie bisher die Reserve IBM_MIN_BATTERY_CHARGE - dann greift bei
+// bedeckter Vorschau der Trueb-Stopp als Rueckfall.
 var NIGHT_BUDGET_MAX_AGE_HOURS = 3;  // Budget aelter -> gilt nicht mehr
 var NIGHT_BUDGET_MAX_KWH = 200;      // Plausibilitaetsfenster
 var NIGHT_TARGET_MAX_GAP_MIN = 60;   // laengere Luecke -> neue Nacht, Ziel neu
@@ -259,7 +261,7 @@ var DISCHARGE_START_OFFSET_MIN = 60;
 // Haus allein aus der Batterie - der Ladestandsabfall ergibt also direkt
 // die Hauslast. Gemessen wird in allen solchen Abschnitten der Nacht (vor
 // dem ersten Entladen, nach dem Entlade-Stopp, bei Budget 0, Trueb-Stopp
-// oder unterhalb der Reserve); ein Entladebefehl setzt die Messstrecke
+// ohne Budget oder unterhalb der Reserve); ein Entladebefehl setzt die Messstrecke
 // zurueck. Sie geht per Status-Push an den Server, der daraus die
 // Eigenbedarfsreserve des Nachtbudgets ableitet.
 var HOUSE_LOAD_MIN_SOC_DROP = 3;      // Prozentpunkte je Stichprobe
@@ -1441,19 +1443,8 @@ function handleForcedDischarge() {
     return;
   }
 
-  // Wolken einmal lesen: steuert den Trueb-Stopp und spaeter die Leistung.
+  // Wolken einmal lesen: Rueckfall-Trueb-Stopp und spaeter die Leistung.
   var clouds = cloudForecast();
-
-  // Trueb-Stopp: bei bedeckter Vorschau fuer das naechste Sonnenfenster gar
-  // nicht einspeisen. Ueber eine lange Nacht entlaedt auch "minimale
-  // Leistung" die Batterie fast vollstaendig - am trueben Folgetag muesste
-  // das Mitglied dann selbst Strom zukaufen. Die Schwelle ist dieselbe wie
-  // bei der Ladesperre: nur wenn morgen frueh gesperrt wuerde (sonnig),
-  // wird heute Nacht auch eingespeist.
-  if (clouds !== null && clouds >= CLOUD_THRESHOLD) {
-    console.log('[IBM][Entladung] Wolkenvorschau=' + clouds + '% (>=' + CLOUD_THRESHOLD + '%) - morgen wird die Batterie voraussichtlich nicht voll, keine Einspeisung heute Nacht');
-    return;
-  }
 
   if (isNaN(soc) || soc <= minSoc) {
     console.log('[IBM][Entladung] Battery too low (' + soc + '%) - skipping discharge schedule');
@@ -1461,12 +1452,26 @@ function handleForcedDischarge() {
   }
 
   // Nachtziel aus dem Entladebudget des Servers: tiefer als "Abend-Ladestand
-  // minus Budget" wird nicht entladen. Ohne Budget (kein Token, Server alt,
-  // Abruf zu lange her) gilt wie bisher nur die Reserve minSoc.
+  // minus Budget" wird nicht entladen. Der Server kuerzt das Budget bereits
+  // mit der Wolkenvorschau des naechsten Sonnenfensters (bedeckt -> weniger,
+  // nicht gar nicht einspeisen). Ohne Budget (kein Token, Server alt, Abruf
+  // zu lange her) gilt wie bisher nur die Reserve minSoc.
   var budget = nightBudgetKwh();
   var budgetCapacity = estimatedCapacityKwh();
+  var budgetWirksam = budget !== null && budgetCapacity !== null;
+
+  // Trueb-Stopp nur noch als Rueckfall ohne wirksames Budget: dann wuerde
+  // bei bedeckter Vorschau bis zur Reserve entladen, und ueber eine lange
+  // Nacht leert auch "minimale Leistung" die Batterie fast vollstaendig -
+  // am trueben Folgetag muesste das Mitglied selbst Strom zukaufen. Mit
+  // Budget uebernimmt die Wolkenkuerzung des Servers diese Rolle.
+  if (!budgetWirksam && clouds !== null && clouds >= CLOUD_THRESHOLD) {
+    console.log('[IBM][Entladung] Wolkenvorschau=' + clouds + '% (>=' + CLOUD_THRESHOLD + '%) und kein Nachtbudget - keine Einspeisung heute Nacht');
+    return;
+  }
+
   var zielSoc = minSoc;
-  if (budget !== null && budgetCapacity !== null) {
+  if (budgetWirksam) {
     zielSoc = nightTargetSoc(soc, minSoc, budget, budgetCapacity);
   }
   if (soc <= zielSoc) {
