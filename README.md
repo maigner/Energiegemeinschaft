@@ -18,3 +18,7 @@ Digital infrastructure of [ischlstrom.org](https://ischlstrom.org), an Austrian 
 * Timezone is Europe/Vienna throughout.
 
 See `CLAUDE.md` for a more detailed developer overview and common commands.
+
+## License
+
+Copyright 2024-2026 Erneuerbare-Energie-Gemeinschaft ISCHLSTROM. Licensed under the [European Union Public Licence v. 1.2](LICENSE) (EUPL-1.2, `SPDX-License-Identifier: EUPL-1.2`), a copyleft licence that also covers running modified versions as a network service. See `COPYRIGHT` for the notice and the [official EUPL page](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12) for the German and other authentic language versions.

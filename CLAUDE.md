@@ -63,5 +63,7 @@ Analysis and back-office notebooks (run with the repo-root `.venv`). Notable are
 
 ## Notes
 
+- License: EUPL-1.2 (`LICENSE`, `COPYRIGHT`, `license` field in `website/package.json`); copyright holder is the Verein, not individuals.
+
 - Timezone is **Europe/Vienna** throughout (Docker, weather data); several past commits fixed timezone bugs — be careful with date handling.
 - Secrets/config live in gitignored files: `website/.env`, `.pg_service.conf`, `.pgpass`. `.dmp` DB dumps under `scripts/` are gitignored.
