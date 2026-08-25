@@ -17,10 +17,13 @@ cd notebooks/forecast
 ../../.venv/bin/python eeg_forecast.py --evaluate                     # gespeicherte Prognosen vs. Messdaten
 ```
 
-**Nach jedem EEG-Faktura-Import:** erst das Import-Notebook laufen lassen (es
-aktualisiert auch `daily_metering_quality`), dann
-`eeg_forecast.py --refresh --days 30 --store`. Die Website zeigt automatisch den
-neuesten gespeicherten Lauf unter `/vorhersage`.
+**Nach jedem EEG-Faktura-Import:** das Import-Notebook
+(`notebooks/energyData/EEG Faktura Energy Report.ipynb`) von oben nach unten laufen
+lassen. Es aktualisiert `daily_metering_quality`, rechnet und speichert die Prognose,
+hält frühere Läufe gegen die neuen Messwerte, füllt die Wetterdaten auf und rechnet am
+Ende automatisch den Backtest (6 Folds, 14 Tage). Die CLI-Aufrufe oben sind dann nur
+noch für Experimente nötig. Die Website zeigt automatisch den neuesten gespeicherten
+Lauf unter `/vorhersage`.
 
 Im Notebook:
 
@@ -158,8 +161,10 @@ ist ein Wochenprofil stark) und wächst mit dem Horizont; ohne Schulferien-Featu
 alten 28-Tage-Kalibrierung verlor das Modell auf den Sommer-Folds sogar knapp gegen die
 Referenz. Die Erzeugungsprozente sind deutlich niedriger als in den früheren Winter-Fenstern —
 das ist Saisonalität, keine Modellverbesserung: im Winter ist die Erzeugung winzig und schon
-kleine absolute Fehler ergeben riesige Prozentwerte. Backtest nach jedem Import neu laufen
-lassen — und beim Vergleich immer mitdenken, welche Jahreszeit die Folds gerade abdecken.
+kleine absolute Fehler ergeben riesige Prozentwerte. Der Backtest läuft am Ende des
+Import-Notebooks automatisch mit — beim Vergleich mit den Tabellen oben immer mitdenken,
+welche Jahreszeit die Folds gerade abdecken, und die Tabellen nachziehen, wenn sich die
+Werte deutlich verschieben.
 
 ## Speicherung und Soll-Ist-Vergleich
 
