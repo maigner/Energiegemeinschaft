@@ -47,10 +47,12 @@ export const getConsent = async (memberIdentifier, scope) => {
 export const grantConsent = async (memberIdentifier, scope, textVersion, email) => {
     const db = await middlewareDbConnection();
     try {
+        // $2/$3 brauchen ::text: im Select-Ziel wird varchar abgeleitet, im
+        // NOT EXISTS text - ohne Cast "inconsistent types deduced".
         await db.query(
             `INSERT INTO members_consent
                     (member_id, scope, text_version, granted_at, granted_email, revoked_at)
-             SELECT m.id, $2, $3, now(), $4, NULL
+             SELECT m.id, $2::text, $3::text, now(), $4, NULL
                FROM members_member m
               WHERE m.identifier = $1
                 AND NOT EXISTS (
