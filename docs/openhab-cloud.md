@@ -88,7 +88,9 @@ automatisch: "SD-Karte vorbereiten" auf `/board/openhab` erzeugt UUID,
 Secret, Benutzername `<nnn>@ischlstrom.org` (mailcow-**Alias** auf
 `info@ischlstrom.org`, kein Postfach - die Cloud prueft `verifiedEmail`
 nirgends, die Adresse dient nur dem Passwort-Reset) und ein
-alphanumerisches Passwort; der Timer `ibm-provision-sync` auf s1 legt das
+handytaugliches Passwort (12 Zeichen: 9 Kleinbuchstaben + 3 Ziffern, ohne
+verwechselbare Zeichen, damit es sich in der openHAB-App ohne Shift- und
+Sonderzeichen-Wechsel eingeben laesst); der Timer `ibm-provision-sync` auf s1 legt das
 Konto per `scripts/ibm-provision/cloud-makeuser.js` im Container an (siehe
 [server-setup.md](server-setup.md)). Der Pi schreibt UUID/Secret in
 `userdata`; das Mitglied sieht die Zugangsdaten unter

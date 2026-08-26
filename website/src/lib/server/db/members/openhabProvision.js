@@ -4,6 +4,7 @@ import {
     encryptSecret,
     decryptSecret,
     randomPassword,
+    randomPhonePassword,
     randomProvisionCode,
     randomCloudUuid,
     randomCloudSecret
@@ -142,7 +143,7 @@ export const provisionPlant = async ({ memberId, inverterType = '', wifiSsid = '
         const linuxPassword = existing?.linux_password || await encryptSecret(randomPassword(14));
         const cloudUuid = existing?.cloud_uuid || randomCloudUuid();
         const cloudSecret = existing?.cloud_secret || await encryptSecret(randomCloudSecret());
-        const cloudPassword = existing?.cloud_password || await encryptSecret(randomPassword(16));
+        const cloudPassword = existing?.cloud_password || await encryptSecret(randomPhonePassword());
         const cloudState = existing?.cloud_account_state === 'created' ? 'created' : 'pending';
         const name = existing?.name || `pi-${nnn}`;
         const wifiPw = wifiPassword ? await encryptSecret(wifiPassword) : (wifiSsid ? (existing?.wifi_password ?? '') : '');
@@ -458,7 +459,7 @@ export const reportSetup = async (token, report) => {
 export const requestCloudPasswordReset = async (id) => {
     const db = await middlewareDbConnection();
     try {
-        const password = randomPassword(16);
+        const password = randomPhonePassword();
         await db.query(
             `UPDATE members_openhabstatus
                 SET cloud_password = $2, cloud_account_state = 'reset', cloud_account_error = ''

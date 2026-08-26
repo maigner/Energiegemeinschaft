@@ -111,8 +111,9 @@ Installation auf dem Server und werden dem Pi in einem Stueck geliefert.
     openHAB liest `userdata/uuid` und das Cloud-Addon
     `userdata/openhabcloud/secret` und legen beides nur an, wenn es fehlt;
   - **Cloud-Konto-Zugangsdaten**: Benutzername `<nnn>@ischlstrom.org`,
-    zufaelliges rein alphanumerisches Passwort (Sonderzeichen scheitern in
-    der iOS-App, siehe `docs/openhab-cloud.md`);
+    zufaelliges handytaugliches Passwort (12 Zeichen, 9 Kleinbuchstaben
+    + 3 Ziffern; Sonderzeichen scheitern in der iOS-App, Gross-/Klein-
+    Wechsel ist in der Android-App muehsam, siehe `docs/openhab-cloud.md`);
   - einen **einmaligen Provisionierungs-Code** (kurz, 24 Stunden oder bis
     zur ersten Verwendung gueltig).
 - Legt den **Mail-Alias** an: `<nnn>@ischlstrom.org -> info@ischlstrom.org`

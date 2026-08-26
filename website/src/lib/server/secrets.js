@@ -99,6 +99,23 @@ export function randomPassword(length = 16) {
 }
 
 /**
+ * Passwort fuer die Eingabe am Smartphone (Cloud-Konto in der openHAB-App):
+ * 9 Kleinbuchstaben gefolgt von 3 Ziffern, ohne verwechselbare Zeichen
+ * (l, o, 0, 1). Kein Shift, keine Sonderzeichen, nur ein Wechsel auf die
+ * Zifferntastatur - rund 50 Bit Entropie, fuer das Cloud-Konto ausreichend
+ * (das Mitglied kann jederzeit ein neues anfordern).
+ */
+export function randomPhonePassword() {
+    const letters = 'abcdefghijkmnpqrstuvwxyz';
+    const digits = '23456789';
+    const bytes = globalThis.crypto.getRandomValues(new Uint8Array(12));
+    let out = '';
+    for (let i = 0; i < 9; i++) out += letters[bytes[i] % letters.length];
+    for (let i = 9; i < 12; i++) out += digits[bytes[i] % digits.length];
+    return out;
+}
+
+/**
  * Provisionierungs-Code fuer die SD-Karte: "XXXX-XXXX" aus Grossbuchstaben
  * und Ziffern ohne verwechselbare Zeichen (rund 40 Bit, zeitlich begrenzt
  * gueltig).
