@@ -88,6 +88,9 @@ class OpenhabStatus(models.Model):
     setup_phase = models.CharField(max_length=50, blank=True, default="")
     setup_message = models.TextField(blank=True, default="")
     setup_phase_at = models.DateTimeField(null=True, blank=True)
+    # Paket-Update vom Dashboard angefordert: die naechste Statusmeldung
+    # des Pi bekommt update=true, danach wird die Spalte geleert
+    update_requested_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name_plural = "Openhab statuses"

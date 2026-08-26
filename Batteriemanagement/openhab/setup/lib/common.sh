@@ -10,6 +10,10 @@ OPENHAB_CONF="${OPENHAB_CONF:-/etc/openhab}"
 OPENHAB_USERDATA="${OPENHAB_USERDATA:-/var/lib/openhab}"
 OPENHAB_LOGDIR="${OPENHAB_LOGDIR:-/var/log/openhab}"
 OPENHAB_USER="${OPENHAB_USER:-openhab}"
+# Anforderungen des Dashboards an den Pi (Status-Push legt Marker ab, der
+# root-Timer ibm-update wertet sie aus - siehe 09-install-updater.sh).
+IBM_REQUEST_DIR="${IBM_REQUEST_DIR:-/var/lib/ischlstrom/requests}"
+IBM_UPDATE_FLAG="$IBM_REQUEST_DIR/update-requested"
 OPENHAB_GROUP="${OPENHAB_GROUP:-openhab}"
 
 # Verzeichnis, in dem die Setup-Skripte liegen
@@ -259,6 +263,7 @@ load_config() {
 
   # Netzwerk-Watchdog (aeltere ibm.conf kennt die Optionen noch nicht)
   INSTALL_WATCHDOG="${INSTALL_WATCHDOG:-0}"
+  INSTALL_AUTO_UPDATE="${INSTALL_AUTO_UPDATE:-1}"
   INVERTER_HOST_THING_UID="${INVERTER_HOST_THING_UID:-}"
   OH_API_TOKEN="${OH_API_TOKEN:-}"
   CRON_WATCHDOG="${CRON_WATCHDOG:-0 7/15 * * * ?}"

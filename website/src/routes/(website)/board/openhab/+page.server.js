@@ -1,5 +1,5 @@
 import { fail } from '@sveltejs/kit';
-import { getOpenhabStatuses, createOpenhabToken } from '$lib/server/db/members/openhabStatus';
+import { getOpenhabStatuses, createOpenhabToken, requestOpenhabUpdate } from '$lib/server/db/members/openhabStatus';
 import {
     provisionPlant,
     listProvisioning,
@@ -39,9 +39,21 @@ function consentState(consents, identifier) {
 }
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load() {
+export async function load({ fetch }) {
 
     const statuses = await getOpenhabStatuses();
+    // Stand des ausgelieferten IBM-Pakets (build-dist.sh schreibt
+    // static/ibm/VERSION im Format der Pi-Meldungen, z. B. "2026-08-26 (abc1234)").
+    let serverIbmVersion = null;
+    try {
+        const r = await fetch('/ibm/VERSION');
+        if (r.ok) {
+            const v = (await r.text()).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(v)) serverIbmVersion = v;
+        }
+    } catch {
+        serverIbmVersion = null;
+    }
     const members = await getMembers();
     const consents = await listConsentStates(SPEICHERMANAGEMENT_CONSENT_SCOPE);
     // Provisionierungsdaten (Geheimnisse entschluesselt) - nur lesbar, wenn
@@ -56,6 +68,7 @@ export async function load() {
     }
 
     return {
+        serverIbmVersion,
         secretsConfigured: secretsConfigured(),
         mailcowConfigured: mailcowConfigured(),
         statuses: statuses.map((/** @type {any} */ s) => {
@@ -69,6 +82,7 @@ export async function load() {
                 createdAt: s.created_at,
                 lastSeen: s.last_seen,
                 ageSeconds: s.age_seconds === null ? null : Number(s.age_seconds),
+                updateRequestedAt: s.update_requested_at ?? null,
                 data: s.data ?? {},
                 consent: consentState(consents, Number(s.member_identifier)),
                 provisioning: p ? {
@@ -197,6 +211,18 @@ export const actions = {
         const state = await retryMailAlias(id);
         if (state.startsWith('error')) return fail(502, { message: `Mail-Alias: ${state}` });
         return { aliasRetry: id };
+    },
+
+    requestUpdate: async ({ request }) => {
+        const id = idOf(await request.formData());
+        if (!id) return fail(400, { message: 'Ungültige Anlage.' });
+        await requestOpenhabUpdate(id);
+        return { updateRequested: id };
+    },
+
+    requestUpdateAll: async () => {
+        const n = await requestOpenhabUpdate(null);
+        return { updateRequestedAll: n };
     },
 
     retryCloud: async ({ request }) => {

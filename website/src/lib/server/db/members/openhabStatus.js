@@ -64,7 +64,12 @@ export const deleteOpenhabToken = async (id) => {
  * @param {string} token
  * @param {string} name - Anlagenname aus ibm.conf, aktualisiert die Anzeige
  * @param {Record<string, any>} data
- * @returns {Promise<boolean>} true wenn gespeichert, false bei unbekanntem Token
+ * Ist fuer die Anlage ein Paket-Update angefordert (update_requested_at,
+ * Dashboard), wird das einmalig mit `update: true` zurueckgemeldet und die
+ * Anforderung geloescht - der Pi legt daraufhin den Marker fuer seinen
+ * Update-Timer an.
+ *
+ * @returns {Promise<{ stored: boolean, update: boolean }>}
  */
 export const pushOpenhabStatus = async (token, name, data) => {
     const isFull = Object.prototype.hasOwnProperty.call(data, 'versions');
@@ -80,8 +85,15 @@ export const pushOpenhabStatus = async (token, name, data) => {
             [token, name, JSON.stringify(data), isFull]
         );
         if (result.rowCount === 0) {
-            return false;
+            return { stored: false, update: false };
         }
+        const upd = await db.query(
+            `UPDATE members_openhabstatus SET update_requested_at = NULL
+              WHERE token = $1 AND update_requested_at IS NOT NULL
+             RETURNING id`,
+            [token]
+        );
+        const update = (upd.rowCount ?? 0) > 0;
         // Nur volle Meldungen wandern in den Verlauf; daraus entstehen die
         // Diagramme auf der Detailseite (15-Minuten-Mittel, das 5-Minuten-
         // Raster reicht dafuer) - so waechst die Tabelle trotz minuetlicher
@@ -99,7 +111,7 @@ export const pushOpenhabStatus = async (token, name, data) => {
                 [result.rows[0].id, JSON.stringify(historyData)]
             );
         }
-        return true;
+        return { stored: true, update };
     } finally {
         db.release();
     }
@@ -216,6 +228,7 @@ export const getOpenhabStatus = async (statusId) => {
                     s.last_seen,
                     EXTRACT(EPOCH FROM (now() - s.last_seen)) AS age_seconds,
                     s.data,
+                    s.update_requested_at,
                     m.name AS member_name,
                     m.identifier AS member_identifier
                FROM members_openhabstatus s
@@ -294,6 +307,7 @@ export const getOpenhabStatuses = async () => {
                     s.last_seen,
                     EXTRACT(EPOCH FROM (now() - s.last_seen)) AS age_seconds,
                     s.data,
+                    s.update_requested_at,
                     m.name AS member_name,
                     m.identifier AS member_identifier
                FROM members_openhabstatus s
@@ -301,6 +315,33 @@ export const getOpenhabStatuses = async () => {
               ORDER BY m.name, s.created_at`
         );
         return result.rows;
+    } finally {
+        db.release();
+    }
+};
+
+/**
+ * Paket-Update fuer eine Anlage (id) oder fuer alle Anlagen (id null)
+ * anfordern: die naechste Statusmeldung bekommt update=true. Anlagen ohne
+ * Statusmeldung in den letzten 15 Minuten werden bei "alle" ausgelassen,
+ * damit keine Anforderung wochenlang liegen bleibt.
+ * @param {number | null} id
+ * @returns {Promise<number>} Zahl der markierten Anlagen
+ */
+export const requestOpenhabUpdate = async (id) => {
+    const db = await middlewareDbConnection();
+    try {
+        const result = id === null
+            ? await db.query(
+                `UPDATE members_openhabstatus SET update_requested_at = now()
+                  WHERE last_seen > now() - interval '15 minutes'
+                    AND setup_phase <> 'geloescht'`
+            )
+            : await db.query(
+                `UPDATE members_openhabstatus SET update_requested_at = now() WHERE id = $1`,
+                [id]
+            );
+        return result.rowCount ?? 0;
     } finally {
         db.release();
     }

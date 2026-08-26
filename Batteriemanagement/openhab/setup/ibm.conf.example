@@ -242,6 +242,12 @@ CRON_WATCHDOG="0 7/15 * * * ?"
 # Fruehestens alle so viele Minuten wird das Netz erneut abgesucht.
 WATCHDOG_COOLDOWN_MIN=10
 
+# --- Selbst-Update ------------------------------------------------------------
+# root-Timer ibm-update (alle 10 min): spielt das IBM-Paket neu ein, wenn der
+# Vorstand es am Dashboard anfordert (sofort) oder naechtlich (03-05 Uhr),
+# wenn auf ischlstrom.org ein neues Paket liegt. 0 = kein Selbst-Update.
+INSTALL_AUTO_UPDATE=1
+
 # --- WireGuard-Fernwartung ---------------------------------------------------
 # Ausgehender WireGuard-Tunnel zum Wartungsserver, damit die Anlage fuer
 # Updates und Fehlersuche per SSH erreichbar bleibt. Der Pi baut die

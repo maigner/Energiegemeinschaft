@@ -83,6 +83,27 @@ naechsten Cron-Lauf NULL bleiben - beim Crossover (taeglich 04:05) sonst bis
 zu einem Tag, in dem die Steuerung "Keine plausiblen Crossover-Zeiten"
 meldet und nicht entlaedt.
 
+### Updates des Pakets
+
+Die Pis aktualisieren sich selbst (`09-install-updater.sh`, root-Timer
+`ibm-update.timer` alle 10 Minuten, Skript `/usr/local/sbin/ibm-update`):
+
+* **Vom Dashboard:** "Paket aktualisieren" bei einer Anlage (oder "Alle
+  Anlagen aktualisieren") setzt `update_requested_at`; die naechste
+  Statusmeldung des Pi bekommt `update: true` in der Antwort,
+  `ibm_status_push.js` legt den Marker `/var/lib/ischlstrom/requests/update-requested`
+  an, und der Timer spielt das Paket innerhalb von 10 Minuten ein.
+* **Naechtlich:** zwischen 03:00 und 05:00 vergleicht der Timer einmal
+  `ibm/ibm-openhab.tgz.sha256` auf dem Server mit `PACKAGE-SHA256` der
+  Installation (schreibt `install.sh`) und aktualisiert bei Abweichung.
+  `INSTALL_AUTO_UPDATE=0` in `ibm.conf` schaltet das ab.
+* Das Update ist der normale Bootstrap `ibm/install.sh` (Paket laden,
+  Pruefsumme, `ibm.conf` uebernehmen, `install-ibm.sh`); Fortschritt wie bei
+  der Einrichtung ueber die Phasenmeldungen am Dashboard, Log in
+  `/var/log/ibm-update.log`. Von Hand: `sudo ibm-update --now`.
+* `build-dist.sh` legt neben dem Paket `ibm/VERSION` ab; das Dashboard
+  markiert Anlagen mit aelterem Stand ("IBM-Paket ... veraltet").
+
 ### Standardablauf: Test im Netz des Vorstands
 
 Standard seit 2026-08: der Vorstand baut das Image, flasht die Karte und

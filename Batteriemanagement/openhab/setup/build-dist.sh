@@ -75,6 +75,15 @@ tar -czf "$tarball" \
     --exclude='.gitignore' \
     "$(basename "$openhab_dir")"
 
+# Versionsstring wie ihn die Pis melden (04-install-rules.sh aus BUILD-INFO):
+# das Dashboard vergleicht damit den Stand jeder Anlage.
+{
+  d="$(sed -n 's/^gebaut am: \([0-9-]*\).*/\1/p' "$build_info")"
+  c="$(sed -n 's/^commit: \(.*\)/\1/p' "$build_info")"
+  printf '%s%s\n' "${d:-unbekannt}" "${c:+ ($c)}"
+} > "$dist_dir/VERSION"
+log "erzeugt: $dist_dir/VERSION ($(cat "$dist_dir/VERSION"))"
+
 rm -f "$build_info"
 [ "${#generated_pages[@]}" -gt 0 ] && rm -f "${generated_pages[@]}"
 

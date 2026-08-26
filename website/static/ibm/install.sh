@@ -101,6 +101,13 @@ tar -xzf "$tmp/ibm-openhab.tgz" -C "$DEST"
 if [ -n "${keep_conf:-}" ] && [ -f "$keep_conf" ]; then
   cp -a "$keep_conf" "$DEST/openhab/setup/ibm.conf"
 fi
+# Pruefsumme des installierten Pakets: der Selbst-Update-Timer (ibm-update)
+# vergleicht sie naechtlich mit der auf dem Server.
+if [ -f "$tmp/ibm-openhab.tgz.sha256" ]; then
+  cp "$tmp/ibm-openhab.tgz.sha256" "$DEST/openhab/PACKAGE-SHA256"
+else
+  sha256sum "$tmp/ibm-openhab.tgz" | sed 's|  .*|  ibm-openhab.tgz|' > "$DEST/openhab/PACKAGE-SHA256"
+fi
 
 chmod +x "$DEST/openhab/setup"/*.sh "$DEST/openhab/setup/lib"/*.sh 2>/dev/null || true
 

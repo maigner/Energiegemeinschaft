@@ -292,6 +292,17 @@ if (response === null) {
     var jsonData = JSON.parse(response);
     if (jsonData.ok) {
       console.log("[IBM][Status] Status gemeldet (Ladestand: " + payload.data.soc + (voll ? ", voll" : "") + ").");
+      // Der Vorstand hat am Dashboard "Paket aktualisieren" gedrueckt: Marker
+      // fuer den root-Timer ibm-update ablegen (09-install-updater.sh), der
+      // das Paket innerhalb von 10 Minuten neu einspielt.
+      if (jsonData.update === true) {
+        try {
+          actions.Exec.executeCommandLine(time.Duration.ofSeconds(5), "/bin/sh", "-c", "touch '@IBM_UPDATE_FLAG@'");
+          console.log("[IBM][Status] Paket-Update vom Dashboard angefordert - ibm-update fuehrt es in Kuerze aus.");
+        } catch (e) {
+          console.error("[IBM][Status] Update-Marker konnte nicht angelegt werden: " + e);
+        }
+      }
     } else {
       console.error("[IBM][Status] API-Fehler: " + (jsonData.error || response));
     }

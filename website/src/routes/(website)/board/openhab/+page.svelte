@@ -64,12 +64,19 @@
         ).length,
     );
 
-    // Neuester IBM-Paketstand der Flotte; Anlagen mit aelterem Stand werden
-    // auf der Karte hervorgehoben.
+    // Massstab fuer "veraltet": das auf dem Server ausgelieferte Paket
+    // (static/ibm/VERSION); Rueckfall der neueste Stand der Flotte.
     let newestIbm = $derived(
-        newestVersion(
-            statuses.map((/** @type {any} */ s) => s.data?.versions?.ibm),
-        ),
+        data.serverIbmVersion ??
+            newestVersion(
+                statuses.map((/** @type {any} */ s) => s.data?.versions?.ibm),
+            ),
+    );
+    let outdatedCount = $derived(
+        statuses.filter(
+            (/** @type {any} */ s) =>
+                s.data?.versions?.ibm && newestIbm && compareVersions(s.data.versions.ibm, newestIbm) < 0,
+        ).length,
     );
 
     let selectedMemberId = $state("");
@@ -275,7 +282,7 @@
      * @param {any} d
      * @returns {{ text: string, color: "red" | "yellow" | "gray" }[]}
      */
-    function issuesOf(d) {
+    function issuesOf(d, anlageUpdateRequested = false) {
         /** @type {{ text: string, color: "red" | "yellow" | "gray" }[]} */
         const issues = [];
         if (d.inverter_status && d.inverter_status !== "ONLINE") {
@@ -313,6 +320,9 @@
         if (d.system?.reboot_required) {
             issues.push({ text: "Neustart erforderlich", color: "yellow" });
         }
+        if (anlageUpdateRequested) {
+            issues.push({ text: "Paket-Update angefordert", color: "yellow" });
+        }
         const disk = d.system?.disk_used_pct;
         if (typeof disk === "number" && disk >= 80) {
             issues.push({ text: `SD-Karte ${Math.round(disk)}% belegt`, color: disk >= 90 ? "red" : "yellow" });
@@ -336,6 +346,24 @@
         <Badge color={onlineCount === statuses.length && statuses.length > 0 ? "green" : "yellow"} large>
             {onlineCount} von {statuses.length} online
         </Badge>
+        {#if newestIbm}
+            <Badge color={outdatedCount > 0 ? "yellow" : "green"} large>
+                Paket {newestIbm}{outdatedCount > 0 ? ` · ${outdatedCount} veraltet` : ""}
+            </Badge>
+        {/if}
+        <form method="POST" action="?/requestUpdateAll" use:enhance
+            onsubmit={(/** @type {SubmitEvent} */ e) => {
+                if (!confirm("Alle online gemeldeten Anlagen spielen das IBM-Paket innerhalb von 10 Minuten neu ein. Fortfahren?")) e.preventDefault();
+            }}>
+            <Button size="xs" color="light" type="submit" disabled={statuses.length === 0}>
+                Alle Anlagen aktualisieren
+            </Button>
+        </form>
+        {#if form?.updateRequestedAll !== undefined}
+            <span class="text-sm text-green-700 dark:text-green-400">
+                Update für {form.updateRequestedAll} Anlage{form.updateRequestedAll === 1 ? "" : "n"} angefordert.
+            </span>
+        {/if}
     </div>
 
     {#if statuses.length === 0}
@@ -352,7 +380,7 @@
                 {@const status = statusOf(anlage)}
                 {@const d = anlage.data}
                 {@const soc = num(d.soc, 0)}
-                {@const issues = issuesOf(d)}
+                {@const issues = issuesOf(d, Boolean(anlage.updateRequestedAt))}
                 <Card
                     href={`/board/openhab/${anlage.id}`}
                     class="max-w-none p-4 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -608,6 +636,12 @@
                             {show ? "Verbergen" : "Passwörter anzeigen"}
                         </Button>
                         {#if p.setupPhase !== "geloescht"}
+                            <form method="POST" action="?/requestUpdate" use:enhance>
+                                <input type="hidden" name="id" value={anlage.id} />
+                                <Button size="xs" color="light" type="submit" disabled={Boolean(anlage.updateRequestedAt)}>
+                                    {anlage.updateRequestedAt ? "Update angefordert" : "Paket aktualisieren"}
+                                </Button>
+                            </form>
                             <Button size="xs" href={`/board/openhab/${anlage.id}/sd-karte.zip`}>Zip herunterladen</Button>
                             <form method="POST" action="?/buildImage" use:enhance>
                                 <input type="hidden" name="id" value={anlage.id} />

@@ -147,6 +147,14 @@ elif [ -f "$OPENHAB_CONF/services/addons.cfg" ]; then
   log "addons.cfg entfernt (war von der Installation angelegt)."
 fi
 
+# --- 5b. Selbst-Update ------------------------------------------------------------
+if [ -f /etc/systemd/system/ibm-update.timer ]; then
+  systemctl disable --now ibm-update.timer >/dev/null 2>&1 || true
+  rm -f /etc/systemd/system/ibm-update.timer /etc/systemd/system/ibm-update.service /usr/local/sbin/ibm-update
+  systemctl daemon-reload >/dev/null 2>&1 || true
+  log "Selbst-Update entfernt (ibm-update.timer)."
+fi
+
 # --- 6. WireGuard ---------------------------------------------------------------
 if [ -f /etc/wireguard/wg0.conf ] || [ -f /etc/wireguard/ibm-pi.key ]; then
   systemctl disable --now wg-quick@wg0 >/dev/null 2>&1 || true

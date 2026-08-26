@@ -9,6 +9,10 @@ import { pushOpenhabStatus, MAX_STATUS_DATA_BYTES } from '$lib/server/db/members
  * Das Token erzeugt der Vorstand auf /board/openhab je Mitglied; es liegt
  * auf dem Pi in der ibm.conf. Pushes mit unbekanntem Token werden
  * abgewiesen. 'anlage' ist optional und aktualisiert nur den Anzeigenamen.
+ *
+ * Antwort: { ok: true } - mit `update: true`, wenn der Pi das IBM-Paket neu
+ * einspielen soll (Dashboard "Paket aktualisieren"; ibm_status_push.js legt
+ * dann den Marker fuer den root-Timer ibm-update an).
  */
 
 /** @type {import('./$types').RequestHandler} */
@@ -38,12 +42,14 @@ export async function POST({ request }) {
         return json({ error: "Feld 'data' ist zu groß" }, { status: 413 });
     }
 
-    const stored = await pushOpenhabStatus(token, anlage, data);
+    const { stored, update } = await pushOpenhabStatus(token, anlage, data);
 
     if (!stored) {
         console.log(`openhab status push rejected (unknown token): ${anlage || 'ohne Namen'}`);
         return json({ error: 'Unbekanntes Token. Der Vorstand erzeugt Tokens auf ischlstrom.org unter /board/openhab.' }, { status: 401 });
     }
 
-    return json({ ok: true });
+    // update=true genau einmal, wenn der Vorstand am Dashboard ein
+    // Paket-Update angefordert hat (siehe pushOpenhabStatus).
+    return json(update ? { ok: true, update: true } : { ok: true });
 }

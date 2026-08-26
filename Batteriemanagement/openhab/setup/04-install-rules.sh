@@ -138,6 +138,7 @@ render_payload() {
       -e "s|@IBM_INVERTER_TYPE@|${inverter_type_esc}|g" \
       -e "s|@IBM_LOG_DIR@|${logdir_esc}|g" \
       -e "s|@IBM_PAKET_VERSION@|${ibm_version_esc}|g" \
+      -e "s|@IBM_UPDATE_FLAG@|$(sed_escape "$IBM_UPDATE_FLAG")|g" \
       "$1"
 }
 
