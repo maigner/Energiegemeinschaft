@@ -266,15 +266,20 @@ var DISCHARGE_START_OFFSET_MIN = 60;
 // Haus allein aus der Batterie - der Ladestandsabfall ergibt also direkt
 // die Hauslast. Gemessen wird in allen solchen Abschnitten der Nacht (vor
 // dem ersten Entladen, nach dem Entlade-Stopp, bei Budget 0, Trueb-Stopp
-// ohne Budget oder unterhalb der Reserve); ein Entladebefehl setzt die Messstrecke
-// zurueck. Aus ihr rechnet die Steuerung die Eigenbedarfsreserve des
-// Nachtbudgets; per Status-Push geht sie auch an den Server (Anzeige).
-var HOUSE_LOAD_MIN_SOC_DROP = 3;      // Prozentpunkte je Stichprobe
-var HOUSE_LOAD_MAX_STEP_GAP_MIN = 12; // laengere Luecke -> Messung neu aufsetzen
+// ohne Budget oder unterhalb der Reserve); ein Entladebefehl setzt die
+// Messstrecke zurueck. Die Messstrecken einer Nacht werden zeitgewichtet
+// zusammengefasst (entnommene Energie / gemessene Dauer), erst der
+// Nachtwert fliesst gleitend in die Schaetzung ein - eine Verbrauchsspitze
+// zaehlt so nur mit ihrer echten Dauer. Aus der Schaetzung rechnet die
+// Steuerung die Eigenbedarfsreserve des Nachtbudgets; per Status-Push geht
+// sie auch an den Server (Anzeige).
+var HOUSE_LOAD_MIN_SOC_DROP = 3;      // Prozentpunkte je Messschritt
+var HOUSE_LOAD_MAX_STEP_GAP_MIN = 12; // laengere Luecke -> Messstrecke neu aufsetzen
 var HOUSE_LOAD_MIN_SOC = 4;           // darunter drosselt der Wechselrichter selbst
-var HOUSE_LOAD_MIN_W = 50;            // Plausibilitaetsfenster einer Stichprobe
+var HOUSE_LOAD_MIN_W = 50;            // Plausibilitaetsfenster eines Nachtwerts
 var HOUSE_LOAD_MAX_W = 3000;
-var HOUSE_LOAD_EMA_WEIGHT = 0.3;      // Gewicht einer neuen Stichprobe
+var HOUSE_LOAD_MIN_NIGHT_MIN = 120;   // gemessene Minuten, bevor eine Nacht zaehlt
+var HOUSE_LOAD_EMA_WEIGHT = 0.3;      // Gewicht einer neuen Nacht
 
 // --- Hilfsfunktionen zum Lesen der Konfiguration ----------------------------
 
@@ -593,8 +598,11 @@ function updateChargeRateEstimate(soc, capacityKwh) {
 
 // --- Hauslast-Schaetzung ----------------------------------------------------
 // Zustand wie bei den anderen Schaetzern als JSON in einem String-Item:
-//   watt        geschaetzte Hauslast
-//   messungen   Anzahl akzeptierter Stichproben
+//   watt        geschaetzte Hauslast (gleitendes Mittel ueber Naechte)
+//   messungen   Anzahl akzeptierter Naechte
+//   nacht       Kennung der laufenden Nacht (Datum des Entladestarts)
+//   nachtWh     in dieser Nacht bisher gemessen entnommene Energie
+//   nachtMin    in dieser Nacht bisher gemessene Dauer
 //   basisSoc    Ladestand zu Beginn der laufenden Messstrecke (%)
 //   basisZeit   Beginn der Messstrecke
 //   letztZeit   Zeitpunkt des letzten Messlaufs (Lueckenerkennung)
@@ -607,22 +615,51 @@ function readHouseLoadState() {
   if (state === 'NULL' || state === 'UNDEF' || state === '') return {};
   try {
     var parsed = JSON.parse(state);
-    return (parsed !== null && typeof parsed === 'object') ? parsed : {};
+    if (parsed === null || typeof parsed !== 'object') return {};
+    // Altes Format (Stichproben-EMA, kein Nachtzaehler): die Schaetzung war
+    // stichprobengewichtet und damit nach oben verzerrt - verwerfen, die
+    // laufende Nacht liefert nach HOUSE_LOAD_MIN_NIGHT_MIN einen neuen Wert.
+    if (typeof parsed.watt === 'number' && typeof parsed.nachtMin !== 'number') {
+      console.log('[IBM][Hauslast] Schaetzung im alten Format (' + parsed.watt + ' W) verworfen - wird zeitgewichtet neu gelernt');
+      return {};
+    }
+    return parsed;
   } catch (e) {
     return {};
   }
+}
+
+// Zeitgewichtete Hauslast der laufenden Nacht in W - oder null, solange
+// noch nicht genug Dauer gemessen ist.
+function runningNightLoadW(st) {
+  if (!(typeof st.nachtMin === 'number' && st.nachtMin >= HOUSE_LOAD_MIN_NIGHT_MIN)) return null;
+  if (typeof st.nachtWh !== 'number' || st.nachtWh <= 0) return null;
+  return Math.round(st.nachtWh / (st.nachtMin / 60));
+}
+
+// Wirksame Schaetzung: das gleitende Mittel der abgeschlossenen Naechte;
+// solange es keines gibt, der Wert der laufenden Nacht. Sonst null.
+function effectiveHouseLoadW(st) {
+  if (typeof st.watt === 'number' && st.watt >= HOUSE_LOAD_MIN_W && st.watt <= HOUSE_LOAD_MAX_W
+      && typeof st.messungen === 'number' && st.messungen >= 1) {
+    return st.watt;
+  }
+  var running = runningNightLoadW(st);
+  if (running !== null && running >= HOUSE_LOAD_MIN_W && running <= HOUSE_LOAD_MAX_W) return running;
+  return null;
 }
 
 function writeHouseLoadState(st) {
   var item = readItem('IBM_HAUSLAST_MESSUNG');
   if (item !== null) item.postUpdate(JSON.stringify(st));
   var display = readItem('IBM_HAUSLAST');
-  if (display !== null && typeof st.watt === 'number') {
-    display.postUpdate(Math.round(st.watt));
+  if (display !== null) {
+    var w = effectiveHouseLoadW(st);
+    if (w !== null) display.postUpdate(Math.round(w));
   }
 }
 
-// Bricht eine laufende Messstrecke ab (Schaetzung und Zaehler bleiben).
+// Bricht eine laufende Messstrecke ab (Schaetzung, Nachtzaehler bleiben).
 // Die naechste Messung beginnt erst im naechsten Zyklus ohne Entladebefehl
 // - der gerade kommandierte Entlade-Slot darf nicht in die Hauslast laufen.
 function clearHouseLoadMeasurement() {
@@ -634,9 +671,44 @@ function clearHouseLoadMeasurement() {
   writeHouseLoadState(st);
 }
 
-// Schreibt die Hauslastschaetzung fort: ist der Ladestand seit Beginn der
-// Messstrecke um HOUSE_LOAD_MIN_SOC_DROP Prozentpunkte gefallen, ergibt
-// entnommene Energie (aus der Kapazitaet) / Zeit eine Stichprobe.
+// Kennung der laufenden Nacht: das Datum, an dem sie begonnen hat (vor dem
+// Entladestart gehoert der Lauf noch zur Nacht von gestern).
+function houseLoadNightId() {
+  var t = (dischargeStart !== null && nowMinutes < dischargeStart) ? now.minusDays(1) : now;
+  var m = t.monthValue();
+  var d = t.dayOfMonth();
+  return t.year() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+}
+
+// Schliesst die gespeicherte Nacht ab: reicht die gemessene Dauer, ergibt
+// entnommene Energie / Dauer den Nachtwert, der gleitend in die Schaetzung
+// einfliesst. Danach beginnt die neue Nacht mit leeren Zaehlern.
+function finishHouseLoadNight(st, nightId) {
+  if (typeof st.nachtMin === 'number' && st.nachtMin > 0) {
+    var nightW = runningNightLoadW(st);
+    if (nightW === null) {
+      console.log('[IBM][Hauslast] Nacht ' + st.nacht + ': nur ' + Math.round(st.nachtMin) + ' min gemessen - nicht gewertet');
+    } else if (nightW < HOUSE_LOAD_MIN_W || nightW > HOUSE_LOAD_MAX_W) {
+      console.log('[IBM][Hauslast] Nacht ' + st.nacht + ': ' + nightW + ' W unplausibel - verworfen');
+    } else {
+      var count = (typeof st.messungen === 'number') ? st.messungen : 0;
+      st.watt = (typeof st.watt === 'number' && count > 0)
+        ? Math.round((1 - HOUSE_LOAD_EMA_WEIGHT) * st.watt + HOUSE_LOAD_EMA_WEIGHT * nightW)
+        : nightW;
+      st.messungen = count + 1;
+      console.log('[IBM][Hauslast] Nacht ' + st.nacht + ': ' + nightW + ' W (' + Math.round(st.nachtWh) + ' Wh in ' + Math.round(st.nachtMin) + ' min) -> Schaetzung ' + st.watt + ' W (' + st.messungen + '. Nacht)');
+    }
+  }
+  st.nacht = nightId;
+  st.nachtWh = 0;
+  st.nachtMin = 0;
+}
+
+// Schreibt die Hauslastmessung fort: ist der Ladestand seit Beginn der
+// Messstrecke um HOUSE_LOAD_MIN_SOC_DROP Prozentpunkte gefallen, gehen
+// entnommene Energie (aus der Kapazitaet) und Messdauer in die Zaehler der
+// Nacht; Luecken und steigender Ladestand setzen nur die Messstrecke neu
+// auf, die Zaehler bleiben.
 function updateHouseLoadEstimate(soc, capacityKwh) {
   var st = readHouseLoadState();
   if (st === null) {
@@ -649,6 +721,13 @@ function updateHouseLoadEstimate(soc, capacityKwh) {
     st.basisZeit = now.toString();
     st.letztZeit = now.toString();
     writeHouseLoadState(st);
+  }
+
+  var nightId = houseLoadNightId();
+  if (st.nacht !== nightId) {
+    finishHouseLoadNight(st, nightId);
+    restartMeasurement();
+    return;
   }
 
   var prevTime = null;
@@ -681,19 +760,13 @@ function updateHouseLoadEstimate(soc, capacityKwh) {
     return;
   }
 
-  var hours = time.Duration.between(baseTime, now).toMinutes() / 60;
-  if (hours > 0) {
-    var sampleW = Math.round(drop / 100 * capacityKwh * 1000 / hours);
-    if (sampleW >= HOUSE_LOAD_MIN_W && sampleW <= HOUSE_LOAD_MAX_W) {
-      var count = (typeof st.messungen === 'number') ? st.messungen : 0;
-      st.watt = (typeof st.watt === 'number' && count > 0)
-        ? Math.round((1 - HOUSE_LOAD_EMA_WEIGHT) * st.watt + HOUSE_LOAD_EMA_WEIGHT * sampleW)
-        : sampleW;
-      st.messungen = count + 1;
-      console.log('[IBM][Hauslast] Stichprobe ' + sampleW + ' W (' + drop + ' Prozentpunkte in ' + Math.round(hours * 60) + ' min) -> Schaetzung ' + st.watt + ' W (' + st.messungen + '. Messung)');
-    } else {
-      console.log('[IBM][Hauslast] Stichprobe ' + sampleW + ' W unplausibel - verworfen');
-    }
+  var minutes = time.Duration.between(baseTime, now).toMinutes();
+  if (minutes > 0) {
+    var wh = drop / 100 * capacityKwh * 1000;
+    st.nachtWh = ((typeof st.nachtWh === 'number') ? st.nachtWh : 0) + wh;
+    st.nachtMin = ((typeof st.nachtMin === 'number') ? st.nachtMin : 0) + minutes;
+    var running = (st.nachtMin > 0) ? Math.round(st.nachtWh / (st.nachtMin / 60)) : null;
+    console.log('[IBM][Hauslast] Messschritt ' + Math.round(wh) + ' Wh in ' + minutes + ' min (' + drop + ' Prozentpunkte) -> Nacht bisher ' + running + ' W ueber ' + Math.round(st.nachtMin) + ' min');
   }
   st.basisSoc = soc;
   st.basisZeit = now.toString();
@@ -701,16 +774,14 @@ function updateHouseLoadEstimate(soc, capacityKwh) {
   writeHouseLoadState(st);
 }
 
-// Nacht-Entladebudget in kWh - oder null, wenn keines vorliegt, es
-// unplausibel oder veraltet ist (dann gilt wie bisher die Reserve).
 // Gelernte Hauslast in W - oder der Rueckfallwert, solange keine belastbare
-// Schaetzung vorliegt.
+// Schaetzung vorliegt (weder abgeschlossene Nacht noch genug Messdauer in
+// der laufenden).
 function houseLoadW() {
   var st = readHouseLoadState();
-  if (st !== null && typeof st.watt === 'number'
-      && st.watt >= HOUSE_LOAD_MIN_W && st.watt <= HOUSE_LOAD_MAX_W
-      && typeof st.messungen === 'number' && st.messungen >= 1) {
-    return st.watt;
+  if (st !== null) {
+    var w = effectiveHouseLoadW(st);
+    if (w !== null) return w;
   }
   return FALLBACK_HOUSE_LOAD_W;
 }

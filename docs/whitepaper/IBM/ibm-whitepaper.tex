@@ -637,18 +637,29 @@ Stunde den Schnitt systematisch nach oben ziehen.
 
 In jedem Nacht-Zyklus ohne Entladebefehl versorgt die Batterie allein das
 Haus. Der Ladestandsabfall in solchen Abschnitten (oberhalb der
-wechselrichtereigenen Reserve) ergibt daher direkt die Hauslast:
-Stichproben zwischen 50 und 3000\,W fließen mit Gewicht 0,3 in die
-Schätzung ein; ein Entladebefehl bricht die laufende Messstrecke ab, die
-nächste beginnt im nächsten Zyklus ohne Entladung. Gemessen wird so vor dem
-ersten Entladen, nach dem Entlade-Stopp, bei Budget null, beim Trüb-Stopp
-ohne Budget
-und unterhalb der Reserve. Eine Messung nur unterhalb der Reserve, wie
-anfangs vorgesehen, käme bei großen Batterien nie zustande: Ohne Budget
-sinkt der Ladestand nicht unter die Reserve. Aus dem Wert rechnet das
-Gateway die Eigenbedarfsreserve des Nachtbudgets
-(Abschnitt~\ref{sec:nachtbudget}); per Status-Push geht er auch an den
-Server, dort nur zur Anzeige.
+wechselrichtereigenen Reserve) ergibt daher direkt die Hauslast. Gemessen
+wird vor dem ersten Entladen, nach dem Entlade-Stopp, bei Budget null, beim
+Trüb-Stopp ohne Budget und unterhalb der Reserve; ein Entladebefehl bricht
+die laufende Messstrecke ab, die nächste beginnt im nächsten Zyklus ohne
+Entladung. Eine Messung nur unterhalb der Reserve, wie anfangs vorgesehen,
+käme bei großen Batterien nie zustande: Ohne Budget sinkt der Ladestand
+nicht unter die Reserve.
+
+Die Mittelung ist \emph{zeitgewichtet je Nacht}: Alle Messstrecken einer
+Nacht (Schritte von mindestens 3~Prozentpunkten) werden zu entnommener
+Energie und gemessener Dauer aufsummiert; ihr Quotient ist die mittlere
+Hauslast der Nacht, sobald mindestens zwei Stunden gemessen sind. Erst
+dieser Nachtwert (plausibel zwischen 50 und 3000\,W) fließt mit Gewicht 0,3
+in die Schätzung ein; in der ersten Nacht gilt der laufende Nachtwert
+direkt. Eine Mittelung über einzelne Stichproben wäre dagegen nach oben
+verzerrt: Ein Messschritt von 3~Prozentpunkten ist beim Kochen nach
+Minuten, bei Grundlast erst nach Stunden voll, Hochlastphasen lieferten
+also ein Vielfaches an Stichproben je Stunde. Mit der Zeitgewichtung zählt
+eine Verbrauchsspitze nur mit ihrer echten Dauer, und das Ergebnis ist
+genau die Größe, die das Nachtbudget braucht: die mittlere Leistung, aus
+der die Energie bis zum Morgen folgt. Aus dem Wert rechnet das Gateway die
+Eigenbedarfsreserve des Nachtbudgets (Abschnitt~\ref{sec:nachtbudget}); per
+Status-Push geht er auch an den Server, dort nur zur Anzeige.
 
 % ============================================================================
 \section{Sicherheit und Robustheit}\label{sec:sicherheit}
