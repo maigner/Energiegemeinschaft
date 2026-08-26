@@ -42,8 +42,8 @@
                 value: data.ibm.plants.toLocaleString("de-AT"),
                 label:
                     data.ibm.plants === 1
-                        ? "Batterie ist gerade online"
-                        : "Batterien sind gerade online",
+                        ? "Batterie speist bereits ein"
+                        : "Batterien speisen bereits ein",
             });
         }
         if (data.ibm?.capacity_kwh) {

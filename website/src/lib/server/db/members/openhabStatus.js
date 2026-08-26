@@ -272,10 +272,12 @@ export const getActiveFleetDischargeKw = async () => {
 
 /**
  * Anonyme Kennzahlen fuer die oeffentliche IBM-Seite: Anzahl der Anlagen,
- * die aktuell online sind (letzte Meldung innerhalb der letzten Stunde),
- * und die Summe ihrer geschaetzten Batteriekapazitaeten. Anlagen, die nur
- * irgendwann einmal gemeldet haben, zaehlen nicht mit. Keine Namen, keine
- * Mitgliedsdaten.
+ * die aktuell online sind (letzte Meldung innerhalb der letzten Stunde) und
+ * tatsaechlich schon in das Netz eingespeist haben (kumulierte
+ * batterie_netz_kwh > 0), und die Summe ihrer geschaetzten
+ * Batteriekapazitaeten. Anlagen, die nur irgendwann einmal gemeldet haben
+ * oder noch im Aufbau sind (Hauptschalter aus, Testbetrieb), zaehlen nicht
+ * mit. Keine Namen, keine Mitgliedsdaten.
  */
 export const getPublicIbmStats = async () => {
     const db = await middlewareDbConnection();
@@ -285,7 +287,9 @@ export const getPublicIbmStats = async () => {
                     coalesce(round(sum(CASE WHEN jsonb_typeof(data->'batterie_kapazitaet') = 'number'
                                             THEN (data->>'batterie_kapazitaet')::numeric END)), 0)::int AS capacity_kwh
                FROM members_openhabstatus
-              WHERE last_seen > now() - interval '1 hour'`
+              WHERE last_seen > now() - interval '1 hour'
+                AND jsonb_typeof(data->'batterie_netz_kwh') = 'number'
+                AND (data->>'batterie_netz_kwh')::numeric > 0`
         );
         return result.rows[0] ?? null;
     } finally {
