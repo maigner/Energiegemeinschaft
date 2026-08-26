@@ -234,15 +234,20 @@ const getTodaySlots = async (runId: number) => {
 
 /**
  * Individualisiertes Ladesperre-Ende ("HH:MM") für eine Anlage mit der
- * gegebenen Batteriekapazität und Ladeleistung - oder null, wenn die Anlage
- * laut Profil den ganzen Tag zum Laden braucht (dann keine Sperre) oder der
- * Prognosetag keine Berechnung hergibt (kein Profil, keine Erzeugung, kein
- * abendlicher Crossover). Plausibilität der Eingaben prüft der Aufrufer.
+ * gegebenen Batteriekapazität, Ladeleistung und dem aktuellen Ladestand -
+ * oder null, wenn die Anlage laut Profil den ganzen Tag zum Laden braucht
+ * (dann keine Sperre) oder der Prognosetag keine Berechnung hergibt (kein
+ * Profil, keine Erzeugung, kein abendlicher Crossover). Nachgeladen werden
+ * muss nur, was bis IBM_CHARGE_FRACTION der Kapazität fehlt: eine halb
+ * volle Batterie darf länger gesperrt bleiben als eine leere. Ohne
+ * Ladestand (null) gilt die Batterie als leer. Plausibilität der Eingaben
+ * prüft der Aufrufer.
  */
 export const getIndividualChargeWindowEnd = async (
     runId: number,
     capacityKwh: number,
-    chargeRateKw: number
+    chargeRateKw: number,
+    socPct: number | null = null
 ) => {
     const slots = await getTodaySlots(runId);
     if (slots.length === 0) return null;
@@ -261,7 +266,8 @@ export const getIndividualChargeWindowEnd = async (
     if (crossoverEnd === null) return null;
 
     const deadline = crossoverEnd - IBM_FULL_BUFFER_MIN;
-    const neededKwh = capacityKwh * IBM_CHARGE_FRACTION * IBM_SAFETY_FACTOR;
+    const soc = socPct !== null && Number.isFinite(socPct) ? Math.min(100, Math.max(0, socPct)) : 0;
+    const neededKwh = capacityKwh * Math.max(0, IBM_CHARGE_FRACTION - soc / 100) * IBM_SAFETY_FACTOR;
 
     // Rückwärts von der Deadline: Ladeleistung im Slot = Spitzenrate der
     // Anlage mal normierter Erzeugung. Sobald die aufsummierte Energie

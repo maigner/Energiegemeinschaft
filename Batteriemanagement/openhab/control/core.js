@@ -755,12 +755,11 @@ function publishNightBudget(soc, zielSoc, capacityKwh) {
 // fehlende Energie, geteilt durch die gelernte Ladeleistung, ergibt die
 // noetige Ladezeit; die wird mit Sicherheitsaufschlag vor den (um
 // LOCAL_FULL_BUFFER_MIN vorgezogenen) Abend-Crossover gelegt. Als fehlende
-// Energie gilt fest LOCAL_CHARGE_FRACTION der Kapazitaet - nicht der
-// Live-Ladestand (das Ergebnis soll den ganzen Vormittag konstant sein und
-// nicht pendeln, sobald das Laden den Ladestand hebt) und auch nicht
-// IBM_MIN_BATTERY_CHARGE (nach dem Entlade-Stopp versorgt der
-// Wechselrichter das Haus weiter aus der Batterie, bis zur eigenen Reserve
-// von wenigen Prozent - dort startet der Morgen wirklich).
+// Energie gilt, was dem aktuellen Ladestand bis LOCAL_CHARGE_FRACTION der
+// Kapazitaet fehlt - eine halb volle Batterie darf laenger gesperrt bleiben
+// als eine leere. Waehrend der Sperre laedt die Batterie nicht, der
+// Ladestand und damit das Ende bleiben ueber den Vormittag praktisch
+// konstant.
 var LOCAL_CHARGE_FRACTION = 0.95;
 function localChargeLockEnd() {
   if (!LOCAL_LOCK_ACTIVE) return null;
@@ -771,7 +770,9 @@ function localChargeLockEnd() {
     console.log('[IBM][Ladesperre] Noch keine belastbare Kapazitaets- oder Ladeleistungsschaetzung - Server-Ende gilt');
     return null;
   }
-  var missingKwh = capacityKwh * LOCAL_CHARGE_FRACTION;
+  var socNow = parseFloat(items.getItem('@IBM_SOC_ITEM@').numericState);
+  if (isNaN(socNow)) socNow = 0;
+  var missingKwh = capacityKwh * Math.max(0, LOCAL_CHARGE_FRACTION - socNow / 100);
   var chargeMinutes = Math.round(missingKwh / rateKw * LOCAL_SAFETY_FACTOR * 60);
   var deadline = EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN;
   return Math.min(deadline - chargeMinutes, LOCAL_LATEST_END_MIN);

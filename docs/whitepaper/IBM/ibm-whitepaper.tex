@@ -284,11 +284,16 @@ der Abend-Deadline $t_D$ (Ende des letzten Überschuss-Slots minus
   \frac{G_s}{G_{\max}^{\text{Lauf}}} \cdot 0{,}25\,\text{h}.
 \end{equation}
 Das Sperr-Ende ist der späteste Slot $t$, ab dem
-$E(t) \geq 0{,}95 \cdot C \cdot 1{,}3$ noch geladen wird (95\% der
-Kapazität mit Sicherheitsfaktor 1,3), gekappt um 14:00. Reicht der ganze
-Tag nicht, wird nicht gesperrt. Individualisiert wird nur bei plausiblen
-Kennwerten (Kapazität 1 bis 100\,kWh, Ladeleistung 0,3 bis 30\,kW), und
-das Ende muss nach dem Fensterbeginn und nicht vor 05:00 liegen. Die
+$E(t) \geq (0{,}95 - \text{SoC}) \cdot C \cdot 1{,}3$ noch geladen
+wird: die Energie, die dem zuletzt gemeldeten Ladestand bis 95\% der
+Kapazität fehlt, mit Sicherheitsfaktor 1,3, gekappt um 14:00. Eine halb
+volle Batterie darf so länger gesperrt bleiben als eine leere. Reicht der
+ganze Tag nicht, wird nicht gesperrt. Gerechnet wird nur bei plausiblen
+Kennwerten (Kapazität 1 bis 100\,kWh, Ladeleistung 0,3 bis 30\,kW); eine
+Anlage, die diese Werte noch nicht gelernt hat, bekommt ebenfalls
+\emph{keine} Sperre und lädt erst einmal ungebremst, statt blind das
+Community-Fenster zu erhalten. Das Ende muss nach dem Fensterbeginn und
+nicht vor 05:00 liegen. Die
 Antwort ist als individuell markiert; das Gateway übernimmt sie dann
 unverändert und lässt die eigene Rechnung nach
 Gleichung~\eqref{eq:localend} aus. Greift auf dem Gateway die
@@ -461,19 +466,20 @@ Für das Sperr-Ende gibt es drei Stufen, in absteigender Priorität:
     \begin{equation}
       t_{\text{Ende}} \;=\; \min\Bigl(
         t_{\text{Abend-Crossover}} - 60\,\text{min}
-        \;-\; \underbrace{\frac{0{,}95 \cdot C}{P_{\text{Lade}}} \cdot 1{,}3 \cdot 60\,\text{min}}_{\text{Ladezeit mit Sicherheitsaufschlag}},
+        \;-\; \underbrace{\frac{(0{,}95 - \text{SoC}) \cdot C}{P_{\text{Lade}}} \cdot 1{,}3 \cdot 60\,\text{min}}_{\text{Ladezeit mit Sicherheitsaufschlag}},
         \;\; 13\!:\!00\Bigr)
       \label{eq:localend}
     \end{equation}
     mit Kapazität $C$ in kWh und gelernter Ladeleistung $P_{\text{Lade}}$
-    in kW. Als fehlende Energie gelten fest 95\% der Kapazität, nicht der
-    Live-Ladestand: Das Ergebnis soll den ganzen Vormittag konstant sein
-    und nicht pendeln, sobald das Laden den Ladestand hebt. Liegt das
+    in kW. Als fehlende Energie gilt, was dem aktuellen Ladestand SoC bis
+    95\% der Kapazität fehlt; während der Sperre lädt die Batterie nicht,
+    der Wert bleibt über den Vormittag also praktisch konstant. Liegt das
     berechnete Ende vor dem Fensterbeginn, braucht die Anlage den ganzen
     Tag zum Laden und es wird gar nicht gesperrt.
-  \item \textbf{Community-Ende des Servers:} Solange die Schätzer noch
-    nicht belastbar sind, gilt das für die ganze Gemeinschaft berechnete
-    Fensterende unverändert.
+  \item \textbf{Community-Ende des Servers:} Nur noch der Rückfall ohne
+    Token-API (öffentliche Community-API) oder bei API-Ausfall. Mit Token
+    liefert der Server für Anlagen ohne belastbare Schätzer kein Ende:
+    eine neue Anlage lädt erst einmal ungebremst.
 \end{enumerate}
 
 Greift die Laderegelung, sind alle drei Stufen gegenstandslos: Der

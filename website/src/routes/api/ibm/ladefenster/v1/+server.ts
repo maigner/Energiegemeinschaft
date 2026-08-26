@@ -23,11 +23,14 @@ import {
  * mit der öffentlichen Community-API (/api/eeginfo/ladefenster/v1). Das Ende
  * wird individualisiert, sobald die Anlage belastbare Schätzwerte gepusht
  * hat (batterie_kapazitaet, ladeleistung_kw): rückwärts von der
- * Abend-Deadline über das Erzeugungsprofil des Prognosetags, siehe
- * getIndividualChargeWindowEnd. `ende` null bei individuell=true heißt: die
- * Anlage braucht laut Profil den ganzen Tag zum Laden, heute keine Sperre.
- * Ohne Schätzwerte kommt das Community-Ende (individuell=false) -- die
- * Steuerung am Pi rechnet dann lokal weiter wie bisher.
+ * Abend-Deadline über das Erzeugungsprofil des Prognosetags, für die
+ * Energie, die der zuletzt gemeldete Ladestand (soc) bis 95% noch braucht,
+ * siehe getIndividualChargeWindowEnd. `ende` null bei individuell=true
+ * heißt: heute keine Sperre. Das gilt auch für Anlagen, die noch keine
+ * belastbaren Schätzwerte haben (neu eingerichtet, Ladeleistung noch nicht
+ * gelernt): sie laden erst einmal ungebremst, statt blind das
+ * Community-Fenster zu bekommen. individuell=false kommt nur noch, wenn
+ * die Community heute gar kein Fenster hat.
  *
  * Das Nacht-Entladebudget liefert die API nicht mehr: die Steuerung am Pi
  * rechnet es selbst aus Batteriegroesse und gelernter Hauslast (siehe
@@ -87,15 +90,22 @@ export async function POST({ request }) {
     const rate = Number(plant.data?.ladeleistung_kw);
     const plausibel = Number.isFinite(capacity) && capacity >= 1 && capacity <= 100
         && Number.isFinite(rate) && rate >= 0.3 && rate <= 30;
+    const socRaw = Number(plant.data?.soc);
+    const soc = Number.isFinite(socRaw) ? socRaw : null;
     let ende = fenster.ende;
     let individuell = false;
 
-    if (plausibel && fenster.start && fenster.ende) {
-        const individualEnde = await getIndividualChargeWindowEnd(run.id, capacity, rate);
-        // Ende vor Fensterbeginn (oder gar nicht erreichbar): keine Sperre.
-        ende = individualEnde !== null && individualEnde > fenster.start && individualEnde >= '05:00'
-            ? individualEnde
-            : null;
+    if (fenster.start && fenster.ende) {
+        if (plausibel) {
+            const individualEnde = await getIndividualChargeWindowEnd(run.id, capacity, rate, soc);
+            // Ende vor Fensterbeginn (oder gar nicht erreichbar): keine Sperre.
+            ende = individualEnde !== null && individualEnde > fenster.start && individualEnde >= '05:00'
+                ? individualEnde
+                : null;
+        } else {
+            // Noch keine gelernten Kennwerte: erst einmal laden, keine Sperre.
+            ende = null;
+        }
         individuell = true;
     }
 
