@@ -84,36 +84,6 @@
     let sdInverterType = $state("");
     let inverterChoices = [{ value: "", name: "automatisch erkennen" }, ...inverterOptions()];
 
-    // Sichtbar gemachte Geheimnisse je Anlage (Klick auf "anzeigen")
-    /** @type {Record<number, boolean>} */
-    let revealed = $state({});
-
-    /** Anlagen, die ueber "SD-Karte vorbereiten" angelegt wurden. */
-    let provisioned = $derived(
-        statuses.filter(
-            (/** @type {any} */ s) =>
-                s.provisioning?.code || s.provisioning?.setupPhase === "geloescht",
-        ),
-    );
-
-    /** @param {string | Date | null} d */
-    function formatDate(d) {
-        if (!d) return "-";
-        return new Date(d).toLocaleDateString("de-AT", { timeZone: "Europe/Vienna" });
-    }
-
-    /**
-     * Badge-Farbe fuer einen Zustand der Provisionierung.
-     * @param {string} state
-     * @returns {"green" | "yellow" | "red" | "gray"}
-     */
-    function stateColor(state) {
-        if (state === "created" || state === "synced") return "green";
-        if (state === "pending" || state === "reset") return "yellow";
-        if (state.startsWith("error")) return "red";
-        return "gray";
-    }
-
     /** @param {string | Date | null} lastSeen */
     function formatLastSeen(lastSeen) {
         if (!lastSeen) return "-";
@@ -415,7 +385,7 @@
                             </p>
                             <Progressbar progress={phase.progress} color={phase.failed ? "red" : phase.waiting ? "yellow" : "blue"} />
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Details unten unter "Einrichtung".
+                                Details zur Einrichtung: Karte anklicken.
                             </p>
                         {:else}
                             <p class="text-sm text-gray-600 dark:text-gray-300">
@@ -503,10 +473,11 @@
         (Windows, macOS, Linux). Oder mit dem Zip:
         <code>setup/prepare-sd.sh sd-NNN.zip</code> (macOS/Linux) bzw. Imager
         plus die drei Dateien auf die Boot-Partition kopieren. Der Pi richtet
-        sich beim ersten Start selbst ein (ohne SSH) und meldet hier seinen
-        Fortschritt. Geht eine Karte kaputt: „Neuer Code“, Image neu
-        erstellen, neue Karte flashen; nur das Wechselrichter-Passwort muss
-        danach neu hinterlegt werden.
+        sich beim ersten Start selbst ein (ohne SSH). Fortschritt, Downloads,
+        Passwörter und alle weiteren Schritte stehen in der Detailansicht der
+        Anlage (Karte oben anklicken). Geht eine Karte kaputt: dort „Neuer
+        Code“, Image neu erstellen, neue Karte flashen; nur das
+        Wechselrichter-Passwort muss danach neu hinterlegt werden.
     </p>
 
     {#if !data.secretsConfigured}
@@ -549,183 +520,15 @@
 
     {#if form?.prepared}
         <p class="text-sm text-green-700 dark:text-green-400 mb-4">
-            Anlage vorbereitet. Zip herunterladen und die Karte schreiben.
+            Anlage vorbereitet.
+            <a href={`/board/openhab/${form.prepared}`} class="underline">Zur Detailansicht</a>
+            für Downloads, Passwörter und den Einrichtungsfortschritt.
         </p>
     {/if}
     {#if form?.markedDeleted}
         <p class="text-sm text-yellow-700 dark:text-yellow-400 mb-4">
             Anlage zum Löschen vorgemerkt; der Abgleich auf s1 räumt Tunnel und Cloud-Konto ab.
         </p>
-    {/if}
-
-    {#if provisioned.length > 0}
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-8">
-            {#each provisioned as anlage (anlage.id)}
-                {@const p = anlage.provisioning}
-                {@const phase = describePhase(p.setupPhase)}
-                {@const show = revealed[anlage.id] ?? false}
-                <Card class="max-w-none p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-lg font-semibold dark:text-white">
-                            {anlage.name} · {anlage.memberName}
-                        </span>
-                        <Badge color={phase.failed ? "red" : phase.done ? "green" : phase.waiting ? "yellow" : "blue"}>
-                            {phase.label}
-                        </Badge>
-                    </div>
-                    <Progressbar progress={phase.progress} color={phase.failed ? "red" : phase.done ? "green" : "blue"} class="mb-2" />
-                    {#if p.setupPhase === "geloescht"}
-                        <p class="text-xs text-yellow-700 dark:text-yellow-400 mb-2">
-                            Zum Löschen vorgemerkt: der Abgleich auf s1 entfernt Tunnel-Peer und
-                            Cloud-Konto und löscht die Anlage danach (höchstens ein paar Minuten).
-                        </p>
-                    {/if}
-                    {#if p.setupMessage}
-                        <p class="text-xs text-gray-600 dark:text-gray-300 mb-2 whitespace-pre-line">{p.setupMessage}</p>
-                    {/if}
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                        Letzte Phasenmeldung: {formatLastSeen(p.setupPhaseAt)}
-                        {#if p.provisionedAt}· Code eingelöst {formatLastSeen(p.provisionedAt)}{/if}
-                    </p>
-
-                    <div class="flex flex-wrap gap-1.5 mb-3">
-                        <Badge color={anlage.consent === "ok" ? "green" : anlage.consent === "widerrufen" ? "red" : "yellow"}>
-                            Einwilligung {anlage.consent === "ok" ? "erteilt" : anlage.consent}
-                        </Badge>
-                        <Badge color={p.wgSynced ? "green" : p.wgPublicKey ? "yellow" : "gray"}>
-                            Tunnel {p.wgAddress}{p.wgSynced ? " aktiv" : p.wgPublicKey ? " wird eingetragen" : " wartet auf Pi"}
-                        </Badge>
-                        <Badge color={stateColor(p.cloudAccountState)}>
-                            Cloud-Konto {p.cloudAccountState || "-"}
-                        </Badge>
-                        <Badge color={stateColor(p.mailAliasState)}>
-                            Mail-Alias {p.mailAliasState || "-"}
-                        </Badge>
-                        <Badge color={p.inverterType ? "green" : "gray"}>
-                            {inverterLabel(p.inverterType) ?? "Wechselrichter: automatisch"}
-                        </Badge>
-                        <Badge color={p.inverterPasswordState === "fehlt" ? "gray" : "green"}>
-                            Wechselrichter-Passwort {p.inverterPasswordState === "hinterlegt"
-                                ? "hinterlegt"
-                                : p.inverterPasswordState === "uebergeben"
-                                  ? "an den Pi übergeben"
-                                  : "fehlt"}
-                        </Badge>
-                    </div>
-                    {#if p.cloudAccountError}
-                        <p class="text-xs text-red-600 mb-2">{p.cloudAccountError}</p>
-                    {/if}
-
-                    <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm mb-3">
-                        <span class="text-gray-500">Code</span>
-                        <span class="font-mono dark:text-white">{p.code ?? "-"} {#if p.expires}<span class="text-xs text-gray-500">(bis {formatDate(p.expires)})</span>{/if}</span>
-                        <span class="text-gray-500">Linux / openHAB-Admin</span>
-                        <span class="font-mono dark:text-white">openhabian / {show ? p.linuxPassword : "••••••••"}</span>
-                        <span class="text-gray-500">Cloud-Konto</span>
-                        <span class="font-mono dark:text-white">{p.cloudUsername} / {show ? p.cloudPassword : "••••••••"}</span>
-                        <span class="text-gray-500">Cloud-UUID / Secret</span>
-                        <span class="font-mono text-xs dark:text-white break-all">{p.cloudUuid} / {show ? p.cloudSecret : "••••••••"}</span>
-                        {#if p.wifiSsid}
-                            <span class="text-gray-500">WLAN</span>
-                            <span class="dark:text-white">{p.wifiSsid}</span>
-                        {/if}
-                    </div>
-
-                    <div class="flex flex-wrap gap-2 mb-3">
-                        <Button size="xs" color="light" onclick={() => (revealed[anlage.id] = !show)}>
-                            {show ? "Verbergen" : "Passwörter anzeigen"}
-                        </Button>
-                        {#if p.setupPhase !== "geloescht"}
-                            <form method="POST" action="?/requestUpdate" use:enhance>
-                                <input type="hidden" name="id" value={anlage.id} />
-                                <Button size="xs" color="light" type="submit" disabled={Boolean(anlage.updateRequestedAt)}>
-                                    {anlage.updateRequestedAt ? "Update angefordert" : "Paket aktualisieren"}
-                                </Button>
-                            </form>
-                            <Button size="xs" href={`/board/openhab/${anlage.id}/sd-karte.zip`}>Zip herunterladen</Button>
-                            <form method="POST" action="?/buildImage" use:enhance>
-                                <input type="hidden" name="id" value={anlage.id} />
-                                <Button size="xs" color="light" type="submit" disabled={Boolean(p.image?.building)}>
-                                    {p.image?.image ? "Image neu erstellen" : "Image erstellen"}
-                                </Button>
-                            </form>
-                            {#if p.image?.image}
-                                <Button size="xs" href={`/board/openhab/${anlage.id}/image.img.gz`}>
-                                    Image herunterladen ({(p.image.image.size / 1e9).toFixed(1).replace(".", ",")} GB)
-                                </Button>
-                            {/if}
-                            <form method="POST" action="?/renewCode" use:enhance>
-                                <input type="hidden" name="id" value={anlage.id} />
-                                <Button size="xs" color="light" type="submit">Neuer Code</Button>
-                            </form>
-                            <form method="POST" action="?/resetCloudPassword" use:enhance>
-                                <input type="hidden" name="id" value={anlage.id} />
-                                <Button size="xs" color="light" type="submit">Neues Cloud-Passwort</Button>
-                            </form>
-                        {/if}
-                        {#if p.setupPhase === "geloescht"}
-                            <form method="POST" action="?/undeletePlant" use:enhance>
-                                <input type="hidden" name="id" value={anlage.id} />
-                                <Button size="xs" color="yellow" type="submit">Löschen zurücknehmen</Button>
-                            </form>
-                        {:else}
-                            <form method="POST" action="?/deletePlant" use:enhance
-                                onsubmit={(/** @type {SubmitEvent} */ e) => {
-                                    if (!confirm(`Anlage ${anlage.name} wirklich löschen? Tunnel-Peer und Cloud-Konto werden entfernt, das Token widerrufen.`)) e.preventDefault();
-                                }}>
-                                <input type="hidden" name="id" value={anlage.id} />
-                                <Button size="xs" color="red" type="submit">Anlage löschen</Button>
-                            </form>
-                        {/if}
-                        {#if p.cloudAccountState.startsWith("error")}
-                            <form method="POST" action="?/retryCloud" use:enhance>
-                                <input type="hidden" name="id" value={anlage.id} />
-                                <Button size="xs" color="yellow" type="submit">Cloud-Konto erneut</Button>
-                            </form>
-                        {/if}
-                        {#if (p.mailAliasState || "").startsWith("error") || p.mailAliasState === "skipped"}
-                            <form method="POST" action="?/retryAlias" use:enhance>
-                                <input type="hidden" name="id" value={anlage.id} />
-                                <Button size="xs" color="yellow" type="submit">Mail-Alias erneut</Button>
-                            </form>
-                        {/if}
-                    </div>
-                    {#if p.image?.building}
-                        <p class="text-xs text-gray-500 mb-2">
-                            Image wird gebaut: {p.image.building.phase} … (dauert einige Minuten, die Seite aktualisiert sich selbst)
-                        </p>
-                    {:else if p.image?.error}
-                        <p class="text-xs text-red-600 mb-2">Image-Bau fehlgeschlagen: {p.image.error.message}</p>
-                    {:else if p.image?.image?.stale}
-                        <p class="text-xs text-yellow-600 mb-2">
-                            Das Image ist mit einem alten oder abgelaufenen Code gebaut. „Image neu erstellen“, bevor es auf eine Karte kommt.
-                        </p>
-                    {/if}
-
-                    <div class="flex flex-wrap gap-3">
-                        <form method="POST" action="?/setInverterType" use:enhance class="flex items-end gap-2">
-                            <input type="hidden" name="id" value={anlage.id} />
-                            <div class="w-56">
-                                <Select name="inverterType" items={inverterChoices} value={p.inverterType} size="sm" />
-                            </div>
-                            <Button size="xs" color="light" type="submit">Profil setzen</Button>
-                        </form>
-                        <form method="POST" action="?/setInverterPassword" use:enhance class="flex items-end gap-2">
-                            <input type="hidden" name="id" value={anlage.id} />
-                            <div class="w-32">
-                                <Label for={`wr-user-${anlage.id}`} class="text-xs">WR-Benutzer</Label>
-                                <Input id={`wr-user-${anlage.id}`} name="username" value={p.inverterUsername || "customer"} size="sm" autocomplete="off" data-1p-ignore data-lpignore="true" />
-                            </div>
-                            <div class="w-40">
-                                <Label for={`wr-pw-${anlage.id}`} class="text-xs">Wechselrichter-Passwort</Label>
-                                <Input id={`wr-pw-${anlage.id}`} name="password" type="password" size="sm" autocomplete="new-password" data-1p-ignore data-lpignore="true" />
-                            </div>
-                            <Button size="xs" color="light" type="submit">Hinterlegen</Button>
-                        </form>
-                    </div>
-                </Card>
-            {/each}
-        </div>
     {/if}
 
     <Heading tag="h2" class="text-xl font-semibold mb-3">Tokens</Heading>

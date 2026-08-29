@@ -1,7 +1,13 @@
 import { error } from '@sveltejs/kit';
 import { getOpenhabStatus, getOpenhabStatusHistory, getOpenhabStatuses } from '$lib/server/db/members/openhabStatus';
+import { getProvisioning } from '$lib/server/db/members/openhabProvision';
 import { getCloudForecast } from '$lib/server/db/weather/forecast';
+import { getImageStatus } from '$lib/server/ibmImage';
+import { secretsConfigured } from '$lib/server/secrets';
+import { listConsentStates } from '$lib/server/db/members/consent';
+import { SPEICHERMANAGEMENT_CONSENT_SCOPE } from '$lib/consent/speichermanagement';
 import { newestVersion } from '$lib/versions';
+import { plantActions, consentState, mapProvisioning } from '../plant.server';
 
 const HISTORY_DAYS = 14;
 
@@ -19,6 +25,16 @@ export async function load({ params }) {
     }
 
     const history = await getOpenhabStatusHistory(statusId, HISTORY_DAYS);
+
+    // Einrichtungsdaten der Anlage (Geheimnisse entschluesselt) - nur
+    // lesbar, wenn IBM_SECRET_KEY gesetzt ist. Anlagen ohne Provisionierung
+    // (klassischer Token-Weg) haben keinen Code; der Abschnitt bleibt weg.
+    const prov = secretsConfigured() ? await getProvisioning(statusId) : null;
+    const hasProvisioning = Boolean(prov && (prov.provision_code || prov.setup_phase === 'geloescht'));
+    // Stand des fertigen SD-Karten-Images (Dateisystem, kein DB-Feld)
+    const image = hasProvisioning && prov.provision_code ? await getImageStatus(prov) : null;
+
+    const consents = await listConsentStates(SPEICHERMANAGEMENT_CONSENT_SCOPE);
 
     // Prognostizierter Wolkenverlauf heute und morgen (ein Standort fuer
     // die ganze Gemeinschaft), Basis der Ladesperre/-regelung.
@@ -76,7 +92,10 @@ export async function load({ params }) {
             memberIdentifier: status.member_identifier,
             lastSeen: status.last_seen,
             ageSeconds: status.age_seconds === null ? null : Number(status.age_seconds),
-            data: status.data ?? {}
+            updateRequestedAt: status.update_requested_at ?? null,
+            consent: consentState(consents, Number(status.member_identifier)),
+            data: status.data ?? {},
+            provisioning: hasProvisioning ? mapProvisioning(prov, status.data ?? {}, image) : null
         },
         historyDays: HISTORY_DAYS,
         batteryToGridKwh,
@@ -84,3 +103,6 @@ export async function load({ params }) {
         cloudForecast
     };
 }
+
+/** @type {import('./$types').Actions} */
+export const actions = plantActions;

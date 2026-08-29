@@ -69,10 +69,15 @@ Hat das Mitglied kein LAN-Kabel am Aufstellort, können hier auch
 WLAN-Name und -Passwort des Mitglieds hinterlegt werden (LAN bleibt die
 Empfehlung).
 
+Die Anlage erscheint danach als Karte oben am Dashboard. Alle weiteren
+Schritte und Knöpfe (Image, Passwörter, Fortschritt, Profil setzen,
+Neuer Code) stehen in der \textbf{Detailansicht der Anlage}, die sich
+per Klick auf die Karte öffnet.
+
 \section{Image erstellen und auf die Karte schreiben}
 
 \begin{enumerate}[nosep]
-    \item Am Dashboard bei der Anlage \emph{Image erstellen} klicken. Der
+    \item In der Detailansicht der Anlage \emph{Image erstellen} klicken. Der
           Server baut das fertige Karten-Image (aktuelles openHABian plus
           unsere Konfiguration); das dauert einige Minuten. Danach
           \emph{Image herunterladen} (Datei \texttt{pi-<nr>.img.gz},
@@ -96,8 +101,8 @@ zwischendurch den Strom trennen. Der Pi installiert zuerst das
 Betriebssystem und openHAB (der längste Teil), dann richtet er sich bei
 ischlstrom.org ein. Insgesamt dauert das 30 bis 45 Minuten.
 
-Den Fortschritt zeigt das Dashboard bei der Anlage an (die Seite
-aktualisiert sich selbst), ebenso die Mitgliedsseite
+Den Fortschritt zeigen die Karte am Dashboard und die Detailansicht der
+Anlage an (die Seiten aktualisieren sich selbst), ebenso die Mitgliedsseite
 \emph{Speichermanagement}. Die Phasen laufen von
 \phase{Konfiguration geladen} über \phase{Fernwartung},
 \phase{Passwörter}, \phase{Cloud-Verbindung} bis \phase{Steuerung} und
@@ -125,8 +130,8 @@ Zwei Dinge kurz prüfen:
           (WireGuard verbunden) und "zuletzt gemeldet" mit frischer
           Uhrzeit.
     \item Anmeldung auf \url{https://remote.hac.ischlstrom.org} mit dem
-          Cloud-Konto der Anlage (Benutzer und Passwort stehen am
-          Dashboard unter \emph{Passwörter anzeigen}): die
+          Cloud-Konto der Anlage (Benutzer und Passwort stehen in der
+          Detailansicht der Anlage unter \emph{Passwörter anzeigen}): die
           openHAB-Oberfläche des Pi erscheint.
 \end{itemize}
 

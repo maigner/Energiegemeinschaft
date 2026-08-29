@@ -95,6 +95,12 @@ Installation auf dem Server und werden dem Pi in einem Stueck geliefert.
 
 **Neu auf `/board/openhab`: "SD-Karte vorbereiten"**
 
+Seit 2026-08-29 zeigt die Uebersicht nur noch die Anlagen-Karten und das
+Formular "SD-Karte vorbereiten"; alle Einrichtungs-Details und -Knoepfe
+je Anlage (Passwoerter, Image, Neuer Code, Profil, Loeschen) stehen in
+der Detailansicht `/board/openhab/[id]` (gemeinsame Actions in
+`plant.server.js`).
+
 - Einzige Eingabe: das **Mitglied** (Auswahlliste). Anzeigename und
   Cloud-Konto leiten sich aus der Mitgliedsnummer ab (`pi-007`,
   `007@ischlstrom.org`). Das Wechselrichter-Profil wird nicht abgefragt,

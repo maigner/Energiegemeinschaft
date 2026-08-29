@@ -1,13 +1,60 @@
 <script>
-    import { Card, Badge, Indicator, Heading } from "flowbite-svelte";
+    import { onMount } from "svelte";
+    import { invalidateAll } from "$app/navigation";
+    import { enhance } from "$app/forms";
+    import {
+        Card,
+        Badge,
+        Indicator,
+        Heading,
+        Progressbar,
+        Button,
+        Select,
+        Input,
+        Label,
+    } from "flowbite-svelte";
     import { Chart } from "@flowbite-svelte-plugins/chart";
     import { compareVersions } from "$lib/versions";
-    import { inverterLabel } from "$lib/inverters";
+    import { inverterLabel, inverterOptions } from "$lib/inverters";
+    import { describePhase } from "$lib/setupPhases";
 
-    let { data } = $props();
+    let { data, form } = $props();
 
     let anlage = $derived(data.anlage);
     let history = $derived(data.history ?? []);
+
+    // Waehrend der Einrichtung (und beim Image-Bau) aendert sich der Stand
+    // laufend; die Seite holt ihn jede Minute neu.
+    onMount(() => {
+        const timer = setInterval(() => invalidateAll(), 60 * 1000);
+        return () => clearInterval(timer);
+    });
+
+    // Sichtbar gemachte Geheimnisse (Klick auf "Passwörter anzeigen")
+    let showSecrets = $state(false);
+
+    let inverterChoices = [
+        { value: "", name: "automatisch erkennen" },
+        ...inverterOptions(),
+    ];
+
+    /** @param {string | Date | null} d */
+    function formatDate(d) {
+        if (!d) return "-";
+        return new Date(d).toLocaleDateString("de-AT", { timeZone: "Europe/Vienna" });
+    }
+
+    /**
+     * Badge-Farbe fuer einen Zustand der Provisionierung.
+     * @param {string} state
+     * @returns {"green" | "yellow" | "red" | "gray"}
+     */
+    function stateColor(state) {
+        if (state === "created" || state === "synced") return "green";
+        if (state === "pending" || state === "reset") return "yellow";
+        if (state.startsWith("error")) return "red";
+        return "gray";
+    }
 
     // Von der Anlage mitgelieferte WARN/ERROR-Zeilen aus dem openHAB-Log
     // (letzte 24 Stunden, Stand der letzten Meldung), neueste zuerst.
@@ -486,6 +533,191 @@
         )}. Diagramme zeigen die letzten {data.historyDays} Tage, gemittelt auf
         15 Minuten.
     </p>
+
+    <!-- Einrichtung und Verwaltung der Anlage (SD-Karte, Passwörter,
+         Wechselrichter-Profil). Solange die Anlage noch nie gemeldet hat,
+         steht die Karte oben - dann ist sie das Wichtigste; danach rückt
+         sie ans Ende der Seite. -->
+    {#snippet einrichtung()}
+        <!-- nur gerendert, wenn anlage.provisioning gesetzt ist -->
+        {@const p = /** @type {NonNullable<typeof anlage.provisioning>} */ (anlage.provisioning)}
+        {@const phase = describePhase(p.setupPhase)}
+        <Card class="max-w-none p-4 md:p-6">
+            <div class="flex items-center justify-between mb-2">
+                <Heading tag="h2" class="text-lg font-semibold w-auto">
+                    Einrichtung
+                </Heading>
+                <Badge color={phase.failed ? "red" : phase.done ? "green" : phase.waiting ? "yellow" : "blue"}>
+                    {phase.label}
+                </Badge>
+            </div>
+            <Progressbar progress={phase.progress} color={phase.failed ? "red" : phase.done ? "green" : "blue"} class="mb-2" />
+            {#if p.setupPhase === "geloescht"}
+                <p class="text-xs text-yellow-700 dark:text-yellow-400 mb-2">
+                    Zum Löschen vorgemerkt: der Abgleich auf s1 entfernt Tunnel-Peer und
+                    Cloud-Konto und löscht die Anlage danach (höchstens ein paar Minuten).
+                </p>
+            {/if}
+            {#if p.setupMessage}
+                <p class="text-xs text-gray-600 dark:text-gray-300 mb-2 whitespace-pre-line">{p.setupMessage}</p>
+            {/if}
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Letzte Phasenmeldung: {formatLastSeen(p.setupPhaseAt)}
+                {#if p.provisionedAt}· Code eingelöst {formatLastSeen(p.provisionedAt)}{/if}
+            </p>
+
+            <div class="flex flex-wrap gap-1.5 mb-3">
+                <Badge color={anlage.consent === "ok" ? "green" : anlage.consent === "widerrufen" ? "red" : "yellow"}>
+                    Einwilligung {anlage.consent === "ok" ? "erteilt" : anlage.consent}
+                </Badge>
+                <Badge color={p.wgSynced ? "green" : p.wgPublicKey ? "yellow" : "gray"}>
+                    Tunnel {p.wgAddress}{p.wgSynced ? " aktiv" : p.wgPublicKey ? " wird eingetragen" : " wartet auf Pi"}
+                </Badge>
+                <Badge color={stateColor(p.cloudAccountState)}>
+                    Cloud-Konto {p.cloudAccountState || "-"}
+                </Badge>
+                <Badge color={stateColor(p.mailAliasState)}>
+                    Mail-Alias {p.mailAliasState || "-"}
+                </Badge>
+                <Badge color={p.inverterType ? "green" : "gray"}>
+                    {inverterLabel(p.inverterType) ?? "Wechselrichter: automatisch"}
+                </Badge>
+                <Badge color={p.inverterPasswordState === "fehlt" ? "gray" : "green"}>
+                    Wechselrichter-Passwort {p.inverterPasswordState === "hinterlegt"
+                        ? "hinterlegt"
+                        : p.inverterPasswordState === "uebergeben"
+                          ? "an den Pi übergeben"
+                          : "fehlt"}
+                </Badge>
+            </div>
+            {#if p.cloudAccountError}
+                <p class="text-xs text-red-600 mb-2">{p.cloudAccountError}</p>
+            {/if}
+            {#if form?.message}
+                <p class="text-xs text-red-600 mb-2">{form.message}</p>
+            {/if}
+            {#if form?.markedDeleted}
+                <p class="text-xs text-yellow-700 dark:text-yellow-400 mb-2">
+                    Anlage zum Löschen vorgemerkt; der Abgleich auf s1 räumt Tunnel und Cloud-Konto ab.
+                </p>
+            {/if}
+
+            <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm mb-3">
+                <span class="text-gray-500">Code</span>
+                <span class="font-mono dark:text-white">{p.code ?? "-"} {#if p.expires}<span class="text-xs text-gray-500">(bis {formatDate(p.expires)})</span>{/if}</span>
+                <span class="text-gray-500">Linux / openHAB-Admin</span>
+                <span class="font-mono dark:text-white">openhabian / {showSecrets ? p.linuxPassword : "••••••••"}</span>
+                <span class="text-gray-500">Cloud-Konto</span>
+                <span class="font-mono dark:text-white">{p.cloudUsername} / {showSecrets ? p.cloudPassword : "••••••••"}</span>
+                <span class="text-gray-500">Cloud-UUID / Secret</span>
+                <span class="font-mono text-xs dark:text-white break-all">{p.cloudUuid} / {showSecrets ? p.cloudSecret : "••••••••"}</span>
+                {#if p.wifiSsid}
+                    <span class="text-gray-500">WLAN</span>
+                    <span class="dark:text-white">{p.wifiSsid}</span>
+                {/if}
+            </div>
+
+            <div class="flex flex-wrap gap-2 mb-3">
+                <Button size="xs" color="light" onclick={() => (showSecrets = !showSecrets)}>
+                    {showSecrets ? "Verbergen" : "Passwörter anzeigen"}
+                </Button>
+                {#if p.setupPhase !== "geloescht"}
+                    <form method="POST" action="?/requestUpdate" use:enhance>
+                        <input type="hidden" name="id" value={anlage.id} />
+                        <Button size="xs" color="light" type="submit" disabled={Boolean(anlage.updateRequestedAt)}>
+                            {anlage.updateRequestedAt ? "Update angefordert" : "Paket aktualisieren"}
+                        </Button>
+                    </form>
+                    <Button size="xs" href={`/board/openhab/${anlage.id}/sd-karte.zip`}>Zip herunterladen</Button>
+                    <form method="POST" action="?/buildImage" use:enhance>
+                        <input type="hidden" name="id" value={anlage.id} />
+                        <Button size="xs" color="light" type="submit" disabled={Boolean(p.image?.building)}>
+                            {p.image?.image ? "Image neu erstellen" : "Image erstellen"}
+                        </Button>
+                    </form>
+                    {#if p.image?.image}
+                        <Button size="xs" href={`/board/openhab/${anlage.id}/image.img.gz`}>
+                            Image herunterladen ({(p.image.image.size / 1e9).toFixed(1).replace(".", ",")} GB)
+                        </Button>
+                    {/if}
+                    <form method="POST" action="?/renewCode" use:enhance>
+                        <input type="hidden" name="id" value={anlage.id} />
+                        <Button size="xs" color="light" type="submit">Neuer Code</Button>
+                    </form>
+                    <form method="POST" action="?/resetCloudPassword" use:enhance>
+                        <input type="hidden" name="id" value={anlage.id} />
+                        <Button size="xs" color="light" type="submit">Neues Cloud-Passwort</Button>
+                    </form>
+                {/if}
+                {#if p.setupPhase === "geloescht"}
+                    <form method="POST" action="?/undeletePlant" use:enhance>
+                        <input type="hidden" name="id" value={anlage.id} />
+                        <Button size="xs" color="yellow" type="submit">Löschen zurücknehmen</Button>
+                    </form>
+                {:else}
+                    <form method="POST" action="?/deletePlant" use:enhance
+                        onsubmit={(/** @type {SubmitEvent} */ e) => {
+                            if (!confirm(`Anlage ${anlage.name} wirklich löschen? Tunnel-Peer und Cloud-Konto werden entfernt, das Token widerrufen.`)) e.preventDefault();
+                        }}>
+                        <input type="hidden" name="id" value={anlage.id} />
+                        <Button size="xs" color="red" type="submit">Anlage löschen</Button>
+                    </form>
+                {/if}
+                {#if p.cloudAccountState.startsWith("error")}
+                    <form method="POST" action="?/retryCloud" use:enhance>
+                        <input type="hidden" name="id" value={anlage.id} />
+                        <Button size="xs" color="yellow" type="submit">Cloud-Konto erneut</Button>
+                    </form>
+                {/if}
+                {#if (p.mailAliasState || "").startsWith("error") || p.mailAliasState === "skipped"}
+                    <form method="POST" action="?/retryAlias" use:enhance>
+                        <input type="hidden" name="id" value={anlage.id} />
+                        <Button size="xs" color="yellow" type="submit">Mail-Alias erneut</Button>
+                    </form>
+                {/if}
+            </div>
+            {#if p.image?.building}
+                <p class="text-xs text-gray-500 mb-2">
+                    Image wird gebaut: {p.image.building.phase} … (dauert einige Minuten, die Seite aktualisiert sich selbst)
+                </p>
+            {:else if p.image?.error}
+                <p class="text-xs text-red-600 mb-2">Image-Bau fehlgeschlagen: {p.image.error.message}</p>
+            {:else if p.image?.image?.stale}
+                <p class="text-xs text-yellow-600 mb-2">
+                    Das Image ist mit einem alten oder abgelaufenen Code gebaut. „Image neu erstellen“, bevor es auf eine Karte kommt.
+                </p>
+            {/if}
+
+            <div class="flex flex-wrap gap-3">
+                <form method="POST" action="?/setInverterType" use:enhance class="flex items-end gap-2">
+                    <input type="hidden" name="id" value={anlage.id} />
+                    <div class="w-56">
+                        <Select name="inverterType" items={inverterChoices} value={p.inverterType} size="sm" />
+                    </div>
+                    <Button size="xs" color="light" type="submit">Profil setzen</Button>
+                </form>
+                <form method="POST" action="?/setInverterPassword" use:enhance class="flex items-end gap-2">
+                    <input type="hidden" name="id" value={anlage.id} />
+                    <div class="w-32">
+                        <Label for="wr-user" class="text-xs">WR-Benutzer</Label>
+                        <Input id="wr-user" name="username" value={p.inverterUsername || "customer"} size="sm" autocomplete="off" data-1p-ignore data-lpignore="true" />
+                    </div>
+                    <div class="w-40">
+                        <Label for="wr-pw" class="text-xs">Wechselrichter-Passwort</Label>
+                        <Input id="wr-pw" name="password" type="password" size="sm" autocomplete="new-password" data-1p-ignore data-lpignore="true" />
+                    </div>
+                    <Button size="xs" color="light" type="submit">Hinterlegen</Button>
+                </form>
+            </div>
+        </Card>
+    {/snippet}
+
+    {#if anlage.provisioning && !anlage.lastSeen}
+        <div class="mb-6">
+            {@render einrichtung()}
+        </div>
+    {/if}
+
     {#snippet versionPart(
         /** @type {string} */ label,
         /** @type {"ibm" | "openhab" | "java"} */ key,
@@ -892,5 +1124,11 @@
                 </ul>
             {/if}
         </Card>
+    {/if}
+
+    {#if anlage.provisioning && anlage.lastSeen}
+        <div class="mt-6">
+            {@render einrichtung()}
+        </div>
     {/if}
 </div>
