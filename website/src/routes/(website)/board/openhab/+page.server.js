@@ -6,6 +6,7 @@ import { mailcowConfigured } from '$lib/server/mailcow';
 import { getMembers } from '$lib/server/db/members/member';
 import { listConsentStates } from '$lib/server/db/members/consent';
 import { SPEICHERMANAGEMENT_CONSENT_SCOPE } from '$lib/consent/speichermanagement';
+import { getBatteryGridFeedInByPlant } from '$lib/server/db/energy/batteryGridFeedIn';
 import { plantActions, idOf, consentState } from './plant.server';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -26,6 +27,10 @@ export async function load({ fetch }) {
     }
     const members = await getMembers();
     const consents = await listConsentStates(SPEICHERMANAGEMENT_CONSENT_SCOPE);
+    // Netzeinspeisung aus der Batterie je Anlage (kumulierter Zaehler der
+    // Pis plus Tages-Schnappschuesse); siehe batteryGridFeedIn.js.
+    const batteryFeedIn = await getBatteryGridFeedInByPlant().catch(() => []);
+    const feedInById = new Map(batteryFeedIn.map((/** @type {any} */ r) => [Number(r.plant_id), r]));
     // Provisionierte Anlagen kennt die Uebersicht nur noch dem Zustand nach
     // (Einrichtungsphase fuer die Karten der noch nicht meldenden Anlagen);
     // alle Details samt Geheimnissen zeigt die Detailseite.
@@ -38,6 +43,7 @@ export async function load({ fetch }) {
         mailcowConfigured: mailcowConfigured(),
         statuses: statuses.map((/** @type {any} */ s) => {
             const p = provisioningById.get(s.id);
+            const f = feedInById.get(Number(s.id));
             return {
                 id: s.id,
                 token: s.token,
@@ -50,6 +56,11 @@ export async function load({ fetch }) {
                 updateRequestedAt: s.update_requested_at ?? null,
                 data: s.data ?? {},
                 consent: consentState(consents, Number(s.member_identifier)),
+                batteryFeedIn: f ? {
+                    week: Number(f.week_kwh ?? 0),
+                    month: Number(f.month_kwh ?? 0),
+                    total: Number(f.total_kwh ?? 0)
+                } : null,
                 provisioning: p ? {
                     code: p.provision_code,
                     setupPhase: p.setup_phase

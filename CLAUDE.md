@@ -49,7 +49,7 @@ Commands (run from `middleware/eeg/`, using the local `middleware/.venvDjango` v
 - `python manage.py createsuperuser`
 - `python manage.py test` (test files are currently empty stubs)
 
-Apps: `members` (Member, MeasurementPoint, OpenhabStatus, BoardApproval, EventRegistration), `metering` (MeterCode, Measurement), `accounting` (Booking, BookingLabel, BookingAttachment), `weather` (WeatherData). URL config exposes `members/`, `accounting/`, and `admin/`.
+Apps: `members` (Member, MeasurementPoint, OpenhabStatus, OpenhabCounterSnapshot, BoardApproval, EventRegistration), `metering` (MeterCode, Measurement), `accounting` (Booking, BookingLabel, BookingAttachment), `weather` (WeatherData). URL config exposes `members/`, `accounting/`, and `admin/`.
 
 The database uses `django.db.backends.postgresql` with `OPTIONS.service = "eeg-middleware"` (resolved from `.pg_service.conf`). `middleware/README.md` documents the SQL for the `weekly_metering_summary` / `daily_metering_summary` materialized views that the website charts read from.
 

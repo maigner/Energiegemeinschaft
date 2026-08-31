@@ -7,6 +7,7 @@ import { fetchAndStoreWeatherData } from "$lib/server/db/weather/openmeteo";
 import { checkActivationReminders, sendActivationReminders } from "$lib/server/mail/reminders/memberReminders";
 import { refreshMaterializedViewCrossoverTimes } from "$lib/server/db/energy/overview";
 import { pruneOpenhabStatusHistory } from "$lib/server/db/members/openhabStatus";
+import { rollupOpenhabCounterSnapshots } from "$lib/server/db/energy/batteryGridFeedIn";
 import { pruneExpiredAuthData, pruneMemberDataAccessLog } from "$lib/server/db/retention";
 import { dev } from "$app/environment";
 
@@ -69,6 +70,15 @@ export async function cronHandle({ event, resolve }) {
 			if (dev) return;
 			console.log('Runs once a week: checkActivationReminders');
 			checkActivationReminders();
+		});
+
+		// rollupOpenhabCounterSnapshots
+		// Tagesendstaende des Batterie-Einspeisezaehlers sichern - muss vor
+		// pruneOpenhabStatusHistory (03:23) laufen, sonst gehen Tage verloren
+		cron.schedule('5 3 * * *', () => {
+			if (dev) return;
+			console.log('Runs daily at 03:05: rollupOpenhabCounterSnapshots');
+			rollupOpenhabCounterSnapshots();
 		});
 
 		// pruneOpenhabStatusHistory

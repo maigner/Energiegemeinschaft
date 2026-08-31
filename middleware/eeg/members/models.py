@@ -117,6 +117,29 @@ class OpenhabStatusHistory(models.Model):
         return f"{self.status_id} @ {self.time}"
 
 
+class OpenhabCounterSnapshot(models.Model):
+    """Tagesendstand des kumulierten Batterie-Einspeisezaehlers einer Anlage
+    (batterie_netz_kwh aus den Status-Pushes, gezaehlt vom Pi in
+    control/core.js). Die Website rollt die Werte taeglich per Cron aus
+    members_openhabstatushistory hierher, BEVOR das Pruning den Verlauf
+    nach 30 Tagen loescht - so bleiben Wochen-, Monats- und Gesamtsummen
+    fuer /board/openhab dauerhaft berechenbar (Summe positiver Tagesdeltas;
+    ein Zaehlerreset zeigt sich als Sprung nach unten und zaehlt ab 0
+    weiter). Geschrieben von der Website per SQL; Django verwaltet nur das
+    Schema."""
+    status = models.ForeignKey(OpenhabStatus, on_delete=models.CASCADE)
+    day = models.DateField()
+    battery_grid_kwh = models.FloatField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["status", "day"], name="unique_counter_snapshot"),
+        ]
+
+    def __str__(self):
+        return f"{self.status_id} {self.day}: {self.battery_grid_kwh} kWh"
+
+
 class BoardApproval(models.Model):
     member = models.ForeignKey(Member, on_delete=models.CASCADE)
     date_time = models.DateTimeField(auto_now_add=True)

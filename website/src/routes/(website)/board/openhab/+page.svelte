@@ -106,6 +106,18 @@
     }
 
     /**
+     * kWh-Summe lesbar (de-AT, eine Nachkommastelle).
+     * @param {number} kwh
+     */
+    function formatKwh(kwh) {
+        return `${kwh.toLocaleString("de-AT", {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+        })} kWh`;
+    }
+
+
+    /**
      * @param {unknown} value
      * @param {number} [digits]
      */
@@ -443,6 +455,20 @@
                             )}
                             {@render stat(uptimeText(d) ?? "-", "Uptime")}
                         </div>
+
+                        {#if anlage.batteryFeedIn}
+                            <div class="mb-3 rounded-lg border border-gray-200 dark:border-gray-600 p-2">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                    Aus der Batterie ins Netz eingespeist
+                                    (Zähler der Anlage)
+                                </p>
+                                <div class="grid grid-cols-3 gap-2 text-center">
+                                    {@render stat(formatKwh(anlage.batteryFeedIn.week), "Diese Woche")}
+                                    {@render stat(formatKwh(anlage.batteryFeedIn.month), "Dieser Monat")}
+                                    {@render stat(formatKwh(anlage.batteryFeedIn.total), "Gesamt")}
+                                </div>
+                            </div>
+                        {/if}
 
                         <div class="flex flex-wrap gap-1.5">
                             {#if issues.length === 0}

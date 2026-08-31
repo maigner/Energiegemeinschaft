@@ -745,6 +745,14 @@ Der Vorstand sieht alle Anlagen live auf einem Dashboard
 Batterieleistung und Netzeinspeisung aus der Batterie. Ausbleibende
 Meldungen färben die Anlage nach 15~Minuten gelb, nach einer Stunde rot;
 das Dashboard ist damit zugleich die Ausfallüberwachung der Flotte.
+Jede Anlagenkarte zeigt zudem die aus der Batterie ins Netz eingespeiste
+Energie (aktuelle Woche, aktueller Monat, gesamt seit Inbetriebnahme), auf
+Basis des Einspeise-Zählers der Anlage (siehe unten): Nur das Gateway kann
+Batterie- von PV-Einspeisung unterscheiden, auch in der Dämmerung, wenn
+beide gleichzeitig einspeisen. Der Server sichert dafür täglich den
+Tagesendstand des Zählers, bevor die Verlaufsbereinigung greift, und
+summiert positive Tagesdeltas; ein Zählerreset (etwa nach neu
+aufgesetzter SD-Karte) verfälscht die Summen deshalb nicht.
 
 Die Netzeinspeisung aus der Batterie ist dabei eine berechnete Größe: Von
 der Entladeleistung fließt nur der Teil ins Netz, den das Netz gerade
