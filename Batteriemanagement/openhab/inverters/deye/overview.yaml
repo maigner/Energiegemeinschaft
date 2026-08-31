@@ -5,7 +5,9 @@ version: 1
 # Gebaut fuer das Smartphone (openHAB-App): alles einspaltig, kurze Listen
 # statt nebeneinander gequetschter Karten. Die Seite "overview" zeigt oben
 # eine Hero-Karte mit Ladestand-Anzeige, Batterieleistung und IBM-Status,
-# darunter die Tageszeiten der Gemeinschaft, den Hauptschalter und die
+# darunter die Tageszeiten der Gemeinschaft, die aus der Batterie in die
+# Gemeinschaft eingespeiste Energie (Woche, Monat, gesamt - der
+# Einspeise-Zaehler aus control/core.js), den Hauptschalter und die
 # Navigation zu vier Unterseiten (Laden, Einspeisen, Pause, Experten). Jede
 # Navigationszeile traegt ein Badge mit dem aktuellen Zustand, so sieht man
 # ohne Tippen, was eingeschaltet ist.
@@ -214,7 +216,8 @@ pages:
                                           class: [ibm-hero-hint]
                                           content: Tippen zeigt den Verlauf
 
-        # Tageszeiten der Gemeinschaft: wann geladen und wann eingespeist wird.
+        # Tageszeiten der Gemeinschaft (wann geladen und wann eingespeist
+        # wird) und die bisher in die Gemeinschaft eingespeiste Energie.
         - component: oh-block
           config: {}
           slots:
@@ -234,9 +237,8 @@ pages:
                                 Zwischen diesen Zeiten erzeugt die Gemeinschaft
                                 mehr Strom, als sie verbraucht - dann lädt die
                                 Batterie aus der eigenen PV. Danach speist sie
-                                ein, höchstens das Nachtbudget - was über dem
-                                Eigenbedarf des Hauses bis zum nächsten
-                                Überschuss liegt.
+                                ein, was über dem Eigenbedarf des Hauses bis
+                                zum nächsten Überschuss liegt.
                             slots:
                               default:
                                 - component: oh-label-item
@@ -251,13 +253,49 @@ pages:
                                     icon: f7:sunset_fill
                                     iconColor: deeporange
                                     item: Ischlstrom_Crossover_Ende
+
+              # Einspeise-Zaehler des Speichermanagements: was die Batterie in
+              # die Gemeinschaft eingespeist hat (siehe control/core.js),
+              # gleiche Werte wie im Vorstands-Dashboard.
+              - component: oh-grid-row
+                config: {}
+                slots:
+                  default:
+                    - component: oh-grid-col
+                      config: {}
+                      slots:
+                        default:
+                          - component: oh-list-card
+                            config:
+                              title: Aus der Batterie in die Gemeinschaft
+                              footer: >-
+                                Energie, die die Batterie ins Netz eingespeist
+                                hat - gezählt vom Speichermanagement seit der
+                                Inbetriebnahme. Woche und Monat beginnen am
+                                Montag bzw. am Monatsersten.
+                            slots:
+                              default:
                                 - component: oh-label-item
                                   config:
-                                    title: Nachtbudget
-                                    icon: f7:moon_fill
-                                    iconColor: deeppurple
-                                    item: IBM_NACHTBUDGET
-                                    after: "=Number.isNaN(Number.parseFloat(items.IBM_NACHTBUDGET.state)) ? '-' : Number.parseFloat(items.IBM_NACHTBUDGET.state).toFixed(1).replace('.', ',') + ' kWh'"
+                                    title: Diese Woche
+                                    icon: f7:calendar
+                                    iconColor: blue
+                                    item: IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH
+                                    after: "=Number.isNaN(Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH.state)) ? '-' : Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH.state).toFixed(1).replace('.', ',') + ' kWh'"
+                                - component: oh-label-item
+                                  config:
+                                    title: Dieses Monat
+                                    icon: f7:calendar_circle_fill
+                                    iconColor: purple
+                                    item: IBM_BATTERIE_NETZEINSPEISUNG_MONAT_KWH
+                                    after: "=Number.isNaN(Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG_MONAT_KWH.state)) ? '-' : Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG_MONAT_KWH.state).toFixed(1).replace('.', ',') + ' kWh'"
+                                - component: oh-label-item
+                                  config:
+                                    title: Gesamt
+                                    icon: f7:bolt_fill
+                                    iconColor: green
+                                    item: IBM_BATTERIE_NETZEINSPEISUNG_KWH
+                                    after: "=Number.isNaN(Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG_KWH.state)) ? '-' : Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG_KWH.state).toFixed(1).replace('.', ',') + ' kWh'"
 
         # Hauptschalter und Navigation zu den Unterseiten; Badges zeigen den
         # Zustand der Funktionen, ohne dass man die Seite oeffnen muss.
@@ -509,12 +547,9 @@ pages:
                                 tagesaktuelle Zeit: eine Stunde nach dem
                                 Abend-Crossover), bis die Gemeinschaft am
                                 Morgen wieder mehr erzeugt als verbraucht.
-                                Nachtbudget: höchstens so viel kWh gehen noch
-                                ins Netz - der Rest bleibt als Reserve und
-                                Eigenbedarf (Hauslast mal Stunden bis zum
-                                nächsten Überschuss, bei Schlechtwetter bis
-                                zum nächsten Abend) im Haus; "-" heißt noch
-                                keine Schätzung, es gilt nur der
+                                Die Batterie behält dabei, was das Haus bis
+                                zum nächsten Überschuss selbst braucht
+                                (Hauslast mal Stunden), mindestens aber den
                                 Reserve-Ladestand. Hauslast: nächtlicher
                                 Verbrauch des Hauses, gelernt aus dem
                                 Ladestandsabfall ohne Einspeisung.
@@ -533,13 +568,6 @@ pages:
                                     icon: f7:sunrise_fill
                                     iconColor: orange
                                     item: Ischlstrom_Crossover_Start
-                                - component: oh-label-item
-                                  config:
-                                    title: Nachtbudget
-                                    icon: f7:moon_fill
-                                    iconColor: deeppurple
-                                    item: IBM_NACHTBUDGET
-                                    after: "=Number.isNaN(Number.parseFloat(items.IBM_NACHTBUDGET.state)) ? '-' : Number.parseFloat(items.IBM_NACHTBUDGET.state).toFixed(1).replace('.', ',') + ' kWh'"
                                 - component: oh-label-item
                                   config:
                                     title: Geschätzte Hauslast

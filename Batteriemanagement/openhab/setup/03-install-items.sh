@@ -164,6 +164,8 @@ Number IBM_BATTERIE_NETZEINSPEISUNG "Netzeinspeisung aus der Batterie [%.0f W]" 
 // Nutzen-Indikator fuer Besitzer und EEG. IBM_NETZEINSPEISUNG_ZAEHLER ist
 // interner Zustand (JSON, praeziser Stand samt Zeitstempel).
 Number IBM_BATTERIE_NETZEINSPEISUNG_KWH "Batterie ins Netz gesamt [%.2f kWh]"  <energy>   (IBM)
+Number IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH "Batterie ins Netz diese Woche [%.2f kWh]" <energy> (IBM)
+Number IBM_BATTERIE_NETZEINSPEISUNG_MONAT_KWH "Batterie ins Netz dieses Monat [%.2f kWh]" <energy> (IBM)
 String IBM_NETZEINSPEISUNG_ZAEHLER  "Einspeise-Zaehler (intern) [%s]"          <settings> (IBM)
 EOF
 
@@ -227,6 +229,8 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     IBM_NETZLADESCHUTZ,
     IBM_NETZLADE_WAECHTER,
     IBM_BATTERIE_NETZEINSPEISUNG_KWH,
+    IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH,
+    IBM_BATTERIE_NETZEINSPEISUNG_MONAT_KWH,
     IBM_NETZEINSPEISUNG_ZAEHLER,
     IBM_HAUSLAST,
     IBM_HAUSLAST_MESSUNG,

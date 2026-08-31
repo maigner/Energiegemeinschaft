@@ -202,8 +202,10 @@ var NETZLADE_MAX_GAP_MIN = 12;    // laengere Luecke -> Zaehler neu aufsetzen
 // fliesst - der Nutzen-Indikator fuer Besitzer und EEG. Integriert wird pro
 // Zyklus die aktuelle Einspeiseleistung ueber die Zeit seit dem letzten
 // Lauf; laengere Luecken (openHAB stand) werden nicht hochgerechnet.
-// Praeziser Stand als JSON in IBM_NETZEINSPEISUNG_ZAEHLER ({kwh, zeit}),
-// gerundete Anzeige in IBM_BATTERIE_NETZEINSPEISUNG_KWH (Status-Push).
+// Praeziser Stand als JSON in IBM_NETZEINSPEISUNG_ZAEHLER ({kwh, zeit},
+// dazu die Zaehlerstaende am Wochen- und Monatsbeginn als Baselines);
+// gerundete Anzeige in IBM_BATTERIE_NETZEINSPEISUNG_KWH (Status-Push)
+// sowie _WOCHE_KWH und _MONAT_KWH fuer die Main UI.
 var EINSPEISE_MAX_GAP_MIN = 12;   // laengere Luecke -> nicht integrieren
 
 var FALLBACK_DISCHARGE_ACTIVE = true;
@@ -1333,8 +1335,31 @@ var netzladeBlock = false;
       kwh += w * (gapMin / 60) / 1000;
     }
   }
-  item.postUpdate(JSON.stringify({ kwh: Math.round(kwh * 1e6) / 1e6, zeit: now.toString() }));
+  // Baselines fuer die Main UI: Zaehlerstand am Beginn der Kalenderwoche
+  // (Montag) und des Monats, mitgefuehrt im selben JSON. Beim Periodenwechsel
+  // wird die Baseline auf den aktuellen Stand gesetzt; faellt der Zaehler
+  // unter eine Baseline (Zustand teilweise verloren), zaehlt sie ab 0 weiter.
+  var today = now.toLocalDate();
+  var weekKey = today.minusDays(today.dayOfWeek().value() - 1).toString();
+  var monthKey = today.withDayOfMonth(1).toString();
+  if (st.wo !== weekKey || typeof st.woKwh !== 'number' || !isFinite(st.woKwh)) {
+    st.wo = weekKey;
+    st.woKwh = kwh;
+  }
+  if (st.mo !== monthKey || typeof st.moKwh !== 'number' || !isFinite(st.moKwh)) {
+    st.mo = monthKey;
+    st.moKwh = kwh;
+  }
+  if (st.woKwh > kwh) st.woKwh = 0;
+  if (st.moKwh > kwh) st.moKwh = 0;
+  item.postUpdate(JSON.stringify({
+    kwh: Math.round(kwh * 1e6) / 1e6, zeit: now.toString(),
+    wo: st.wo, woKwh: Math.round(st.woKwh * 1e6) / 1e6,
+    mo: st.mo, moKwh: Math.round(st.moKwh * 1e6) / 1e6
+  }));
   publishItem('IBM_BATTERIE_NETZEINSPEISUNG_KWH', String(Math.round(kwh * 100) / 100));
+  publishItem('IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH', String(Math.round((kwh - st.woKwh) * 100) / 100));
+  publishItem('IBM_BATTERIE_NETZEINSPEISUNG_MONAT_KWH', String(Math.round((kwh - st.moKwh) * 100) / 100));
 })();
 
 // ----------------------------------------------------------------------------
