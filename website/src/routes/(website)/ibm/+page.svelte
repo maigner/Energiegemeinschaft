@@ -54,6 +54,24 @@
         }
         return result;
     });
+
+    // Summe der Batterie-Netzeinspeisung aller Anlagen, wie im Dashboard
+    // gerechnet (Tages-Schnappschuesse des Einspeise-Zaehlers plus Live-Delta).
+    let feedInTiles = $derived.by(() => {
+        const f = data.batteryFeedIn;
+        if (!f) return [];
+        /** @param {number} kwh */
+        const fmt = (kwh) =>
+            `${kwh.toLocaleString("de-AT", {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+            })} kWh`;
+        return [
+            { value: fmt(f.week), label: "diese Woche" },
+            { value: fmt(f.month), label: "dieses Monat" },
+            { value: fmt(f.total), label: "gesamt" },
+        ];
+    });
 </script>
 
 <svelte:head>
@@ -240,7 +258,7 @@
         <Hr divClass="my-10" />
     {/if}
 
-    {#if tiles.length > 0}
+    {#if tiles.length > 0 || feedInTiles.length > 0}
         <section>
             <Heading
                 tag="h3"
@@ -264,6 +282,33 @@
                     </div>
                 {/each}
             </div>
+            {#if feedInTiles.length > 0}
+                <div
+                    class="rounded-lg border border-gray-200 dark:border-gray-700 p-5 mb-4"
+                >
+                    <p
+                        class="text-sm text-gray-500 dark:text-gray-400 mb-3 text-center"
+                    >
+                        Aus den Batterien in die Gemeinschaft eingespeist
+                    </p>
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        {#each feedInTiles as tile}
+                            <div>
+                                <p
+                                    class="text-2xl font-bold text-primary-600 dark:text-primary-500"
+                                >
+                                    {tile.value}
+                                </p>
+                                <p
+                                    class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                                >
+                                    {tile.label}
+                                </p>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
             <p class="text-sm text-gray-500 dark:text-gray-400">
                 Die Zahlen kommen direkt aus unseren Betriebsdaten und ändern
                 sich laufend.
