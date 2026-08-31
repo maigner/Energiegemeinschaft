@@ -164,6 +164,9 @@ Number IBM_BATTERIE_NETZEINSPEISUNG "Netzeinspeisung aus der Batterie [%.0f W]" 
 // Nutzen-Indikator fuer Besitzer und EEG. IBM_NETZEINSPEISUNG_ZAEHLER ist
 // interner Zustand (JSON, praeziser Stand samt Zeitstempel).
 Number IBM_BATTERIE_NETZEINSPEISUNG_KWH "Batterie ins Netz gesamt [%.2f kWh]"  <energy>   (IBM)
+// Woche und Monat rechnet der Server (wie fuer das Dashboard) und liefert
+// sie mit der Antwort auf die Statusmeldung; status_push.js schreibt sie
+// in diese Items fuer die Main UI.
 Number IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH "Batterie ins Netz diese Woche [%.2f kWh]" <energy> (IBM)
 Number IBM_BATTERIE_NETZEINSPEISUNG_MONAT_KWH "Batterie ins Netz dieses Monat [%.2f kWh]" <energy> (IBM)
 String IBM_NETZEINSPEISUNG_ZAEHLER  "Einspeise-Zaehler (intern) [%s]"          <settings> (IBM)

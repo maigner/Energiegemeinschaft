@@ -69,7 +69,7 @@ export const deleteOpenhabToken = async (id) => {
  * Anforderung geloescht - der Pi legt daraufhin den Marker fuer seinen
  * Update-Timer an.
  *
- * @returns {Promise<{ stored: boolean, update: boolean }>}
+ * @returns {Promise<{ stored: boolean, update: boolean, id: number | null }>}
  */
 export const pushOpenhabStatus = async (token, name, data) => {
     const isFull = Object.prototype.hasOwnProperty.call(data, 'versions');
@@ -85,7 +85,7 @@ export const pushOpenhabStatus = async (token, name, data) => {
             [token, name, JSON.stringify(data), isFull]
         );
         if (result.rowCount === 0) {
-            return { stored: false, update: false };
+            return { stored: false, update: false, id: null };
         }
         const upd = await db.query(
             `UPDATE members_openhabstatus SET update_requested_at = NULL
@@ -111,7 +111,7 @@ export const pushOpenhabStatus = async (token, name, data) => {
                 [result.rows[0].id, JSON.stringify(historyData)]
             );
         }
-        return { stored: true, update };
+        return { stored: true, update, id: result.rows[0].id };
     } finally {
         db.release();
     }

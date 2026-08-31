@@ -766,9 +766,10 @@ bei Einspeisung. Das Gateway summiert diese Leistung zyklusweise zu einem
 Einspeise-Zähler in kWh auf; die Detailseite des Dashboards zeigt daraus
 den Gesamtnutzen der Anlage für Besitzer und Gemeinschaft sowie ein
 Diagramm beider Richtungen. Dieselben Werte sieht das Mitglied in der
-Main UI der Anlage (diese Woche, dieses Monat, gesamt); die Wochen- und
-Monatswerte führt das Gateway lokal, indem es sich den Zählerstand am
-Beginn jeder Kalenderwoche und jedes Monats merkt. Die Gegenrichtung, die Netto-Ladung der
+Main UI der Anlage (diese Woche, dieses Monat, gesamt): Der Server rechnet
+Wochen- und Monatssumme wie für das Dashboard und liefert sie mit der
+Antwort auf die Statusmeldung an das Gateway zurück - so zeigen Main UI
+und Dashboard exakt dieselben Zahlen. Die Gegenrichtung, die Netto-Ladung der
 Batterie aus dem Netz, dient dort der laufenden Verifikation des
 Grundsatzes "nie aus dem Netz laden" und muss praktisch auf der Nulllinie
 liegen.

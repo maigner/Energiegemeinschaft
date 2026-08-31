@@ -6,8 +6,8 @@ version: 1
 # statt nebeneinander gequetschter Karten. Die Seite "overview" zeigt oben
 # eine Hero-Karte mit Ladestand-Anzeige, Batterieleistung und IBM-Status,
 # darunter die Tageszeiten der Gemeinschaft, die aus der Batterie in die
-# Gemeinschaft eingespeiste Energie (Woche, Monat, gesamt - der
-# Einspeise-Zaehler aus control/core.js), den Hauptschalter und die
+# Gemeinschaft eingespeiste Energie (Woche und Monat kommen vom Server mit
+# der Status-Antwort, gesamt vom Einspeise-Zaehler), den Hauptschalter und die
 # Navigation zu vier Unterseiten (Laden, Einspeisen, Pause, Experten). Jede
 # Navigationszeile traegt ein Badge mit dem aktuellen Zustand, so sieht man
 # ohne Tippen, was eingeschaltet ist.
@@ -270,9 +270,11 @@ pages:
                                     iconColor: deeporange
                                     item: Ischlstrom_Crossover_Ende
 
-              # Einspeise-Zaehler des Speichermanagements: was die Batterie in
-              # die Gemeinschaft eingespeist hat (siehe control/core.js),
-              # gleiche Werte wie im Vorstands-Dashboard.
+              # Was die Batterie in die Gemeinschaft eingespeist hat - exakt
+              # die Werte des Vorstands-Dashboards: Woche und Monat rechnet
+              # der Server und schickt sie mit der Antwort auf die
+              # Statusmeldung (status_push.js), gesamt ist der lokale
+              # Einspeise-Zaehler (control/core.js).
               - component: oh-grid-row
                 config: {}
                 slots:

@@ -593,7 +593,9 @@ Halbkreis-Anzeige, Batterieleistung, Netzeinspeisung sofern das Profil ein
 Netzleistungs-Item hat, IBM-Status; Tippen oeffnet den Verlauf), darunter
 die Tageszeiten der Gemeinschaft (Ueberschuss ab/bis), die aus der
 Batterie in die Gemeinschaft eingespeiste Energie (diese Woche, dieses
-Monat, gesamt - der Einspeise-Zaehler aus control/core.js), den
+Monat, gesamt - Woche und Monat rechnet der Server wie fuer das Dashboard
+und schickt sie mit der Antwort auf die Statusmeldung, gesamt ist der
+lokale Einspeise-Zaehler aus control/core.js), den
 Hauptschalter und die Navigation zu vier Unterseiten (`ibm_laden`,
 `ibm_einspeisen`, `ibm_pause`, `ibm_experten`) mit Status-Badges (Ein/Aus,
 verbleibende Pausentage) und eine aufklappbare Erklaerung. In allen

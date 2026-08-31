@@ -292,6 +292,19 @@ if (response === null) {
     var jsonData = JSON.parse(response);
     if (jsonData.ok) {
       console.log("[IBM][Status] Status gemeldet (Ladestand: " + payload.data.soc + (voll ? ", voll" : "") + ").");
+      // Wochen-/Monatssumme der Batterie-Netzeinspeisung aus der Antwort
+      // (rechnet der Server wie fuer das Dashboard, inklusive der Historie
+      // vor dem lokalen Zaehlerstand) in die Main-UI-Items uebernehmen.
+      if (jsonData.einspeisung !== null && typeof jsonData.einspeisung === 'object') {
+        [['woche_kwh', 'IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH'],
+         ['monat_kwh', 'IBM_BATTERIE_NETZEINSPEISUNG_MONAT_KWH']].forEach(function (pair) {
+          var value = jsonData.einspeisung[pair[0]];
+          if (typeof value !== 'number' || !isFinite(value) || value < 0) return;
+          try {
+            items.getItem(pair[1]).postUpdate(String(value));
+          } catch (e) { /* aeltere Installation ohne Item */ }
+        });
+      }
       // Der Vorstand hat am Dashboard "Paket aktualisieren" gedrueckt: Marker
       // fuer den root-Timer ibm-update ablegen (09-install-updater.sh), der
       // das Paket innerhalb von 10 Minuten neu einspielt.
