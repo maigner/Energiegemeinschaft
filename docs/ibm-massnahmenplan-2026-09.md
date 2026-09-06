@@ -207,6 +207,36 @@ Umsetzung:
 - Rollout: manuelle Verifikation gegen einen Tag, der schon in der DB liegt
   (exakte Summen je Zaehlpunkt), Probelauf in die Dev-DB, dann Timer auf s1.
 
+Stand 6. September 2026: umgesetzt und gegen die echte API verifiziert,
+erster Import gelaufen, Timer auf s1 noch nicht installiert.
+
+- `notebooks/energyData/eegfaktura_import.py` (CLI: `--verify TAG`,
+  `--dry-run`, `--from/--to`, `--overlap-days 14`, `--max-days 92`,
+  `--chunk-days 1`, `--pause 5`, `--forecast`, `--metadata`).
+- Live-Befund: die API braucht neben dem Tenant (RC-Nummer) die 33-stellige
+  Gemeinschafts-ID als `ecId` (`EC_ID` in `notebooks/.env`, steht auf dem
+  Blatt Summary des Energy-Reports); mit der RC-Nummer als ecId antwortet
+  der Energystore stumm mit einem leeren Ergebnis. Zeitstempel passen ohne
+  Versatz (`--verify 2026-09-01`: 157052 von 157056 Werten gleich, Summen
+  je Meter-Code identisch bis auf Nachlieferungen). Zaehlpunkte ohne
+  Lieferung kommen als Nullen mit qov 0 und werden uebersprungen, damit
+  stimmt die Zeilenzahl exakt mit der bisherigen Excel-Befuellung ueberein.
+- Erster Lauf (20.08. bis 05.09.): keine Nullungen, rund 174.000 geaenderte
+  Werte (Ersatzwerte L2/L3 fuer 26., 27., 29.08., die der Excel-Weg nie
+  nachgezogen haette), 10.560 neue Werte fuer den 04.09., dessen Lieferung
+  waehrend des Laufs eintraf. Eine Tagesabfrage dauert etwa 1 s, 17
+  Anfragen mit 5 s Pause.
+- Wertereihenfolge aus `utils/counterpoint.go` (DecodeMeterCode) bestaetigt:
+  Verbraucher G.01, G.02, G.03; Erzeuger G.01, P.01. Der Server dekodiert
+  den Basic-Auth-Header mit URL-sicherem Base64, das Skript kodiert so.
+- Timer-Paket `scripts/eegfaktura-import/` (05:00 auf s1 als postgres,
+  venv, `/etc/eegfaktura-import.env`), Doku in `docs/server-setup.md` und
+  `notebooks/energyData/README.md`. Der Unique-Constraint
+  `unique_measurement` existiert bereits, keine Migration noetig.
+- Offen: `install-on-s1.sh` (sudo-Passwort noetig, deshalb von Hand),
+  Zugangsdaten samt `EC_ID` in `/etc/eegfaktura-import.env`, danach
+  RUN_FORECAST=1 (B1 damit erledigt).
+
 ### B3. Abweichungen sichtbar machen
 
 Auf `/board/openhab` je Anlage: Uhrzeit, zu der die Batterie heute 95%

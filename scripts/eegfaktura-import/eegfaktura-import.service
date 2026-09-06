@@ -1,0 +1,14 @@
+[Unit]
+Description=Energiedaten von EEG-Faktura in die Middleware-DB importieren
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=postgres
+Group=postgres
+EnvironmentFile=/etc/eegfaktura-import.env
+ExecStart=/usr/local/sbin/eegfaktura-import.sh
+# ein Lauf darf lange dauern (Views auf 70 Mio. Zeilen, Prognose)
+TimeoutStartSec=2h
+Nice=10

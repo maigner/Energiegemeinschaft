@@ -1,0 +1,10 @@
+[Unit]
+Description=EEG-Faktura-Import taeglich 05:00
+
+[Timer]
+OnCalendar=*-*-* 05:00:00
+RandomizedDelaySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

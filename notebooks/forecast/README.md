@@ -17,7 +17,11 @@ cd notebooks/forecast
 ../../.venv/bin/python eeg_forecast.py --evaluate                     # gespeicherte Prognosen vs. Messdaten
 ```
 
-**Nach jedem EEG-Faktura-Import:** das Import-Notebook
+**Automatisch:** der tägliche Import auf s1 (`notebooks/energyData/eegfaktura_import.py`,
+`scripts/eegfaktura-import/`) frischt `daily_metering_quality` mit auf und speichert mit
+`RUN_FORECAST=1` auch den Prognoselauf (`--refresh --days 30 --store`).
+
+**Von Hand nach einem Excel-Import:** das Import-Notebook
 (`notebooks/energyData/EEG Faktura Energy Report.ipynb`) von oben nach unten laufen
 lassen. Es aktualisiert `daily_metering_quality`, rechnet und speichert die Prognose,
 hält frühere Läufe gegen die neuen Messwerte, füllt die Wetterdaten auf und rechnet am

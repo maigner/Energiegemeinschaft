@@ -55,7 +55,7 @@ The database uses `django.db.backends.postgresql` with `OPTIONS.service = "eeg-m
 
 ## notebooks/
 
-Analysis and back-office notebooks (run with the repo-root `.venv`). Notable areas: `finance/` (SEPA XML for direct debits/credits — `XML Lastschriften`, `XML Gutschriften`, George bank CSV import, tax/annual-close), `energyData/` (EEG-Faktura energy report loader), `weather/` (Open-Meteo import), `eegfaktura/` (EEG-Faktura API), `forecast/` (energy forecast — see below). Data files under these directories are gitignored.
+Analysis and back-office notebooks (run with the repo-root `.venv`). Notable areas: `finance/` (SEPA XML for direct debits/credits — `XML Lastschriften`, `XML Gutschriften`, George bank CSV import, tax/annual-close), `energyData/` (EEG-Faktura energy data: `eegfaktura_import.py` pulls 15-min values from the energystore API and runs daily on s1 via `scripts/eegfaktura-import/`; the xlsx report notebook is the manual fallback), `weather/` (Open-Meteo import), `eegfaktura/` (EEG-Faktura API), `forecast/` (energy forecast — see below). Data files under these directories are gitignored.
 
 `weather/backfill_openmeteo.py` is the canonical loader for `weather_weatherdata` (archive API for the past, forecast API for the rest, `--check` reports coverage gaps); the notebooks next to it only write the original eleven columns and are superseded.
 

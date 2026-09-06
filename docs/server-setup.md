@@ -159,6 +159,44 @@ auf s1):
   `middleware/eeg/.pg_service.conf` (s1), das Passwort aus
   `middleware/eeg/.pgpass` (braucht die s1-Zeile, gitignored).
 
+## Energiedaten-Import (eegfaktura-import, seit September 2026)
+
+Die Viertelstundenwerte kommen taeglich direkt aus dem Energystore von
+EEG-Faktura statt aus dem manuell geladenen Excel-Report
+(`notebooks/energyData/README.md`). Skript
+`notebooks/energyData/eegfaktura_import.py`, Einrichtung auf s1 mit
+`scripts/eegfaktura-import/install-on-s1.sh` vom Entwicklungsrechner aus
+(kopiert Skripte hoch, startet dort `setup-on-s1.sh` als root; wiederholbar,
+auch fuer Updates der Python-Skripte):
+
+- **`eegfaktura-import.timer`** (taeglich 05:00, bis 5 min Zufallsversatz)
+  -> `/usr/local/sbin/eegfaktura-import.sh` als Benutzer `postgres`
+  (peer-Auth am Socket, darf die Materialized Views auffrischen). Python
+  im venv `/usr/local/lib/eegfaktura-import/venv`. Log:
+  `journalctl -u eegfaktura-import`.
+- **Zugangsdaten** in `/etc/eegfaktura-import.env` (root, 0600): normale
+  EEG-Faktura-Anmeldung (`FAKTURA_USER`, `FAKTURA_PASSWORD` ohne
+  Doppelpunkt, `RC_NUMBER`, `EC_ID` = 33-stellige Gemeinschafts-ID, mit der
+  falschen antwortet die API stumm leer). Kein API-Schluessel, kein Keycloak-Zugang
+  noetig: der Energystore prueft Basic-Auth selbst gegen Keycloak.
+- **Fenster**: letzter Tag in `metering_measurement` minus 14 Tage bis
+  gestern, ein Tag je Anfrage mit 5 s Pause, hoechstens 92 Tage je Lauf.
+  Upsert je Tag, unveraenderte Werte bleiben unangetastet; danach
+  `weekly_metering_summary`, `daily_metering_summary`,
+  `daily_metering_quality`.
+- **Prognose**: `RUN_FORECAST=1` in der env-Datei haengt
+  `eeg_forecast.py --refresh --days 30 --store` an (Kopie unter
+  `/var/lib/eegfaktura-import/forecast/`, Cache daneben; `setup-on-s1.sh`
+  installiert dann numpy/pandas/scikit-learn ins venv). Solange das aus
+  ist, bleibt der Prognoselauf Handarbeit im Import-Notebook.
+- **Vergleichslauf** ohne Schreiben (Tag, der schon in der DB liegt):
+  `sudo bash -c 'set -a; . /etc/eegfaktura-import.env; runuser -u postgres -- /usr/local/sbin/eegfaktura-import.sh --verify 2026-09-01'`.
+  Meldet die Ausgabe einen Zeitversatz, `--ts-shift-minutes` im Wrapper
+  ergaenzen.
+- Bei 403 bricht der Lauf sofort ab (jede Anfrage ist eine
+  Keycloak-Anmeldung, nicht wiederholen); Passwortwechsel bei EEG-Faktura
+  also auch in der env-Datei nachziehen.
+
 Noch offen:
 
 1. Nextcloud AIO: Borg-Backup im Master-UI pruefen/aktivieren und die
