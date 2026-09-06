@@ -39,7 +39,8 @@ Verhalten:
   und "auf 0 gesetzt" (vorhandene Werte, die die Lieferung nullt).
 - Danach `weekly_metering_summary`, `daily_metering_summary` und
   `daily_metering_quality` auffrischen (`--no-refresh` unterdrückt das), mit
-  `--forecast` anschließend `../forecast/eeg_forecast.py --refresh --days 30 --store`.
+  `--forecast` anschließend `../forecast/eeg_forecast.py --refresh --days 30 --store`
+  (nur für Läufe von Hand; auf s1 hat die Prognose ihren eigenen Timer).
 - `--verify TAG` schreibt nichts, sondern vergleicht die Antwort mit der DB
   (Trefferquote bei Versatz 0, ±1 h, ±2 h und Tagessummen je Meter-Code).
   Vor dem ersten echten Lauf gegen einen Tag prüfen, der schon in der DB
@@ -48,7 +49,9 @@ Verhalten:
   werden übersprungen und am Ende aufgelistet.
 
 Täglich läuft das auf s1 um 05:00 (`scripts/eegfaktura-import/`, Log
-`journalctl -u eegfaktura-import`), siehe `docs/server-setup.md`.
+`journalctl -u eegfaktura-import`), um 05:30 folgt unabhängig davon der
+Prognoselauf (`eeg-forecast.timer`, Log `journalctl -u eeg-forecast`), siehe
+`docs/server-setup.md`.
 
 Die API-Semantik (Millisekunden, Wertereihenfolge, URL-sicheres Base64 im
 Auth-Header) steht im Docstring des Skripts und stammt aus dem Quellcode

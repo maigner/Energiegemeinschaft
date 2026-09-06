@@ -131,23 +131,26 @@ Vorstandsnetz (Standardablauf).
 
 ### B1. Prognoselauf taeglich automatisch (Abweichung 2, Server-Seite)
 
-- Neues Verzeichnis `scripts/forecast-run/` mit `forecast-run.sh`,
-  systemd-Service und -Timer sowie `install-on-s1.sh` nach dem Muster von
-  `scripts/ibm-provision/`.
-- Auf s1: Python-3.12-venv mit den Notebook-Abhaengigkeiten (pandas,
-  scikit-learn, psycopg, requests), Checkout von `notebooks/forecast/` und
-  `notebooks/weather/`, pg-Service `eeg-middleware`.
-- Timer taeglich 05:30, nach dem stuendlichen Wetter-Cron der Website und
-  bevor die Pis ihr Fenster holen. Befehl wie in CLAUDE.md dokumentiert:
+Stand 6. September 2026: umgesetzt, Installation auf s1 offen
+(`install-on-s1.sh` erneut ausfuehren, sudo-Passwort).
 
-  ```
-  python eeg_forecast.py --refresh --days 30 --store
-  ```
-
+- Kein eigenes Verzeichnis: `scripts/eegfaktura-import/` bringt neben dem
+  Import auch `eeg-forecast.service` und `eeg-forecast.timer` mit
+  (taeglich 05:30, `Persistent`, `After=eegfaktura-import.service`).
+  Wrapper `/usr/local/sbin/eeg-forecast.sh` als `postgres`, dasselbe venv
+  (numpy, pandas, scikit-learn werden jetzt immer installiert), Skript
+  `/var/lib/eegfaktura-import/forecast/eeg_forecast.py`, Cache daneben.
+- Absichtlich vom Import entkoppelt (kein `RUN_FORECAST` mehr): der Lauf
+  rechnet auch ohne neue Messdaten, weil die Wettervorhersage sich taeglich
+  aendert, und ein fehlgeschlagener Import (Passwort, API) stoppt ihn nicht.
+- Befehl: `eeg_forecast.py --refresh --days 30 --days-ahead 14 --store`.
+  `--days-ahead` ist neu und verlaengert den Horizont, wenn die Messdaten
+  hinterherhinken; ab 3 Tagen Rueckstand steht eine Warnung im Journal.
 - Laeufe werden nie ueberschrieben; ein taeglicher Lauf bringt rund 2.900
-  Zeilen je Tag. Monatliches Aufraeumen: bewertete Laeufe aelter als ein
-  Jahr loeschen.
-- Website: `/board/openhab` zeigt das Alter des neuesten Laufs, ab 36 h rot.
+  Zeilen je Tag. Monatliches Aufraeumen (bewertete Laeufe aelter als ein
+  Jahr loeschen) bleibt offen.
+- Website: `/board/openhab` zeigt das Alter des neuesten Laufs als Badge,
+  rot ab 36 h oder wenn gar kein Lauf gespeichert ist (umgesetzt).
 
 ### B2. Energiedaten automatisch von EEG-Faktura holen
 
@@ -233,9 +236,9 @@ erster Import gelaufen, Timer auf s1 noch nicht installiert.
   venv, `/etc/eegfaktura-import.env`), Doku in `docs/server-setup.md` und
   `notebooks/energyData/README.md`. Der Unique-Constraint
   `unique_measurement` existiert bereits, keine Migration noetig.
-- Offen: `install-on-s1.sh` (sudo-Passwort noetig, deshalb von Hand),
-  Zugangsdaten samt `EC_ID` in `/etc/eegfaktura-import.env`, danach
-  RUN_FORECAST=1 (B1 damit erledigt).
+- Auf s1 installiert (6. September 2026), Zugangsdaten samt `EC_ID` in
+  `/etc/eegfaktura-import.env`. Die Prognose haengt nicht mehr am Import
+  (siehe B1), `RUN_FORECAST` gibt es nicht mehr.
 
 ### B3. Abweichungen sichtbar machen
 

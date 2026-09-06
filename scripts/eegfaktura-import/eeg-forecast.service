@@ -1,0 +1,14 @@
+[Unit]
+Description=Energieprognose neu rechnen und speichern
+After=network-online.target postgresql.service eegfaktura-import.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=postgres
+Group=postgres
+WorkingDirectory=/var/lib/eegfaktura-import/forecast
+ExecStart=/usr/local/sbin/eeg-forecast.sh
+# DB-Abfrage ueber 70 Mio. Zeilen plus Training
+TimeoutStartSec=1h
+Nice=10

@@ -333,6 +333,14 @@
                 Paket {newestIbm}{outdatedCount > 0 ? ` · ${outdatedCount} veraltet` : ""}
             </Badge>
         {/if}
+        {#if data.forecastRun}
+            <Badge color={data.forecastRun.ageSeconds > 36 * 3600 ? "red" : "green"} large
+                title="Prognoselauf auf s1 (eeg-forecast.timer, täglich 05:30), Messdaten bis {data.forecastRun.dataUntil}">
+                Prognose {formatAge(data.forecastRun.ageSeconds)}
+            </Badge>
+        {:else}
+            <Badge color="red" large>keine Prognose gespeichert</Badge>
+        {/if}
         <form method="POST" action="?/requestUpdateAll" use:enhance
             onsubmit={(/** @type {SubmitEvent} */ e) => {
                 if (!confirm("Alle online gemeldeten Anlagen spielen das IBM-Paket innerhalb von 10 Minuten neu ein. Fortfahren?")) e.preventDefault();

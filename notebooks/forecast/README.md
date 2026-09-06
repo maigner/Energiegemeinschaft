@@ -17,9 +17,14 @@ cd notebooks/forecast
 ../../.venv/bin/python eeg_forecast.py --evaluate                     # gespeicherte Prognosen vs. Messdaten
 ```
 
-**Automatisch:** der tägliche Import auf s1 (`notebooks/energyData/eegfaktura_import.py`,
-`scripts/eegfaktura-import/`) frischt `daily_metering_quality` mit auf und speichert mit
-`RUN_FORECAST=1` auch den Prognoselauf (`--refresh --days 30 --store`).
+**Automatisch:** auf s1 läuft täglich um 05:00 der EEG-Faktura-Import
+(`notebooks/energyData/eegfaktura_import.py`, frischt `daily_metering_quality` mit auf) und um
+05:30 der Prognoselauf `eeg-forecast.timer` (`--refresh --days 30 --days-ahead 14 --store`,
+Einrichtung in `scripts/eegfaktura-import/`, Log `journalctl -u eeg-forecast`). Der Lauf ist
+vom Import unabhängig: er rechnet auch ohne neue Messdaten, weil sich die Wettervorhersage
+täglich ändert. `--days-ahead N` verlängert `--days`, sodass der Horizont immer mindestens N
+Tage über heute hinausreicht, auch wenn die Messdaten hinterherhinken (mehr als 3 Tage Rückstand
+gibt eine Warnung im Log). `/board/openhab` zeigt das Alter des neuesten Laufs.
 
 **Von Hand nach einem Excel-Import:** das Import-Notebook
 (`notebooks/energyData/EEG Faktura Energy Report.ipynb`) von oben nach unten laufen

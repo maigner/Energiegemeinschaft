@@ -1,0 +1,10 @@
+[Unit]
+Description=Energieprognose taeglich 05:30 (nach dem EEG-Faktura-Import)
+
+[Timer]
+OnCalendar=*-*-* 05:30:00
+RandomizedDelaySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

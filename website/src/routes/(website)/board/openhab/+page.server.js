@@ -7,6 +7,7 @@ import { getMembers } from '$lib/server/db/members/member';
 import { listConsentStates } from '$lib/server/db/members/consent';
 import { SPEICHERMANAGEMENT_CONSENT_SCOPE } from '$lib/consent/speichermanagement';
 import { getBatteryGridFeedInByPlant } from '$lib/server/db/energy/batteryGridFeedIn';
+import { getLatestForecastRun } from '$lib/server/db/energy/forecast';
 import { plantActions, idOf, consentState } from './plant.server';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -36,9 +37,20 @@ export async function load({ fetch }) {
     // alle Details samt Geheimnissen zeigt die Detailseite.
     const provisioning = secretsConfigured() ? await listProvisioning() : [];
     const provisioningById = new Map(provisioning.map((/** @type {any} */ p) => [p.id, p]));
+    // Neuester Prognoselauf (eeg-forecast.timer auf s1, taeglich 05:30): die
+    // Regelung der Pis haengt daran, deshalb hier das Alter sichtbar machen.
+    const run = await getLatestForecastRun().catch(() => null);
+    const forecastRun = run ? {
+        createdAt: run.created_at,
+        ageSeconds: Math.max(0, (Date.now() - new Date(run.created_at).getTime()) / 1000),
+        dataUntil: run.data_until instanceof Date
+            ? run.data_until.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+            : String(run.data_until ?? '')
+    } : null;
 
     return {
         serverIbmVersion,
+        forecastRun,
         secretsConfigured: secretsConfigured(),
         mailcowConfigured: mailcowConfigured(),
         statuses: statuses.map((/** @type {any} */ s) => {

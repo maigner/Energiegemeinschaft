@@ -1112,6 +1112,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Energieprognose ischlstrom")
     parser.add_argument("--refresh", action="store_true", help="reload from DB and Open-Meteo")
     parser.add_argument("--days", type=int, default=14, help="forecast horizon in days")
+    parser.add_argument("--days-ahead", type=int, default=0, metavar="N",
+                        help="Horizont reicht mindestens N Tage über heute hinaus; verlängert --days, "
+                             "wenn die Messdaten hinterherhinken (Tagesbetrieb auf s1)")
     parser.add_argument("--start", default=None, help="start day (YYYY-MM-DD, default: first missing day)")
     parser.add_argument("--backtest", action="store_true", help="run the rolling origin evaluation")
     parser.add_argument("--folds", type=int, default=6)
@@ -1153,7 +1156,16 @@ def main() -> None:
         print()
 
     models = train(frame)
-    result = forecast(frame, models, start=args.start, days=args.days)
+    days = args.days
+    if args.days_ahead:
+        start = (pd.Timestamp(args.start).tz_localize(TZ) if args.start
+                 else (last_complete_day(frame) + pd.Timedelta(days=1)).tz_localize(TZ))
+        today = pd.Timestamp.now(tz=TZ).normalize()
+        days = max(days, (today + pd.Timedelta(days=args.days_ahead + 1) - start).days)
+        lag = (today - start).days
+        if lag > 3:
+            print(f"Achtung: Messdaten enden {lag} Tage vor heute, Prognose ab {start.date()}")
+    result = forecast(frame, models, start=args.start, days=days)
     result.to_csv(args.out)
     summary = daily_summary(result)
     columns = [c for c in ("consumption_kwh", "generation_kwh", "self_coverage_kwh", "surplus_kwh",

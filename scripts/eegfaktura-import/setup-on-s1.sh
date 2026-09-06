@@ -6,15 +6,16 @@
 #
 #   sudo ./setup-on-s1.sh
 #
-#   1. venv unter /usr/local/lib/eegfaktura-import/venv mit psycopg
-#      (plus numpy/pandas/scikit-learn, wenn RUN_FORECAST=1 in der env-Datei)
+#   1. venv unter /usr/local/lib/eegfaktura-import/venv mit psycopg,
+#      numpy, pandas und scikit-learn (fuer die Prognose)
 #   2. Skripte: eegfaktura_import.py nach /usr/local/lib/eegfaktura-import,
 #      eeg_forecast.py nach /var/lib/eegfaktura-import/forecast (der Cache
 #      liegt daneben, deshalb postgres-eigen), Wrapper nach /usr/local/sbin
 #   3. /etc/eegfaktura-import.env aus der Vorlage, falls noch nicht da
 #      (Zugangsdaten dort eintragen), ~postgres/.pg_service.conf fuer die
 #      Prognose (Service eeg-middleware ueber den Socket)
-#   4. systemd-Unit und Timer aktivieren
+#   4. systemd-Units und Timer aktivieren: eegfaktura-import (05:00) und
+#      eeg-forecast (05:30, Prognoselauf, unabhaengig vom Import)
 #
 # Der Dienst laeuft als postgres (peer-Auth am Socket, darf die Materialized
 # Views auffrischen, die ischlstrom_middleware gehoeren). Wiederholbar.
@@ -42,12 +43,17 @@ if [ ! -x "$LIB/venv/bin/python" ]; then
 fi
 "$LIB/venv/bin/pip" install -q --upgrade pip
 "$LIB/venv/bin/pip" install -q 'psycopg[binary]>=3.1'
+log "Prognose-Pakete installieren (beim ersten Mal dauert das)"
+"$LIB/venv/bin/pip" install -q numpy pandas scikit-learn
 
 # --- 2. Dateien ----------------------------------------------------------------
 install -m 0644 "$here/eegfaktura_import.py" "$LIB/eegfaktura_import.py"
 install -m 0755 "$here/eegfaktura-import.sh" /usr/local/sbin/eegfaktura-import.sh
 install -m 0644 "$here/eegfaktura-import.service" /etc/systemd/system/eegfaktura-import.service
 install -m 0644 "$here/eegfaktura-import.timer" /etc/systemd/system/eegfaktura-import.timer
+install -m 0755 "$here/eeg-forecast.sh" /usr/local/sbin/eeg-forecast.sh
+install -m 0644 "$here/eeg-forecast.service" /etc/systemd/system/eeg-forecast.service
+install -m 0644 "$here/eeg-forecast.timer" /etc/systemd/system/eeg-forecast.timer
 install -d -m 0755 -o postgres -g postgres "$VAR" "$VAR/forecast"
 install -m 0644 -o postgres -g postgres "$here/eeg_forecast.py" "$VAR/forecast/eeg_forecast.py"
 
@@ -57,10 +63,6 @@ if [ ! -f "$ENV_FILE" ]; then
   log "$ENV_FILE angelegt - FAKTURA_USER, FAKTURA_PASSWORD, RC_NUMBER, EC_ID eintragen."
 fi
 chmod 0600 "$ENV_FILE"
-if grep -q '^RUN_FORECAST=1' "$ENV_FILE"; then
-  log "Prognose-Pakete installieren (dauert)"
-  "$LIB/venv/bin/pip" install -q numpy pandas scikit-learn
-fi
 if [ ! -f "$PG_HOME/.pg_service.conf" ] || ! grep -q '^\[eeg-middleware\]' "$PG_HOME/.pg_service.conf"; then
   cat >> "$PG_HOME/.pg_service.conf" <<'CONF'
 [eeg-middleware]
@@ -73,9 +75,9 @@ fi
 
 # --- 4. Timer ------------------------------------------------------------------
 systemctl daemon-reload
-systemctl enable --now eegfaktura-import.timer
+systemctl enable --now eegfaktura-import.timer eeg-forecast.timer
 log "Timer aktiv:"
-systemctl list-timers eegfaktura-import.timer --no-pager
+systemctl list-timers eegfaktura-import.timer eeg-forecast.timer --no-pager
 
 if ! grep -q '^FAKTURA_PASSWORD=.\+' "$ENV_FILE"; then
   log "ACHTUNG: FAKTURA_PASSWORD in $ENV_FILE ist leer; der Lauf bricht bis dahin mit Exit 2 ab."

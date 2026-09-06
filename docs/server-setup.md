@@ -184,11 +184,18 @@ auch fuer Updates der Python-Skripte):
   Upsert je Tag, unveraenderte Werte bleiben unangetastet; danach
   `weekly_metering_summary`, `daily_metering_summary`,
   `daily_metering_quality`.
-- **Prognose**: `RUN_FORECAST=1` in der env-Datei haengt
-  `eeg_forecast.py --refresh --days 30 --store` an (Kopie unter
-  `/var/lib/eegfaktura-import/forecast/`, Cache daneben; `setup-on-s1.sh`
-  installiert dann numpy/pandas/scikit-learn ins venv). Solange das aus
-  ist, bleibt der Prognoselauf Handarbeit im Import-Notebook.
+- **Prognose**: eigener Timer **`eeg-forecast.timer`** (taeglich 05:30,
+  nach dem Import) -> `/usr/local/sbin/eeg-forecast.sh` als `postgres`,
+  rechnet `eeg_forecast.py --refresh --days 30 --days-ahead 14 --store`
+  (Kopie unter `/var/lib/eegfaktura-import/forecast/`, Cache daneben,
+  Pakete numpy/pandas/scikit-learn im selben venv). Laeuft bewusst
+  unabhaengig vom Import: die Wettervorhersage aendert sich taeglich, und
+  ein haengender Import darf die Prognose nicht stoppen. `--days-ahead 14`
+  verlaengert den Horizont, wenn die Messdaten hinterherhinken, damit die
+  naechsten zwei Wochen immer abgedeckt sind (das Wetter reicht 16 Tage).
+  Log: `journalctl -u eeg-forecast`. `/board/openhab` zeigt das Alter des
+  neuesten Laufs (rot ab 36 h). Jeder Lauf bringt rund 2.900 Zeilen in
+  `metering_energyforecast`; Laeufe werden nie ueberschrieben.
 - **Vergleichslauf** ohne Schreiben (Tag, der schon in der DB liegt):
   `sudo bash -c 'set -a; . /etc/eegfaktura-import.env; runuser -u postgres -- /usr/local/sbin/eegfaktura-import.sh --verify 2026-09-01'`.
   Meldet die Ausgabe einen Zeitversatz, `--ts-shift-minutes` im Wrapper
