@@ -430,6 +430,8 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `Ischlstrom_Ladesperre_Start` / `_Ende` | String | API `/api/eeginfo/ladefenster/v1` |
 | `Ischlstrom_Ladesperre_Datum` | String | Tag, fuer den das Ladesperre-Fenster gilt |
 | `Ischlstrom_Entladestart` | String | Entladestart der Nacht aus der Tagesprognose (Token-API), `HH:MM` oder `-` |
+| `Ischlstrom_Entladeende` | String | Entladeende am Morgen aus der Tagesprognose (Token-API), `HH:MM` oder `-` (dann Wochen-Crossover) |
+| `Ischlstrom_Crossover_Vormittag` | String | Vormittags-Crossover der Gemeinschaft laut Tagesprognose (Token-API); bis dahin sperrt die Laderegelung hart |
 | `Ischlstrom_Wolken_Stunden` | String | Stuendliche Bewoelkung des restlichen Tages (JSON, Wolken-API) |
 | `Ischlstrom_Ladefaktoren` | String | Stuendliche Ladefaktoren des Erzeugungsprofils samt Abend-Deadline (JSON, Token-API) |
 | `IBM_MIN_BATTERY_CHARGE` | Number | Einstellung |
@@ -442,6 +444,11 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `IBM_DYNAMISCHE_LEISTUNG` | Switch | Entladeleistung automatisch an die Batteriegroesse anpassen |
 | `IBM_BATTERIE_KAPAZITAET` | Number | Geschaetzte Batteriekapazitaet in kWh (von der Steuerung befuellt) |
 | `IBM_KAPAZITAET_MESSUNG` | String | Interner Zustand der Kapazitaetsschaetzung (JSON) |
+| `IBM_LADESPERRE_LOKAL` | Switch | Sperr-Ende selbst berechnen (Rueckfall ohne Laderegelung) |
+| `IBM_LADELEISTUNG` | Number | Gelernte Spitzen-Ladeleistung in kW (von der Steuerung befuellt, Status-Push) |
+| `IBM_LADERATE_MESSUNG` | String | Interner Zustand der Ladeleistungsschaetzung (JSON, Stichproben) |
+| `IBM_LADESPERRE_LOKAL_ENDE` | String | Lokal berechnetes Sperr-Ende, `HH:MM` oder `-` |
+| `IBM_SONNENPROFIL` | String | Sonnenprofil: mittlere PV-Leistung je Tagesstunde der letzten 14 Tage (JSON, intern) |
 | `IBM_LADEREGELUNG` | Switch | Ladeleistung dynamisch regeln statt Sperrfenster (siehe unten) |
 | `IBM_LADEREGELUNG_SOLL` | String | Ziel-Ladeleistung der Regelung, `<watt> W` oder `-` |
 | `IBM_LADEREGELUNG_STATUS` | String | Interner PWM-Zustand der Laderegelung (JSON) |
@@ -452,20 +459,26 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `IBM_BATTERIE_NETZEINSPEISUNG_KWH` | Number | Einspeise-Zaehler: aufsummierte Energie aus der Batterie ins Netz in kWh (Nutzen-Indikator, Anzeige/Status-Push) |
 | `IBM_NETZEINSPEISUNG_ZAEHLER` | String | Interner Zustand des Einspeise-Zaehlers (JSON, praeziser Stand samt Zeitstempel) |
 
-Das Entladefenster endet beim morgendlichen Crossover der Gemeinschaft
-(`Ischlstrom_Crossover_Start`, Wochenmittel). Der Beginn kommt tagesaktuell
-aus der Prognose (`Ischlstrom_Entladestart`, Token-API): der erste
-15-Minuten-Slot nach dem abendlichen Crossover, in dem das Defizit der
-Gemeinschaft mindestens ein Viertel ihres Verbrauchs und mindestens das
-Doppelte der Entladeleistung aller IBM-Anlagen erreicht. Erst dann nehmen
-die Mitglieder die Einspeisung sicher auf; direkt nach dem Crossover (und
-erst recht nach dem Wochenmittel `Ischlstrom_Crossover_Ende`, das an
-sonnigen Tagen zu frueh liegt) ginge sie an den Energielieferanten. Fehlt
-der Wert oder gilt er nicht fuer den heutigen Tag (`Ischlstrom_Ladesperre_Datum`),
-beginnt die Entladung eine Stunde nach dem abendlichen Crossover
-(`DISCHARGE_START_OFFSET_MIN` in `control/core.js`). Liegen keine plausiblen
+Das Entladefenster kommt tagesaktuell aus der Prognose (Token-API):
+Beginn `Ischlstrom_Entladestart`, der erste 15-Minuten-Slot nach dem
+abendlichen Crossover, in dem das Defizit der Gemeinschaft mindestens ein
+Viertel ihres Verbrauchs und mindestens das Doppelte der Entladeleistung
+aller IBM-Anlagen erreicht; Ende `Ischlstrom_Entladeende`, der erste
+Morgen-Slot, in dem das Defizit wieder unter diese Schwelle faellt. Nur
+dazwischen nehmen die Mitglieder die Einspeisung sicher auf; direkt nach
+dem Abend-Crossover oder kurz vor dem Vormittags-Crossover ginge sie an
+den Energielieferanten. Die Flottenleistung rechnet der Server wie die
+Steuerung (0,3 C der gelernten Kapazitaet, gekappt bei 5 kW). Fehlt ein
+Wert oder gilt er nicht fuer den heutigen Tag (`Ischlstrom_Ladesperre_Datum`),
+gilt das Wochenmittel der Crossover-Zeiten: Beginn eine Stunde nach dem
+abendlichen Crossover (`DISCHARGE_START_OFFSET_MIN` in `control/core.js`),
+Ende beim morgendlichen Crossover (`Ischlstrom_Crossover_Start`). Diese
+Wochenwerte sind ein Klimamittel je Tag des Jahres ueber alle Jahre und
+liegen an sonnigen Tagen deutlich daneben. Liegen keine plausiblen
 Crossover-Zeiten vor (ischlstrom.org nie erreichbar gewesen oder Werte
 unbrauchbar), wird **nicht** entladen - ein Ersatz-Zeitfenster gibt es nicht.
+Die Entladeleistung wird zusaetzlich so gestreckt, dass das Nachtbudget bis
+zum Entladeende reicht (Budget durch Reststunden mal 1,2, nie unter 0,1 C).
 
 Wie tief nachts entladen wird, begrenzt das **Nacht-Entladebudget**, das
 die Steuerung je Anlage selbst aus Batteriegroesse und Hausverbrauch
@@ -508,8 +521,11 @@ Sobald die Anlage ihre Batteriekapazitaet und Ladeleistung belastbar
 geschaetzt hat, ersetzt ein geschlossener Regelkreis das harte Sperrfenster
 (`IBM_LADEREGELUNG`, Vorgabe `ON`): In jedem 5-Minuten-Zyklus berechnet die
 Steuerung die **Ziel-Ladeleistung** neu: fehlende Energie (bis 95%
-Ladestand) geteilt durch die **effektive Restladezeit** bis eine Stunde vor
-dem abendlichen Crossover. Die Restzeit ist sonnengewichtet: jede
+Ladestand) geteilt durch die **effektive Restladezeit** bis zwei Stunden
+vor dem abendlichen Crossover, mal Sicherheitsfaktor 1,5 (beides im Replay
+der Betriebsdaten kalibriert: am spaeten Nachmittag bleibt von der
+Spitzen-Ladeleistung nach Hauslast wenig uebrig, mit einer Stunde Puffer
+wurden die Batterien 1 bis 3 Stunden zu spaet voll). Die Restzeit ist sonnengewichtet: jede
 verbleibende Stunde zaehlt nur mit ihrem erwarteten Ertrag, bevorzugt aus
 den stuendlichen Ladefaktoren des Erzeugungsprofils (Token-API, exakt
 inklusive Sonnenstand), sonst aus den stuendlichen Bewoelkungswerten der
@@ -524,6 +540,38 @@ Gemeinschaft statt erst nach einem Sperr-Ende. Weil auf den
 **Live-Ladestand** geregelt wird, korrigieren sich Prognosefehler von
 selbst: zieht es zu, bleibt der Ladestand zurueck, die Ziel-Leistung steigt
 und die Begrenzung loest sich.
+
+**Sperre bis zum Vormittags-Crossover:** Bis `Ischlstrom_Crossover_Vormittag`
+(Token-API) ist die Gemeinschaft im Defizit, jede in eine Batterie geladene
+kWh fehlt den Mitgliedern. Die Regelung sperrt deshalb bis dahin hart,
+sofern die Batterie in den sonnengewichteten Stunden danach noch voll wird
+(fehlende Energie durch Spitzen-Ladeleistung mal 1,3); passt es nicht,
+endet die Sperre genau so viel frueher, wie Ladezeit fehlt. Ohne Wert oder
+ohne Stundendaten entfaellt die Sperre.
+
+**Sonnenprofil als Boden:** Ist der Prognoselauf veraltet oder falsch,
+schrumpft die Restladezeit und die Begrenzung loest sich (so am 3. September
+2026). Die Steuerung fuehrt deshalb je Tagesstunde die mittlere PV-Leistung
+der letzten 14 Tage (`IBM_SONNENPROFIL`, 75. Perzentil je Stunde, normiert
+auf den hoechsten je gemessenen Stundenwert) und rechnet daraus eine
+beobachtete Restladezeit, skaliert mit der aktuellen Sonnigkeit; es gilt
+die groessere der beiden. Dazu ein Sicherheitsnetz: vormittags bei PV ueber
+der Haelfte der gelernten Spitze und Ladestand unter 60% faellt der
+Sperranteil nie unter 0,3. Braucht `PV_POWER_ITEM`.
+
+**Spitzen-Ladeleistung:** Der Sperranteil bezieht sich auf die gelernte
+Spitzen-Ladeleistung (`IBM_LADELEISTUNG`): 80. Perzentil der Stichproben aus
+dem Batterieleistungs-Item in freien Slots zwischen 10:00 und 15:00
+(Ladestand 20 bis 90%, sonnige Vorschau, 15 Minuten Abstand, letzte 7
+Tage), nach oben sofort, nach unten mit 7 Tagen Halbwertszeit. Bis drei
+Stichproben vorliegen gilt das Tagesmaximum. Ohne `BATTERY_POWER_ITEM`
+bleibt die Schaetzung aus dem Ladestandsanstieg. Beim ersten Lauf des
+neuen Pakets wird die alte Schaetzung (eine untere Huelle, Faktor 1,5 bis
+3,5 zu klein) verworfen.
+
+Aenderungen an der Regelung vorher im Replay pruefen:
+`../control/replay/README.md` (30-Tage-Status-Historie aus der
+Datenbank, simulierter Ladestand, Vergleich alt gegen neu).
 
 Umgesetzt wird die Begrenzung je nach Wechselrichter: Definiert der Adapter
 die optionale Funktion `ibmLimitCharge` (SunSpec-/Victron-Profile), wird die

@@ -243,11 +243,13 @@ export const getOpenhabStatus = async (statusId) => {
 };
 
 /**
- * Summe der eingestellten maximalen Entladeleistung aller aktiven
- * IBM-Anlagen in kW (Hauptschalter ON, Entladung aktiv, in der letzten
- * Stunde gemeldet). Dient dem Entladestart der Nacht als Mass dafuer, wie
- * viel die Flotte abends ins Netz drueckt (siehe getTodayDischargeStart).
- * Eine Anlage ohne Einstellung zaehlt mit 3 kW.
+ * Summe der maximalen Entladeleistung aller aktiven IBM-Anlagen in kW
+ * (Hauptschalter ON, Entladung aktiv, in der letzten Stunde gemeldet).
+ * Dient dem Entladestart und -ende der Nacht als Mass dafuer, wie viel die
+ * Flotte ins Netz drueckt (siehe getTodayDischargeStart). Gerechnet wird
+ * wie in control/core.js: mit dynamischer Leistung und gelernter
+ * Kapazitaet 0,3 C, gekappt bei 5 kW (ABSOLUTE_MAX_DISCHARGE_W); sonst die
+ * eingestellte maximale Entladeleistung; ohne Einstellung 3 kW.
  *
  * @returns {Promise<number>}
  */
@@ -255,9 +257,14 @@ export const getActiveFleetDischargeKw = async () => {
     const db = await middlewareDbConnection();
     try {
         const result = await db.query(
-            `SELECT COALESCE(SUM(CASE WHEN jsonb_typeof(data->'max_entladeleistung_w') = 'number'
-                                      THEN (data->>'max_entladeleistung_w')::float
-                                      ELSE 3000 END), 0) / 1000 AS kw
+            `SELECT COALESCE(SUM(LEAST(5000, CASE
+                        WHEN COALESCE(data->>'dynamische_leistung', 'ON') = 'ON'
+                         AND jsonb_typeof(data->'batterie_kapazitaet') = 'number'
+                         AND (data->>'batterie_kapazitaet')::float BETWEEN 1 AND 100
+                          THEN (data->>'batterie_kapazitaet')::float * 1000 * 0.3
+                        WHEN jsonb_typeof(data->'max_entladeleistung_w') = 'number'
+                          THEN (data->>'max_entladeleistung_w')::float
+                        ELSE 3000 END)), 0) / 1000 AS kw
                FROM members_openhabstatus
               WHERE last_seen > now() - interval '1 hour'
                 AND data->>'hauptschalter' = 'ON'

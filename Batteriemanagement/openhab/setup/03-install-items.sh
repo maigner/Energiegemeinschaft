@@ -87,6 +87,14 @@ String Ischlstrom_Ladefaktoren        "Ladefaktoren (intern) [%s]"      <setting
 // Gemeinschaft laut Prognose deutlich im Defizit ist (HH:MM); '-' = kein
 // Wert, die Steuerung startet dann beim Abend-Crossover plus Abstand
 String Ischlstrom_Entladestart        "Entladung ab [%s]"               <time>   (IBM)
+// Entladeende am Morgen (Token-API): erster Slot, in dem das Defizit der
+// Gemeinschaft die Einspeisung der Flotte nicht mehr sicher aufnimmt;
+// '-' = kein Wert, dann gilt der Wochen-Crossover (Ischlstrom_Crossover_Start)
+String Ischlstrom_Entladeende         "Entladung bis [%s]"              <time>   (IBM)
+// Vormittags-Crossover der Gemeinschaft laut Tagesprognose (Token-API):
+// bis dahin sperrt die Laderegelung hart, sofern die Batterie danach noch
+// voll wird; '-' = kein Wert
+String Ischlstrom_Crossover_Vormittag "Gemeinschaft im Plus ab [%s]"    <time>   (IBM)
 
 // Vom Mitglied einstellbar
 Number IBM_MIN_BATTERY_CHARGE                       "Minimaler Ladestand Batterie [%.0f %%]" <batterylevel> (IBM)
@@ -120,6 +128,10 @@ Switch IBM_LADESPERRE_LOKAL      "Ladesperre-Ende selbst berechnen"            <
 Number IBM_LADELEISTUNG          "Geschaetzte Ladeleistung [%.1f kW]"          <energy>   (IBM)
 String IBM_LADERATE_MESSUNG      "Ladeleistungsschaetzung (intern) [%s]"       <settings> (IBM)
 String IBM_LADESPERRE_LOKAL_ENDE "Lokales Ladesperre-Ende [%s]"                <time>     (IBM)
+// Sonnenprofil: je Tagesstunde die mittlere PV-Leistung der letzten 14 Tage
+// (interner Zustand, JSON). Beobachteter Boden der Restladezeit der
+// Laderegelung, wenn die Prognose veraltet oder falsch ist.
+String IBM_SONNENPROFIL          "Sonnenprofil (intern) [%s]"                  <settings> (IBM)
 
 // Laderegelung: statt des harten Sperrfensters wird die Ladeleistung
 // dynamisch geregelt - die Batterie laedt den ganzen Tag gerade schnell
@@ -211,6 +223,8 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     Ischlstrom_Wolken_Stunden,
     Ischlstrom_Ladefaktoren,
     Ischlstrom_Entladestart,
+    Ischlstrom_Entladeende,
+    Ischlstrom_Crossover_Vormittag,
     IBM_MIN_BATTERY_CHARGE,
     Minimale_Entladeleistung_Batterieeinspeisung,
     Maximale_Entladeleistung_Batterieeinspeisung,
@@ -225,6 +239,7 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     IBM_LADELEISTUNG,
     IBM_LADERATE_MESSUNG,
     IBM_LADESPERRE_LOKAL_ENDE,
+    IBM_SONNENPROFIL,
     IBM_LADEREGELUNG,
     IBM_LADEREGELUNG_SOLL,
     IBM_LADEREGELUNG_STATUS,

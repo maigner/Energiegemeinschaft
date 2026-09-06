@@ -6,7 +6,15 @@
 //           kennt, regelt die Laderegelung (Abschnitt "Laderegelung") die
 //           Ladeleistung dynamisch: Die Batterie laedt den ganzen Tag
 //           gerade schnell genug, um am Abend voll zu sein - der restliche
-//           PV-Ueberschuss fliesst laufend ins Netz. Solange die
+//           PV-Ueberschuss fliesst laufend ins Netz. Bis zum Vormittags-
+//           Crossover der Gemeinschaft (Token-API) sperrt sie hart, sofern
+//           die Batterie danach noch voll wird (Abschnitt "Sperre bis zum
+//           Vormittags-Crossover"). Die Restladezeit kommt aus dem
+//           Erzeugungsprofil der Prognose, nach unten begrenzt durch das
+//           selbst beobachtete Sonnenprofil der Anlage (Abschnitt
+//           "Sonnenprofil"); die Ladeleistung, an der sich der Sperranteil
+//           misst, ist die gelernte Spitzen-Ladeleistung (Abschnitt
+//           "Ladeleistungsschaetzung"). Solange die
 //           Schaetzungen fehlen (oder die Regelung abgeschaltet ist),
 //           gilt das klassische Sperrfenster: Das Fenster kommt aus der
 //           Tagesprognose der API (erster Sonnenschein bis in die
@@ -22,16 +30,20 @@
 //           "Dynamische Entladeleistung"); eine harte Obergrenze
 //           (ABSOLUTE_MAX_DISCHARGE_W) wird nie ueberschritten.
 //
-// Das Entladefenster folgt den taeglich von der API geholten Crossover-Zeiten
-// (Zeitpunkt, an dem die gemeinschaftliche Erzeugung den Verbrauch kreuzt):
-// entladen wird bis zum morgendlichen Crossover. Der Beginn kommt bevorzugt
-// tagesaktuell von der Token-API (Ischlstrom_Entladestart: erster Slot, in
-// dem die Gemeinschaft laut Prognose deutlich im Defizit ist - so landet
-// die Einspeisung sicher bei den Mitgliedern und nicht beim
-// Energielieferanten); ohne gueltigen Wert gilt der abendliche Crossover
-// plus DISCHARGE_START_OFFSET_MIN. Liegen keine plausiblen Crossover-Zeiten
-// vor (ischlstrom.org nie erreichbar gewesen oder Daten unbrauchbar), wird
-// NICHT entladen - es gibt kein Ersatzfenster.
+// Das Entladefenster kommt bevorzugt tagesaktuell von der Token-API:
+// Ischlstrom_Entladestart (erster Abend-Slot, in dem die Gemeinschaft laut
+// Prognose deutlich im Defizit ist) bis Ischlstrom_Entladeende (erster
+// Morgen-Slot, in dem das Defizit die Einspeisung der Flotte nicht mehr
+// sicher aufnimmt) - so landet die Einspeisung bei den Mitgliedern und
+// nicht beim Energielieferanten. Rueckfall sind die woechentlichen
+// Crossover-Zeiten (Zeitpunkt, an dem die gemeinschaftliche Erzeugung den
+// Verbrauch kreuzt; ein Klimamittel je Tag des Jahres ueber alle Jahre):
+// Beginn abendlicher Crossover plus DISCHARGE_START_OFFSET_MIN, Ende
+// morgendlicher Crossover. Liegen keine plausiblen Crossover-Zeiten vor
+// (ischlstrom.org nie erreichbar gewesen oder Daten unbrauchbar), wird
+// NICHT entladen - es gibt kein Ersatzfenster. Die Entladeleistung wird
+// zusaetzlich so gestreckt, dass das Nachtbudget bis zum Entladeende
+// reicht (Abschnitt "Nachteinspeisung strecken").
 //
 // ---------------------------------------------------------------------------
 // Adapter-Kontrakt
@@ -101,31 +113,95 @@ var FALLBACK_CLOUD_THRESHOLD = 75;
 // berechnet ihr Sperr-Ende deshalb selbst: Die Batterie soll moeglichst
 // spaet zu laden beginnen, aber LOCAL_FULL_BUFFER_MIN Minuten vor dem
 // abendlichen Crossover voll sein. Die dafuer noetige Ladezeit ergibt sich
-// aus der geschaetzten Kapazitaet und der Ladeleistung, die die Steuerung
-// aus dem Ladestandsanstieg an sonnigen Tagen lernt (analog zur
-// Kapazitaetsschaetzung). Solange Kapazitaet oder Ladeleistung unbekannt
-// sind, gilt das Server-Ende unveraendert.
+// aus der geschaetzten Kapazitaet und der gelernten Spitzen-Ladeleistung
+// (Abschnitt "Ladeleistungsschaetzung"). Solange Kapazitaet oder
+// Ladeleistung unbekannt sind, gilt das Server-Ende unveraendert.
+// Der Puffer von zwei Stunden ist im Replay der Betriebsdaten kalibriert:
+// am spaeten Nachmittag liegt die freie Ladeleistung (PV minus Hauslast)
+// weit unter Spitze mal Ladefaktor, mit einer Stunde Puffer wurden die
+// Batterien an sonnigen Tagen um 1 bis 3 Stunden zu spaet voll.
 var FALLBACK_LOCAL_LOCK_ACTIVE = true;
-var LOCAL_FULL_BUFFER_MIN = 60;     // so viele Minuten vor dem Abend-Crossover voll
+var LOCAL_FULL_BUFFER_MIN = 120;    // so viele Minuten vor dem Abend-Crossover voll
 var LOCAL_SAFETY_FACTOR = 1.3;      // Aufschlag auf die berechnete Ladezeit
 var LOCAL_LATEST_END_MIN = 13 * 60; // spaeter endet keine Sperre
 
-var CHARGE_RATE_MIN_SOC_RISE = 5;      // Prozentpunkte je Stichprobe
-var CHARGE_RATE_MAX_STEP_GAP_MIN = 12; // laengere Luecke -> Messung neu aufsetzen
-var CHARGE_RATE_MAX_SOC = 95;          // darueber drosselt der Wechselrichter selbst
+// --- Ladeleistungsschaetzung ------------------------------------------------
+// Gelernt wird die SPITZEN-Ladeleistung der Anlage - was die Batterie an
+// einem sonnigen Mittag tatsaechlich aufnimmt -, denn genau daraus rechnet
+// die Laderegelung ihren Sperranteil (1 - Soll/Spitze) und der Server das
+// individualisierte Sperr-Ende. Die fruehere Schaetzung aus dem
+// Ladestandsanstieg war bewusst eine untere Huelle und lag im Betrieb um
+// Faktor 1,5 bis 3,5 unter der echten Ladeleistung: der Sperranteil grosser
+// Batterien wurde damit 0, sie luden ab dem ersten Sonnenschein mit voller
+// Leistung. Stichproben kommen jetzt direkt aus dem Batterieleistungs-Item,
+// nur in freien Slots (dieser und der vorige Zyklus ohne Sperre oder
+// Begrenzung) zur Mittagszeit, bei mittlerem Ladestand und sonniger
+// Vorschau. Die Schaetzung ist das 80. Perzentil der Stichproben der
+// letzten Tage: nach oben folgt sie dem Perzentil sofort, nach unten nur
+// mit einer Halbwertszeit von sieben Tagen (Umkehr der frueheren
+// Gewichtung). Einzelne Ausreisser nach oben (Abtast-Artefakte des
+// Bindings, im Betrieb bis zu 1,7-fache Spitze) heben sie nicht an, weil
+// das Perzentil sie ignoriert. Solange weniger als drei Stichproben
+// vorliegen, gilt das heutige Maximum der beobachteten Ladeleistung, damit
+// die Regelung am ersten Tag nicht blind ist. Ohne Batterieleistungs-Item
+// bleibt der Ladestandsanstieg der Rueckfall, dann symmetrisch gewichtet.
 var CHARGE_RATE_MIN_KW = 0.3;          // Plausibilitaetsfenster einer Stichprobe
 var CHARGE_RATE_MAX_KW = 30;
-// Asymmetrisches, dauergewichtetes Lernen: Die Batterie muss abends voll
-// sein, also zaehlt eine schlechte Erfahrung (Stichprobe unter der
-// Schaetzung, z. B. Dunst trotz sonniger Vorschau) sofort stark, eine gute
-// nur langsam - die Schaetzung liegt nahe an der unteren Huelle der letzten
-// Tage. Zusaetzlich zaehlt jede Stichprobe mit ihrer Messdauer: schnelle
-// Mittagsphasen liefern sonst mehr Stichproben je Stunde als zaehe Phasen
-// und wuerden den Schnitt systematisch nach oben ziehen.
-var CHARGE_RATE_EMA_DOWN = 0.5;        // Gewicht je Messstunde, Stichprobe unter der Schaetzung
-var CHARGE_RATE_EMA_UP = 0.15;         // Gewicht je Messstunde, Stichprobe darueber
-var CHARGE_RATE_EMA_MAX = 0.6;         // Obergrenze des Gewichts einer Stichprobe
 var CHARGE_RATE_MIN_SAMPLES = 3;       // erst ab so vielen Stichproben verwenden
+var CHARGE_RATE_STATE_VERSION = 2;     // aeltere Zustaende (untere Huelle) werden verworfen
+var CHARGE_RATE_SAMPLE_FROM_MIN = 10 * 60; // Stichproben nur zwischen 10:00 ...
+var CHARGE_RATE_SAMPLE_TO_MIN = 15 * 60;   // ... und 15:00 (Sonne hoch, Batterie ungedrosselt)
+var CHARGE_RATE_SAMPLE_MIN_SOC = 20;   // Ladestand, in dem die Batterie ungedrosselt laedt
+var CHARGE_RATE_SAMPLE_MAX_SOC = 90;
+var CHARGE_RATE_SAMPLE_SPACING_MIN = 15; // Mindestabstand zweier Stichproben
+var CHARGE_RATE_SAMPLES_KEEP = 60;     // gespeicherte Stichproben (rund drei sonnige Tage)
+var CHARGE_RATE_WINDOW_DAYS = 7;       // aeltere Stichproben zaehlen nicht mehr
+var CHARGE_RATE_PERCENTILE = 0.8;      // Schaetzung = dieses Perzentil der Stichproben
+var CHARGE_RATE_HALF_LIFE_H = 7 * 24;  // Halbwertszeit beim Absinken der Schaetzung
+var CHARGE_RATE_MAX_STEP_GAP_MIN = 12; // laengere Luecke -> Messung/Slotfolge neu aufsetzen
+// Rueckfall ohne Batterieleistungs-Item: Stichprobe aus dem Ladestandsanstieg
+var CHARGE_RATE_MIN_SOC_RISE = 5;      // Prozentpunkte je Stichprobe
+var CHARGE_RATE_MAX_SOC = 95;          // darueber drosselt der Wechselrichter selbst
+var CHARGE_RATE_EMA_WEIGHT = 0.3;      // Gewicht je Messstunde, symmetrisch
+var CHARGE_RATE_EMA_MAX = 0.6;         // Obergrenze des Gewichts einer Stichprobe
+
+// --- Sonnenprofil: beobachteter PV-Boden der Laderegelung -------------------
+// Die Laderegelung rechnet ihre Restladezeit aus dem Erzeugungsprofil der
+// Tagesprognose. Ist die Prognose veraltet oder falsch ("trueb" gemeldet,
+// waehrend die Sonne scheint), schrumpft die Restladezeit, die Ziel-
+// Leistung explodiert und die Begrenzung loest sich - die Batterie ist
+// mittags voll und der Mittagsueberschuss geht ins Netz. Als Boden dient
+// deshalb die eigene Beobachtung: je Tagesstunde das 75. Perzentil der
+// mittleren PV-Leistung der letzten 14 Tage (JSON in IBM_SONNENPROFIL).
+// Daraus folgt eine beobachtete Restladezeit, skaliert mit der aktuellen
+// Sonnigkeit (PV jetzt geteilt durch Profil jetzt, hoechstens 1); es gilt
+// die groessere der beiden Restladezeiten. Unabhaengig davon ein
+// Sicherheitsnetz: vormittags, solange die PV ueber der Haelfte ihrer
+// gelernten Spitze liegt und die Batterie unter 60% ist, faellt der
+// Sperranteil nie unter SUN_PROFILE_MIN_DUTY. Ohne PV-Item bleibt alles
+// wie bisher.
+var SUN_PROFILE_DAYS = 14;          // je Stunde so viele Tageswerte behalten
+var SUN_PROFILE_MIN_DAYS = 3;       // erst ab so vielen Tageswerten verwenden
+var SUN_PROFILE_PERCENTILE = 0.75;
+var SUN_PROFILE_MIN_SAMPLES = 6;    // Zyklen je Stunde, bevor die Stunde zaehlt (30 min)
+var SUN_PROFILE_FROM_HOUR = 4;      // beobachtet werden die Stunden 4 bis 21
+var SUN_PROFILE_TO_HOUR = 22;
+var SUN_PROFILE_GUARD_UNTIL_MIN = 12 * 60; // Sicherheitsnetz bis 12:00 ...
+var SUN_PROFILE_GUARD_PV_SHARE = 0.5;      // ... bei PV ueber der Haelfte der Spitze ...
+var SUN_PROFILE_GUARD_MAX_SOC = 60;        // ... und Ladestand darunter:
+var SUN_PROFILE_MIN_DUTY = 0.3;            // Sperranteil mindestens so hoch
+
+// --- Sperre bis zum Vormittags-Crossover ------------------------------------
+// Bis zum Vormittags-Crossover der Gemeinschaft (Token-API, aus der
+// Tagesprognose) ist die Gemeinschaft im Defizit: jede kWh, die dann in
+// eine Batterie geht, fehlt den Mitgliedern, und jede exportierte kWh kommt
+// bei ihnen an. Die Laderegelung sperrt deshalb bis dahin hart, sofern die
+// Batterie danach in den sonnengewichteten Stunden bis zur Deadline noch
+// voll wird (fehlende Energie durch Spitzen-Ladeleistung, mit
+// Sicherheitsfaktor). Passt es nicht, endet die Sperre genau so viel
+// frueher, wie Ladezeit fehlt; danach regelt sie wie bisher. Ohne Wert
+// (aelterer Server, falsches Datum, keine Stundendaten): Regelung wie bisher.
+var CROSSOVER_LOCK_SAFETY_FACTOR = 1.3;
 
 // --- Laderegelung -----------------------------------------------------------
 // Ersetzt das harte Sperrfenster durch einen geschlossenen Regelkreis: In
@@ -136,7 +212,11 @@ var CHARGE_RATE_MIN_SAMPLES = 3;       // erst ab so vielen Stichproben verwende
 // fliesst laufend ins Netz. Weil auf den Live-Ladestand geregelt wird,
 // korrigieren sich Prognosefehler alle 5 Minuten von selbst - zieht es zu,
 // bleibt der Ladestand zurueck, die Ziel-Leistung steigt, die Begrenzung
-// loest sich.
+// loest sich. Der Sicherheitsfaktor REG_SAFETY_FIXED ist mit dem Puffer
+// LOCAL_FULL_BUFFER_MIN im Replay kalibriert: die Regelung rechnet mit
+// Spitze mal Ladefaktor je freiem Slot, tatsaechlich bleibt davon nach
+// Hauslast und Wolkenluecken weniger uebrig; der Regelkreis holt das am
+// Nachmittag nicht mehr auf, weil dann auch die freie Leistung sinkt.
 //
 // Umsetzung je nach Adapter: definiert der Adapter ibmLimitCharge (optional,
 // siehe Adapter-Kontrakt), wird die Ziel-Leistung direkt kommandiert. Sonst
@@ -161,7 +241,7 @@ var CHARGE_RATE_MIN_SAMPLES = 3;       // erst ab so vielen Stichproben verwende
 // den Nachmittagsabfall pauschal aus.
 var FALLBACK_REGULATION_ACTIVE = true;
 var REG_TARGET_SOC = 95;        // bis hier gilt die Batterie als voll (darueber drosselt der WR selbst)
-var REG_SAFETY_FIXED = 1.1;     // Sicherheitsfaktor bei sonnengewichteter Restladezeit
+var REG_SAFETY_FIXED = 1.5;     // Sicherheitsfaktor bei sonnengewichteter Restladezeit (Replay-kalibriert)
 var REG_SAFETY_SUNNY = 1.1;     // Rueckfall ohne Stundendaten: Sicherheitsfaktor bei 0% Wolken
 var REG_SAFETY_CLOUDY = 1.6;    // ... bei 100% Wolken (linear interpoliert)
 var REG_HOURLY_MAX_AGE_HOURS = 3; // aeltere Stundendaten gelten als veraltet (wie die Wolkenvorschau)
@@ -266,6 +346,14 @@ var FALLBACK_SUN_HOURS = 10;         // Tageslaenge ohne Abend-Crossover
 // die Entladung deshalb erst so viele Minuten nach dem Abend-Crossover.
 var DISCHARGE_START_OFFSET_MIN = 60;
 
+// --- Nachteinspeisung strecken ------------------------------------------------
+// Das Nachtbudget waere bei grossen Batterien mit 0,3 C schon vor
+// Mitternacht eingespeist. Die Entladeleistung wird deshalb zusaetzlich auf
+// Budget geteilt durch die Stunden bis zum Entladeende begrenzt (mit
+// Zuschlag, damit das Budget sicher aufgebraucht wird), nie unter die
+// Mindestleistung. Die Einspeisung verteilt sich so ueber die ganze Nacht.
+var NIGHT_STRETCH_FACTOR = 1.2;
+
 // --- Hauslast-Schaetzung ----------------------------------------------------
 // In jedem Nacht-Zyklus ohne Entladebefehl versorgt der Wechselrichter das
 // Haus allein aus der Batterie - der Ladestandsabfall ergibt also direkt
@@ -345,6 +433,13 @@ function timeItemMinutes(name, minHour, maxHour) {
   return h * 60 + m;
 }
 
+// Datum "YYYY-MM-DD" eines ZonedDateTime (Gueltigkeitspruefungen).
+function dateStr(t) {
+  var m = t.monthValue();
+  var d = t.dayOfMonth();
+  return t.year() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+}
+
 // Schreibt einen String in ein Item, nur wenn sich der Wert aendert.
 function publishItem(name, value) {
   var item = readItem(name);
@@ -373,6 +468,15 @@ var EVENING_CROSSOVER_MIN  = timeItemMinutes('Ischlstrom_Crossover_Ende', 12, 24
 // Ladesperre-Fensters, siehe dischargeStart unten); '-' oder unplausibel
 // ergibt null.
 var DISCHARGE_START_API_MIN = timeItemMinutes('Ischlstrom_Entladestart', 12, 24);
+// Tagesaktuelles Entladeende der Token-API (erster Morgen-Slot, in dem das
+// Defizit der Gemeinschaft die Flotten-Einspeisung nicht mehr sicher
+// aufnimmt); gilt wie der Entladestart nur am Datum des Fensters, sonst
+// der Wochen-Crossover. Plausibel 03-12 Uhr.
+var DISCHARGE_END_API_MIN = timeItemMinutes('Ischlstrom_Entladeende', 3, 12);
+// Vormittags-Crossover der Gemeinschaft laut Tagesprognose (Token-API):
+// bis dahin sperrt die Laderegelung hart (Abschnitt "Sperre bis zum
+// Vormittags-Crossover"). Plausibel 5-15 Uhr, nur am Datum des Fensters.
+var CROSSOVER_VORMITTAG_API_MIN = timeItemMinutes('Ischlstrom_Crossover_Vormittag', 5, 15);
 
 // --- Kapazitaetsschaetzung --------------------------------------------------
 // Zustand der Schaetzung als JSON in einem String-Item (persistiert):
@@ -487,19 +591,207 @@ function updateCapacityEstimate(soc, commandedW, scheduleOk) {
 }
 
 // --- Ladeleistungsschaetzung ------------------------------------------------
-// Zustand wie bei der Kapazitaetsschaetzung als JSON in einem String-Item:
-//   kw          geschaetzte Ladeleistung
-//   messungen   Anzahl akzeptierter Stichproben
-//   basisSoc    Ladestand zu Beginn der laufenden Messstrecke (%)
-//   basisZeit   Beginn der Messstrecke
-//   letztZeit   Zeitpunkt des letzten Messlaufs (Lueckenerkennung)
-// Gemessen wird nur, wenn die Batterie frei laden darf, die Vorschau Sonne
-// meldet und der Ladestand unter der Drossel-Zone liegt (sampleChargeRate) -
-// die Schaetzung spiegelt so die real erreichbare Ladeleistung der Anlage,
-// einschliesslich Hausverbrauch und Wechselrichter-Grenzen.
+// Zustand als JSON in einem String-Item (IBM_LADERATE_MESSUNG), Version 2:
+//   version     CHARGE_RATE_STATE_VERSION - aeltere Zustaende werden verworfen
+//   kw          geschaetzte Spitzen-Ladeleistung (aus den Stichproben)
+//   kwZeit      Zeitpunkt (Epoche, s) der letzten Aktualisierung von kw
+//   proben      Stichproben [{t: Epoche s, w: Watt}], hoechstens
+//               CHARGE_RATE_SAMPLES_KEEP, aelteste zuerst
+//   tagMax      {datum, w} hoechste heute beobachtete Ladeleistung
+//   slot        {t, frei} Entscheidung des letzten Zyklus (Slotfolge)
+//   soc         Rueckfall ohne Batterieleistungs-Item: {kw, messungen,
+//               basisSoc, basisZeit, letztZeit} wie frueher
+// Gemessen wird nur, wenn die Batterie frei laden darf (sampleChargeRate) -
+// die Schaetzung spiegelt so die real erreichbare Spitzen-Ladeleistung der
+// Anlage, einschliesslich Hausverbrauch und Wechselrichter-Grenzen.
 
 function readChargeRateState() {
   var item = readItem('IBM_LADERATE_MESSUNG');
+  if (item === null) return null;
+  var state = String(item.state);
+  var st = {};
+  if (state !== 'NULL' && state !== 'UNDEF' && state !== '') {
+    try {
+      var parsed = JSON.parse(state);
+      if (parsed !== null && typeof parsed === 'object') st = parsed;
+    } catch (e) {
+      st = {};
+    }
+  }
+  if (st.version !== CHARGE_RATE_STATE_VERSION) {
+    // Alter Zustand (untere Huelle aus dem Ladestandsanstieg): verwerfen.
+    // Der alte Wert wandert als `alt` mit, damit sampleChargeRate den
+    // Wechsel einmal loggt und den neuen Zustand sofort schreibt.
+    var alt = (typeof st.kw === 'number') ? st.kw : null;
+    st = { version: CHARGE_RATE_STATE_VERSION };
+    if (alt !== null) st.alt = alt;
+  }
+  return st;
+}
+
+// Wirksame Schaetzung aus einem Zustand - oder null, solange nichts
+// belastbar ist. Reihenfolge: Spitzenrate aus den Stichproben; Rueckfall
+// aus dem Ladestandsanstieg (nur ohne Batterieleistungs-Item befuellt);
+// bis genug Stichproben vorliegen das heutige Maximum der beobachteten
+// Ladeleistung.
+function effectiveChargeKw(st) {
+  if (typeof st.kw === 'number' && st.kw >= CHARGE_RATE_MIN_KW && st.kw <= CHARGE_RATE_MAX_KW
+      && Array.isArray(st.proben) && st.proben.length >= CHARGE_RATE_MIN_SAMPLES) {
+    return st.kw;
+  }
+  var soc = st.soc;
+  if (soc && typeof soc === 'object' && typeof soc.kw === 'number'
+      && soc.kw >= CHARGE_RATE_MIN_KW && soc.kw <= CHARGE_RATE_MAX_KW
+      && typeof soc.messungen === 'number' && soc.messungen >= CHARGE_RATE_MIN_SAMPLES) {
+    return soc.kw;
+  }
+  if (st.tagMax && typeof st.tagMax === 'object' && st.tagMax.datum === dateStr(now)
+      && typeof st.tagMax.w === 'number') {
+    var kw = Math.round(st.tagMax.w / 10) / 100;
+    if (kw >= CHARGE_RATE_MIN_KW && kw <= CHARGE_RATE_MAX_KW) return kw;
+  }
+  return null;
+}
+
+function writeChargeRateState(st) {
+  var item = readItem('IBM_LADERATE_MESSUNG');
+  if (item !== null) item.postUpdate(JSON.stringify(st));
+  var display = readItem('IBM_LADELEISTUNG');
+  if (display !== null) {
+    var kw = effectiveChargeKw(st);
+    display.postUpdate(kw === null ? 'NULL' : Math.round(kw * 10) / 10);
+  }
+}
+
+// Geschaetzte Ladeleistung in kW - oder null, solange die Schaetzung noch
+// nicht belastbar ist (Items fehlen, zu wenige oder unplausible Messungen).
+function estimatedChargeKw() {
+  var st = readChargeRateState();
+  if (st === null) return null;
+  return effectiveChargeKw(st);
+}
+
+// Perzentil einer Zahlenliste (naechster Rang).
+function percentile(values, q) {
+  var sorted = values.slice().sort(function (a, b) { return a - b; });
+  var idx = Math.round(q * (sorted.length - 1));
+  return sorted[Math.max(0, Math.min(sorted.length - 1, idx))];
+}
+
+// Nimmt eine direkte Stichprobe der Ladeleistung (Watt) auf und schreibt
+// die Schaetzung fort: Perzentil der Stichproben im Fenster; nach oben
+// sofort, nach unten mit Halbwertszeit. false, wenn die Stichprobe zu dicht
+// auf die letzte folgt.
+function updateChargeRateSample(st, watts) {
+  var nowSec = now.toEpochSecond();
+  var proben = [];
+  if (Array.isArray(st.proben)) {
+    for (var i = 0; i < st.proben.length; i++) {
+      var pr = st.proben[i];
+      if (pr && typeof pr.t === 'number' && typeof pr.w === 'number'
+          && nowSec - pr.t <= CHARGE_RATE_WINDOW_DAYS * 86400) proben.push(pr);
+    }
+  }
+  if (proben.length > 0 && nowSec - proben[proben.length - 1].t < CHARGE_RATE_SAMPLE_SPACING_MIN * 60) {
+    st.proben = proben;
+    return false;
+  }
+  proben.push({ t: nowSec, w: Math.round(watts) });
+  while (proben.length > CHARGE_RATE_SAMPLES_KEEP) proben.shift();
+  st.proben = proben;
+  if (proben.length >= CHARGE_RATE_MIN_SAMPLES) {
+    var ws = [];
+    for (var j = 0; j < proben.length; j++) ws.push(proben[j].w);
+    var pKw = Math.round(percentile(ws, CHARGE_RATE_PERCENTILE) / 10) / 100;
+    var neu;
+    if (typeof st.kw !== 'number' || typeof st.kwZeit !== 'number' || pKw >= st.kw) {
+      neu = pKw;
+    } else {
+      var hours = Math.max(0, (nowSec - st.kwZeit) / 3600);
+      neu = pKw + (st.kw - pKw) * Math.pow(0.5, hours / CHARGE_RATE_HALF_LIFE_H);
+    }
+    st.kw = Math.round(neu * 100) / 100;
+    st.kwZeit = nowSec;
+    console.log('[IBM][Ladeleistung] Stichprobe ' + Math.round(watts) + ' W -> ' + Math.round(CHARGE_RATE_PERCENTILE * 100)
+      + '. Perzentil ' + pKw + ' kW aus ' + proben.length + ' Stichproben -> Schaetzung ' + st.kw + ' kW');
+  } else {
+    console.log('[IBM][Ladeleistung] Stichprobe ' + Math.round(watts) + ' W (' + proben.length + '/' + CHARGE_RATE_MIN_SAMPLES + ')');
+  }
+  return true;
+}
+
+// Rueckfall ohne Batterieleistungs-Item: ist der Ladestand seit Beginn der
+// Messstrecke um CHARGE_RATE_MIN_SOC_RISE Prozentpunkte gestiegen, ergibt
+// geladene Energie (aus der Kapazitaet) / Zeit eine Stichprobe, die
+// symmetrisch und dauergewichtet in die Schaetzung einfliesst.
+function updateChargeRateFromSoc(st, soc, capacityKwh) {
+  var sub = (st.soc && typeof st.soc === 'object') ? st.soc : {};
+  st.soc = sub;
+
+  function restartMeasurement(reason) {
+    if (reason !== null) console.log('[IBM][Ladeleistung] ' + reason + ' - Messung neu aufgesetzt');
+    sub.basisSoc = soc;
+    sub.basisZeit = now.toString();
+    sub.letztZeit = now.toString();
+  }
+
+  var prevTime = null;
+  var baseTime = null;
+  try {
+    if (sub.letztZeit) prevTime = time.ZonedDateTime.parse(String(sub.letztZeit));
+    if (sub.basisZeit) baseTime = time.ZonedDateTime.parse(String(sub.basisZeit));
+  } catch (e) {
+    prevTime = null;
+  }
+  if (typeof sub.basisSoc !== 'number' || prevTime === null || baseTime === null) {
+    restartMeasurement('Keine laufende Messung');
+    return;
+  }
+
+  var gapMin = time.Duration.between(prevTime, now).toMinutes();
+  if (gapMin <= 0 || gapMin > CHARGE_RATE_MAX_STEP_GAP_MIN) {
+    restartMeasurement('Letzter Messlauf ' + gapMin + ' min her');
+    return;
+  }
+  if (soc < sub.basisSoc) {
+    restartMeasurement('Ladestand gefallen (' + sub.basisSoc + '% -> ' + soc + '%)');
+    return;
+  }
+
+  var rise = soc - sub.basisSoc;
+  if (rise < CHARGE_RATE_MIN_SOC_RISE) {
+    sub.letztZeit = now.toString();
+    return;
+  }
+
+  var hours = time.Duration.between(baseTime, now).toMinutes() / 60;
+  if (hours > 0) {
+    var sampleKw = Math.round(rise / 100 * capacityKwh / hours * 100) / 100;
+    if (sampleKw >= CHARGE_RATE_MIN_KW && sampleKw <= CHARGE_RATE_MAX_KW) {
+      var count = (typeof sub.messungen === 'number') ? sub.messungen : 0;
+      var weight = Math.min(CHARGE_RATE_EMA_WEIGHT * hours, CHARGE_RATE_EMA_MAX);
+      sub.kw = (typeof sub.kw === 'number' && count > 0)
+        ? Math.round(((1 - weight) * sub.kw + weight * sampleKw) * 100) / 100
+        : sampleKw;
+      sub.messungen = count + 1;
+      console.log('[IBM][Ladeleistung] Stichprobe ' + sampleKw + ' kW aus Ladestandsanstieg (' + rise + ' Prozentpunkte in ' + Math.round(hours * 60) + ' min) -> Schaetzung ' + sub.kw + ' kW (' + sub.messungen + '. Messung)');
+    } else {
+      console.log('[IBM][Ladeleistung] Stichprobe ' + sampleKw + ' kW unplausibel - verworfen');
+    }
+  }
+  sub.basisSoc = soc;
+  sub.basisZeit = now.toString();
+  sub.letztZeit = now.toString();
+}
+
+// --- Sonnenprofil -----------------------------------------------------------
+// Zustand als JSON in einem String-Item (IBM_SONNENPROFIL):
+//   tage   je Tagesstunde ("4".."21") die mittleren PV-Leistungen (W) der
+//          letzten SUN_PROFILE_DAYS Tage, aelteste zuerst
+//   lauf   {datum, stunde, sum, n} laufende Stunde (Summe der Zyklen)
+
+function readSunProfileState() {
+  var item = readItem('IBM_SONNENPROFIL');
   if (item === null) return null;
   var state = String(item.state);
   if (state === 'NULL' || state === 'UNDEF' || state === '') return {};
@@ -511,94 +803,98 @@ function readChargeRateState() {
   }
 }
 
-function writeChargeRateState(st) {
-  var item = readItem('IBM_LADERATE_MESSUNG');
-  if (item !== null) item.postUpdate(JSON.stringify(st));
-  var display = readItem('IBM_LADELEISTUNG');
-  if (display !== null && typeof st.kw === 'number') {
-    display.postUpdate(Math.round(st.kw * 10) / 10);
-  }
+// Aktuelle PV-Leistung in W - oder null ohne PV-Item oder unlesbar.
+function currentPvW() {
+  var pv = readItem('@IBM_PV_POWER_ITEM@');
+  if (pv === null) return null;
+  var w = parseFloat(pv.numericState);
+  if (isNaN(w) || w < 0) return null;
+  return w;
 }
 
-// Geschaetzte Ladeleistung in kW - oder null, solange die Schaetzung noch
-// nicht belastbar ist (Items fehlen, zu wenige oder unplausible Messungen).
-function estimatedChargeKw() {
-  var st = readChargeRateState();
-  if (st === null) return null;
-  if (typeof st.kw !== 'number' || st.kw < CHARGE_RATE_MIN_KW || st.kw > CHARGE_RATE_MAX_KW) return null;
-  if (!(typeof st.messungen === 'number' && st.messungen >= CHARGE_RATE_MIN_SAMPLES)) return null;
-  return st.kw;
-}
-
-// Schreibt die Ladeleistungsschaetzung fort: ist der Ladestand seit Beginn
-// der Messstrecke um CHARGE_RATE_MIN_SOC_RISE Prozentpunkte gestiegen,
-// ergibt geladene Energie (aus der Kapazitaet) / Zeit eine Stichprobe, die
-// gleitend in die Schaetzung einfliesst.
-function updateChargeRateEstimate(soc, capacityKwh) {
-  var st = readChargeRateState();
-  if (st === null) {
-    console.log('[IBM][Ladeleistung] Item IBM_LADERATE_MESSUNG fehlt - Schaetzung uebersprungen');
-    return;
-  }
-
-  function restartMeasurement(reason) {
-    if (reason !== null) console.log('[IBM][Ladeleistung] ' + reason + ' - Messung neu aufgesetzt');
-    st.basisSoc = soc;
-    st.basisZeit = now.toString();
-    st.letztZeit = now.toString();
-    writeChargeRateState(st);
-  }
-
-  var prevTime = null;
-  var baseTime = null;
-  try {
-    if (st.letztZeit) prevTime = time.ZonedDateTime.parse(String(st.letztZeit));
-    if (st.basisZeit) baseTime = time.ZonedDateTime.parse(String(st.basisZeit));
-  } catch (e) {
-    prevTime = null;
-  }
-  if (typeof st.basisSoc !== 'number' || prevTime === null || baseTime === null) {
-    restartMeasurement('Keine laufende Messung');
-    return;
-  }
-
-  var gapMin = time.Duration.between(prevTime, now).toMinutes();
-  if (gapMin <= 0 || gapMin > CHARGE_RATE_MAX_STEP_GAP_MIN) {
-    restartMeasurement('Letzter Messlauf ' + gapMin + ' min her');
-    return;
-  }
-  if (soc < st.basisSoc) {
-    restartMeasurement('Ladestand gefallen (' + st.basisSoc + '% -> ' + soc + '%)');
-    return;
-  }
-
-  var rise = soc - st.basisSoc;
-  if (rise < CHARGE_RATE_MIN_SOC_RISE) {
-    st.letztZeit = now.toString();
-    writeChargeRateState(st);
-    return;
-  }
-
-  var hours = time.Duration.between(baseTime, now).toMinutes() / 60;
-  if (hours > 0) {
-    var sampleKw = Math.round(rise / 100 * capacityKwh / hours * 100) / 100;
-    if (sampleKw >= CHARGE_RATE_MIN_KW && sampleKw <= CHARGE_RATE_MAX_KW) {
-      var count = (typeof st.messungen === 'number') ? st.messungen : 0;
-      var weight = (typeof st.kw === 'number' && sampleKw < st.kw) ? CHARGE_RATE_EMA_DOWN : CHARGE_RATE_EMA_UP;
-      weight = Math.min(weight * hours, CHARGE_RATE_EMA_MAX);
-      st.kw = (typeof st.kw === 'number' && count > 0)
-        ? Math.round(((1 - weight) * st.kw + weight * sampleKw) * 100) / 100
-        : sampleKw;
-      st.messungen = count + 1;
-      console.log('[IBM][Ladeleistung] Stichprobe ' + sampleKw + ' kW (' + rise + ' Prozentpunkte in ' + Math.round(hours * 60) + ' min) -> Schaetzung ' + st.kw + ' kW (' + st.messungen + '. Messung)');
-    } else {
-      console.log('[IBM][Ladeleistung] Stichprobe ' + sampleKw + ' kW unplausibel - verworfen');
+// Schreibt die laufende Stunde fort; eine abgeschlossene Stunde (Tages-
+// oder Stundenwechsel) wandert als Mittelwert in die Tagesliste ihrer
+// Stunde. Laeuft in jedem Zyklus; ohne PV-Item passiert nichts.
+function updateSunProfile() {
+  var st = readSunProfileState();
+  if (st === null) return;
+  var w = currentPvW();
+  if (w === null) return;
+  var hour = now.hour();
+  var today = dateStr(now);
+  var lauf = (st.lauf && typeof st.lauf === 'object') ? st.lauf : null;
+  if (lauf !== null && (lauf.datum !== today || lauf.stunde !== hour)) {
+    if (typeof lauf.n === 'number' && lauf.n >= SUN_PROFILE_MIN_SAMPLES && typeof lauf.sum === 'number'
+        && typeof lauf.stunde === 'number' && lauf.stunde >= SUN_PROFILE_FROM_HOUR && lauf.stunde < SUN_PROFILE_TO_HOUR) {
+      var tage = (st.tage && typeof st.tage === 'object') ? st.tage : {};
+      var key = String(lauf.stunde);
+      var arr = Array.isArray(tage[key]) ? tage[key] : [];
+      arr.push(Math.round(lauf.sum / lauf.n));
+      while (arr.length > SUN_PROFILE_DAYS) arr.shift();
+      tage[key] = arr;
+      st.tage = tage;
     }
+    lauf = null;
   }
-  st.basisSoc = soc;
-  st.basisZeit = now.toString();
-  st.letztZeit = now.toString();
-  writeChargeRateState(st);
+  if (lauf === null) lauf = { datum: today, stunde: hour, sum: 0, n: 0 };
+  lauf.sum = Math.round(((typeof lauf.sum === 'number') ? lauf.sum : 0) + w);
+  lauf.n = ((typeof lauf.n === 'number') ? lauf.n : 0) + 1;
+  st.lauf = lauf;
+  var item = readItem('IBM_SONNENPROFIL');
+  if (item !== null) item.postUpdate(JSON.stringify(st));
+}
+
+// Das Profil: je Stunde das Perzentil der Tageswerte (W) und als Spitze
+// der hoechste gespeicherte Stundenwert ueberhaupt (klarer Himmel) - dieselbe
+// Normierung wie die Ladefaktoren des Servers, die gegen den besten Slot des
+// ganzen Prognoselaufs normieren. Gegen das Perzentil der besten Stunde zu
+// normieren waere zu optimistisch: ein durchschnittlicher Tag saehe dann
+// aus wie ein klarer. null, solange keine Stunde genug Tage hat.
+function sunProfile() {
+  var st = readSunProfileState();
+  if (st === null || !st.tage || typeof st.tage !== 'object') return null;
+  var stunden = {};
+  var peak = 0;
+  var any = false;
+  for (var key in st.tage) {
+    if (!Object.prototype.hasOwnProperty.call(st.tage, key)) continue;
+    var arr = st.tage[key];
+    if (!Array.isArray(arr)) continue;
+    for (var i = 0; i < arr.length; i++) {
+      if (typeof arr[i] === 'number' && arr[i] > peak) peak = arr[i];
+    }
+    if (arr.length < SUN_PROFILE_MIN_DAYS) continue;
+    var v = percentile(arr, SUN_PROFILE_PERCENTILE);
+    if (typeof v !== 'number' || isNaN(v)) continue;
+    stunden[key] = v;
+    any = true;
+  }
+  if (!any || peak <= 0) return null;
+  return { stunden: stunden, spitzeW: peak };
+}
+
+// Beobachtete effektive Ladezeit zwischen fromMin und deadlineMin in
+// Stunden bei Spitzen-PV: jede Stunde zaehlt mit Profil/Spitze.
+function sunProfileHours(profile, fromMin, deadlineMin) {
+  var sum = 0;
+  for (var h = 0; h < 24; h++) {
+    var v = profile.stunden[String(h)];
+    if (typeof v !== 'number') continue;
+    var overlap = Math.min((h + 1) * 60, deadlineMin) - Math.max(h * 60, fromMin);
+    if (overlap <= 0) continue;
+    sum += v / profile.spitzeW * overlap / 60;
+  }
+  return sum;
+}
+
+// Sonnigkeit jetzt: PV jetzt geteilt durch Profilwert der laufenden Stunde,
+// hoechstens 1. null ohne PV-Item oder ohne Profilwert fuer diese Stunde.
+function currentSunniness(profile) {
+  var pvW = currentPvW();
+  if (pvW === null) return null;
+  var v = profile.stunden[String(now.hour())];
+  if (typeof v !== 'number' || v <= 0) return null;
+  return Math.min(1, pvW / v);
 }
 
 // --- Hauslast-Schaetzung ----------------------------------------------------
@@ -680,9 +976,7 @@ function clearHouseLoadMeasurement() {
 // Entladestart gehoert der Lauf noch zur Nacht von gestern).
 function houseLoadNightId() {
   var t = (dischargeStart !== null && nowMinutes < dischargeStart) ? now.minusDays(1) : now;
-  var m = t.monthValue();
-  var d = t.dayOfMonth();
-  return t.year() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+  return dateStr(t);
 }
 
 // Schliesst die gespeicherte Nacht ab: reicht die gemessene Dauer, ergibt
@@ -796,7 +1090,10 @@ function houseLoadW() {
 // ueber der Wolkenschwelle oder keine Vorschau) zusaetzlich bis zum
 // Abend-Crossover.
 function nightReserveHours(clouds) {
-  var morning = MORNING_CROSSOVER_MIN;
+  // Bis zum naechsten Gemeinschafts-Ueberschuss: tagesaktuell aus der
+  // Prognose, sonst Wochen-Crossover, sonst das Entladeende.
+  var morning = (chargeLockDateOk && CROSSOVER_VORMITTAG_API_MIN !== null) ? CROSSOVER_VORMITTAG_API_MIN
+    : (MORNING_CROSSOVER_MIN !== null ? MORNING_CROSSOVER_MIN : dischargeEnd);
   var hours = (nowMinutes < morning ? morning - nowMinutes : 24 * 60 - nowMinutes + morning) / 60;
   if (clouds === null || clouds >= CLOUD_THRESHOLD) {
     hours += EVENING_CROSSOVER_MIN !== null && EVENING_CROSSOVER_MIN > morning
@@ -950,10 +1247,7 @@ function readHourlyJson(itemName) {
     return null;
   }
   if (parsed === null || typeof parsed !== 'object' || !Array.isArray(parsed.stunden)) return null;
-  var m = now.monthValue();
-  var d = now.dayOfMonth();
-  var today = now.year() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
-  if (String(parsed.datum) !== today) return null;
+  if (String(parsed.datum) !== dateStr(now)) return null;
   try {
     var fetched = time.ZonedDateTime.parse(String(parsed.zeit));
     if (time.Duration.between(fetched, now).toHours() >= REG_HOURLY_MAX_AGE_HOURS) return null;
@@ -963,20 +1257,20 @@ function readHourlyJson(itemName) {
   return parsed;
 }
 
-// Ueberlappung der Stunde ab `zeit` ("HH:MM") mit [jetzt, deadline) in Stunden.
-function hourOverlapH(zeit, deadlineMin) {
+// Ueberlappung der Stunde ab `zeit` ("HH:MM") mit [fromMin, deadline) in Stunden.
+function hourOverlapH(zeit, fromMin, deadlineMin) {
   var match = String(zeit).match(/^(\d{1,2}):(\d{2})/);
   if (match === null) return 0;
   var start = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
-  var overlap = Math.min(start + 60, deadlineMin) - Math.max(start, nowMinutes);
+  var overlap = Math.min(start + 60, deadlineMin) - Math.max(start, fromMin);
   return overlap > 0 ? overlap / 60 : 0;
 }
 
-// Effektive (sonnengewichtete) Restladezeit bis zur Deadline in Stunden:
-// bevorzugt aus den Ladefaktoren der Token-API, sonst aus den stuendlichen
-// Wolkenwerten. null, wenn keine brauchbaren Stundendaten vorliegen - dann
-// rechnet die Regelung mit der ungewichteten Restzeit weiter.
-function effectiveChargeHours(deadlineMin) {
+// Effektive (sonnengewichtete) Ladezeit zwischen fromMin und der Deadline
+// in Stunden: bevorzugt aus den Ladefaktoren der Token-API, sonst aus den
+// stuendlichen Wolkenwerten. null, wenn keine brauchbaren Stundendaten
+// vorliegen - dann rechnet die Regelung mit der ungewichteten Restzeit.
+function effectiveChargeHoursFrom(fromMin, deadlineMin) {
   var faktoren = readHourlyJson('Ischlstrom_Ladefaktoren');
   if (faktoren !== null) {
     var sum = 0;
@@ -986,7 +1280,7 @@ function effectiveChargeHours(deadlineMin) {
       if (isNaN(f)) continue;
       if (f < 0) f = 0;
       if (f > 1) f = 1;
-      sum += f * hourOverlapH(faktoren.stunden[i].zeit, deadlineMin);
+      sum += f * hourOverlapH(faktoren.stunden[i].zeit, fromMin, deadlineMin);
       any = true;
     }
     if (any) return { hours: sum, quelle: 'Erzeugungsprofil' };
@@ -998,10 +1292,28 @@ function effectiveChargeHours(deadlineMin) {
     for (var j = 0; j < wolken.stunden.length; j++) {
       var w = parseFloat(wolken.stunden[j].wolken);
       if (isNaN(w) || w < 0 || w > 100) continue;
-      wsum += (1 - w / 100) * hourOverlapH(wolken.stunden[j].zeit, deadlineMin);
+      wsum += (1 - w / 100) * hourOverlapH(wolken.stunden[j].zeit, fromMin, deadlineMin);
       wany = true;
     }
     if (wany) return { hours: wsum, quelle: 'Wolkenstunden' };
+  }
+  return null;
+}
+
+// Effektive Restladezeit ab jetzt bis zur Deadline.
+function effectiveChargeHours(deadlineMin) {
+  return effectiveChargeHoursFrom(nowMinutes, deadlineMin);
+}
+
+// Ende der Sperre bis zum Vormittags-Crossover in Minuten: der spaeteste
+// 5-Minuten-Schritt bis zum Crossover, ab dem die sonnengewichteten Stunden
+// bis zur Deadline noch `neededH` Ladestunden hergeben. null, wenn selbst
+// ab jetzt nicht genug Zeit bleibt oder Stundendaten fehlen.
+function crossoverLockEnd(crossoverMin, neededH, deadlineMin) {
+  for (var t = crossoverMin; t >= nowMinutes; t -= IBM_SLOT_MINUTES) {
+    var eff = effectiveChargeHoursFrom(t, deadlineMin);
+    if (eff === null) return null;
+    if (eff.hours >= neededH) return t;
   }
   return null;
 }
@@ -1018,7 +1330,7 @@ function remainingCloudMean(deadlineMin) {
   for (var i = 0; i < wolken.stunden.length; i++) {
     var w = parseFloat(wolken.stunden[i].wolken);
     if (isNaN(w) || w < 0 || w > 100) continue;
-    var ov = hourOverlapH(wolken.stunden[i].zeit, deadlineMin);
+    var ov = hourOverlapH(wolken.stunden[i].zeit, nowMinutes, deadlineMin);
     sum += w * ov;
     hours += ov;
   }
@@ -1068,6 +1380,26 @@ function chargeRegulationPlan() {
   // Nur ohne Stundendaten zaehlt jede Stunde gleich und der
   // wolkenabhaengige Sicherheitsfaktor gleicht pauschal aus.
   var missingKwh = Math.max(0, (REG_TARGET_SOC - soc) / 100 * capacityKwh);
+
+  // Sperre bis zum Vormittags-Crossover der Gemeinschaft: solange die
+  // Batterie in den sonnengewichteten Stunden danach noch voll wird, laedt
+  // sie vorher gar nicht - der Vormittagsexport landet bei den Mitgliedern,
+  // die bis zum Crossover im Defizit sind. Passt es nicht, endet die Sperre
+  // so viel frueher, wie Ladezeit fehlt (crossoverLockEnd).
+  if (chargeLockDateOk && CROSSOVER_VORMITTAG_API_MIN !== null && nowMinutes < CROSSOVER_VORMITTAG_API_MIN
+      && CROSSOVER_VORMITTAG_API_MIN < deadline && missingKwh > 0) {
+    var neededH = missingKwh / rateKw * CROSSOVER_LOCK_SAFETY_FACTOR;
+    var lockEnd = crossoverLockEnd(CROSSOVER_VORMITTAG_API_MIN, neededH, deadline);
+    if (lockEnd !== null && nowMinutes < lockEnd) {
+      console.log('[IBM][Laderegelung] Gemeinschaft bis ' + fmtMinutes(CROSSOVER_VORMITTAG_API_MIN) + ' im Defizit, '
+        + (Math.round(neededH * 10) / 10) + ' Ladestunden passen bis ' + fmtMinutes(deadline)
+        + ' - Sperre bis ' + fmtMinutes(lockEnd) + (lockEnd < CROSSOVER_VORMITTAG_API_MIN ? ' (vorgezogen)' : ''));
+      var lockSt = readRegulationState();
+      if (lockSt !== null) writeRegulationState({ schuld: 0, sperren: true, restSlots: 0, zeit: now.toString() });
+      return { sperren: true, limitW: null, sollW: 0, aktiv: true };
+    }
+  }
+
   var effRest = effectiveChargeHours(deadline);
   var restH;
   var restQuelle;
@@ -1081,15 +1413,45 @@ function chargeRegulationPlan() {
     restQuelle = 'ungewichtet';
     safety = REG_SAFETY_SUNNY + guardClouds / 100 * (REG_SAFETY_CLOUDY - REG_SAFETY_SUNNY);
   }
+
+  // Beobachteter Boden: die Restladezeit aus dem eigenen Sonnenprofil,
+  // skaliert mit der aktuellen Sonnigkeit. Eine veraltete oder falsche
+  // Prognose kann die Restladezeit so nicht unter das druecken, was die
+  // Anlage an einem Tag wie heute erfahrungsgemaess noch liefert.
+  var profile = sunProfile();
+  if (profile !== null) {
+    var sunniness = currentSunniness(profile);
+    if (sunniness !== null) {
+      var obsH = sunProfileHours(profile, nowMinutes, deadline) * sunniness;
+      if (obsH > restH) {
+        restH = obsH;
+        restQuelle = 'Sonnenprofil x ' + Math.round(sunniness * 100) + '%';
+        safety = REG_SAFETY_FIXED;
+      }
+    }
+  }
+
   var sollKw = missingKwh / restH * safety;
   var duty = (missingKwh <= 0) ? 0 : 1 - sollKw / rateKw;
   if (duty <= REG_MIN_DUTY) duty = 0;
   if (duty > REG_MAX_DUTY) duty = REG_MAX_DUTY;
+
+  // Sicherheitsnetz: vormittags bei kraeftiger Sonne und halbleerer Batterie
+  // nie ganz freigeben - egal, was Prognose oder Schaetzer sagen.
+  var guardNet = false;
+  if (profile !== null && missingKwh > 0 && nowMinutes < SUN_PROFILE_GUARD_UNTIL_MIN && soc < SUN_PROFILE_GUARD_MAX_SOC) {
+    var pvNow = currentPvW();
+    if (pvNow !== null && pvNow > SUN_PROFILE_GUARD_PV_SHARE * profile.spitzeW && duty < SUN_PROFILE_MIN_DUTY) {
+      duty = SUN_PROFILE_MIN_DUTY;
+      sollKw = Math.min(sollKw, rateKw * (1 - duty));
+      guardNet = true;
+    }
+  }
   var sollW = Math.round(sollKw * 1000);
   console.log('[IBM][Laderegelung] SoC=' + soc + '%, fehlen ~' + (Math.round(missingKwh * 10) / 10)
     + ' kWh, Restladezeit ' + (Math.round(restH * 10) / 10) + ' h (' + restQuelle + ') bis ' + fmtMinutes(deadline)
     + ', Wolken=' + guardClouds + '% -> Ziel ' + sollW + ' W (Laderate ' + rateKw + ' kW, Sperranteil '
-    + Math.round(duty * 100) + '%)');
+    + Math.round(duty * 100) + '%' + (guardNet ? ', Sicherheitsnetz' : '') + ')');
 
   // Direkte Begrenzung, wenn der Adapter sie kann: Ziel-Leistung quantisiert
   // kommandieren, nie unter den Boden von (1 - REG_MAX_DUTY) der Laderate.
@@ -1169,9 +1531,7 @@ function chargeLockDateValid() {
   var item = readItem('Ischlstrom_Ladesperre_Datum');
   if (item === null) return false;
   var state = String(item.state);
-  var m = now.monthValue();
-  var d = now.dayOfMonth();
-  var today = now.year() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+  var today = dateStr(now);
   if (state !== today) {
     console.log('[IBM][Konfig] Ladesperre-Fenster gilt fuer ' + state + ', heute ist ' + today + ' - wird ignoriert');
     return false;
@@ -1197,7 +1557,10 @@ if (chargeLockDateOk && DISCHARGE_START_API_MIN !== null) {
 } else if (EVENING_CROSSOVER_MIN !== null) {
   dischargeStart = Math.min(EVENING_CROSSOVER_MIN + DISCHARGE_START_OFFSET_MIN, 23 * 60 + 59);
 }
-var dischargeEnd   = MORNING_CROSSOVER_MIN;
+// Das Ende kommt ebenfalls tagesaktuell von der Token-API (Entladeende:
+// erster Morgen-Slot, in dem das Defizit der Gemeinschaft die Einspeisung
+// der Flotte nicht mehr sicher aufnimmt), sonst der Wochen-Crossover.
+var dischargeEnd = (chargeLockDateOk && DISCHARGE_END_API_MIN !== null) ? DISCHARGE_END_API_MIN : MORNING_CROSSOVER_MIN;
 
 // Wolkenvorschau lesen: Wert 0-100 oder null, wenn ungueltig oder veraltet.
 // Veraltete Werte (API-Ausfall) duerfen die Steuerung nicht treiben.
@@ -1417,31 +1780,71 @@ if (regulationPlan !== null) {
   publishItem('IBM_LADESPERRE_LOKAL_ENDE', '-');
 }
 
-// Ladeleistung lernen: nur tagsueber zwischen Fensterbeginn und
-// Abend-Deadline, wenn die Batterie frei laden darf (keine Sperre und keine
-// Leistungsbegrenzung moeglich), die Vorschau Sonne meldet und der
-// Ladestand unter der Drossel-Zone liegt. In freien PWM-Bloecken der
-// Laderegelung wird weiter gemessen (dort laedt die Batterie unbegrenzt);
-// unter einer direkten Leistungsbegrenzung nie - die Stichprobe wuerde
-// sonst das Limit statt der Anlage messen und die Schaetzung nach unten
-// ziehen.
+// Ladeleistung lernen (Abschnitt "Ladeleistungsschaetzung"). Direkte
+// Stichproben aus dem Batterieleistungs-Item nur in freien Slots - dieser
+// UND der vorige Zyklus ohne Sperre oder Begrenzung, denn das Item zeigt
+// beim Lesen noch die Wirkung des vorigen Kommandos -, zur Mittagszeit,
+// bei mittlerem Ladestand und sonniger Vorschau. Das heutige Maximum wird
+// in jedem Zyklus mitgefuehrt (Startwert am ersten Tag). Ohne
+// Batterieleistungs-Item wie frueher aus dem Ladestandsanstieg, dann nur
+// tagsueber zwischen Fensterbeginn und Abend-Deadline in freien Slots.
 function sampleChargeRate() {
-  if (netzladeBlock) return; // gesperrter Slot - keine Messstrecke
-  if (!LOCAL_LOCK_ACTIVE && !REGULATION_ACTIVE) return;
-  if (!chargeLockDateOk || CHARGE_LOCK_START_MIN === null || EVENING_CROSSOVER_MIN === null) return;
-  var capacityKwh = estimatedCapacityKwh();
-  if (capacityKwh === null) return;
-  var deadline = EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN;
-  if (nowMinutes < CHARGE_LOCK_START_MIN || nowMinutes >= deadline) return;
-  if (regulationPlan !== null && (regulationPlan.sperren || regulationPlan.limitW !== null)) return;
-  if (regulationPlan === null && chargeLockReady && inWindow(chargeLockStart, chargeLockEnd)) return;
-  var clouds = cloudForecast();
-  if (clouds === null || clouds >= CLOUD_THRESHOLD) return;
+  var st = readChargeRateState();
+  if (st === null) {
+    console.log('[IBM][Ladeleistung] Item IBM_LADERATE_MESSUNG fehlt - Schaetzung uebersprungen');
+    return;
+  }
+  if (typeof st.alt === 'number') {
+    console.log('[IBM][Ladeleistung] Schaetzung im alten Format (' + st.alt + ' kW, untere Huelle) verworfen - Spitzen-Ladeleistung wird neu gelernt');
+    delete st.alt;
+  }
+  var nowSec = now.toEpochSecond();
+  var slotFree = !netzladeBlock
+    && !(regulationPlan !== null && (regulationPlan.sperren || regulationPlan.limitW !== null))
+    && !(regulationPlan === null && CHARGE_LOCK_ACTIVE && chargeLockReady && inWindow(chargeLockStart, chargeLockEnd));
+  var prevFree = st.slot && typeof st.slot === 'object' && st.slot.frei === true
+    && typeof st.slot.t === 'number' && (nowSec - st.slot.t) <= CHARGE_RATE_MAX_STEP_GAP_MIN * 60;
+  st.slot = { t: nowSec, frei: slotFree };
+
   var soc = parseFloat(items.getItem('@IBM_SOC_ITEM@').numericState);
-  if (isNaN(soc) || soc > CHARGE_RATE_MAX_SOC) return;
-  updateChargeRateEstimate(soc, capacityKwh);
+  var batt = readItem('@IBM_BATTERY_POWER_ITEM@');
+  var chargingW = (batt === null) ? NaN : -parseFloat(batt.numericState); // Batterie negativ = laden
+
+  if (!isNaN(chargingW)) {
+    var plausibel = chargingW >= CHARGE_RATE_MIN_KW * 1000 && chargingW <= CHARGE_RATE_MAX_KW * 1000;
+    if (plausibel) {
+      var today = dateStr(now);
+      if (!st.tagMax || typeof st.tagMax !== 'object' || st.tagMax.datum !== today || !(st.tagMax.w >= chargingW)) {
+        st.tagMax = { datum: today, w: Math.round(chargingW) };
+      }
+    }
+    if (plausibel && slotFree && prevFree
+        && nowMinutes >= CHARGE_RATE_SAMPLE_FROM_MIN && nowMinutes < CHARGE_RATE_SAMPLE_TO_MIN
+        && !isNaN(soc) && soc >= CHARGE_RATE_SAMPLE_MIN_SOC && soc <= CHARGE_RATE_SAMPLE_MAX_SOC) {
+      var restClouds = (EVENING_CROSSOVER_MIN !== null) ? remainingCloudMean(EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN) : null;
+      var clouds = (restClouds !== null) ? restClouds : cloudForecast();
+      if (clouds !== null && clouds < CLOUD_THRESHOLD) updateChargeRateSample(st, chargingW);
+    }
+    writeChargeRateState(st);
+    return;
+  }
+
+  // Rueckfall: Ladestandsanstieg (kein Batterieleistungs-Item)
+  var messen = (LOCAL_LOCK_ACTIVE || REGULATION_ACTIVE)
+    && chargeLockDateOk && CHARGE_LOCK_START_MIN !== null && EVENING_CROSSOVER_MIN !== null
+    && nowMinutes >= CHARGE_LOCK_START_MIN && nowMinutes < EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN
+    && slotFree && !isNaN(soc) && soc <= CHARGE_RATE_MAX_SOC;
+  if (messen) {
+    var capacityKwh = estimatedCapacityKwh();
+    var socClouds = cloudForecast();
+    if (capacityKwh !== null && socClouds !== null && socClouds < CLOUD_THRESHOLD) {
+      updateChargeRateFromSoc(st, soc, capacityKwh);
+    }
+  }
+  writeChargeRateState(st);
 }
 sampleChargeRate();
+updateSunProfile();
 
 // Hauslast lernen: nur nachts im Entladefenster und nur in Zyklen, in denen
 // die Steuerung nicht einspeist (die Batterie versorgt dann allein das
@@ -1604,6 +2007,22 @@ function handleForcedDischarge() {
   var dischargeW = Math.round(dischargeMaxW - (clouds / 100) * (dischargeMaxW - dischargeMinW));
   console.log('[IBM][Entladung] Wolkenvorschau=' + clouds + '% -> dischargeW=' + dischargeW + 'W');
 
+  // Nachteinspeisung strecken: nicht schneller, als das Budget bis zum
+  // Entladeende reicht (mit Zuschlag), nie unter die Mindestleistung.
+  if (budgetWirksam && dischargeEnd !== null) {
+    var budgetKwh = Math.max(0, (soc - zielSoc) / 100 * budgetCapacity);
+    var hoursLeft = (nowMinutes < dischargeEnd ? dischargeEnd - nowMinutes : 24 * 60 - nowMinutes + dischargeEnd) / 60;
+    if (hoursLeft > 0.25) {
+      var stretchW = Math.round(budgetKwh / hoursLeft * 1000 * NIGHT_STRETCH_FACTOR);
+      if (stretchW < dischargeW) {
+        var stretched = Math.max(dischargeMinW, stretchW);
+        console.log('[IBM][Entladung] Budget ' + (Math.round(budgetKwh * 10) / 10) + ' kWh auf ' + (Math.round(hoursLeft * 10) / 10)
+          + ' h bis ' + fmtMinutes(dischargeEnd) + ' gestreckt -> ' + stretched + 'W statt ' + dischargeW + 'W');
+        dischargeW = stretched;
+      }
+    }
+  }
+
   dischargeCommanded = true;
   var res = ibmForceDischarge(dischargeW, IBM_SLOT_MINUTES);
   var ok = res && res.ok === true;
@@ -1632,7 +2051,7 @@ if (netzladeBlock) {
 } else if (DISCHARGE_ACTIVE && (dischargeStart === null || dischargeEnd === null)) {
   console.log('[IBM] Keine plausiblen Crossover-Zeiten von ischlstrom.org - Entladung bleibt aus');
 } else if (DISCHARGE_ACTIVE && inWindow(dischargeStart, dischargeEnd)) {
-  console.log('[IBM] Zeitfenster Nacht (' + fmtMinutes(nowMinutes) + ', ' + fmtMinutes(dischargeStart) + '-' + fmtMinutes(dischargeEnd) + (chargeLockDateOk && DISCHARGE_START_API_MIN !== null ? ', Start laut Prognose' : ', Start = Crossover + ' + DISCHARGE_START_OFFSET_MIN + ' min') + ') - pruefe forcierte Entladung');
+  console.log('[IBM] Zeitfenster Nacht (' + fmtMinutes(nowMinutes) + ', ' + fmtMinutes(dischargeStart) + '-' + fmtMinutes(dischargeEnd) + (chargeLockDateOk && DISCHARGE_START_API_MIN !== null ? ', Start laut Prognose' : ', Start = Crossover + ' + DISCHARGE_START_OFFSET_MIN + ' min') + (chargeLockDateOk && DISCHARGE_END_API_MIN !== null ? ', Ende laut Prognose' : ', Ende = Wochen-Crossover') + ') - pruefe forcierte Entladung');
   handleForcedDischarge();
 } else {
   console.log('[IBM] Ausserhalb beider Zeitfenster (' + fmtMinutes(nowMinutes) + ') - keine Aktion');

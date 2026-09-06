@@ -3,8 +3,8 @@ import { middlewareDbConnection } from "$lib/server/db/db";
 /**
  * Energieprognose (notebooks/forecast/eeg_forecast.py).
  *
- * Die Prognose wird nicht hier gerechnet, sondern in Python nach jedem
- * EEG-Faktura-Import mit `eeg_forecast.py --store` in die Tabellen
+ * Die Prognose wird nicht hier gerechnet, sondern in Python täglich um 05:30
+ * auf s1 (eeg-forecast.timer) mit `eeg_forecast.py --store` in die Tabellen
  * metering_energyforecastrun / metering_energyforecast geschrieben. Hier wird
  * nur der jeweils neueste Lauf gelesen.
  */
@@ -96,6 +96,11 @@ export const getForecastDays = async (runId: number, days: number = 10) => {
  * sicher voll wird -- ob eine Anlage rechtzeitig voll wird, kann nur sie
  * selbst beurteilen, nicht die Community-Prognose. An Tagen ohne erwarteten
  * Überschuss ist `ende` null -- dann gibt es keine Sperre.
+ *
+ * `crossover_vormittag` ist der Vormittags-Crossover selbst (erster Slot ab
+ * 03:00 mit Erzeugung >= Verbrauch): bis dahin ist die Gemeinschaft im
+ * Defizit, und die Laderegelung am Pi sperrt bis dahin hart, sofern die
+ * Batterie danach noch voll wird. null ohne Crossover.
  */
 export const getTodayChargeWindow = async (runId: number) => {
     const sql = await middlewareDbConnection();
@@ -143,7 +148,8 @@ export const getTodayChargeWindow = async (runId: number) => {
             to_char(MIN(ts_local) FILTER (
                 WHERE generation_kwh > 0.05 * (SELECT max_gen FROM peak)
             ), 'HH24:MI') AS start,
-            to_char((SELECT t FROM extended), 'HH24:MI') AS ende
+            to_char((SELECT t FROM extended), 'HH24:MI') AS ende,
+            to_char((SELECT t FROM crossover), 'HH24:MI') AS crossover_vormittag
         FROM slots
     `, [runId]);
     sql.release();
@@ -168,8 +174,10 @@ export const getTodayChargeWindow = async (runId: number) => {
 const IBM_CHARGE_FRACTION = 0.95;
 // Sicherheitsaufschlag auf die benötigte Energie (Prognosefehler, Dunst).
 const IBM_SAFETY_FACTOR = 1.3;
-// So viele Minuten vor dem abendlichen Crossover soll die Batterie voll sein.
-const IBM_FULL_BUFFER_MIN = 60;
+// So viele Minuten vor dem abendlichen Crossover soll die Batterie voll sein
+// (wie LOCAL_FULL_BUFFER_MIN in control/core.js: am spaeten Nachmittag
+// bleibt von der Spitzen-Ladeleistung nach Hauslast wenig uebrig).
+const IBM_FULL_BUFFER_MIN = 120;
 // Später endet keine Sperre (die Steuerung am Pi ignoriert Enden ab 15:00).
 const IBM_LATEST_END_MIN = 14 * 60;
 
@@ -183,6 +191,8 @@ const IBM_DISCHARGE_MIN_DEFICIT_SHARE = 0.25;
 // ... und zugleich ein Vielfaches dessen, was die IBM-Flotte abends
 // zusammen ins Netz drueckt (Summe der maximalen Entladeleistungen).
 const IBM_DISCHARGE_FLEET_FACTOR = 2;
+// Das Entladeende wird erst ab dieser Stunde gesucht (Morgen).
+const IBM_DISCHARGE_END_FROM_HOUR = 5;
 
 const fmtMinutes = (m: number) => {
     const h = Math.floor(m / 60);
@@ -370,6 +380,35 @@ export const getTodayDischargeStart = async (runId: number, fleetDischargeKw: nu
             fleetDischargeKw * IBM_DISCHARGE_FLEET_FACTOR
         );
         if (deficitKw >= neededKw) return fmtMinutes(s.minute);
+    }
+    return null;
+};
+
+/**
+ * Entladeende des heutigen Morgens ("HH:MM") für die IBM-Anlagen, das
+ * Spiegelbild des Entladestarts: der erste Slot ab IBM_DISCHARGE_END_FROM_HOUR,
+ * in dem das Defizit der Gemeinschaft UNTER die Schwelle des Entladestarts
+ * fällt (IBM_DISCHARGE_MIN_DEFICIT_SHARE des Verbrauchs oder
+ * IBM_DISCHARGE_FLEET_FACTOR mal Flotten-Entladeleistung). Ab dann nimmt
+ * die Gemeinschaft die Nachteinspeisung nicht mehr sicher auf; sie ginge an
+ * den Energielieferanten. null, wenn der Prognosetag morgens kein Defizit
+ * hat oder es bis 12:00 nicht unter die Schwelle fällt - die Steuerung am
+ * Pi fällt dann auf den wöchentlichen Vormittags-Crossover zurück.
+ */
+export const getTodayDischargeEnd = async (runId: number, fleetDischargeKw: number) => {
+    const slots = await getTodaySlots(runId);
+    if (slots.length === 0) return null;
+
+    let seenDeficit = false;
+    for (const s of slots) {
+        if (s.minute < IBM_DISCHARGE_END_FROM_HOUR * 60 || s.minute >= 12 * 60) continue;
+        const deficitKw = (s.cons - s.gen) * 4;
+        const neededKw = Math.max(
+            s.cons * 4 * IBM_DISCHARGE_MIN_DEFICIT_SHARE,
+            fleetDischargeKw * IBM_DISCHARGE_FLEET_FACTOR
+        );
+        if (deficitKw >= neededKw) { seenDeficit = true; continue; }
+        if (seenDeficit) return fmtMinutes(s.minute);
     }
     return null;
 };

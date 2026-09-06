@@ -47,6 +47,36 @@ Was abweicht:
 
 ## Teil A: Steuerung am Pi (`control/core.js`)
 
+Stand 6. September 2026: A1 bis A5 umgesetzt, Replay-Test bestanden,
+Ausrollen offen (Website deployen, dann Test im Vorstandsnetz, dann
+`ibm-update` ueber Nacht). Abweichungen vom Plan, jeweils aus dem Replay
+der 30-Tage-Historie (`Batteriemanagement/openhab/control/replay/`):
+
+- A1: kein "eine Stichprobe 30% ueber der Schaetzung hebt sofort an". Die
+  Historie zeigt an zwei Anlagen Abtast-Ausreisser bis zum 1,7-fachen der
+  Spitze (pi mit 18 kWh: 8 von 779 Stichproben, pi mit 11 kWh: 5 von 80);
+  die Regel haette falsche Spruenge ausgeloest. Das 80. Perzentil folgt
+  nach oben ohnehin sofort. 60 statt 40 Stichproben (15-Minuten-Abstand,
+  rund drei sonnige Tage), Fenster 7 Tage.
+- A2: das Sonnenprofil wird auf den hoechsten je gemessenen Stundenwert
+  normiert (klarer Himmel), nicht auf das Perzentil der besten Stunde;
+  sonst war die beobachtete Restladezeit an jedem sonnigen Tag zu
+  optimistisch und gewann immer gegen die Prognose.
+- Kalibrierung: mit Sicherheitsfaktor 1,1 und Deadline eine Stunde vor
+  dem Abend-Crossover wurden die Batterien im Replay an sonnigen Tagen um
+  1 bis 3 Stunden zu spaet voll (freie Ladeleistung am Nachmittag nach
+  Hauslast weit unter Spitze mal Ladefaktor; der Regelkreis holt das nicht
+  mehr auf). Jetzt Faktor 1,5 und Deadline zwei Stunden vor dem Crossover
+  (Pi `LOCAL_FULL_BUFFER_MIN`, Server `IBM_FULL_BUFFER_MIN`); damit sind
+  alle Anlagen an allen wettermaessig moeglichen Tagen zur Deadline voll,
+  bei gleichzeitig 2 bis 6 kWh je Anlage und sonnigem Tag weniger
+  morgendlichem Laden. Am 09-03 (veraltete Prognose) erreichen die
+  Anlagen 95% um 15:00 bis 16:00 statt 10:45 bis 14:00.
+- A4: das Entladeende ist das Spiegelbild des Entladestarts: erster
+  Morgen-Slot, in dem das Defizit UNTER die Schwelle faellt (nicht "der
+  Ueberschuss ueber das Doppelte der Flottenleistung steigt", das waere
+  nach dem Crossover und damit Einspeisung an den Lieferanten).
+
 ### A1. Spitzen-Ladeleistung lernen statt untere Huelle (Abweichung 1)
 
 - Stichproben direkt aus dem Batterieleistungs-Item statt aus dem
@@ -118,9 +148,11 @@ Was abweicht:
 ### A5. Optional: Nachteinspeisung strecken
 
 Entladeleistung zusaetzlich auf Budget-kWh geteilt durch Stunden bis zum
-Vormittags-Crossover, mal 1,2, begrenzen. pi-007 waere dann nicht schon um
-23:00 fertig. Niedrige Prioritaet: das Defizit der Gemeinschaft nimmt die
-vorgezogene Einspeisung ohnehin auf.
+Entladeende, mal 1,2, begrenzen, nie unter die Mindestleistung (0,1 C).
+pi-007 waere dann nicht schon um 23:00 fertig. Niedrige Prioritaet: das
+Defizit der Gemeinschaft nimmt die vorgezogene Einspeisung ohnehin auf.
+Umgesetzt (`NIGHT_STRETCH_FACTOR`); bei grossen Batterien greift meist die
+Mindestleistung 0,1 C als Boden.
 
 Jeder Schritt in Teil A aktualisiert Whitepaper, Kopfkommentar core.js und
 `docs/ibm-setup-vereinfachung.md`; `build-dist.sh` hebt die VERSION, das
@@ -292,12 +324,12 @@ stehen auf pi-118 und pi-047 ueber 60 Updates an.
 | Schritt | Inhalt | Aufwand |
 |---|---|---|
 | B2 Schritt null, B1 | API-Aufruf verifizieren, Prognose-Timer auf s1 | 1-2 Tage |
-| A1, A2 | Pi-Paket: Spitzenrate, Live-PV-Boden, Replay-Test | 2-3 Tage |
+| A1, A2 | Pi-Paket: Spitzenrate, Live-PV-Boden, Replay-Test (umgesetzt 6.9.) | 2-3 Tage |
 | B2 | Import-CLI und Timer | 2 Tage |
 | C | apt-Automatik in den Setup-Skripten, Rollout | 1 Tag |
-| A3, A4 | API-Felder plus Sperre bis Crossover am Pi | 1-2 Tage |
+| A3, A4 | API-Felder plus Sperre bis Crossover am Pi (umgesetzt 6.9.) | 1-2 Tage |
 | B3 | Dashboard | 1 Tag |
-| A5 | Nacht strecken, optional | halber Tag |
+| A5 | Nacht strecken (umgesetzt 6.9.) | halber Tag |
 
 Kein Code, aber Teil von Abweichung 5: Gespraech mit dem Besitzer von
 pi-368 (Abschalten am Abend, E-Auto laedt nachts aus der Batterie),

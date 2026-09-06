@@ -24,7 +24,7 @@
 \large Gemeinschaftsdienliche Steuerung privater Heimspeicher\\
 in einer Erneuerbare-Energie-Gemeinschaft}
 \author{Energiegemeinschaft ISCHLSTROM \\ \href{https://ischlstrom.org}{ischlstrom.org}}
-\date{August 2026}
+\date{September 2026}
 
 \begin{document}
 
@@ -38,7 +38,9 @@ Gemeinschaft nützen, ohne dem einzelnen Haushalt zu schaden. Zwei Eingriffe
 genügen dafür: An sonnigen Tagen regelt ein geschlossener Regelkreis die
 Ladeleistung der Batterie so, dass sie den ganzen Tag gerade schnell genug
 lädt, um am Abend voll zu sein; der restliche PV-Überschuss fließt laufend
-in die Gemeinschaft, solange diese ihn braucht. In der Nacht speist die
+in die Gemeinschaft, solange diese ihn braucht. Solange die Gemeinschaft
+morgens noch im Defizit ist, lädt die Batterie gar nicht, sofern sie danach
+noch voll wird. In der Nacht speist die
 Batterie kontrolliert in das Netz ein, solange die Gemeinschaft mehr
 verbraucht als erzeugt. Beide
 Eingriffe sind an Prognosen gebunden und mehrfach abgesichert: Ohne
@@ -200,7 +202,7 @@ Regel & Aufgabe & Zeitplan \\
 \midrule
 \code{ibm\_cloud\_forecast} & Wolkenvorschau abrufen & stündlich \\
 \code{ibm\_crossover} & Crossover-Zeiten abrufen & täglich 04:05 \\
-\code{ibm\_ladesperre} & Ladefenster und Entladestart abrufen & stündlich \\
+\code{ibm\_ladesperre} & Ladefenster, Crossover, Entladefenster abrufen & stündlich \\
 \code{ibm\_battery\_control} & Adapter + Kern: entscheiden und steuern & alle 5\,min \\
 \code{ibm\_status\_push} & Zustand an das Dashboard melden & jede Minute \\
 \code{ibm\_init} & Startwerte setzen, solange Items \code{NULL} sind & alle 10\,min \\
@@ -225,7 +227,7 @@ individualisierten erfordern das Status-Token der Anlage.
 Endpunkt & Methode & Inhalt & Zugriff \\
 \midrule
 \code{/api/eeginfo/ladefenster/v1} & GET & Community-Ladefenster & öffentlich \\
-\code{/api/ibm/ladefenster/v1} & POST & Fenster + Entladestart + Ladefaktoren & Token \\
+\code{/api/ibm/ladefenster/v1} & POST & Fenster, Crossover, Entladefenster, Ladefaktoren & Token \\
 \code{/api/eeginfo/crossover/v1} & GET & Crossover-Zeiten der Woche & öffentlich \\
 \code{/api/wolken/vorschau/v1} & GET & Bewölkung: Mittagsfenster + Stundenwerte & öffentlich \\
 \code{/api/ibm/status/v1} & POST & Status-Push der Anlage & Token \\
@@ -269,6 +271,13 @@ liefert die API kein Ende und es wird nicht gesperrt. Jede Antwort trägt
 das Datum des Prognosetags; die Gateways verwerfen Fenster mit fremdem
 Datum.
 
+Die Token-API liefert zusätzlich den Vormittags-Crossover
+$t_{\text{Crossover}}$ selbst. Bis dahin ist die Gemeinschaft im Defizit:
+Jede Kilowattstunde, die dann in eine Batterie geht, fehlt den Mitgliedern,
+und jede exportierte kommt bei ihnen an. Die Laderegelung des Gateways
+sperrt deshalb bis zum Crossover hart, sofern die Batterie danach noch voll
+wird (Abschnitt~\ref{sec:crossoverlock}).
+
 \subsection{Individualisiertes Sperr-Ende}\label{sec:individuell}
 
 Für Anlagen mit Status-Token rechnet der Server das Fensterende je Anlage,
@@ -278,7 +287,7 @@ Ladeleistung folgt dem Erzeugungsprofil des Tages. Der Server normiert das
 Profil auf den Maximalslot des gesamten Prognoselaufs (nicht des Tages,
 sonst sähe ein trüber Tag wie ein klarer aus) und integriert rückwärts von
 der Abend-Deadline $t_D$ (Ende des letzten Überschuss-Slots minus
-60~Minuten):
+120~Minuten, Begründung in Abschnitt~\ref{sec:ladesperre}):
 \begin{equation}
   E(t) \;=\; \sum_{s=t}^{t_D} P_{\text{Lade}} \cdot
   \frac{G_s}{G_{\max}^{\text{Lauf}}} \cdot 0{,}25\,\text{h}.
@@ -338,7 +347,13 @@ der Gemeinschaft: je Tag des Jahres über alle Jahre gemittelt und zu
 Kalenderwochen zusammengefasst (materialisierte Sicht, monatlich
 aufgefrischt). Anders als das Ladefenster sind sie also kein
 Prognoseprodukt, sondern ein saisonales Klimamittel; sie ändern sich
-langsam und sind deshalb als Wochenwert ausreichend genau.
+langsam und sind deshalb als Wochenwert ausreichend genau. Seit das
+Entladefenster tagesaktuell aus der Prognose kommt
+(Abschnitt~\ref{sec:entladefenster}), sind die Wochenwerte nur noch der
+Rückfall bei Ausfall der Token-API. Zu beachten: Das Mittel je Tag des
+Jahres über alle Jahre kennt weder das aktuelle Wetter noch den Zubau der
+Gemeinschaft; an sonnigen Tagen liegt der Abend-Crossover deutlich später
+und der Vormittags-Crossover früher als die Wochenwerte.
 
 \subsection{Wolkenvorschau und Stundenwerte}
 
@@ -369,6 +384,23 @@ gelernten Spitzenrate. Anders als die Bewölkung enthalten die Faktoren
 auch den Sonnenstand, sie sind also das physikalisch genauere Gewicht für
 die Restladezeit der Laderegelung.
 
+\subsection{Entladefenster aus der Prognose}\label{sec:entladefenster}
+
+Die Nachteinspeisung soll bei den Mitgliedern landen und nicht beim
+Energielieferanten. Der Server berechnet deshalb aus dem Prognosetag den
+\emph{Entladestart}: den ersten Slot nach dem abendlichen Crossover, in dem
+das Defizit der Gemeinschaft $V_t - G_t$ mindestens 25\% ihres Verbrauchs
+und mindestens das Doppelte der Entladeleistung der IBM-Flotte erreicht.
+Das \emph{Entladeende} ist das Spiegelbild am Morgen: der erste Slot ab
+05:00, in dem das Defizit wieder unter diese Schwelle fällt; ab dann nimmt
+die Gemeinschaft die Einspeisung nicht mehr sicher auf. Die
+Flotten-Entladeleistung ist die Summe der maximalen Entladeleistung aller
+aktiven Anlagen, gerechnet wie auf dem Gateway (0,3\,C der gelernten
+Kapazität, gekappt bei 5\,kW; sonst die Einstellung, ohne Einstellung
+3\,kW). Beide Zeiten gelten nur für das mitgelieferte Datum; fehlen sie,
+gilt am Gateway das Wochenmittel der Crossover-Zeiten, abends plus 60
+Minuten Abstand.
+
 % ============================================================================
 \section{Teil A: Laderegelung am Tag}\label{sec:ladesperre}
 % ============================================================================
@@ -378,10 +410,10 @@ die Restladezeit der Laderegelung.
 An sonnigen Tagen wird die Ladeleistung der Batterie dynamisch geregelt.
 In jedem Fünf-Minuten-Zyklus berechnet der Kern die Ziel-Ladeleistung neu:
 fehlende Energie geteilt durch die \emph{effektive Restladezeit} bis zur
-Abend-Deadline $t_D$ (Abend-Crossover minus 60~Minuten),
+Abend-Deadline $t_D$ (Abend-Crossover minus 120~Minuten),
 \begin{equation}
   P_{\text{Soll}}(t) \;=\;
-  \frac{(0{,}95 - \text{SoC}(t)) \cdot C}{T_{\text{eff}}(t)} \cdot 1{,}1,
+  \frac{(0{,}95 - \text{SoC}(t)) \cdot C}{T_{\text{eff}}(t)} \cdot 1{,}5,
   \qquad
   T_{\text{eff}}(t) \;=\; \sum_{h\,\in\,[t,\,t_D)} f_h \cdot \Delta t_h
   \label{eq:psoll}
@@ -395,9 +427,61 @@ aus den stündlichen Ladefaktoren der Token-API
 physikalisch exakt inklusive Sonnenstand), sonst aus den stündlichen
 Bewölkungswerten der Wolken-API ($f_h = 1 - w_h/100$). Nur wenn beides
 fehlt (älterer Server), zählt jede Stunde gleich
-($T_{\text{eff}} = t_D - t$) und statt des festen Aufschlags 1,1 gleicht
+($T_{\text{eff}} = t_D - t$) und statt des festen Aufschlags 1,5 gleicht
 ein wolkenabhängiger Sicherheitsfaktor $1{,}1 + w/100 \cdot 0{,}5$ den
 Nachmittagsabfall pauschal aus.
+
+Sicherheitsfaktor 1,5 und Deadline zwei Stunden vor dem Abend-Crossover
+sind an einem Replay der Betriebsdaten von sieben Anlagen über zehn Tage
+kalibriert. Die Regelung rechnet je freiem Slot mit Spitzen-Ladeleistung
+mal Ladefaktor; tatsächlich bleibt davon nach Hauslast und Wolkenlücken
+weniger übrig, und am späten Nachmittag sinkt die freie Leistung (PV minus
+Hauslast) weit unter diesen Wert. Der Regelkreis holt einen Rückstand dann
+nicht mehr auf: Mit Faktor 1,1 und einer Stunde Puffer wurden die Batterien
+an sonnigen Tagen um ein bis drei Stunden zu spät voll. Für die
+Gemeinschaft kostet der frühere Zielzeitpunkt nichts, denn innerhalb des
+Überschussfensters ist es gleichgültig, wann die Batterie lädt; was zählt,
+ist das Laden vor dem Vormittags-Crossover zu vermeiden und abends voll zu
+sein.
+
+\paragraph{Beobachteter Boden: das Sonnenprofil.} Die Restladezeit aus der
+Prognose ist nur so gut wie der Prognoselauf. Ist er veraltet oder falsch
+(etwa ein trüber Tag gemeldet, während die Sonne scheint), schrumpft
+$T_{\text{eff}}$, $P_{\text{Soll}}$ explodiert, die Begrenzung löst sich,
+und die Batterie ist mittags voll; der Mittagsüberschuss geht ins Netz. Am
+3.~September 2026 ist genau das passiert. Als Boden dient deshalb die eigene
+Beobachtung: Das Gateway führt je Tagesstunde die mittlere PV-Leistung der
+letzten 14~Tage und bildet daraus das 75.~Perzentil je Stunde, normiert auf
+den höchsten je gemessenen Stundenwert (klarer Himmel, dieselbe Idee wie die
+Normierung der Ladefaktoren auf den besten Slot des Laufs). Daraus folgt
+eine beobachtete Restladezeit, skaliert mit der aktuellen Sonnigkeit
+(PV~jetzt geteilt durch Profilwert jetzt, höchstens~1). Es gilt die
+größere der beiden Restladezeiten. Unabhängig davon greift ein
+Sicherheitsnetz: vormittags, solange die PV über der Hälfte ihrer gelernten
+Spitze liegt und die Batterie unter 60\% ist, fällt der Sperranteil nie
+unter 0,3. Beides braucht das PV-Leistungs-Item des Profils; ohne bleibt
+die Regelung wie zuvor.
+
+\subsection{Sperre bis zum Vormittags-Crossover}\label{sec:crossoverlock}
+
+Bis zum Vormittags-Crossover der Gemeinschaft (Token-API,
+Abschnitt~\ref{sec:signale}) fehlt jede in eine Batterie geladene
+Kilowattstunde den Mitgliedern. Die Regelung sperrt deshalb bis dahin hart,
+sofern die Batterie in den sonnengewichteten Stunden zwischen Crossover und
+Deadline noch voll wird:
+\begin{equation}
+  \frac{(0{,}95 - \text{SoC}) \cdot C}{P_{\text{Lade}}} \cdot 1{,}3
+  \;\leq\; \sum_{h\,\in\,[t_{\text{Crossover}},\,t_D)} f_h \cdot \Delta t_h .
+\end{equation}
+Passt es nicht, endet die Sperre genau so viel früher, wie Ladezeit fehlt:
+Das Sperr-Ende ist der späteste Fünf-Minuten-Schritt vor dem Crossover, ab
+dem die Ungleichung gilt. Kleine Batterien bleiben so bis zum Crossover
+gesperrt, große (etwa 43\,kWh bei 7\,kW) beginnen entsprechend früher.
+Nach dem Sperr-Ende regelt der Kreis wie beschrieben. Ohne Crossover-Wert
+(älterer Server, fremdes Datum) oder ohne Stundendaten entfällt die Sperre
+und die Regelung läuft von Fensterbeginn an. Im Replay der Betriebsdaten
+wanderten damit je Anlage und sonnigem Tag zwei bis sechs Kilowattstunden
+vom morgendlichen Laden in den morgendlichen Export.
 
 Die Batterie lädt so den ganzen Tag gerade schnell genug, um am Abend voll
 zu sein; der gesamte restliche PV-Überschuss fließt laufend in die
@@ -465,7 +549,7 @@ Für das Sperr-Ende gibt es drei Stufen, in absteigender Priorität:
     (Abschnitt~\ref{sec:lernen}). Rückwärts vom Abend:
     \begin{equation}
       t_{\text{Ende}} \;=\; \min\Bigl(
-        t_{\text{Abend-Crossover}} - 60\,\text{min}
+        t_{\text{Abend-Crossover}} - 120\,\text{min}
         \;-\; \underbrace{\frac{(0{,}95 - \text{SoC}) \cdot C}{P_{\text{Lade}}} \cdot 1{,}3 \cdot 60\,\text{min}}_{\text{Ladezeit mit Sicherheitsaufschlag}},
         \;\; 13\!:\!00\Bigr)
       \label{eq:localend}
@@ -503,11 +587,15 @@ Batterie bei 100\% Ladung.
 
 \subsection{Entladefenster}
 
-Entladen wird vom abendlichen bis zum morgendlichen Crossover, also genau
-solange die Gemeinschaft mehr verbraucht als erzeugt. Die Crossover-Zeiten
-holt das Gateway täglich vom Server. Liegen keine plausiblen Zeiten vor
-(Server nie erreichbar gewesen oder Werte unbrauchbar), wird nicht entladen;
-ein Ersatzfenster gibt es bewusst nicht.
+Entladen wird vom Entladestart bis zum Entladeende der Tagesprognose
+(Abschnitt~\ref{sec:entladefenster}): genau solange die Gemeinschaft so
+deutlich im Defizit ist, dass sie die Einspeisung der ganzen Flotte
+aufnimmt. Fehlen die Werte oder gelten sie nicht für den heutigen Tag, fällt
+das Gateway auf die Wochen-Crossover-Zeiten zurück (Beginn abendlicher
+Crossover plus 60~Minuten, Ende morgendlicher Crossover). Liegen auch keine
+plausiblen Crossover-Zeiten vor (Server nie erreichbar gewesen oder Werte
+unbrauchbar), wird nicht entladen; ein Ersatzfenster gibt es bewusst
+nicht.
 
 \subsection{Entladeleistung aus der Wolkenvorschau}
 
@@ -572,6 +660,12 @@ Zwei Grenzen schützen den Haushalt vor einer leeren Batterie:
     Oberfläche an. Weil die Reservedauer mit jeder Stunde Nacht schrumpft,
     sinkt das Ziel im Lauf der Nacht von selbst; ein Festhalten ist nicht
     nötig. Ohne belastbare Kapazitätsschätzung gilt nur die Reserve.
+  \item \textbf{Strecken:} Damit große Batterien ihr Budget nicht schon
+    vor Mitternacht eingespeist haben, wird die Entladeleistung zusätzlich
+    auf $B / T_{\text{Rest}} \cdot 1{,}2$ begrenzt, mit der Zeit
+    $T_{\text{Rest}}$ bis zum Entladeende, nie unter $P_{\min}$. Die
+    Einspeisung verteilt sich so über die ganze Nacht; das Defizit der
+    Gemeinschaft nimmt sie zu jeder Stunde auf.
 \end{itemize}
 
 Nach dem Entlade-Stopp versorgt der Wechselrichter das Haus weiter aus der
@@ -613,25 +707,35 @@ Entladeleistung ist dann eher zu niedrig als zu hoch.
 
 \subsection{Ladeleistung}
 
-Gemessen wird nur, wenn die Messung die real erreichbare Ladeleistung
-widerspiegelt: tagsüber zwischen Fensterbeginn und Abend-Deadline, wenn die
-Batterie frei laden darf, die Vorschau Sonne meldet und der Ladestand unter
-95\% liegt (darüber drosselt der Wechselrichter selbst). In freien
-PWM-Blöcken der Laderegelung wird weiter gemessen (dort lädt die Batterie
-unbegrenzt); unter einem direkten Ladelimit nie, denn die Stichprobe würde
-das Limit statt der Anlage messen und die Schätzung nach unten ziehen.
-Steigt der Ladestand um mindestens 5~Prozentpunkte, ergibt geladene Energie
-(aus der Kapazität) geteilt durch die Messdauer eine Stichprobe in kW.
+Gelernt wird die \emph{Spitzen-Ladeleistung} $P_{\text{Lade}}$: was die
+Batterie an einem sonnigen Mittag tatsächlich aufnimmt. Genau darauf bezieht
+sich der Sperranteil der Laderegelung (Gleichung~\eqref{eq:duty}) und die
+Rechnung des Servers für das individualisierte Sperr-Ende. Die frühere
+Schätzung aus dem Ladestandsanstieg war bewusst eine untere Hüllkurve und
+lag im Betrieb um Faktor 1,5 bis 3,5 unter der echten Ladeleistung
+(1,5 bis 4,6\,kW gelernt bei 3 bis 9\,kW gemessen): Der Sperranteil großer
+Batterien wurde damit null, sie luden ab dem ersten Sonnenschein mit voller
+Leistung, und der Server rechnete für vier von sieben Anlagen \glqq braucht
+den ganzen Tag, keine Sperre\grqq.
 
-Die Mittelung ist bewusst \emph{asymmetrisch und dauergewichtet}: Eine
-Stichprobe unter der bisherigen Schätzung (etwa Dunst trotz sonniger
-Vorschau) zählt mit Gewicht 0,5 je Messstunde, eine darüber nur mit 0,15 je
-Messstunde, gedeckelt bei 0,6. Die Schätzung liegt damit nahe an der
-unteren Hüllkurve der letzten Tage. Das ist die sichere Seite: Die Batterie
-muss abends voll sein, also wird die Ladezeit eher über- als unterschätzt
-und die Sperre endet eher zu früh als zu spät. Die Dauergewichtung
-verhindert zugleich, dass schnelle Mittagsphasen mit vielen Stichproben je
-Stunde den Schnitt systematisch nach oben ziehen.
+Stichproben kommen jetzt direkt aus dem Batterieleistungs-Item, nur in
+freien Slots (dieser und der vorige Zyklus ohne Sperre oder Begrenzung,
+denn das Item zeigt beim Lesen noch die Wirkung des vorigen Kommandos),
+zwischen 10:00 und 15:00, bei Ladestand 20 bis 90\% und sonniger Vorschau,
+im Abstand von mindestens 15~Minuten; gespeichert werden die letzten 60, die
+Auswertung zählt nur die der letzten sieben Tage. Die Schätzung ist das
+80.~Perzentil dieser Stichproben. Nach oben folgt sie dem Perzentil sofort,
+nach unten nur mit einer Halbwertszeit von sieben Tagen, die Umkehr der
+früheren Gewichtung. Einzelne Ausreißer nach oben (Abtast-Artefakte des
+Bindings, im Betrieb bis zum 1,7-fachen der Spitze) heben sie nicht an, weil
+das Perzentil sie ignoriert; ein einzelner Ausreißer als Auslöser, wie
+zunächst erwogen, hätte an zwei Anlagen falsche Sprünge ausgelöst. Solange
+weniger als drei Stichproben vorliegen, gilt das heutige Maximum der
+beobachteten Ladeleistung, damit die Regelung am ersten Tag nicht blind ist.
+Beim Wechsel auf das neue Verfahren wird die alte Schätzung verworfen.
+Profile ohne Batterieleistungs-Item behalten den Rückfall aus dem
+Ladestandsanstieg, dann symmetrisch gewichtet (0,3 je Messstunde,
+gedeckelt bei 0,6).
 
 \subsection{Nächtliche Hauslast}\label{sec:hauslast}
 
@@ -683,7 +787,10 @@ also Eigenverbrauchsoptimierung, ist immer der sichere Rückfall.
   \item \textbf{Laden nie ganz würgen:} Die Laderegelung begrenzt höchstens
     auf 90\% Sperranteil bzw. mindestens 10\% der gelernten Ladeleistung.
     Selbst ein grober Schätzfehler lässt die Batterie weiter laden, und der
-    Regelkreis korrigiert ihn über den Live-Ladestand.
+    Regelkreis korrigiert ihn über den Live-Ladestand. Die einzige harte
+    Sperre, die bis zum Vormittags-Crossover, gilt nur, solange die
+    Rechnung mit Sicherheitsfaktor 1,3 zeigt, dass die Batterie danach noch
+    voll wird.
   \item \textbf{Nie aus dem Netz laden:} Der Grundsatz ist doppelt
     abgesichert. Erstens per Konstruktion: Kein Adapter verwendet Kommandos,
     die die Batterie aus dem Netz laden könnten (keine Lade-Kommandos,

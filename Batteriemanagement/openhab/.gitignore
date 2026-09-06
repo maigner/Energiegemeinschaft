@@ -2,3 +2,8 @@
 # Paketbau geloescht, bleiben aber liegen, wenn der Build abbricht)
 BUILD-INFO
 inverters/*/page-*.json
+
+# Replay-Daten (Betriebsdaten der Anlagen aus der Datenbank, nie einchecken)
+control/replay/*.csv
+control/replay/*.txt
+control/replay/core_old.js

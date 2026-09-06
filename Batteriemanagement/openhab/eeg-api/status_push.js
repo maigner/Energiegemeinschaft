@@ -268,6 +268,8 @@ var payload = {
     ladesperre_datum: stateOf('Ischlstrom_Ladesperre_Datum'),
     ladesperre_individuell: stateOf('Ischlstrom_Ladesperre_Individuell'),
     entladestart: stateOf('Ischlstrom_Entladestart'),
+    entladeende: stateOf('Ischlstrom_Entladeende'),
+    crossover_vormittag: stateOf('Ischlstrom_Crossover_Vormittag'),
     hauslast_w: numberOf('IBM_HAUSLAST'),
     // Verbleibendes Nacht-Entladebudget (kWh ueber dem Ziel-Ladestand),
     // vom Kern aus Kapazitaet und Hauslast gerechnet; null ohne Schaetzung.

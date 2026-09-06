@@ -547,7 +547,8 @@ pages:
                                     title: Einspeisung bis
                                     icon: f7:sunrise_fill
                                     iconColor: orange
-                                    item: Ischlstrom_Crossover_Start
+                                    item: Ischlstrom_Entladeende
+                                    after: "=(items.Ischlstrom_Entladeende.state && items.Ischlstrom_Entladeende.state !== '-' && items.Ischlstrom_Entladeende.state !== 'NULL' && items.Ischlstrom_Entladeende.state !== 'UNDEF') ? items.Ischlstrom_Entladeende.state : items.Ischlstrom_Crossover_Start.state"
                                 - component: oh-label-item
                                   config:
                                     title: Geschätzte Hauslast

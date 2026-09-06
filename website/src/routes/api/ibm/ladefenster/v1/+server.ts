@@ -4,7 +4,8 @@ import {
     getTodayChargeWindow,
     getIndividualChargeWindowEnd,
     getChargeFactorsToday,
-    getTodayDischargeStart
+    getTodayDischargeStart,
+    getTodayDischargeEnd
 } from '$lib/server/db/energy/forecast';
 import {
     getOpenhabPlantByToken,
@@ -42,6 +43,16 @@ import {
  * deutlich im Defizit ist, damit die Einspeisung bei den Mitgliedern landet
  * und nicht beim Energielieferanten. null, wenn die Prognose das nicht
  * hergibt; die Steuerung fällt dann auf Crossover plus Abstand zurück.
+ * `entladeende` ist das Spiegelbild am Morgen (siehe getTodayDischargeEnd):
+ * der erste Slot, in dem das Defizit der Gemeinschaft die Einspeisung der
+ * Flotte nicht mehr sicher aufnimmt; null, dann gilt am Pi der wöchentliche
+ * Vormittags-Crossover.
+ *
+ * `crossover_vormittag` -- der Vormittags-Crossover des Prognosetags
+ * (Erzeugung >= Verbrauch, siehe getTodayChargeWindow). Bis dahin ist die
+ * Gemeinschaft im Defizit; die Laderegelung am Pi sperrt bis dahin hart,
+ * sofern die Batterie danach in den sonnengewichteten Stunden noch voll
+ * wird. null ohne Crossover.
  *
  * Außerdem: `ladefaktoren` -- die stündlichen Ladefaktoren des heutigen
  * Tages samt Abend-Deadline (siehe getChargeFactorsToday). Die dynamische
@@ -110,7 +121,9 @@ export async function POST({ request }) {
     }
 
     const ladefaktoren = await getChargeFactorsToday(run.id);
-    const entladestart = await getTodayDischargeStart(run.id, await getActiveFleetDischargeKw());
+    const fleetKw = await getActiveFleetDischargeKw();
+    const entladestart = await getTodayDischargeStart(run.id, fleetKw);
+    const entladeende = await getTodayDischargeEnd(run.id, fleetKw);
 
     return json({
         ladefenster: {
@@ -119,6 +132,8 @@ export async function POST({ request }) {
             ende,
             individuell,
             entladestart,
+            entladeende,
+            crossover_vormittag: fenster.crossover_vormittag ?? null,
             ladefaktoren
         }
     });
