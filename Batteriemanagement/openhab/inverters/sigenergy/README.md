@@ -149,6 +149,51 @@ kontaktieren (dabei Firmware-Stand erfragen); LAN-Kabel an den Energy
 Controller als Alternative zum WLAN. Werkzeug fuer den naechsten Anlauf:
 `tools/spike_sigenstor.py <ip> reads` (siehe oben).
 
+### Nachtrag 2026-09-08 (Fernpruefung nach Elektriker-Einstellungen)
+
+Der Elektriker hat am Wechselrichter gesetzt: `Modbus TCP Server Enable`,
+`Modbus Native (Slave) Address = 1` (Adresse des einzelnen Wechselrichters,
+fuer IBM unerheblich - die Anlagenebene bleibt 247) und `RS485-1 Port Mode =
+Modbus RTU Host` (nur fuer RS485 relevant, so lassen). "Remote EMS
+Scheduling Enable" war nicht dabei und ist weiterhin offen.
+
+Fernpruefung vom Pi aus (SSH per WireGuard, Passwort-Anmeldung; `nmap` ist
+auf dem Pi installiert): **Port 502 ist in keinem der beiden Netze des Pi
+offen** (Ping-Sweep plus Port-502-Sweep aller 254 Adressen):
+
+- `192.168.7.0/24` (eth0, Mesh-Router "thm1200.mesh", Skyworth, DHCP
+  .254): .100 = Tuya-Geraet (nur Port 6668), .101/.254 = Mesh-Router,
+  .103 = Pi, **.107 = MAC-Hersteller Samsung Electronics, online, alle
+  TCP-Ports 1-10000 aktiv abgewiesen** (dieselbe Signatur wie die Anlage am
+  2026-08-25 unter derselben IP; ob es wirklich noch die Anlage ist oder
+  inzwischen ein Handy, liess sich von aussen nicht klaeren).
+- `192.168.1.0/24` (wlan0 `ibm-wlan`, LTE-Router Alcatel HH72VM, .1):
+  .101/.105 = Espressif-Geraete (Port 80), .104 = TP-Link ("SHIP 2.0",
+  Port 80). Kein Port 502.
+
+Der Pi meldet weiter `[IBM][Watchdog] FEHLER: Thing nicht gefunden:
+modbus:tcp:ibm`, Status-Push `soc: null`, Hauptschalter OFF.
+
+Community-Befunde zu genau diesem Muster (TypQxQ/Sigenergy-Local-Modbus
+Discussion #86, Sigenergy-Home-Assistant-Integration Discussion #74,
+Whirlpool-Forum): Modbus TCP **deaktivieren, speichern, wieder aktivieren,
+speichern** hat den Server bei mehreren Nutzern erst tatsaechlich
+gestartet (geht auch aus der Ferne durch den Installateur); und die Anlage
+soll nur **eine** Netzverbindung haben (LAN oder WLAN), bei beiden taucht
+sie mit zwei IPs auf und 502 ist teils nur auf einer davon offen - es
+gibt Berichte in beide Richtungen, LAN-Kabel ist also keine Garantie.
+
+**Naechster Anlauf vor Ort gemeinsam mit dem Elektriker:**
+
+1. In der Installer-App IP/MAC des Energy Controllers ablesen (Netzwerk)
+   -> klaert, ob .107 die Anlage ist.
+2. Modbus TCP aus/speichern/ein/speichern; nur eine Netzverbindung.
+3. "Remote EMS Scheduling Enable" aktivieren, Betriebsmodus auf
+   Eigenverbrauch lassen; Firmwarestand notieren.
+4. Vom Pi pruefen: `sudo nmap -p 502 192.168.7.0/24 192.168.1.0/24`;
+   sobald 502 offen ist, `tools/spike_sigenstor.py <ip> reads` und dann
+   den Ablauf oben (Hauptschalter bleibt bis nach dem Spike OFF).
+
 ### Registertabelle (im Spike ausfuellen)
 
 | Register | Adresse | Typ | Gain | Gelesen/verifiziert |

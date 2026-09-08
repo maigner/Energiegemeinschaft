@@ -5,3 +5,4 @@
 sk-latestdocs/setup/*.aux
 docs/setup/*.log
 docs/setup/*.out
+*.pwd
