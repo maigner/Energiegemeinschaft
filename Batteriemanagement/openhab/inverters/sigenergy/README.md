@@ -31,11 +31,26 @@ aktuell ist V2.x - Abweichungen im Spike pruefen.
 
 ## Voraussetzungen an der Anlage
 
-In der mySigen-App (teils nur mit Installateur-Zugang):
+In der mySigen-App (teils nur mit Installateur-Zugang; Fundstellen in den
+Handbuechern siehe [Handbuecher](#handbuecher-docs)):
 
-1. **"ModBus TCP Server Enable"** aktivieren - Port 502
-2. **"Remote EMS Scheduling Enable"** aktivieren - ohne das ignoriert die
-   Anlage die Remote-EMS-Register
+1. **"ModBus TCP Server Enable"** aktivieren - Port 502 (Installer-Manual
+   v03 Kap. 2.4.1.4, S. 70). Nach dem Setzen **speichern**; die
+   Home-Assistant-Community rät bei geschlossenem Port zu aus/speichern/
+   ein/speichern.
+2. **Remote-EMS-Freigabe**: Im Installer-Manual v02 (2024-04) war das ein
+   eigener Schalter "Remote EMS Scheduling Enable" (Kap. 2.3.1.5 Nr. 9);
+   in v03 (2024-10) gibt es diesen Schalter nicht mehr, dort ist "Remote
+   EMS Mode" eine der Energiespeicher-Betriebsarten (Kap. 2.3.1.1, S. 33)
+   und die Endkunden-App warnt, den Modus nur mit Rueckfrage beim
+   Installateur zu betreten oder zu verlassen (User-Manual v05 Kap. 3.1.4.5,
+   S. 28). Per Modbus schaltet IBM selbst mit Register 40029 in den
+   Remote-EMS-Modus und wieder heraus; die App-Betriebsart soll auf
+   Eigenverbrauch bleiben (im Fern-EMS-Modus ohne Master wartet die Anlage
+   sonst auf Kommandos, siehe Spike-Protokoll 2026-08-25). Im Spike
+   pruefen, ob Writes auf 40029 mit Betriebsart Eigenverbrauch angenommen
+   werden (Erwartung laut Community: ja, dort ist nur Modbus TCP
+   Voraussetzung).
 
 Die Steuerung laeuft auf **Anlagenebene** (Slave 247): bei Anlagen mit
 mehreren SigenStor-Tuermen wird der gesamte Verbund kommandiert, nicht ein
@@ -119,7 +134,8 @@ wurde. Gelernt dabei:
 - mySigen-Pfade (Endkunden-App): Modbus unter Geraet -> Einstellungen ->
   ModBus-Parameter; Betriebsmodus (inkl. Fern-EMS) am Home-Screen unter
   "Modus". "Remote EMS Scheduling Enable" war in der Endkunden-App nicht
-  sichtbar (Installer-Manual Kap. 2.3.1.5).
+  sichtbar (Installer-Manual v02 Kap. 2.3.1.5; in v03 durch die Betriebsart
+  "Remote EMS Mode" ersetzt, siehe Voraussetzungen oben).
 
 Nach dem Abbruch wurde der Betriebsmodus in der App wieder auf
 Eigenverbrauch zurueckgesetzt (im Fern-EMS-Modus ohne Master wuerde die
@@ -188,11 +204,40 @@ gibt Berichte in beide Richtungen, LAN-Kabel ist also keine Garantie.
 1. In der Installer-App IP/MAC des Energy Controllers ablesen (Netzwerk)
    -> klaert, ob .107 die Anlage ist.
 2. Modbus TCP aus/speichern/ein/speichern; nur eine Netzverbindung.
-3. "Remote EMS Scheduling Enable" aktivieren, Betriebsmodus auf
+3. Remote-EMS-Freigabe klaeren (je nach App-Version Schalter oder nur
+   noch Betriebsart, siehe Voraussetzungen), Betriebsmodus auf
    Eigenverbrauch lassen; Firmwarestand notieren.
 4. Vom Pi pruefen: `sudo nmap -p 502 192.168.7.0/24 192.168.1.0/24`;
    sobald 502 offen ist, `tools/spike_sigenstor.py <ip> reads` und dann
    den Ablauf oben (Hauptschalter bleibt bis nach dem Spike OFF).
+
+### Handbuecher (`docs/`)
+
+Alle drei PDFs stammen von sigenergy.com (Stand 2026-09-08; die
+`en_download`-Links liefern nur mit Browser-User-Agent ein PDF):
+
+- `docs/mysigen-app-installer-manual-v03-2024-10-09.pdf` (99 S.)
+- `docs/mysigen-app-user-manual-v05-2025-03-10.pdf` (87 S., Endkunden-App)
+- `docs/sigenergy-modbus-protocol-v2.5.pdf` (34 S.)
+
+Fundstellen fuer den Termin mit dem Elektriker (Installer-Manual v03,
+Seitenzahlen des PDF):
+
+| Thema | Fundstelle |
+| --- | --- |
+| ModBus-Parameter: Server Address/Port (nur als TCP-Client relevant), **ModBus Local (Slave) Address** (= "Modbus Native Address", im Parallelbetrieb je Geraet verschieden), **ModBus TCP Server Enable** | Kap. 2.4.1.4, S. 70 (Geraet -> Einstellungen) |
+| RS485-1: nur die Baudrate ist dokumentiert; ein "Port Mode" (RTU Host/Slave) steht in keinem der Handbuecher, das ist eine neuere Firmware-Option. Fuer Modbus TCP irrelevant | Kap. 2.4.1.5, S. 71 |
+| Betriebsart "Remote EMS Mode" (RS485-1 oder Modbus TCP, Verweis auf 2.4.1.4) | Kap. 2.3.1.1, S. 33 |
+| Netzwerk der Anlage: "Connectivity" mit Ethernet/WLAN/4G-Status, Ethernet per DHCP, statische IP nur ueber den Umweg WLAN-zuerst (Schritte 1-4) | Kap. 2.3.1.5, S. 42-43 (Anlage) und Kap. 2.4.1.1, S. 68 (Geraet) |
+| WLAN abschalten, wenn per Kabel angebunden (Trick: ungueltiges WLAN-Passwort eintragen) | FAQ 5.5, S. 97 |
+| Netzwerk neu konfigurieren ueber den Geraete-Hotspot | FAQ 5.8, S. 99 |
+| Modbus-TCP-Schnittstelle: TCP-Server, Port 502, ein Geraet je Anlage genuegt | Protokoll v2.5 Kap. 3.2, S. 3-4; Anlagenadresse 247: Kap. 4.1, S. 5 |
+| Interaction timeout: nur Request-Timing (min. 1 s), kein Auto-Revert | Protokoll v2.5 Kap. 4.2, S. 6 |
+| Remote-EMS-Modi | Protokoll v2.5 Appendix 6, S. 31 |
+
+Der Endkunde sieht in der User-App v05 nur die Betriebsart (Kap. 3.1.4.5,
+S. 28) und den Connectivity-Status (S. 35); die ModBus-Parameter und die
+Slave-Adresse sind im User-Manual nicht beschrieben, also Installateur-Sache.
 
 ### Registertabelle (im Spike ausfuellen)
 
