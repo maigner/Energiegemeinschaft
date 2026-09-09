@@ -147,6 +147,7 @@ for (const pid of Object.keys(hist).sort((a, b) => a - b)) {
     IBM_NETZLADE_WAECHTER: '', IBM_NETZLADUNG: '', IBM_NETZEINSPEISUNG_ZAEHLER: '', IBM_BATTERIE_NETZEINSPEISUNG_KWH: '',
     IBM_HAUSLAST: '', IBM_HAUSLAST_MESSUNG: '', IBM_NACHTBUDGET: '', IBM_SONNENPROFIL: '',
     Ischlstrom_Ladesperre_Individuell: 'OFF', Ischlstrom_Entladeende: '-', Ischlstrom_Crossover_Vormittag: '-',
+    Ischlstrom_Wolken_Verlauf: '',
     SOC: 50, BAT: 0, GRID: 0, PV: 0
   })) setItem(n, v);
 

@@ -82,6 +82,9 @@ Switch Ischlstrom_Ladesperre_Individuell "Sperr-Ende individualisiert"  <switch>
 // Ladefaktoren = stuendliche Ladefaktoren des Erzeugungsprofils samt
 // Abend-Deadline (Token-API); '-' = keine Daten
 String Ischlstrom_Wolken_Stunden      "Wolken je Stunde (intern) [%s]"  <settings> (IBM)
+// Wolken_Verlauf = die letzten Abrufe der Wolkenvorschau (JSON-Liste von
+// {zeit, wert}); die Steuerung glaettet die Vorschau darueber
+String Ischlstrom_Wolken_Verlauf      "Wolken-Verlauf (intern) [%s]"    <settings> (IBM)
 String Ischlstrom_Ladefaktoren        "Ladefaktoren (intern) [%s]"      <settings> (IBM)
 // Entladestart der Nacht von der Token-API: erster Slot, in dem die
 // Gemeinschaft laut Prognose deutlich im Defizit ist (HH:MM); '-' = kein
@@ -221,6 +224,7 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     Ischlstrom_Ladesperre_Datum,
     Ischlstrom_Ladesperre_Individuell,
     Ischlstrom_Wolken_Stunden,
+    Ischlstrom_Wolken_Verlauf,
     Ischlstrom_Ladefaktoren,
     Ischlstrom_Entladestart,
     Ischlstrom_Entladeende,

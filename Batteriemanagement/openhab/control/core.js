@@ -24,7 +24,12 @@
 //           Server-Ende (Abschnitt "Lokale Ladesperre"): so spaet, dass
 //           die Batterie bis zum Abend gerade noch voll wird.
 //   Teil B: Forcierte Batterieentladung (Nacht), abhaengig von Toggle,
-//           Ladestand und Wolkenvorschau. Die Entladeleistung passt sich
+//           Ladestand und Wolkenvorschau (ueber die letzten Abrufe
+//           geglaettet). Wie tief entladen wird, begrenzt das
+//           Nacht-Entladebudget (Abschnitt "Nacht-Entladebudget"): Reserve
+//           plus Hauslast bis zum Vormittags-Crossover plus dem Teil des
+//           Folgetags, den die eigene PV laut Sonnenprofil und
+//           Wolkenvorschau nicht deckt. Die Entladeleistung passt sich
 //           automatisch an die Batteriegroesse an, die das Skript aus der
 //           Ladestandsaenderung waehrend der Entladung schaetzt (Abschnitt
 //           "Dynamische Entladeleistung"); eine harte Obergrenze
@@ -320,24 +325,48 @@ var CAPACITY_EMA_WEIGHT = 0.3;   // Gewicht einer neuen Stichprobe
 // Wolkenvorschau aelter als so viele Stunden gilt als veraltet (sie wird
 // stuendlich abgeholt; drei ausgefallene Abrufe in Folge sind ein Ausfall).
 var MAX_CLOUD_AGE_HOURS = 3;
+// Die Vorschau schwankt von Abruf zu Abruf: ein Wackler von 94 auf 78% fuer
+// drei Stunden (Nacht 08./09.09.2026) hat eine Anlage 4 kWh tiefer entladen
+// als geplant. Gerechnet wird deshalb mit dem Mittel der letzten
+// CLOUD_SMOOTH_FETCHES Abrufe (Verlauf in Ischlstrom_Wolken_Verlauf,
+// gepflegt von eeg-api/cloud_forecast.js), nur aus Abrufen juenger als
+// MAX_CLOUD_AGE_HOURS. Ohne Verlaufs-Item (aeltere Installation, Setup 03
+// nicht erneut ausgefuehrt) zaehlt der letzte Wert allein.
+var CLOUD_SMOOTH_FETCHES = 3;
 
 // --- Nacht-Entladebudget ----------------------------------------------------
 // Das Budget rechnet die Steuerung selbst, je Anlage aus Batteriegroesse und
 // Hausverbrauch: eingespeist wird nachts nur, was ueber der Reserve
 // IBM_MIN_BATTERY_CHARGE und dem Eigenbedarf des Hauses liegt. Der
-// Eigenbedarf ist die gelernte Hauslast (IBM_HAUSLAST, sonst
-// FALLBACK_HOUSE_LOAD_W) ueber die Stunden bis zum naechsten
-// Gemeinschafts-Ueberschuss (Vormittags-Crossover); bei bedeckter Vorschau
-// (Wolkenschwelle) oder ohne Vorschau haengt das Haus auch tagsueber an der
-// Batterie, dann reicht die Reservedauer bis zum Abend-Crossover des
-// Folgetags. Ein Sicherheitszuschlag deckt Mess- und Prognosefehler. Der
-// Ziel-Ladestand wird in jedem Zyklus neu gerechnet - mit jeder Stunde
-// Nacht schrumpft der verbleibende Eigenbedarf. Ohne belastbare
-// Kapazitaetsschaetzung gilt nur die Reserve - dann greift bei bedeckter
-// Vorschau der Trueb-Stopp als Rueckfall.
+// Eigenbedarf hat zwei Teile. Nacht: die gelernte Hauslast (IBM_HAUSLAST,
+// sonst FALLBACK_HOUSE_LOAD_W) ueber die Stunden bis zum naechsten
+// Gemeinschafts-Ueberschuss (Vormittags-Crossover). Folgetag (Vormittags-
+// bis Abend-Crossover): was die eigene PV voraussichtlich NICHT deckt -
+// Hauslast ueber die Tagesstunden minus erwarteter PV-Ertrag. Der erwartete
+// Ertrag ist die Tagessumme des beobachteten Sonnenprofils (Abschnitt
+// "Sonnenprofil": je Stunde das 75. Perzentil der letzten 14 Tage, also ein
+// guter Tag) mal dem Wolkenfaktor pvCloudFactor: 1 bei klarem Himmel,
+// quadratisch fallend auf PV_CLOUD_MIN_FACTOR bei 100% Bewoelkung. Der
+// Mindestfaktor ist an den Betriebsdaten August/September 2026 kalibriert:
+// an komplett bedeckten Tagen (Vorschau 99 bis 100%) lieferten die Anlagen
+// noch 20 bis 38% eines guten Tages, bei 85 bis 95% Bewoelkung 20 bis 60%;
+// der Faktor folgt der unteren Huellkurve. Frueher galt eine harte Stufe
+// (Vorschau ueber der Wolkenschwelle: ganzer Folgetag ohne PV, darunter:
+// gar keine Tagesreserve). Damit blieben an einem "bedeckten" Tag mit real
+// 3 bis 7 kWh Vormittagsertrag die Batterien halb voll, und ein Wackler
+// der Vorschau von 94 auf 78% (Schwelle 85) entlud eine Anlage in einer
+// Nacht 4 kWh tiefer als geplant. Ohne Sonnenprofil (junge Anlage, kein
+// PV-Item) skaliert die Tagesreserve linear mit der Bewoelkung: 0 an der
+// Wolkenschwelle, voll bei 100%; ohne Vorschau gilt sie ganz. Ein
+// Sicherheitszuschlag deckt Mess- und Prognosefehler. Der Ziel-Ladestand
+// wird in jedem Zyklus neu gerechnet - mit jeder Stunde Nacht schrumpft der
+// verbleibende Eigenbedarf. Ohne belastbare Kapazitaetsschaetzung gilt nur
+// die Reserve - dann greift bei bedeckter Vorschau der Trueb-Stopp als
+// Rueckfall.
 var FALLBACK_HOUSE_LOAD_W = 300;     // solange keine Hauslast gelernt ist
 var NIGHT_RESERVE_FACTOR = 1.3;      // Sicherheitszuschlag auf den Eigenbedarf
 var FALLBACK_SUN_HOURS = 10;         // Tageslaenge ohne Abend-Crossover
+var PV_CLOUD_MIN_FACTOR = 0.2;       // Ertrag eines guten Tages bei 100% Bewoelkung
 
 // --- Entladestart -------------------------------------------------------------
 // Der woechentliche Crossover ist ein Mittelwert: an sonnigen Tagen ist die
@@ -1085,27 +1114,89 @@ function houseLoadW() {
   return FALLBACK_HOUSE_LOAD_W;
 }
 
-// Stunden, die das Haus ab jetzt noch aus der Batterie versorgt werden
-// muss: bis zum Vormittags-Crossover; an einem trueben Folgetag (Vorschau
-// ueber der Wolkenschwelle oder keine Vorschau) zusaetzlich bis zum
-// Abend-Crossover.
-function nightReserveHours(clouds) {
+// Tagessumme des Sonnenprofils zwischen fromMin und toMin in kWh (Perzentil-
+// Stundenwerte in W, anteilig je Stunde): der Ertrag eines guten Tages.
+function sunProfileKwh(profile, fromMin, toMin) {
+  var sum = 0;
+  for (var h = 0; h < 24; h++) {
+    var v = profile.stunden[String(h)];
+    if (typeof v !== 'number') continue;
+    var overlap = Math.min((h + 1) * 60, toMin) - Math.max(h * 60, fromMin);
+    if (overlap <= 0) continue;
+    sum += v * overlap / 60 / 1000;
+  }
+  return sum;
+}
+
+// Erwarteter PV-Ertrag relativ zu einem guten Tag bei gegebener Bewoelkung:
+// 1 bei 0%, quadratisch fallend auf PV_CLOUD_MIN_FACTOR bei 100%.
+function pvCloudFactor(clouds) {
+  var n = Math.min(1, Math.max(0, clouds / 100));
+  return 1 - (1 - PV_CLOUD_MIN_FACTOR) * n * n;
+}
+
+// Anteil der Tages-Hauslast, der ohne Sonnenprofil als Reserve gilt: 0 bis
+// zur Wolkenschwelle, linear auf 1 bei 100% Bewoelkung; ohne Vorschau 1.
+function dayReserveShare(clouds) {
+  if (clouds === null) return 1;
+  if (CLOUD_THRESHOLD >= 100) return clouds >= 100 ? 1 : 0;
+  if (clouds <= CLOUD_THRESHOLD) return 0;
+  return Math.min(1, (clouds - CLOUD_THRESHOLD) / (100 - CLOUD_THRESHOLD));
+}
+
+function round1(x) {
+  return Math.round(x * 10) / 10;
+}
+
+// Eigenbedarfsreserve der Nacht: Hauslast bis zum Vormittags-Crossover plus
+// der ungedeckte Teil des Folgetags, mit Zuschlag. Ergebnis:
+//   kwh         Reserve inklusive NIGHT_RESERVE_FACTOR (gerundet)
+//   loadW       verwendete Hauslast
+//   morning     Vormittags-Crossover (Minuten), Ende der Nachtstunden
+//   nachtH      Stunden bis dahin, nachtKwh = Hauslast darueber
+//   tagH        Tagesstunden bis zum Abend-Crossover, tagLastKwh = Hauslast darueber
+//   pvKwh       erwarteter PV-Ertrag des Folgetags (null ohne Sonnenprofil)
+//   tagKwh      Tagesreserve = max(0, tagLastKwh - pvKwh) bzw. Anteil ohne Profil
+//   quelle      Text fuers Protokoll
+function nightReserve(clouds) {
+  var loadW = houseLoadW();
   // Bis zum naechsten Gemeinschafts-Ueberschuss: tagesaktuell aus der
   // Prognose, sonst Wochen-Crossover, sonst das Entladeende.
   var morning = (chargeLockDateOk && CROSSOVER_VORMITTAG_API_MIN !== null) ? CROSSOVER_VORMITTAG_API_MIN
     : (MORNING_CROSSOVER_MIN !== null ? MORNING_CROSSOVER_MIN : dischargeEnd);
-  var hours = (nowMinutes < morning ? morning - nowMinutes : 24 * 60 - nowMinutes + morning) / 60;
-  if (clouds === null || clouds >= CLOUD_THRESHOLD) {
-    hours += EVENING_CROSSOVER_MIN !== null && EVENING_CROSSOVER_MIN > morning
-      ? (EVENING_CROSSOVER_MIN - morning) / 60
-      : FALLBACK_SUN_HOURS;
+  var nachtH = (nowMinutes < morning ? morning - nowMinutes : 24 * 60 - nowMinutes + morning) / 60;
+  var nachtKwh = loadW / 1000 * nachtH;
+  var dayEnd = (EVENING_CROSSOVER_MIN !== null && EVENING_CROSSOVER_MIN > morning)
+    ? EVENING_CROSSOVER_MIN : morning + FALLBACK_SUN_HOURS * 60;
+  var tagH = (dayEnd - morning) / 60;
+  var tagLastKwh = loadW / 1000 * tagH;
+  var pvKwh = null;
+  var tagKwh;
+  var quelle;
+  var profile = (clouds !== null) ? sunProfile() : null;
+  if (profile !== null) {
+    var factor = pvCloudFactor(clouds);
+    pvKwh = sunProfileKwh(profile, morning, dayEnd) * factor;
+    tagKwh = Math.max(0, tagLastKwh - pvKwh);
+    quelle = 'Sonnenprofil x ' + Math.round(factor * 100) + '% bei ' + clouds + '% Wolken';
+  } else if (clouds === null) {
+    tagKwh = tagLastKwh;
+    quelle = 'keine Vorschau, Folgetag ganz aus der Batterie';
+  } else {
+    var share = dayReserveShare(clouds);
+    tagKwh = tagLastKwh * share;
+    quelle = 'kein Sonnenprofil, ' + Math.round(share * 100) + '% der Tages-Hauslast bei ' + clouds + '% Wolken (Schwelle ' + CLOUD_THRESHOLD + '%)';
   }
-  return hours;
+  return {
+    kwh: round1((nachtKwh + tagKwh) * NIGHT_RESERVE_FACTOR),
+    loadW: loadW, morning: morning, nachtH: nachtH, nachtKwh: nachtKwh,
+    tagH: tagH, tagLastKwh: tagLastKwh, pvKwh: pvKwh, tagKwh: tagKwh, quelle: quelle
+  };
 }
 
-// Eigenbedarfsreserve in kWh: Hauslast ueber die Reservedauer, mit Zuschlag.
+// Eigenbedarfsreserve in kWh (siehe nightReserve).
 function nightReserveKwh(clouds) {
-  return Math.round(houseLoadW() / 1000 * nightReserveHours(clouds) * NIGHT_RESERVE_FACTOR * 10) / 10;
+  return nightReserve(clouds).kwh;
 }
 
 // Ziel-Ladestand der Nacht: Reserve plus Eigenbedarf, in Prozent der
@@ -1562,8 +1653,47 @@ if (chargeLockDateOk && DISCHARGE_START_API_MIN !== null) {
 // der Flotte nicht mehr sicher aufnimmt), sonst der Wochen-Crossover.
 var dischargeEnd = (chargeLockDateOk && DISCHARGE_END_API_MIN !== null) ? DISCHARGE_END_API_MIN : MORNING_CROSSOVER_MIN;
 
+// Mittel der letzten CLOUD_SMOOTH_FETCHES frischen Abrufe aus dem Verlauf
+// (Ischlstrom_Wolken_Verlauf, JSON-Liste von {zeit, wert}, aeltester
+// zuerst); ohne Verlauf, mit weniger als zwei frischen Eintraegen oder bei
+// unlesbarem Inhalt der aktuelle Wert.
+function smoothClouds(current) {
+  var item = readItem('Ischlstrom_Wolken_Verlauf');
+  if (item === null) return current;
+  var state = String(item.state);
+  if (state === 'NULL' || state === 'UNDEF' || state === '') return current;
+  var list;
+  try {
+    list = JSON.parse(state);
+  } catch (e) {
+    return current;
+  }
+  if (!Array.isArray(list)) return current;
+  var values = [];
+  for (var i = list.length - 1; i >= 0 && values.length < CLOUD_SMOOTH_FETCHES; i--) {
+    var entry = list[i];
+    if (!entry || typeof entry.wert !== 'number' || isNaN(entry.wert) || entry.wert < 0 || entry.wert > 100 || !entry.zeit) continue;
+    try {
+      var ageMin = time.Duration.between(time.ZonedDateTime.parse(String(entry.zeit)), now).toMinutes();
+      if (ageMin < 0 || ageMin >= MAX_CLOUD_AGE_HOURS * 60) continue;
+    } catch (e2) {
+      continue;
+    }
+    values.push(entry.wert);
+  }
+  if (values.length < 2) return current;
+  var sum = 0;
+  for (var j = 0; j < values.length; j++) sum += values[j];
+  var mean = Math.round(sum / values.length * 10) / 10;
+  if (mean !== current) {
+    console.log('[IBM][Wolken] Vorschau ' + current + '% -> geglaettet ' + mean + '% (Mittel der letzten ' + values.length + ' Abrufe)');
+  }
+  return mean;
+}
+
 // Wolkenvorschau lesen: Wert 0-100 oder null, wenn ungueltig oder veraltet.
-// Veraltete Werte (API-Ausfall) duerfen die Steuerung nicht treiben.
+// Veraltete Werte (API-Ausfall) duerfen die Steuerung nicht treiben. Der
+// Wert ist ueber die letzten Abrufe geglaettet (smoothClouds).
 function cloudForecast() {
   var item = readItem('Ischlstrom_Wolkenvorschau');
   if (item === null) {
@@ -1578,7 +1708,7 @@ function cloudForecast() {
   var stamp = readItem('Ischlstrom_Wolkenvorschau_Zeit');
   if (stamp === null) {
     // aeltere Installation ohne Zeitstempel-Item: keine Aktualitaetspruefung
-    return clouds;
+    return smoothClouds(clouds);
   }
   var state = String(stamp.state);
   if (state === 'NULL' || state === 'UNDEF') {
@@ -1596,7 +1726,7 @@ function cloudForecast() {
     console.log('[IBM][Wolken] Abrufzeitpunkt unlesbar (' + state + ') - Wolkenvorschau gilt als veraltet');
     return null;
   }
-  return clouds;
+  return smoothClouds(clouds);
 }
 
 // ----------------------------------------------------------------------------
@@ -1946,9 +2076,13 @@ function handleForcedDischarge() {
 
   var zielSoc = minSoc;
   if (budgetWirksam) {
-    var reserveKwh = nightReserveKwh(clouds);
-    zielSoc = nightTargetSoc(minSoc, reserveKwh, budgetCapacity);
-    console.log('[IBM][Entladung] Eigenbedarf ' + reserveKwh + ' kWh (' + houseLoadW() + ' W x ' + Math.round(nightReserveHours(clouds) * 10) / 10 + ' h x ' + NIGHT_RESERVE_FACTOR + ') bei ' + budgetCapacity + ' kWh -> Ziel-Ladestand ' + zielSoc + '% (aktuell ' + soc + '%)');
+    var reserve = nightReserve(clouds);
+    zielSoc = nightTargetSoc(minSoc, reserve.kwh, budgetCapacity);
+    console.log('[IBM][Entladung] Eigenbedarf ' + reserve.kwh + ' kWh (Nacht ' + round1(reserve.nachtKwh) + ' kWh = '
+      + reserve.loadW + ' W x ' + round1(reserve.nachtH) + ' h bis ' + fmtMinutes(reserve.morning)
+      + ', Folgetag ' + round1(reserve.tagKwh) + ' kWh = Hauslast ' + round1(reserve.tagLastKwh) + ' kWh ueber ' + round1(reserve.tagH) + ' h'
+      + (reserve.pvKwh !== null ? ' minus ~' + round1(reserve.pvKwh) + ' kWh PV' : '') + ', ' + reserve.quelle
+      + '; x ' + NIGHT_RESERVE_FACTOR + ') bei ' + budgetCapacity + ' kWh -> Ziel-Ladestand ' + zielSoc + '% (aktuell ' + soc + '%)');
   }
   publishNightBudget(soc, zielSoc, budgetCapacity);
   if (soc <= zielSoc) {

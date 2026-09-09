@@ -433,6 +433,7 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `Ischlstrom_Entladeende` | String | Entladeende am Morgen aus der Tagesprognose (Token-API), `HH:MM` oder `-` (dann Wochen-Crossover) |
 | `Ischlstrom_Crossover_Vormittag` | String | Vormittags-Crossover der Gemeinschaft laut Tagesprognose (Token-API); bis dahin sperrt die Laderegelung hart |
 | `Ischlstrom_Wolken_Stunden` | String | Stuendliche Bewoelkung des restlichen Tages (JSON, Wolken-API) |
+| `Ischlstrom_Wolken_Verlauf` | String | Die letzten Abrufe der Wolkenvorschau (JSON-Liste von {zeit, wert}); die Steuerung rechnet mit dem Mittel der letzten drei |
 | `Ischlstrom_Ladefaktoren` | String | Stuendliche Ladefaktoren des Erzeugungsprofils samt Abend-Deadline (JSON, Token-API) |
 | `IBM_MIN_BATTERY_CHARGE` | Number | Einstellung |
 | `Minimale_Entladeleistung_Batterieeinspeisung` | Number | Einstellung |
@@ -484,16 +485,24 @@ Wie tief nachts entladen wird, begrenzt das **Nacht-Entladebudget**, das
 die Steuerung je Anlage selbst aus Batteriegroesse und Hausverbrauch
 rechnet (`IBM_NACHTBUDGET`, Anzeige und Status-Push): Unter der Reserve
 (`IBM_MIN_BATTERY_CHARGE`) plus dem Eigenbedarf des Hauses wird nicht
-entladen. Der Eigenbedarf ist die gelernte Hauslast (`IBM_HAUSLAST`, sonst
-300 W) mal die Stunden bis zum Vormittags-Crossover, mit Zuschlag 1,3
-(`NIGHT_RESERVE_FACTOR` in `control/core.js`); bei bedeckter Wolkenvorschau
-(ueber der Wolkenschwelle) oder ohne Vorschau haengt das Haus auch tagsueber
-an der Batterie, dann reicht die Reservedauer bis zum Abend-Crossover des
-Folgetags. Der Ziel-Ladestand wird in jedem Zyklus neu gerechnet, der
-verbleibende Eigenbedarf schrumpft also mit jeder Stunde Nacht. Ohne
-belastbare Kapazitaetsschaetzung (`IBM_BATTERIE_KAPAZITAET`) gilt nur die
-Reserve, und bei bedeckter Vorschau greift der harte Trueb-Stopp als
-Rueckfall. Der Server liefert kein Budget mehr.
+entladen. Der Eigenbedarf hat zwei Teile: die gelernte Hauslast
+(`IBM_HAUSLAST`, sonst 300 W) mal die Stunden bis zum Vormittags-Crossover,
+und fuer den Folgetag (Vormittags- bis Abend-Crossover) das, was die eigene
+PV voraussichtlich nicht deckt: Hauslast ueber die Tagesstunden minus
+erwarteter Ertrag. Der erwartete Ertrag ist die Tagessumme des
+Sonnenprofils der Anlage (`IBM_SONNENPROFIL`, ein guter Tag der letzten 14
+Tage) mal einem Wolkenfaktor, der von 1 bei klarem Himmel quadratisch auf
+0,2 bei 100% Bewoelkung faellt (`PV_CLOUD_MIN_FACTOR`, kalibriert an den
+Betriebsdaten: komplett bedeckte Tage lieferten noch 20 bis 38% eines guten
+Tages). Ohne Sonnenprofil (junge Anlage, kein PV-Item) zaehlt die
+Tages-Hauslast anteilig, linear von 0 an der Wolkenschwelle bis voll bei
+100%; ohne Vorschau ganz. Auf die Summe kommt der Zuschlag 1,3
+(`NIGHT_RESERVE_FACTOR` in `control/core.js`). Der Ziel-Ladestand wird in
+jedem Zyklus neu gerechnet, der verbleibende Eigenbedarf schrumpft also mit
+jeder Stunde Nacht. Ohne belastbare Kapazitaetsschaetzung
+(`IBM_BATTERIE_KAPAZITAET`) gilt nur die Reserve, und bei bedeckter Vorschau
+greift der harte Trueb-Stopp als Rueckfall. Der Server liefert kein Budget
+mehr.
 
 Das Ladesperre-Fenster kommt aus der Tagesprognose
 (`/api/eeginfo/ladefenster/v1`, berechnet aus den Kurven von `/vorhersage`):
@@ -513,7 +522,10 @@ Wolken-Schwelle bleibt als zusaetzliche Bedingung bestehen: gesperrt wird nur
 bei sonniger Vorschau. Die Wolkenvorschau gilt als veraltet, wenn ihr
 letzter Abruf (`Ischlstrom_Wolkenvorschau_Zeit`) laenger als drei Stunden
 zurueckliegt: die Steuerung sperrt dann kein Laden und entlaedt nur mit
-minimaler Leistung.
+minimaler Leistung. Gerechnet wird mit dem Mittel der letzten drei Abrufe
+(`Ischlstrom_Wolken_Verlauf`, `CLOUD_SMOOTH_FETCHES` in `control/core.js`),
+damit ein kurzer Wackler der Vorhersage die Nacht-Entladung nicht kippt;
+ohne Verlaufs-Item zaehlt der letzte Wert allein.
 
 ### Dynamische Laderegelung (ersetzt das Sperrfenster)
 

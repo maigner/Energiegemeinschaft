@@ -315,21 +315,38 @@ Das Entladebudget der Nacht rechnet nicht der Server, sondern jedes
 Gateway selbst, individuell aus Batteriegröße und Hausverbrauch: Die
 Batterie speist nur ein, was über der Reserve und dem Eigenbedarf des
 eigenen Hauses bis zum nächsten Gemeinschafts-Überschuss liegt. Der
-Eigenbedarf ist die gelernte Hauslast $P_{\text{Haus}}$
-(Abschnitt~\ref{sec:hauslast}, Rückfall 300\,W) über die Reservedauer
-$T_{\text{Reserve}}$ mit einem Sicherheitszuschlag von 30\%:
+Eigenbedarf hat zwei Teile: die gelernte Hauslast $P_{\text{Haus}}$
+(Abschnitt~\ref{sec:hauslast}, Rückfall 300\,W) über die Nachtstunden
+$T_{\text{Nacht}}$ bis zum Vormittags-Crossover, und für den Folgetag
+(Vormittags- bis Abend-Crossover, $T_{\text{Tag}}$) das, was die eigene PV
+voraussichtlich nicht deckt, zusammen mit einem Sicherheitszuschlag von
+30\%:
 \begin{equation}
-  E_{\text{Reserve}} \;=\; \frac{P_{\text{Haus}}}{1000} \cdot T_{\text{Reserve}}
+  E_{\text{Reserve}} \;=\; \Bigl(\frac{P_{\text{Haus}}}{1000} \cdot T_{\text{Nacht}}
+    \;+\; \max\bigl(0,\; \tfrac{P_{\text{Haus}}}{1000} \cdot T_{\text{Tag}} - E_{\text{PV}}\bigr)\Bigr)
     \cdot 1{,}3.
 \end{equation}
-$T_{\text{Reserve}}$ reicht vom aktuellen Zeitpunkt bis zum
-Vormittags-Crossover. Liegt die Wolkenvorschau für das nächste
-Sonnenfenster über der Wolkenschwelle (oder fehlt sie), hängt das Haus
-auch tagsüber an der Batterie: Dann verlängert sich die Reservedauer bis
-zum Abend-Crossover des Folgetags, und bei kleinen Batterien oder hoher
-Hauslast bleibt so kein Budget übrig; die Batterie behält ihren Inhalt
-für das eigene Haus. Wie das Gateway daraus den Ziel-Ladestand bildet,
-zeigt Gleichung~\eqref{eq:ziel}.
+$E_{\text{PV}}$ ist der erwartete Ertrag des Folgetags: die Tagessumme des
+Sonnenprofils der Anlage (Abschnitt~\ref{sec:regelkreis}, je Stunde das
+75.\,Perzentil der letzten 14 Tage, also ein guter Tag) mal einem
+Wolkenfaktor $f(w) = 1 - 0{,}8\,(w/100)^2$, der von 1 bei klarem Himmel
+auf 0,2 bei 100\,\% Bewölkung fällt. Der Mindestfaktor ist an den
+Betriebsdaten vom August und September 2026 kalibriert: an komplett
+bedeckten Tagen lieferten die Anlagen noch 20 bis 38\,\% eines guten
+Tages, bei 85 bis 95\,\% Bewölkung 20 bis 60\,\%; der Faktor folgt der
+unteren Hüllkurve. Ohne Sonnenprofil (junge Anlage, kein PV-Item) zählt
+die Tages-Hauslast anteilig, linear von 0 an der Wolkenschwelle bis voll
+bei 100\,\%; ohne Vorschau ganz. Bei kleinen Batterien oder hoher Hauslast
+bleibt so an trüben Tagen kein Budget übrig; die Batterie behält ihren
+Inhalt für das eigene Haus. Wie das Gateway daraus den Ziel-Ladestand
+bildet, zeigt Gleichung~\eqref{eq:ziel}.
+
+Bis September 2026 galt statt des Wolkenfaktors eine harte Stufe: über
+der Wolkenschwelle wurde der ganze Folgetag ohne PV gerechnet, darunter
+gar keine Tagesreserve. Damit blieben an einem \glqq bedeckten\grqq{} Tag mit
+real 3 bis 7\,kWh Vormittagsertrag die Batterien halb voll, und ein
+Wackler der Vorschau von 94 auf 78\,\% (Schwelle 85) entlud eine Anlage in
+einer Nacht 4\,kWh tiefer als geplant.
 
 Diese lokale Rechnung hat den früheren serverseitigen Ansatz ersetzt, der
 das Budget aus dem Prognoseprofil und der beobachteten Spitzen-Ladeleistung
@@ -363,7 +380,11 @@ von morgen), berechnet aus den stündlich importierten
 Open-Meteo-Vorhersagedaten. Sie steuert die nächtliche Entladung, die
 genau diese Frage stellt: Wird die Batterie morgen wieder voll? Fehlen
 Wetterdaten, antwortet die API bewusst mit einem Fehler statt mit 0, denn
-0\% würde von den Gateways als voller Sonnenschein gelesen.
+0\% würde von den Gateways als voller Sonnenschein gelesen. Das Gateway
+hebt die letzten Abrufe auf und rechnet mit dem Mittel der letzten drei
+(zwei Stunden), damit ein kurzer Wackler der stündlich neu gerechneten
+Vorhersage die Nacht-Entladung nicht kippt; ohne diesen Verlauf zählt der
+letzte Wert allein.
 
 Für die Laderegelung, die bis in den Abend läuft, ist ein einzelner
 Mittagswert zu grob und ab 12:00 sogar der falsche Tag. Dieselbe API
@@ -405,7 +426,7 @@ Minuten Abstand.
 \section{Teil A: Laderegelung am Tag}\label{sec:ladesperre}
 % ============================================================================
 
-\subsection{Grundprinzip: Regelkreis statt Sperrfenster}
+\subsection{Grundprinzip: Regelkreis statt Sperrfenster}\label{sec:regelkreis}
 
 An sonnigen Tagen wird die Ladeleistung der Batterie dynamisch geregelt.
 In jedem Fünf-Minuten-Zyklus berechnet der Kern die Ziel-Ladeleistung neu:
@@ -612,11 +633,11 @@ am nächsten Tag sicher wieder voll wird; bei trüber Vorschau entsprechend
 weniger. Zwei Sonderfälle:
 
 \begin{itemize}
-  \item \textbf{Trübe Vorschau:} Liegt die Vorschau über der
-    Wolkenschwelle (dieselbe wie bei der Ladesperre), wird nicht mehr hart
-    gestoppt, sondern die Reservedauer des Nachtbudgets bis zum nächsten
-    Abend verlängert (Abschnitt~\ref{sec:nachtbudget}): Die Batterie
-    speist nur ein, was das Haus auch an einem bedeckten Folgetag nicht
+  \item \textbf{Trübe Vorschau:} Bei trüber Vorschau wird nicht mehr hart
+    gestoppt, sondern der Teil des Folgetags, den die eigene PV laut
+    Sonnenprofil und Wolkenfaktor nicht deckt, in das Nachtbudget
+    eingerechnet (Abschnitt~\ref{sec:nachtbudget}): Die Batterie speist
+    nur ein, was das Haus auch an einem bedeckten Folgetag nicht
     braucht. Der frühere Trüb-Stopp bleibt als Rückfall für Anlagen ohne
     Kapazitätsschätzung: Dort würde sonst bis zur Reserve entladen, und
     über eine lange Nacht entlädt auch minimale Leistung die Batterie fast

@@ -43,6 +43,28 @@ if (response !== null) {
         } catch (e3) {
           // Item fehlt bei aelteren Installationen - Setup-Skript 03 erneut ausfuehren
         }
+
+        // 5. Verlauf der letzten Abrufe (JSON-Liste von {zeit, wert}, aeltester
+        //    zuerst): die Steuerung rechnet mit dem Mittel der letzten Abrufe
+        //    statt mit dem letzten Wert allein, damit ein kurzer Wackler der
+        //    Vorhersage die Nacht-Entladung nicht kippt (core.js,
+        //    CLOUD_SMOOTH_FETCHES). Ohne Item (Setup 03 nicht erneut
+        //    ausgefuehrt) rechnet die Steuerung mit dem letzten Wert.
+        try {
+          var verlaufItem = items.getItem("Ischlstrom_Wolken_Verlauf");
+          var verlauf = [];
+          try {
+            var alt = JSON.parse(String(verlaufItem.state));
+            if (Array.isArray(alt)) verlauf = alt;
+          } catch (e4) {
+            verlauf = [];
+          }
+          verlauf.push({ zeit: time.ZonedDateTime.now().toString(), wert: value });
+          while (verlauf.length > 6) verlauf.shift();
+          verlaufItem.postUpdate(JSON.stringify(verlauf));
+        } catch (e5) {
+          // Item fehlt bei aelteren Installationen - Setup-Skript 03 erneut ausfuehren
+        }
         console.log("[IBM] Wolkenvorschau aktualisiert: " + value
           + (stundenText === "-" ? "" : " (+" + jsonData.wolken.stunden.length + " Stundenwerte)"));
       }
