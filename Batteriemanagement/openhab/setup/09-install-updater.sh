@@ -13,6 +13,17 @@
 # Das Update ist der normale Bootstrap (ibm/install.sh): Paket laden,
 # Pruefsumme, ibm.conf uebernehmen, install-ibm.sh. Log: /var/log/ibm-update.log
 # und journalctl -u ibm-update.
+#
+# Der Bootstrap fuehrt dieses Skript erneut aus und schreibt dabei
+# /usr/local/sbin/ibm-update neu - waehrend der alte ibm-update noch laeuft.
+# Bash liest ein Skript stueckweise von der Platte; wird die Datei
+# unterdessen an Ort und Stelle ueberschrieben, liest der laufende Prozess
+# ab dem alten Byte-Offset aus der neuen Datei weiter (am 2026-09-09 ein
+# Syntaxfehler mitten in einem Kommentar, Service "failed", die Bereinigung
+# der Sicherungen lief nie). Deshalb zweifach abgesichert: der Rumpf des
+# Updaters steckt in einer Funktion main, die Bash komplett einliest, bevor
+# sie laeuft, und die Datei wird atomar ersetzt (Tempdatei + mv), so dass
+# ein laufender Prozess seinen alten Inode behaelt.
 # ============================================================================
 set -euo pipefail
 
@@ -40,14 +51,18 @@ mkdir -p "$IBM_REQUEST_DIR"
 chown "$OPENHAB_USER:$OPENHAB_GROUP" "$IBM_REQUEST_DIR" 2>/dev/null || true
 chmod 0755 "$IBM_REQUEST_DIR"
 
-install_file "$UPDATER" <<'UPD'
+updater_tmp="$(mktemp "$UPDATER.XXXXXX")"
+cat > "$updater_tmp" <<'UPD'
 #!/usr/bin/env bash
 # ibm-update - spielt das IBM-Paket von ischlstrom.org neu ein.
 # Erzeugt von 09-install-updater.sh; Aufruf durch ibm-update.timer (root).
 #   ibm-update            regulaerer Timer-Lauf (Marker oder Nachtfenster)
 #   ibm-update --now      sofort aktualisieren (von Hand)
+# Der ganze Ablauf steckt in main: das Update schreibt diese Datei selbst
+# neu, und Bash darf dann nichts mehr von der Platte nachlesen.
 set -uo pipefail
 
+main() {
 CONF=@IBM_CONF@
 FLAG=@IBM_UPDATE_FLAG@
 STAMP=@IBM_REQUEST_DIR@/last-check
@@ -108,13 +123,24 @@ else
   log "Update fehlgeschlagen (Exit $rc) - Details oben in $LOG."
 fi
 exit "$rc"
+}
+
+main "$@"
+exit
 UPD
 sed -i -e "s|@IBM_CONF@|$IBM_CONF|g" \
        -e "s|@IBM_UPDATE_FLAG@|$IBM_UPDATE_FLAG|g" \
        -e "s|@IBM_REQUEST_DIR@|$IBM_REQUEST_DIR|g" \
-       -e "s|@IBM_SETUP_DIR@|$IBM_SETUP_DIR|g" "$UPDATER"
-chown root:root "$UPDATER"
-chmod 0755 "$UPDATER"
+       -e "s|@IBM_SETUP_DIR@|$IBM_SETUP_DIR|g" "$updater_tmp"
+chown root:root "$updater_tmp"
+chmod 0755 "$updater_tmp"
+if [ -f "$UPDATER" ] && cmp -s "$updater_tmp" "$UPDATER"; then
+  rm -f "$updater_tmp"
+  log "unveraendert: $UPDATER"
+else
+  mv -f "$updater_tmp" "$UPDATER"
+  log "geschrieben: $UPDATER"
+fi
 
 install_file "$UNIT_DIR/ibm-update.service" <<'UNIT'
 [Unit]

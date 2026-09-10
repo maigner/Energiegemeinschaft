@@ -110,3 +110,61 @@ export const getCloudForecastNextSunshineWindow = async () => {
     sql.release();
     return (result?.rows.length > 0 ? result?.rows : null);
 };
+
+/**
+ * Lokales Datum (Europe/Vienna, `YYYY-MM-DD`) des nächsten Mittagsfensters:
+ * heute vor 12:00, sonst morgen. Derselbe Tag, für den `vorschau` von
+ * `/api/wolken/vorschau/v1` die Bewölkung mittelt.
+ */
+export const getNextSunshineWindowDate = () => {
+    const { start } = getNoonTimeWindow();
+    return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Vienna' }).format(start);
+};
+
+/**
+ * Erwarteter Ertrag eines Tages als Anteil an einem guten Tag, für die
+ * Nachtreserve der IBM-Anlagen: die prognostizierte Tagessumme der
+ * Globalstrahlung (`shortwave_radiation`, Wh/m²) geteilt durch das
+ * 75. Perzentil der Tagessummen der 14 Vortage -- dieselbe Normierung wie
+ * das Sonnenprofil am Gateway (je Stunde das 75. Perzentil der letzten
+ * 14 Tage). Anders als die Bewölkung bildet die Strahlungsprognose auch
+ * Hochnebel und Regentage ab, an denen "80 % Wolken" real 3 % Ertrag
+ * bedeuten. null, wenn der Tag nicht vollständig (24 Stunden) vorliegt oder
+ * die Vortage fehlen. `anteil` ist ungekappt (über 1 an einem Tag, der
+ * besser ist als die Vortage); das Gateway kappt selbst bei 1.
+ */
+export const getRadiationShareForDay = async (datum: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) return null;
+    const sql = await middlewareDbConnection();
+    try {
+        const result = await sql.query(`
+            WITH tage AS (
+                SELECT (time AT TIME ZONE 'Europe/Vienna')::date AS d,
+                       sum(shortwave_radiation) / 1000.0 AS kwh,
+                       count(*) AS n
+                FROM weather_weatherdata
+                WHERE time >= (($1::date - 14)::timestamp AT TIME ZONE 'Europe/Vienna')
+                  AND time <  (($1::date + 1)::timestamp AT TIME ZONE 'Europe/Vienna')
+                GROUP BY 1
+            )
+            SELECT
+                (SELECT kwh FROM tage WHERE d = $1::date AND n >= 24) AS prognose,
+                (SELECT percentile_cont(0.75) WITHIN GROUP (ORDER BY kwh)
+                   FROM tage WHERE d < $1::date AND n >= 24) AS gut,
+                (SELECT count(*) FROM tage WHERE d < $1::date AND n >= 24)::int AS vortage
+        `, [datum]);
+        const row = result?.rows?.[0];
+        const prognose = Number(row?.prognose);
+        const gut = Number(row?.gut);
+        const vortage = Number(row?.vortage);
+        if (!Number.isFinite(prognose) || !Number.isFinite(gut) || gut <= 0 || vortage < 7) return null;
+        return {
+            datum,
+            anteil: Math.round(prognose / gut * 100) / 100,
+            prognose_kwh_m2: Math.round(prognose * 100) / 100,
+            gut_kwh_m2: Math.round(gut * 100) / 100
+        };
+    } finally {
+        sql.release();
+    }
+};

@@ -14,6 +14,7 @@ const fromDay = opt('--from', '2026-08-24');
 const toDay = opt('--to', '2026-09-06');
 const verboseDay = opt('--verbose', null);
 const noCrossover = flag('--no-crossover');
+const ertragPct = opt('--ertrag', null); // Ertragsprognose in Prozent eines guten Tages (Nachtreserve), sonst NULL = Wolkenfaktor
 const oldRate = flag('--old-rate');
 const csvOut = opt('--csv', null);
 
@@ -147,7 +148,7 @@ for (const pid of Object.keys(hist).sort((a, b) => a - b)) {
     IBM_NETZLADE_WAECHTER: '', IBM_NETZLADUNG: '', IBM_NETZEINSPEISUNG_ZAEHLER: '', IBM_BATTERIE_NETZEINSPEISUNG_KWH: '',
     IBM_HAUSLAST: '', IBM_HAUSLAST_MESSUNG: '', IBM_NACHTBUDGET: '', IBM_SONNENPROFIL: '',
     Ischlstrom_Ladesperre_Individuell: 'OFF', Ischlstrom_Entladeende: '-', Ischlstrom_Crossover_Vormittag: '-',
-    Ischlstrom_Wolken_Verlauf: '',
+    Ischlstrom_Wolken_Verlauf: '', Ischlstrom_Ertragsprognose: ertragPct === null ? 'NULL' : +ertragPct, Ischlstrom_Crossover_Zeit: '',
     SOC: 50, BAT: 0, GRID: 0, PV: 0
   })) setItem(n, v);
 

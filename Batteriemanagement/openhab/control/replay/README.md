@@ -36,7 +36,9 @@ Tag, gesperrte Slots und mittlerer Sperranteil. `--csv datei` schreibt jeden
 Tageszyklus. `--no-crossover` schaltet die neuen Server-Signale
 (Entladeende, Vormittags-Crossover) ab, `--old-rate` setzt die gelernte
 Ladeleistung aus der Historie vor (fuer den alten Kern; der neue verwirft
-sie beim ersten Lauf).
+sie beim ersten Lauf). `--ertrag 30` gibt der Nachtreserve eine
+Ertragsprognose von 30% eines guten Tages vor (die Historie enthaelt
+keine); ohne die Option rechnet sie mit dem Wolkenfaktor.
 
 ## Was simuliert wird
 

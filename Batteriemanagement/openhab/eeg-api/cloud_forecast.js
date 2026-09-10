@@ -25,6 +25,23 @@ if (response !== null) {
           // Item fehlt bei aelteren Installationen - Steuerung laeuft dann ohne Aktualitaetspruefung
         }
 
+        // 3b. Erwarteter Ertrag des Tages, dem die Vorschau gilt, als Anteil
+        //     an einem guten Tag (Server: Strahlungsprognose durch das 75.
+        //     Perzentil der 14 Vortage) - in Prozent ins Number-Item. NULL,
+        //     wenn der Server keinen Wert liefert; die Nachtreserve rechnet
+        //     dann mit dem Wolkenfaktor (core.js, nightReserve).
+        var ertrag = null;
+        if (jsonData.ertrag && typeof jsonData.ertrag.anteil === "number"
+            && jsonData.ertrag.anteil >= 0 && jsonData.ertrag.anteil <= 3) {
+          ertrag = Math.round(jsonData.ertrag.anteil * 100);
+        }
+        try {
+          var ertragItem = items.getItem("Ischlstrom_Ertragsprognose");
+          if (ertrag === null) ertragItem.postUpdate("NULL"); else ertragItem.postUpdate(ertrag);
+        } catch (e6) {
+          // Item fehlt bei aelteren Installationen - Setup-Skript 03 erneut ausfuehren
+        }
+
         // 4. Stundenwerte fuer den Rest des heutigen Tages (dynamische
         //    Laderegelung). Datum und Abrufzeit wandern mit ins JSON - die
         //    Steuerung verwirft veraltete oder fremde Tage selbst. '-' wenn
@@ -44,12 +61,13 @@ if (response !== null) {
           // Item fehlt bei aelteren Installationen - Setup-Skript 03 erneut ausfuehren
         }
 
-        // 5. Verlauf der letzten Abrufe (JSON-Liste von {zeit, wert}, aeltester
-        //    zuerst): die Steuerung rechnet mit dem Mittel der letzten Abrufe
-        //    statt mit dem letzten Wert allein, damit ein kurzer Wackler der
-        //    Vorhersage die Nacht-Entladung nicht kippt (core.js,
-        //    CLOUD_SMOOTH_FETCHES). Ohne Item (Setup 03 nicht erneut
-        //    ausgefuehrt) rechnet die Steuerung mit dem letzten Wert.
+        // 5. Verlauf der letzten Abrufe (JSON-Liste von {zeit, wert, ertrag},
+        //    aeltester zuerst): die Steuerung rechnet mit dem Mittel der
+        //    letzten Abrufe statt mit dem letzten Wert allein, damit ein
+        //    kurzer Wackler der Vorhersage die Nacht-Entladung nicht kippt
+        //    (core.js, CLOUD_SMOOTH_FETCHES) - fuer Wolken und Ertrag
+        //    gleichermassen. Ohne Item (Setup 03 nicht erneut ausgefuehrt)
+        //    rechnet die Steuerung mit dem letzten Wert.
         try {
           var verlaufItem = items.getItem("Ischlstrom_Wolken_Verlauf");
           var verlauf = [];
@@ -59,13 +77,14 @@ if (response !== null) {
           } catch (e4) {
             verlauf = [];
           }
-          verlauf.push({ zeit: time.ZonedDateTime.now().toString(), wert: value });
+          verlauf.push({ zeit: time.ZonedDateTime.now().toString(), wert: value, ertrag: ertrag });
           while (verlauf.length > 6) verlauf.shift();
           verlaufItem.postUpdate(JSON.stringify(verlauf));
         } catch (e5) {
           // Item fehlt bei aelteren Installationen - Setup-Skript 03 erneut ausfuehren
         }
         console.log("[IBM] Wolkenvorschau aktualisiert: " + value
+          + (ertrag === null ? ", keine Ertragsprognose" : ", Ertrag " + ertrag + "% eines guten Tages")
           + (stundenText === "-" ? "" : " (+" + jsonData.wolken.stunden.length + " Stundenwerte)"));
       }
     }

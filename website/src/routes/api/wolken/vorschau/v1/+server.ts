@@ -1,4 +1,4 @@
-import { getCloudForecastNextSunshineWindow, getCloudForecastHoursToday } from '$lib/server/db/weather/forecast.js';
+import { getCloudForecastNextSunshineWindow, getCloudForecastHoursToday, getNextSunshineWindowDate, getRadiationShareForDay } from '$lib/server/db/weather/forecast.js';
 import { json } from '@sveltejs/kit';
 
 function getAverageCloudCover(forecast: Array<{ cloud_cover: number }>): number {
@@ -36,8 +36,14 @@ export async function GET(event) {
         .filter((s: any) => /^\d{2}:\d{2}$/.test(s.zeit)
             && Number.isFinite(s.wolken) && s.wolken >= 0 && s.wolken <= 100);
 
+    // Erwarteter Ertrag des Tages, dem `vorschau` gilt, als Anteil an einem
+    // guten Tag (Strahlungsprognose / 75. Perzentil der 14 Vortage). Die
+    // Nachtreserve der IBM-Anlagen rechnet damit statt mit dem
+    // Wolkenfaktor; fehlt der Wert (null), gilt am Gateway der Wolkenfaktor.
+    const ertrag = await getRadiationShareForDay(getNextSunshineWindowDate());
+
     return json(
-        { wolken: { vorschau: averageCloudCover, datum: heute, stunden } }
+        { wolken: { vorschau: averageCloudCover, datum: heute, stunden }, ertrag }
     );
 
 }

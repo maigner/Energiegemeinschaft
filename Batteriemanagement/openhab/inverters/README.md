@@ -157,18 +157,20 @@ voraussetzen:
 | --- | --- | --- |
 | `Schalte_ISCHLSTROM_Empfehlung_einaus` | Switch | Hauptschalter |
 | `Ischlstrom_Wolkenvorschau` | Number | Bewoelkung 0-100 % |
-| `Ischlstrom_Crossover_Start` | String | Beginn Ueberschussfenster, `HH:MM:SS` |
-| `Ischlstrom_Crossover_Ende` | String | Ende Ueberschussfenster, `HH:MM:SS` |
+| `Ischlstrom_Ertragsprognose` | Number | Erwarteter Ertrag des naechsten Sonnentages in Prozent eines guten Tages (Strahlungsprognose); NULL = kein Wert, der Kern rechnet dann mit dem Wolkenfaktor |
+| `Ischlstrom_Crossover_Start` | String | Beginn Ueberschussfenster, `HH:MM:SS` oder `-` (Woche ohne Ueberschuss) |
+| `Ischlstrom_Crossover_Ende` | String | Ende Ueberschussfenster, `HH:MM:SS` oder `-` |
+| `Ischlstrom_Crossover_Zeit` | String | Letzter erfolgreicher Abruf der Wochen-Crossover; aelter als 14 Tage ignoriert der Kern die Werte |
 | `Ischlstrom_Ladesperre_Start` / `_Ende` | String | Ladesperre-Fenster, `HH:MM` oder `-` |
 | `Ischlstrom_Ladesperre_Datum` | String | Gueltigkeitstag des Fensters, `YYYY-MM-DD` |
 | `Ischlstrom_Ladesperre_Individuell` | Switch | ON = Ende kam individualisiert von der Token-API; der Kern uebernimmt es unveraendert |
 | `Ischlstrom_Wolken_Stunden` | String | Stuendliche Bewoelkung des restlichen Tages (JSON mit datum/zeit/stunden) oder `-` |
-| `Ischlstrom_Wolken_Verlauf` | String | Die letzten Abrufe der Wolkenvorschau (JSON-Liste von {zeit, wert}); der Kern rechnet mit dem Mittel der letzten drei |
+| `Ischlstrom_Wolken_Verlauf` | String | Die letzten Abrufe der Wolkenvorschau (JSON-Liste von {zeit, wert, ertrag}); der Kern rechnet mit dem Mittel der letzten drei |
 | `Ischlstrom_Ladefaktoren` | String | Stuendliche Ladefaktoren des Erzeugungsprofils samt Abend-Deadline (JSON, Token-API) oder `-` |
 | `Ischlstrom_Entladestart` | String | Entladestart der Nacht aus der Tagesprognose (Token-API), `HH:MM` oder `-`; ohne Wert startet der Kern eine Stunde nach dem Abend-Crossover |
 | `IBM_HAUSLAST` | Number | Vom Kern gelernte Hauslast in W (Anzeige/Status-Push) |
 | `IBM_HAUSLAST_MESSUNG` | String | Interner Zustand der Hauslastschaetzung (JSON) |
-| `IBM_NACHTBUDGET` | Number | Vom Kern aus Kapazitaet, Hauslast, Sonnenprofil und Wolkenvorschau gerechnetes Nacht-Entladebudget in kWh, das heute Nacht noch ins Netz darf (Anzeige/Status-Push); NULL ohne Kapazitaetsschaetzung |
+| `IBM_NACHTBUDGET` | Number | Vom Kern aus Kapazitaet, Hauslast, Sonnenprofil und Ertragsprognose (sonst Wolkenvorschau) gerechnetes Nacht-Entladebudget in kWh, das heute Nacht noch ins Netz darf (Anzeige/Status-Push); NULL ohne Kapazitaetsschaetzung |
 | `IBM_BATTERIE_NETZEINSPEISUNG` | Number | Berechnet (ibm_netzeinspeisung.js): Anteil der Batterie-Entladung, der ins Netz fliesst, in W; NULL ohne Batterie-/Netzleistungs-Item |
 | `IBM_BATTERIE_NETZEINSPEISUNG_KWH` | Number | Einspeise-Zaehler des Kerns: aufsummierte Energie aus der Batterie ins Netz in kWh (Anzeige/Status-Push) |
 | `IBM_NETZEINSPEISUNG_ZAEHLER` | String | Interner Zustand des Einspeise-Zaehlers (JSON) |

@@ -154,6 +154,9 @@
             minSoc: num(d.min_battery_charge, 0),
             wolken: num(d.wolkenvorschau, 0),
             schwelle: num(d.wolken_schwelle, 0),
+            // erwarteter Ertrag des naechsten Sonnentages in Prozent eines
+            // guten Tages (Strahlungsprognose); null bei aelteren Pis
+            ertrag: num(d.ertragsprognose, 0),
             hauslast: num(d.hauslast_w, 0),
             // vom Pi aus Kapazitaet und Hauslast gerechnet (null = noch
             // keine Schaetzung; aeltere Pis schicken einen String)
@@ -906,6 +909,13 @@
                     "Wolkenvorschau",
                     bm.wolken !== null
                         ? `${bm.wolken}%${bm.schwelle !== null ? ` (Sperre unter ${bm.schwelle}%)` : ""}`
+                        : "unbekannt",
+                    "",
+                )}
+                {@render systemStat(
+                    "Ertragsprognose",
+                    bm.ertrag !== null
+                        ? `${bm.ertrag}% eines guten Tages`
                         : "unbekannt",
                     "",
                 )}

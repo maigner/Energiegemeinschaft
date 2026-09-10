@@ -261,8 +261,12 @@ var payload = {
     wolken_schwelle: numberOf('IBM_LADESPERRE_WOLKEN_SCHWELLE'),
     wolkenvorschau: numberOf('Ischlstrom_Wolkenvorschau'),
     wolkenvorschau_zeit: stateOf('Ischlstrom_Wolkenvorschau_Zeit'),
+    // Erwarteter Ertrag des naechsten Sonnentages in Prozent eines guten
+    // Tages (Strahlungsprognose, Wolken-API); null ohne Wert
+    ertragsprognose: numberOf('Ischlstrom_Ertragsprognose'),
     crossover_start: stateOf('Ischlstrom_Crossover_Start'),
     crossover_ende: stateOf('Ischlstrom_Crossover_Ende'),
+    crossover_zeit: stateOf('Ischlstrom_Crossover_Zeit'),
     ladesperre_start: stateOf('Ischlstrom_Ladesperre_Start'),
     ladesperre_ende: stateOf('Ischlstrom_Ladesperre_Ende'),
     ladesperre_datum: stateOf('Ischlstrom_Ladesperre_Datum'),

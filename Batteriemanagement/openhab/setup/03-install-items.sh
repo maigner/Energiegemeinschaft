@@ -68,8 +68,15 @@ Switch Schalte_ISCHLSTROM_Empfehlung_einaus "Batteriemanagement aktivieren" <swi
 // Von der ischlstrom API befuellt
 Number Ischlstrom_Wolkenvorschau      "Bewoelkungsvorhersage [%.0f %%]" <sun>  (IBM)
 String Ischlstrom_Wolkenvorschau_Zeit "Wolkenvorschau abgerufen [%s]"   <time> (IBM)
+// Erwarteter Ertrag des Tages, dem die Wolkenvorschau gilt, in Prozent
+// eines guten Tages (Strahlungsprognose des Servers); NULL = kein Wert,
+// dann rechnet die Nachtreserve mit dem Wolkenfaktor
+Number Ischlstrom_Ertragsprognose     "Ertragsprognose [%.0f %%]"       <sun>  (IBM)
 String Ischlstrom_Crossover_Start     "Crossover Start [%s]"            <time> (IBM)
 String Ischlstrom_Crossover_Ende      "Crossover Ende [%s]"             <time> (IBM)
+// Letzter Abruf der Wochen-Crossover; aelter als 14 Tage gelten die
+// Werte in der Steuerung als fehlend
+String Ischlstrom_Crossover_Zeit      "Crossover abgerufen [%s]"        <time> (IBM)
 String Ischlstrom_Ladesperre_Start    "Ladesperre ab [%s]"              <time> (IBM)
 String Ischlstrom_Ladesperre_Ende     "Ladesperre bis [%s]"             <time> (IBM)
 String Ischlstrom_Ladesperre_Datum    "Ladesperre-Fenster fuer [%s]"    <calendar> (IBM)
@@ -217,8 +224,10 @@ Items {
 ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     Ischlstrom_Wolkenvorschau,
     Ischlstrom_Wolkenvorschau_Zeit,
+    Ischlstrom_Ertragsprognose,
     Ischlstrom_Crossover_Start,
     Ischlstrom_Crossover_Ende,
+    Ischlstrom_Crossover_Zeit,
     Ischlstrom_Ladesperre_Start,
     Ischlstrom_Ladesperre_Ende,
     Ischlstrom_Ladesperre_Datum,

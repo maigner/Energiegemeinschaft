@@ -425,15 +425,17 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `Schalte_ISCHLSTROM_Empfehlung_einaus` | Switch | Hauptschalter, vom Mitglied bedient |
 | `Ischlstrom_Wolkenvorschau` | Number | API `/api/wolken/vorschau/v1` |
 | `Ischlstrom_Wolkenvorschau_Zeit` | String | Abrufzeitpunkt der Wolkenvorschau (Aktualitaetspruefung) |
+| `Ischlstrom_Ertragsprognose` | Number | Erwarteter Ertrag des naechsten Sonnentages in Prozent eines guten Tages (Strahlungsprognose, gleiche API); NULL = kein Wert |
 | `Ischlstrom_Crossover_Start` | String | API `/api/eeginfo/crossover/v1` |
 | `Ischlstrom_Crossover_Ende` | String | API `/api/eeginfo/crossover/v1` |
+| `Ischlstrom_Crossover_Zeit` | String | Letzter erfolgreicher Abruf der Wochen-Crossover; aelter als 14 Tage gelten die Werte als fehlend |
 | `Ischlstrom_Ladesperre_Start` / `_Ende` | String | API `/api/eeginfo/ladefenster/v1` |
 | `Ischlstrom_Ladesperre_Datum` | String | Tag, fuer den das Ladesperre-Fenster gilt |
 | `Ischlstrom_Entladestart` | String | Entladestart der Nacht aus der Tagesprognose (Token-API), `HH:MM` oder `-` |
 | `Ischlstrom_Entladeende` | String | Entladeende am Morgen aus der Tagesprognose (Token-API), `HH:MM` oder `-` (dann Wochen-Crossover) |
 | `Ischlstrom_Crossover_Vormittag` | String | Vormittags-Crossover der Gemeinschaft laut Tagesprognose (Token-API); bis dahin sperrt die Laderegelung hart |
 | `Ischlstrom_Wolken_Stunden` | String | Stuendliche Bewoelkung des restlichen Tages (JSON, Wolken-API) |
-| `Ischlstrom_Wolken_Verlauf` | String | Die letzten Abrufe der Wolkenvorschau (JSON-Liste von {zeit, wert}); die Steuerung rechnet mit dem Mittel der letzten drei |
+| `Ischlstrom_Wolken_Verlauf` | String | Die letzten Abrufe der Wolkenvorschau (JSON-Liste von {zeit, wert, ertrag}); die Steuerung rechnet mit dem Mittel der letzten drei |
 | `Ischlstrom_Ladefaktoren` | String | Stuendliche Ladefaktoren des Erzeugungsprofils samt Abend-Deadline (JSON, Token-API) |
 | `IBM_MIN_BATTERY_CHARGE` | Number | Einstellung |
 | `Minimale_Entladeleistung_Batterieeinspeisung` | Number | Einstellung |
@@ -478,6 +480,14 @@ Wochenwerte sind ein Klimamittel je Tag des Jahres ueber alle Jahre und
 liegen an sonnigen Tagen deutlich daneben. Liegen keine plausiblen
 Crossover-Zeiten vor (ischlstrom.org nie erreichbar gewesen oder Werte
 unbrauchbar), wird **nicht** entladen - ein Ersatz-Zeitfenster gibt es nicht.
+Die Wochenwerte altern: Hat die Kalenderwoche keine Crossover-Zeiten (im
+Winter kommt die Gemeinschaft wochenlang nie ins Plus, die API antwortet
+404), setzt die Abhol-Regel beide Items auf `-`; und liegt der letzte
+erfolgreiche Abruf (`Ischlstrom_Crossover_Zeit`) laenger als 14 Tage
+zurueck (`CROSSOVER_MAX_AGE_DAYS` in `control/core.js`), gelten die Werte
+als fehlend. Vorher lebte das Fenster der letzten Woche mit Daten (im
+Winter 2025/26: 12:15 bis 13:15 aus einem einzigen Tag der KW 48)
+unbegrenzt weiter.
 Die Entladeleistung wird zusaetzlich so gestreckt, dass das Nachtbudget bis
 zum Entladeende reicht (Budget durch Reststunden mal 1,2, nie unter 0,1 C).
 
@@ -491,10 +501,18 @@ und fuer den Folgetag (Vormittags- bis Abend-Crossover) das, was die eigene
 PV voraussichtlich nicht deckt: Hauslast ueber die Tagesstunden minus
 erwarteter Ertrag. Der erwartete Ertrag ist die Tagessumme des
 Sonnenprofils der Anlage (`IBM_SONNENPROFIL`, ein guter Tag der letzten 14
-Tage) mal einem Wolkenfaktor, der von 1 bei klarem Himmel quadratisch auf
-0,2 bei 100% Bewoelkung faellt (`PV_CLOUD_MIN_FACTOR`, kalibriert an den
-Betriebsdaten: komplett bedeckte Tage lieferten noch 20 bis 38% eines guten
-Tages). Ohne Sonnenprofil (junge Anlage, kein PV-Item) zaehlt die
+Tage) mal dem Ertragsanteil des Folgetags. Der kommt aus der
+Strahlungsprognose des Servers (`Ischlstrom_Ertragsprognose`, mit der
+Wolkenvorschau abgeholt: prognostizierte Tagessumme der Globalstrahlung
+durch das 75. Perzentil der 14 Vortage, gleiche Normierung wie das
+Sonnenprofil, gekappt bei 1). Anders als die Bewoelkung bildet sie auch
+Hochnebel und Regentage ab, an denen "90% Wolken" real wenige Prozent
+Ertrag bedeuten (10.9.2026: Vorschau 96%, Ertrag 1% eines guten Tages).
+Fehlt sie (aelterer Server, Item fehlt, Abruf veraltet), gilt ein
+Wolkenfaktor, der von 1 bei klarem Himmel quadratisch auf 0,2 bei 100%
+Bewoelkung faellt (`PV_CLOUD_MIN_FACTOR`, kalibriert an den Betriebsdaten:
+komplett bedeckte Tage lieferten noch 20 bis 38% eines guten Tages). Ohne
+Sonnenprofil (junge Anlage, kein PV-Item) zaehlt die
 Tages-Hauslast anteilig, linear von 0 an der Wolkenschwelle bis voll bei
 100%; ohne Vorschau ganz. Auf die Summe kommt der Zuschlag 1,3
 (`NIGHT_RESERVE_FACTOR` in `control/core.js`). Der Ziel-Ladestand wird in
@@ -525,7 +543,8 @@ zurueckliegt: die Steuerung sperrt dann kein Laden und entlaedt nur mit
 minimaler Leistung. Gerechnet wird mit dem Mittel der letzten drei Abrufe
 (`Ischlstrom_Wolken_Verlauf`, `CLOUD_SMOOTH_FETCHES` in `control/core.js`),
 damit ein kurzer Wackler der Vorhersage die Nacht-Entladung nicht kippt;
-ohne Verlaufs-Item zaehlt der letzte Wert allein.
+ohne Verlaufs-Item zaehlt der letzte Wert allein. Die Ertragsprognose
+teilt Abruf, Zeitstempel und Glaettung mit der Wolkenvorschau.
 
 ### Dynamische Laderegelung (ersetzt das Sperrfenster)
 

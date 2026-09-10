@@ -345,12 +345,20 @@ var CLOUD_SMOOTH_FETCHES = 3;
 // Hauslast ueber die Tagesstunden minus erwarteter PV-Ertrag. Der erwartete
 // Ertrag ist die Tagessumme des beobachteten Sonnenprofils (Abschnitt
 // "Sonnenprofil": je Stunde das 75. Perzentil der letzten 14 Tage, also ein
-// guter Tag) mal dem Wolkenfaktor pvCloudFactor: 1 bei klarem Himmel,
-// quadratisch fallend auf PV_CLOUD_MIN_FACTOR bei 100% Bewoelkung. Der
-// Mindestfaktor ist an den Betriebsdaten August/September 2026 kalibriert:
-// an komplett bedeckten Tagen (Vorschau 99 bis 100%) lieferten die Anlagen
-// noch 20 bis 38% eines guten Tages, bei 85 bis 95% Bewoelkung 20 bis 60%;
-// der Faktor folgt der unteren Huellkurve. Frueher galt eine harte Stufe
+// guter Tag) mal dem Ertragsanteil des Folgetags. Der kommt bevorzugt aus
+// der Strahlungsprognose des Servers (Ischlstrom_Ertragsprognose, Prozent
+// eines guten Tages: prognostizierte Tagessumme der Globalstrahlung durch
+// das 75. Perzentil der 14 Vortage, gleiche Normierung wie das
+// Sonnenprofil) - sie bildet auch Hochnebel und Regentage ab, an denen
+// "90% Wolken" real 3% Ertrag bedeuten (10.09.2026: Vorschau 96%,
+// Ertrag 1% eines guten Tages; November 2025: bis 6%). Ohne Ertragsprognose
+// (aelterer Server, Item fehlt, Abruf veraltet) gilt der Wolkenfaktor
+// pvCloudFactor: 1 bei klarem Himmel, quadratisch fallend auf
+// PV_CLOUD_MIN_FACTOR bei 100% Bewoelkung. Der Mindestfaktor ist an den
+// Betriebsdaten August/September 2026 kalibriert: an komplett bedeckten
+// Tagen (Vorschau 99 bis 100%) lieferten die Anlagen noch 20 bis 38% eines
+// guten Tages, bei 85 bis 95% Bewoelkung 20 bis 60%; der Faktor folgt der
+// unteren Huellkurve. Frueher galt eine harte Stufe
 // (Vorschau ueber der Wolkenschwelle: ganzer Folgetag ohne PV, darunter:
 // gar keine Tagesreserve). Damit blieben an einem "bedeckten" Tag mit real
 // 3 bis 7 kWh Vormittagsertrag die Batterien halb voll, und ein Wackler
@@ -366,7 +374,8 @@ var CLOUD_SMOOTH_FETCHES = 3;
 var FALLBACK_HOUSE_LOAD_W = 300;     // solange keine Hauslast gelernt ist
 var NIGHT_RESERVE_FACTOR = 1.3;      // Sicherheitszuschlag auf den Eigenbedarf
 var FALLBACK_SUN_HOURS = 10;         // Tageslaenge ohne Abend-Crossover
-var PV_CLOUD_MIN_FACTOR = 0.2;       // Ertrag eines guten Tages bei 100% Bewoelkung
+var PV_CLOUD_MIN_FACTOR = 0.2;       // Ertrag eines guten Tages bei 100% Bewoelkung (Rueckfall)
+var RADIATION_SHARE_MAX_PCT = 300;   // Plausibilitaetsfenster der Ertragsprognose (Prozent)
 
 // --- Entladestart -------------------------------------------------------------
 // Der woechentliche Crossover ist ein Mittelwert: an sonnigen Tagen ist die
@@ -491,8 +500,35 @@ var DISCHARGE_ACTIVE       = onOff('IBM_ENTLADUNG_AKTIV', FALLBACK_DISCHARGE_ACT
 
 // Crossover-Zeiten der Gemeinschaft: morgens 03-12 Uhr, abends 12-24 Uhr
 // plausibel. Ausserhalb (oder ohne Daten) wird nicht entladen.
-var MORNING_CROSSOVER_MIN  = timeItemMinutes('Ischlstrom_Crossover_Start', 3, 12);
-var EVENING_CROSSOVER_MIN  = timeItemMinutes('Ischlstrom_Crossover_Ende', 12, 24);
+// Ischlstrom_Crossover_Zeit traegt den letzten erfolgreichen Abruf: liegt
+// er laenger als CROSSOVER_MAX_AGE_DAYS zurueck (Server lange nicht
+// erreichbar), gelten die Werte als fehlend - sonst lebte das Fenster der
+// letzten Woche mit Daten unbegrenzt weiter. Im Winter, wenn die
+// Gemeinschaft wochenlang nie ins Plus kommt, loescht crossover.js die
+// Werte ohnehin selbst ('-'); im Winter 2025/26 blieben sonst die 12:15 und
+// 13:15 der KW 48 (ein einziger Tag) bis Februar stehen. Ohne Zeit-Item
+// (aeltere Installation) oder ohne Abruf seit dem Update keine
+// Alterspruefung.
+var CROSSOVER_MAX_AGE_DAYS = 14;
+function crossoverStale() {
+  var stamp = readItem('Ischlstrom_Crossover_Zeit');
+  if (stamp === null) return false;
+  var state = String(stamp.state);
+  if (state === 'NULL' || state === 'UNDEF' || state === '') return false;
+  try {
+    var days = time.Duration.between(time.ZonedDateTime.parse(state), time.ZonedDateTime.now()).toDays();
+    if (days >= CROSSOVER_MAX_AGE_DAYS) {
+      console.log('[IBM][Konfig] Wochen-Crossover zuletzt vor ' + days + ' Tagen abgerufen (max. ' + CROSSOVER_MAX_AGE_DAYS + ') - Werte gelten als fehlend');
+      return true;
+    }
+  } catch (e) {
+    // Abrufzeit unlesbar: keine Alterspruefung
+  }
+  return false;
+}
+var crossoverOld = crossoverStale();
+var MORNING_CROSSOVER_MIN  = crossoverOld ? null : timeItemMinutes('Ischlstrom_Crossover_Start', 3, 12);
+var EVENING_CROSSOVER_MIN  = crossoverOld ? null : timeItemMinutes('Ischlstrom_Crossover_Ende', 12, 24);
 // Tagesaktueller Entladestart der Token-API (gilt nur fuer das Datum des
 // Ladesperre-Fensters, siehe dischargeStart unten); '-' oder unplausibel
 // ergibt null.
@@ -1158,6 +1194,8 @@ function round1(x) {
 //   pvKwh       erwarteter PV-Ertrag des Folgetags (null ohne Sonnenprofil)
 //   tagKwh      Tagesreserve = max(0, tagLastKwh - pvKwh) bzw. Anteil ohne Profil
 //   quelle      Text fuers Protokoll
+// Der Ertragsanteil kommt aus der Strahlungsprognose (radiationShare), sonst
+// aus dem Wolkenfaktor (pvCloudFactor); siehe Abschnitt "Nacht-Entladebudget".
 function nightReserve(clouds) {
   var loadW = houseLoadW();
   // Bis zum naechsten Gemeinschafts-Ueberschuss: tagesaktuell aus der
@@ -1173,12 +1211,19 @@ function nightReserve(clouds) {
   var pvKwh = null;
   var tagKwh;
   var quelle;
-  var profile = (clouds !== null) ? sunProfile() : null;
-  if (profile !== null) {
+  var share = radiationShare();
+  var profile = (clouds !== null || share !== null) ? sunProfile() : null;
+  if (profile !== null && share !== null) {
+    var shareFactor = Math.min(1, share);
+    pvKwh = sunProfileKwh(profile, morning, dayEnd) * shareFactor;
+    tagKwh = Math.max(0, tagLastKwh - pvKwh);
+    quelle = 'Sonnenprofil x ' + Math.round(shareFactor * 100) + '% laut Strahlungsprognose'
+      + (clouds !== null ? ' (' + clouds + '% Wolken)' : '');
+  } else if (profile !== null) {
     var factor = pvCloudFactor(clouds);
     pvKwh = sunProfileKwh(profile, morning, dayEnd) * factor;
     tagKwh = Math.max(0, tagLastKwh - pvKwh);
-    quelle = 'Sonnenprofil x ' + Math.round(factor * 100) + '% bei ' + clouds + '% Wolken';
+    quelle = 'Sonnenprofil x ' + Math.round(factor * 100) + '% bei ' + clouds + '% Wolken (Wolkenfaktor, keine Strahlungsprognose)';
   } else if (clouds === null) {
     tagKwh = tagLastKwh;
     quelle = 'keine Vorschau, Folgetag ganz aus der Batterie';
@@ -1658,6 +1703,17 @@ var dischargeEnd = (chargeLockDateOk && DISCHARGE_END_API_MIN !== null) ? DISCHA
 // zuerst); ohne Verlauf, mit weniger als zwei frischen Eintraegen oder bei
 // unlesbarem Inhalt der aktuelle Wert.
 function smoothClouds(current) {
+  return smoothHistory(current, 'wert', 100, '[IBM][Wolken] Vorschau');
+}
+
+// Dasselbe fuer die Ertragsprognose (Feld `ertrag` im Verlauf, Prozent).
+function smoothRadiation(current) {
+  return smoothHistory(current, 'ertrag', RADIATION_SHARE_MAX_PCT, '[IBM][Ertrag] Prognose');
+}
+
+// Mittel des Felds `key` ueber die letzten CLOUD_SMOOTH_FETCHES frischen
+// Verlaufseintraege (Werte 0 bis `max`); `label` fuer das Protokoll.
+function smoothHistory(current, key, max, label) {
   var item = readItem('Ischlstrom_Wolken_Verlauf');
   if (item === null) return current;
   var state = String(item.state);
@@ -1672,23 +1728,67 @@ function smoothClouds(current) {
   var values = [];
   for (var i = list.length - 1; i >= 0 && values.length < CLOUD_SMOOTH_FETCHES; i--) {
     var entry = list[i];
-    if (!entry || typeof entry.wert !== 'number' || isNaN(entry.wert) || entry.wert < 0 || entry.wert > 100 || !entry.zeit) continue;
+    if (!entry || typeof entry[key] !== 'number' || isNaN(entry[key]) || entry[key] < 0 || entry[key] > max || !entry.zeit) continue;
     try {
       var ageMin = time.Duration.between(time.ZonedDateTime.parse(String(entry.zeit)), now).toMinutes();
       if (ageMin < 0 || ageMin >= MAX_CLOUD_AGE_HOURS * 60) continue;
     } catch (e2) {
       continue;
     }
-    values.push(entry.wert);
+    values.push(entry[key]);
   }
   if (values.length < 2) return current;
   var sum = 0;
   for (var j = 0; j < values.length; j++) sum += values[j];
   var mean = Math.round(sum / values.length * 10) / 10;
   if (mean !== current) {
-    console.log('[IBM][Wolken] Vorschau ' + current + '% -> geglaettet ' + mean + '% (Mittel der letzten ' + values.length + ' Abrufe)');
+    console.log(label + ' ' + current + '% -> geglaettet ' + mean + '% (Mittel der letzten ' + values.length + ' Abrufe)');
   }
   return mean;
+}
+
+// Aktualitaet des Wolken-Abrufs (Ischlstrom_Wolkenvorschau_Zeit), einmal je
+// Zyklus geprueft: true, wenn juenger als MAX_CLOUD_AGE_HOURS oder das
+// Zeit-Item fehlt (aeltere Installation ohne Pruefung); sonst false.
+// Veraltete Werte (API-Ausfall) duerfen die Steuerung nicht treiben.
+var cloudStampFreshCache = null;
+function cloudStampFresh() {
+  if (cloudStampFreshCache !== null) return cloudStampFreshCache;
+  cloudStampFreshCache = (function () {
+    var stamp = readItem('Ischlstrom_Wolkenvorschau_Zeit');
+    if (stamp === null) return true;
+    var state = String(stamp.state);
+    if (state === 'NULL' || state === 'UNDEF') {
+      console.log('[IBM][Wolken] Kein Abrufzeitpunkt - Wolkenvorschau gilt als veraltet');
+      return false;
+    }
+    try {
+      var fetched = time.ZonedDateTime.parse(state);
+      var ageHours = time.Duration.between(fetched, now).toHours();
+      if (ageHours >= MAX_CLOUD_AGE_HOURS) {
+        console.log('[IBM][Wolken] Wolkenvorschau veraltet (' + ageHours + 'h alt, max. ' + MAX_CLOUD_AGE_HOURS + 'h)');
+        return false;
+      }
+    } catch (e) {
+      console.log('[IBM][Wolken] Abrufzeitpunkt unlesbar (' + state + ') - Wolkenvorschau gilt als veraltet');
+      return false;
+    }
+    return true;
+  })();
+  return cloudStampFreshCache;
+}
+
+// Ertragsprognose lesen: Anteil an einem guten Tag (0 bis 3) oder null,
+// wenn Item, Wert oder frischer Abruf fehlen - dann rechnet die Nachtreserve
+// mit dem Wolkenfaktor. Kommt mit der Wolkenvorschau (gleicher Abruf,
+// gleicher Zeitstempel) und ist ueber dieselben Abrufe geglaettet.
+function radiationShare() {
+  var item = readItem('Ischlstrom_Ertragsprognose');
+  if (item === null) return null;
+  var pct = parseFloat(item.numericState);
+  if (isNaN(pct) || pct < 0 || pct > RADIATION_SHARE_MAX_PCT) return null;
+  if (!cloudStampFresh()) return null;
+  return smoothRadiation(pct) / 100;
 }
 
 // Wolkenvorschau lesen: Wert 0-100 oder null, wenn ungueltig oder veraltet.
@@ -1705,27 +1805,7 @@ function cloudForecast() {
     console.log('[IBM][Wolken] Wolkenvorschau ungueltig (' + clouds + '%)');
     return null;
   }
-  var stamp = readItem('Ischlstrom_Wolkenvorschau_Zeit');
-  if (stamp === null) {
-    // aeltere Installation ohne Zeitstempel-Item: keine Aktualitaetspruefung
-    return smoothClouds(clouds);
-  }
-  var state = String(stamp.state);
-  if (state === 'NULL' || state === 'UNDEF') {
-    console.log('[IBM][Wolken] Kein Abrufzeitpunkt - Wolkenvorschau gilt als veraltet');
-    return null;
-  }
-  try {
-    var fetched = time.ZonedDateTime.parse(state);
-    var ageHours = time.Duration.between(fetched, now).toHours();
-    if (ageHours >= MAX_CLOUD_AGE_HOURS) {
-      console.log('[IBM][Wolken] Wolkenvorschau veraltet (' + ageHours + 'h alt, max. ' + MAX_CLOUD_AGE_HOURS + 'h)');
-      return null;
-    }
-  } catch (e) {
-    console.log('[IBM][Wolken] Abrufzeitpunkt unlesbar (' + state + ') - Wolkenvorschau gilt als veraltet');
-    return null;
-  }
+  if (!cloudStampFresh()) return null;
   return smoothClouds(clouds);
 }
 

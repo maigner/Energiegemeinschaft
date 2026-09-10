@@ -229,7 +229,7 @@ Endpunkt & Methode & Inhalt & Zugriff \\
 \code{/api/eeginfo/ladefenster/v1} & GET & Community-Ladefenster & öffentlich \\
 \code{/api/ibm/ladefenster/v1} & POST & Fenster, Crossover, Entladefenster, Ladefaktoren & Token \\
 \code{/api/eeginfo/crossover/v1} & GET & Crossover-Zeiten der Woche & öffentlich \\
-\code{/api/wolken/vorschau/v1} & GET & Bewölkung: Mittagsfenster + Stundenwerte & öffentlich \\
+\code{/api/wolken/vorschau/v1} & GET & Bewölkung: Mittagsfenster + Stundenwerte, Ertragsprognose & öffentlich \\
 \code{/api/ibm/status/v1} & POST & Status-Push der Anlage & Token \\
 \bottomrule
 \end{tabular}
@@ -328,13 +328,23 @@ voraussichtlich nicht deckt, zusammen mit einem Sicherheitszuschlag von
 \end{equation}
 $E_{\text{PV}}$ ist der erwartete Ertrag des Folgetags: die Tagessumme des
 Sonnenprofils der Anlage (Abschnitt~\ref{sec:regelkreis}, je Stunde das
-75.\,Perzentil der letzten 14 Tage, also ein guter Tag) mal einem
+75.\,Perzentil der letzten 14 Tage, also ein guter Tag) mal dem
+Ertragsanteil $a$ des Folgetags. Der kommt aus der Strahlungsprognose des
+Servers (Abschnitt~\ref{sec:wolkenvorschau}): die prognostizierte
+Tagessumme der Globalstrahlung geteilt durch das 75.\,Perzentil der
+Tagessummen der 14 Vortage, also dieselbe Normierung wie das Sonnenprofil,
+am Gateway gekappt bei 1. Anders als die Bewölkung bildet die Strahlung
+auch Hochnebel und Regentage ab: am 10.\,September 2026 meldete die
+Vorschau 96\,\% Wolken, der Ertrag lag bei 1\,\% eines guten Tages; im
+November 2025 lieferten bedeckte Tage bis hinunter zu 6\,\%. Fehlt die
+Ertragsprognose (älterer Server, veralteter Abruf), gilt als Rückfall der
 Wolkenfaktor $f(w) = 1 - 0{,}8\,(w/100)^2$, der von 1 bei klarem Himmel
 auf 0,2 bei 100\,\% Bewölkung fällt. Der Mindestfaktor ist an den
 Betriebsdaten vom August und September 2026 kalibriert: an komplett
 bedeckten Tagen lieferten die Anlagen noch 20 bis 38\,\% eines guten
 Tages, bei 85 bis 95\,\% Bewölkung 20 bis 60\,\%; der Faktor folgt der
-unteren Hüllkurve. Ohne Sonnenprofil (junge Anlage, kein PV-Item) zählt
+unteren Hüllkurve, liegt aber an einem Viertel der bedeckten Tage noch zu
+hoch. Ohne Sonnenprofil (junge Anlage, kein PV-Item) zählt
 die Tages-Hauslast anteilig, linear von 0 an der Wolkenschwelle bis voll
 bei 100\,\%; ohne Vorschau ganz. Bei kleinen Batterien oder hoher Hauslast
 bleibt so an trüben Tagen kein Budget übrig; die Batterie behält ihren
@@ -372,7 +382,17 @@ Jahres über alle Jahre kennt weder das aktuelle Wetter noch den Zubau der
 Gemeinschaft; an sonnigen Tagen liegt der Abend-Crossover deutlich später
 und der Vormittags-Crossover früher als die Wochenwerte.
 
-\subsection{Wolkenvorschau und Stundenwerte}
+Die Wochenwerte altern am Gateway. Hat die Kalenderwoche keine
+Crossover-Zeiten, weil die Gemeinschaft nie ins Plus kommt (Dezember bis
+Anfang Februar), antwortet die API mit 404, und die Abhol-Regel setzt
+beide Werte auf \glqq kein Wert\grqq{}; zusätzlich verwirft das Gateway
+Werte, deren letzter erfolgreicher Abruf länger als 14 Tage zurückliegt.
+Vorher lebte das Fenster der letzten Woche mit Daten unbegrenzt weiter;
+im Winter 2025/26 wären das 12:15 bis 13:15 aus einem einzigen Tag der
+KW~48 gewesen, und die Entladung blieb nur deshalb aus, weil 12:15 außerhalb
+des Plausibilitätsfensters lag.
+
+\subsection{Wolkenvorschau, Stundenwerte und Ertragsprognose}\label{sec:wolkenvorschau}
 
 Die Wolkenvorschau ist der mittlere Bewölkungsgrad über dem nächsten
 Mittagsfenster von 10:00 bis 14:00 (nach 12:00 zählt bereits das Fenster
@@ -392,6 +412,18 @@ liefert deshalb zusätzlich die \emph{stündlichen} Bewölkungswerte vom
 Beginn der laufenden Stunde bis Mitternacht, samt Gültigkeitsdatum. Das
 Gateway legt sie als JSON ab; die Regelung gewichtet damit jede
 verbleibende Stunde einzeln (Abschnitt~\ref{sec:ladesperre}).
+
+Seit September 2026 liefert dieselbe API auch die \emph{Ertragsprognose}
+des Tages, dem die Wolkenvorschau gilt: die prognostizierte Tagessumme
+der Globalstrahlung (Open-Meteo, \code{shortwave\_radiation}) geteilt
+durch das 75.\,Perzentil der Tagessummen der 14 Vortage, als Anteil an
+einem guten Tag. Der Bewölkungsgrad allein unterschätzt Hochnebel und
+Regentage systematisch: 90\,\% Wolken können 40\,\% eines guten Tages
+bedeuten oder 3\,\%. Das Gateway nutzt den Anteil für die Nachtreserve
+(Abschnitt~\ref{sec:nachtbudget}) und glättet ihn wie die Wolkenvorschau
+über die letzten drei Abrufe; fehlt er, rechnet die Reserve mit dem
+Wolkenfaktor aus der Bewölkung. Für die Laderegelung am Tag bleibt die
+Bewölkung maßgeblich, weil sie stündlich vorliegt.
 
 \subsection{Ladefaktoren}\label{sec:ladefaktoren}
 
@@ -635,7 +667,7 @@ weniger. Zwei Sonderfälle:
 \begin{itemize}
   \item \textbf{Trübe Vorschau:} Bei trüber Vorschau wird nicht mehr hart
     gestoppt, sondern der Teil des Folgetags, den die eigene PV laut
-    Sonnenprofil und Wolkenfaktor nicht deckt, in das Nachtbudget
+    Sonnenprofil und Ertragsprognose nicht deckt, in das Nachtbudget
     eingerechnet (Abschnitt~\ref{sec:nachtbudget}): Die Batterie speist
     nur ein, was das Haus auch an einem bedeckten Folgetag nicht
     braucht. Der frühere Trüb-Stopp bleibt als Rückfall für Anlagen ohne
