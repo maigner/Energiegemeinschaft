@@ -5,8 +5,10 @@
 # Die aeltere Hybrid-Generation (Symo Hybrid + Datamanager 2.0) hat die
 # GEN24-Config-API nicht - die Batterie-Actions des Fronius-Bindings
 # funktionieren dort nicht. Gesteuert wird stattdessen ueber Modbus TCP und
-# das SunSpec Basic Storage Control Model (124): Ladesperre ueber InWRte=0,
-# forcierte Entladung ueber negatives InWRte, jeweils relativ zu WChaMax.
+# das SunSpec Basic Storage Control Model (124): Ladesperre ueber InWRte=0
+# (StorCtl_Mod=1), forcierte Entladung ueber das Fenster InWRte=-x/OutWRte=x
+# (StorCtl_Mod=3), jeweils in Prozent von WChaMax (Fronius-Anleitung
+# 42,0410,2049, Beispiele 2 und 6).
 #
 # Voraussetzungen am Datamanager (Weboberflaeche -> Einstellungen -> Modbus):
 #   - "Wechselrichter-Steuerung ueber Modbus" aktivieren
@@ -41,9 +43,11 @@ INVERTER_ADAPTER_SCRIPT="inverters/fronius-snapinverter/adapter.js"
 # und Overview-Seiten durch das konfigurierte Item ersetzen.
 INVERTER_SOC_PLACEHOLDER="IBM_MB_SoC"
 
-# Keine Batterieleistungs-Karte: ob die Entlade-/Ladeleistung auf dieser
-# Generation per Modbus sauber lesbar ist (SunSpec Model 160), klaert der
-# Spike - bis dahin entfaellt die Karte (der Kontrakt ist optional).
+# Keine Batterieleistungs-Karte: laut Registerkarte fuehrt Model 160 auf
+# dem Symo Hybrid nur "String 1"/"String 2", die Batterieleistung ist per
+# Modbus nicht lesbar (nur ChaSt als Status). Nachruestbar waere sie ueber
+# P_Akku der Solar API (GetPowerFlowRealtimeData); bis dahin entfaellt die
+# Karte (der Kontrakt ist optional).
 
 # Thing mit der Netzwerkadresse (fuer Watchdog und Auto-Anlage: die
 # Modbus-TCP-Bridge) und deren Adress-Parameter
@@ -61,19 +65,27 @@ INVERTER_REDISCOVER_SCRIPT="inverters/fronius/rediscover.sh"
 INVERTER_NOTES="Am Datamanager (Weboberflaeche -> Einstellungen -> Modbus) muss 'Wechselrichter-Steuerung ueber Modbus' aktiviert sein, Modbus TCP Port 502, SunSpec Model Type 'int + SF'. Die Batterie kann im Energiesparmodus bis zu 10 Minuten brauchen, bis sie auf Entladebefehle reagiert."
 
 # --- Modbus-Registerkarte (int + SF) -----------------------------------------
-# Fronius dokumentiert Register 1-basiert (Model-124-ID = Register 40314);
-# das openHAB-Modbus-Binding erwartet 0-basierte Adressen -> 40313.
-# IM SPIKE VERIFIZIEREN - siehe README.md.
+# Startadresse des Basic Storage Control Model laut Fronius-Anleitung
+# "Datamanager Modbus TCP & RTU" (42,0410,2049, S. 47): 40303 bei int+SF,
+# 40313 bei float. Die Registerkarte (docs/registerkarten, Blatt IC124)
+# fuehrt die ID als Register 40304 (1-basiert); das openHAB-Modbus-Binding
+# adressiert 0-basiert -> 40303. IM SPIKE VERIFIZIEREN - siehe README.md.
+# Unit-ID = Wechselrichter-Nummer am Display des Hybrid (00 -> 100);
+# bei Master/Slave im Solar Net antwortet jeder Wechselrichter unter
+# seiner eigenen Nummer, Model 124 liefert nur der Hybrid.
 MODBUS_UNIT_ID="${MODBUS_UNIT_ID:-1}"
-MODBUS_M124_BASE="${MODBUS_M124_BASE:-40313}"
+MODBUS_M124_BASE="${MODBUS_M124_BASE:-40303}"
 
 # Skalierung des Ladestands: ChaState hat ueblicherweise ChaState_SF=-2
 # (Registerwert 5500 = 55,00 %) -> Gain 0.01. Im Spike verifizieren.
 MODBUS_SOC_GAIN="${MODBUS_SOC_GAIN:-0.01}"
 
 # Offsets innerhalb des Model 124 sind durch die SunSpec-Spezifikation fest:
-#   +0 ID, +1 L, +2 WChaMax, +5 StorCtl_Mod, +8 ChaState, +12 OutWRte,
-#   +13 InWRte, +15 InOutWRte_RvrtTms; Laenge des Blocks: 26 Register.
+#   +0 ID, +1 L, +2 WChaMax, +5 StorCtl_Mod, +8 ChaState, +11 ChaSt,
+#   +12 OutWRte, +13 InWRte, +15 InOutWRte_RvrtTms; Laenge: 26 Register.
+# Laut Registerkarte sind InOutWRte_WinTms/RvrtTms/RmpTms beim Datamanager
+# "Not supported" (nur lesbar) - RvrtTms wird deshalb nur gepollt, nicht
+# beschrieben; der Fail-Safe ist der zyklische Reset des Kerns (README).
 
 # Thing-Baum der automatischen Einrichtung: tcp-Bridge -> Poller ueber den
 # Model-124-Block -> Data-Things je Register. Reihenfolge = Anlegereihenfolge.
@@ -117,11 +129,12 @@ things = [
 registers = [
     ("modelid", 0,  "uint16", False),  # SunSpec-Model-ID, muss 124 sein
     ("wchamax", 2,  "uint16", False),  # Referenz fuer die Prozentwerte
-    ("storctl", 5,  "uint16", True),   # StorCtl_Mod (Bit 0: InWRte aktiv)
+    ("storctl", 5,  "uint16", True),   # StorCtl_Mod (Bit 0: InWRte, Bit 1: OutWRte aktiv)
     ("soc",     8,  "uint16", False),  # ChaState (Ladestand)
+    ("chast",   11, "uint16", False),  # ChaSt (Batteriestatus, Enum)
     ("outwrte", 12, "int16",  True),   # Entladelimit in % von WChaMax
     ("inwrte",  13, "int16",  True),   # Ladelimit; negativ = Entladung
-    ("rvrttms", 15, "uint16", True),   # Revert-Timeout in Sekunden
+    ("rvrttms", 15, "uint16", False),  # Revert-Timeout - laut Registerkarte nicht unterstuetzt
 ]
 for reg_id, offset, valuetype, writable in registers:
     cfg = {
@@ -155,9 +168,10 @@ Number ${SOC_ITEM} "Ladestand Batterie [%.0f %%]" <batterylevel> (IBM) { channel
 Number IBM_MB_ModelId "SunSpec Model-ID [%.0f]"          <settings> (IBM) { channel="modbus:data:ibm:p124:modelid:number" }
 Number IBM_MB_WChaMax "WChaMax (roh) [%.0f]"             <settings> (IBM) { channel="modbus:data:ibm:p124:wchamax:number" }
 Number IBM_MB_StorCtl "StorCtl_Mod [%.0f]"               <settings> (IBM) { channel="modbus:data:ibm:p124:storctl:number" }
+Number IBM_MB_ChaSt   "Batteriestatus (ChaSt) [%.0f]"    <settings> (IBM) { channel="modbus:data:ibm:p124:chast:number" }
 Number IBM_MB_OutWRte "OutWRte (roh) [%.0f]"             <settings> (IBM) { channel="modbus:data:ibm:p124:outwrte:number" }
 Number IBM_MB_InWRte  "InWRte (roh) [%.0f]"              <settings> (IBM) { channel="modbus:data:ibm:p124:inwrte:number" }
-Number IBM_MB_RvrtTms "Revert-Timeout [%.0f s]"          <time>     (IBM) { channel="modbus:data:ibm:p124:rvrttms:number" }
+Number IBM_MB_RvrtTms "Revert-Timeout (nur lesend) [%.0f s]" <time> (IBM) { channel="modbus:data:ibm:p124:rvrttms:number" }
 EOF
 }
 

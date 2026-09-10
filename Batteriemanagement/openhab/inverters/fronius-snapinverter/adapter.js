@@ -10,17 +10,30 @@
 //
 //   IBM_MB_ModelId   SunSpec-Model-ID an der Basisadresse (muss 124 sein)
 //   IBM_MB_WChaMax   Referenzleistung fuer die Prozentwerte (roh)
-//   IBM_MB_StorCtl   StorCtl_Mod-Bitfeld (Bit 0: InWRte aktiv)
+//   IBM_MB_StorCtl   StorCtl_Mod-Bitfeld (Bit 0: InWRte aktiv, Bit 1: OutWRte aktiv)
 //   IBM_MB_InWRte    Ladelimit in % von WChaMax (roh, negativ = Entladung)
-//   IBM_MB_OutWRte   Entladelimit in % von WChaMax (roh)
-//   IBM_MB_RvrtTms   Revert-Timeout in Sekunden
+//   IBM_MB_OutWRte   Entladelimit in % von WChaMax (roh, negativ = Ladung)
+//   IBM_MB_RvrtTms   Revert-Timeout in Sekunden (nur lesend, siehe unten)
+//
+// Fronius-Semantik (Anleitung "Datamanager Modbus TCP & RTU", 42,0410,2049,
+// S. 45-47): InWRte und OutWRte spannen ein Leistungsfenster auf, negative
+// Werte = Ladung, positive = Entladung, jeweils in % von WChaMax. Die
+// Beispiele dort sind die Vorlage der Kommandos:
+//   Beispiel 2 "nur Entladen erlauben" = Ladesperre: InWRte=0, StorCtl_Mod=1
+//   Beispiel 6 "Entladen mit x %"      = forcierte Entladung:
+//                                        InWRte=-x, OutWRte=x, StorCtl_Mod=3
+// Alle Vorgaben sind Empfehlungen; der Wechselrichter darf aus Gruenden
+// der Betriebssicherheit abweichen.
 //
 // Fail-Safe: Modbus-Writes bleiben stehen, wenn openHAB ausfaellt - anders
-// als die selbst ablaufenden GEN24-Schedules. Deshalb wird vor jedem
-// Steuer-Write das Revert-Timeout (InOutWRte_RvrtTms) auf Fensterlaenge
-// plus eine Minute gesetzt: der Wechselrichter kehrt dann von allein zum
-// Werksverhalten zurueck. Ob das Geraet den Timeout unterstuetzt, prueft
-// der Spike (M124_HAS_RVRTTMS, siehe README.md des Profils).
+// als die selbst ablaufenden GEN24-Schedules. SunSpec saehe dafuer
+// InOutWRte_RvrtTms vor, aber die Fronius-Registerkarte (docs/
+// registerkarten, Blatt IC124) fuehrt das Register als "Not supported" und
+// nur lesbar. M124_HAS_RVRTTMS steht deshalb auf false; der Fail-Safe ist
+// der zyklische Reset des Kerns (Restrisiko siehe README, Fail-Safe-
+// Analyse). Sollte der Spike (Punkt 7) wider Erwarten ein wirksames
+// Revert-Timeout nachweisen, M124_HAS_RVRTTMS auf true setzen und das
+// Register im Profil wieder beschreibbar machen.
 //
 // Sicherung gegen das falsche Geraet (z. B. den Nicht-Hybrid-Slave einer
 // Master/Slave-Anlage): geschrieben wird nur, wenn die Model-ID 124 lautet
@@ -35,7 +48,8 @@
 // --- Geraetekonstanten - IM SPIKE VERIFIZIEREN (README.md des Profils) ------
 
 // Unterstuetzt das Geraet InOutWRte_RvrtTms (automatisches Zuruecksetzen)?
-var M124_HAS_RVRTTMS = true;
+// Laut Registerkarte 1.1.5-1 nein ("Not supported", R) - Spike-Punkt 7.
+var M124_HAS_RVRTTMS = false;
 
 // Registereinheiten je Prozent fuer InWRte/OutWRte (InOutWRte_SF = -2 -> 100)
 var M124_WRTE_RAW_PER_PCT = 100;
@@ -43,8 +57,10 @@ var M124_WRTE_RAW_PER_PCT = 100;
 // Watt je Registereinheit fuer WChaMax (WChaMax_SF = 0 -> 1)
 var M124_WCHAMAX_W_PER_UNIT = 1;
 
-// StorCtl_Mod-Bit, das die Ladelimit-Steuerung (InWRte) aktiviert
+// StorCtl_Mod-Bits: Bit 0 aktiviert das Ladelimit (InWRte), Bit 1 das
+// Entladelimit (OutWRte) - Anleitung S. 46, Bit-Muster 01 / 10 / 11.
 var M124_STORCTL_CHARGE_BIT = 1;
+var M124_STORCTL_DISCHARGE_BIT = 2;
 
 // Plausibilitaetsfenster fuer WChaMax in Watt
 var M124_WCHAMAX_MIN_W = 500;
@@ -118,6 +134,8 @@ function ibmReset() {
 }
 
 function ibmPreventCharge(minutes) {
+  // Beispiel 2 der Anleitung: Ladelimit 0 %, nur Bit 0 aktiv -> Fenster
+  // [0, +WChaMax], Entladung fuer den Haushalt bleibt erlaubt.
   if (__ibmMbGuard() === null) return { ok: false };
   __ibmMbArmRevert(minutes);
   var ok = __ibmMbSend('IBM_MB_InWRte', 0);
@@ -154,10 +172,15 @@ function ibmForceDischarge(watts, minutes) {
   if (pct > 100) pct = 100;
 
   __ibmMbArmRevert(minutes);
-  // Negatives Ladelimit = forcierte Entladung (Fronius-Auslegung von
-  // SunSpec 124); das Bit in StorCtl_Mod aktiviert die InWRte-Steuerung.
-  var ok = __ibmMbSend('IBM_MB_InWRte', -(pct * M124_WRTE_RAW_PER_PCT));
-  ok = __ibmMbSend('IBM_MB_StorCtl', M124_STORCTL_CHARGE_BIT) && ok;
+  // Beispiel 6 der Anleitung ("Entladen mit x % der nominalen Leistung"):
+  // Ladelimit -x % und Entladelimit +x % ergeben das feste Fenster
+  // [-x, -x] = Entladung mit genau x % von WChaMax; dafuer muessen BEIDE
+  // Limits aktiv sein (StorCtl_Mod = 3). Reihenfolge: erst die Limits,
+  // dann das Bitfeld, damit kein Zwischenzustand mit alten Limits wirkt.
+  var raw = pct * M124_WRTE_RAW_PER_PCT;
+  var ok = __ibmMbSend('IBM_MB_InWRte', -raw);
+  ok = __ibmMbSend('IBM_MB_OutWRte', raw) && ok;
+  ok = __ibmMbSend('IBM_MB_StorCtl', M124_STORCTL_CHARGE_BIT | M124_STORCTL_DISCHARGE_BIT) && ok;
 
   return { ok: ok, appliedW: Math.round(maxW * pct / 100) };
 }
