@@ -65,6 +65,9 @@ if [ "$INSTALL_WATCHDOG" = "1" ]; then
       "http://127.0.0.1:8080/rest/things/$INVERTER_HOST_THING_UID/status" || true)"
     if printf '%s' "$status_json" | grep -q '"status"'; then
       log "Watchdog-Bridge $INVERTER_HOST_THING_UID: $(printf '%s' "$status_json" | grep -o '"status"[[:space:]]*:[[:space:]]*"[A-Z]*"' | head -n1 | sed -e 's/.*"\([A-Z]*\)"/\1/')"
+      watch_json="$(curl -s -m 10 -H "Authorization: Bearer $OH_API_TOKEN" \
+        "http://127.0.0.1:8080/rest/things/$INVERTER_THING_UID/status" || true)"
+      log "Watchdog-Verbindungsthing $INVERTER_THING_UID: $(printf '%s' "$watch_json" | grep -o '"status"[[:space:]]*:[[:space:]]*"[A-Z]*"' | head -n1 | sed -e 's/.*"\([A-Z]*\)"/\1/')"
     else
       fail "Bridge-Status per REST nicht abrufbar - Token oder Thing-UID pruefen."
     fi

@@ -412,9 +412,12 @@ rules.JSRule({
 EOF
 
 # --- Netzwerk-Watchdog ------------------------------------------------------
-# Ueberwacht das Thing mit der Netzwerkadresse (bei Fronius die Bridge) und
-# startet bei OFFLINE die Netzwerksuche aus dem Wechselrichter-Profil, die
-# eine per DHCP geaenderte IP findet und per REST API in das Thing eintraegt.
+# Startet bei OFFLINE die Netzwerksuche aus dem Wechselrichter-Profil, die
+# eine per DHCP geaenderte IP findet und per REST API in das Thing mit der
+# Netzwerkadresse (bei Modbus die tcp-Bridge) eintraegt. Ob die Verbindung
+# steht, wird am Wechselrichter-Thing (INVERTER_THING_UID) abgelesen: die
+# Modbus-Bridge bleibt auch bei "Connection refused" ONLINE, nur Poller und
+# Daten-Things gehen OFFLINE (pi-020, 2026-09-11).
 install_watchdog() {
   local src="$IBM_SCRIPT_DIR/$INVERTER_REDISCOVER_SCRIPT"
   local state_dir="$OPENHAB_USERDATA/ibm"
@@ -449,6 +452,7 @@ install_watchdog() {
   log "API-Token abgelegt: $token_file"
 
   sed -e "s|@IBM_HOST_THING_UID@|$(sed_escape "$INVERTER_HOST_THING_UID")|g" \
+      -e "s|@IBM_WATCH_THING_UID@|$(sed_escape "$INVERTER_THING_UID")|g" \
       -e "s|@IBM_HOST_PARAM@|$(sed_escape "$INVERTER_HOST_PARAM")|g" \
       -e "s|@IBM_TOKEN_FILE@|$(sed_escape "$token_file")|g" \
       -e "s|@IBM_STATE_DIR@|$(sed_escape "$state_dir")|g" \
@@ -468,6 +472,7 @@ rules.JSRule({
   description: 'Findet den Wechselrichter nach einem IP-Wechsel im Netz wieder',
   tags: ['IBM'],
   triggers: [
+    triggers.ThingStatusChangeTrigger('${INVERTER_THING_UID}', 'OFFLINE'),
     triggers.ThingStatusChangeTrigger('${INVERTER_HOST_THING_UID}', 'OFFLINE'),
     triggers.GenericCronTrigger('${CRON_WATCHDOG}')
   ],

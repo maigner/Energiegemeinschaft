@@ -20,7 +20,8 @@
 # ============================================================================
 set -u
 
-THING_UID="@IBM_HOST_THING_UID@"
+THING_UID="@IBM_HOST_THING_UID@"        # traegt die Adresse (bei Modbus die tcp-Bridge)
+WATCH_THING_UID="@IBM_WATCH_THING_UID@" # zeigt die Verbindung an (bei Modbus ein Daten-Thing)
 HOST_PARAM="@IBM_HOST_PARAM@"
 TOKEN_FILE="@IBM_TOKEN_FILE@"
 STATE_DIR="@IBM_STATE_DIR@"
@@ -33,6 +34,14 @@ FORCE=0
 [ "${1:-}" = "--force" ] && FORCE=1
 
 serial_file="$STATE_DIR/inverter_serial"
+
+# Die Modbus-tcp-Bridge meldet ONLINE, sobald sie konfiguriert ist - auch wenn
+# niemand auf der Adresse antwortet (pi-020, 2026-09-11: 11 Stunden
+# "Connection refused" bei ONLINE-Bridge). OFFLINE gehen nur Poller und
+# Daten-Things. Deshalb den Status am Wechselrichter-Thing ablesen und nur
+# die Adresse aus dem Bridge-Thing nehmen. Aeltere Installationen ohne den
+# Platzhalter fallen auf das Bridge-Thing zurueck.
+case "$WATCH_THING_UID" in ""|@*) WATCH_THING_UID="$THING_UID" ;; esac
 
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
@@ -79,19 +88,28 @@ remember_serials() {
 }
 
 # --- Thing-Status und aktuelle Adresse abfragen -----------------------------
-response="$(auth_curl -w '\n%{http_code}' "$REST/things/$THING_UID")"
-http_code="${response##*$'\n'}"
-thing_json="${response%$'\n'*}"
-case "$http_code" in
-  200) ;;
-  401|403) log "FEHLER: API-Token wird abgelehnt (HTTP $http_code) - neues Token eintragen."; exit 1 ;;
-  404) log "FEHLER: Thing nicht gefunden: $THING_UID"; exit 1 ;;
-  *)   log "FEHLER: openHAB REST API nicht erreichbar (HTTP $http_code)."; exit 1 ;;
-esac
+fetch_thing() {
+  local uid="$1" response http_code
+  response="$(auth_curl -w '\n%{http_code}' "$REST/things/$uid")"
+  http_code="${response##*$'\n'}"
+  case "$http_code" in
+    200) printf '%s' "${response%$'\n'*}" ;;
+    401|403) log "FEHLER: API-Token wird abgelehnt (HTTP $http_code) - neues Token eintragen."; exit 1 ;;
+    404) log "FEHLER: Thing nicht gefunden: $uid"; exit 1 ;;
+    *)   log "FEHLER: openHAB REST API nicht erreichbar (HTTP $http_code)."; exit 1 ;;
+  esac
+}
 
-status="$(json_str "$thing_json" status)"
-detail="$(json_str "$thing_json" statusDetail)"
-current_host="$(json_str "$thing_json" "$HOST_PARAM")"
+host_json="$(fetch_thing "$THING_UID")"
+if [ "$WATCH_THING_UID" = "$THING_UID" ]; then
+  watch_json="$host_json"
+else
+  watch_json="$(fetch_thing "$WATCH_THING_UID")"
+fi
+
+status="$(json_str "$watch_json" status)"
+detail="$(json_str "$watch_json" statusDetail)"
+current_host="$(json_str "$host_json" "$HOST_PARAM")"
 
 # --- Normalbetrieb: nichts tun, nebenbei die Seriennummern aktuell halten ---
 if [ "$status" = "ONLINE" ] && [ "$FORCE" -ne 1 ]; then
@@ -99,7 +117,7 @@ if [ "$status" = "ONLINE" ] && [ "$FORCE" -ne 1 ]; then
   exit 0
 fi
 
-log "Thing $THING_UID ist $status ($detail), konfigurierte Adresse: ${current_host:-unbekannt}."
+log "Thing $WATCH_THING_UID ist $status ($detail), konfigurierte Adresse in $THING_UID: ${current_host:-unbekannt}."
 
 # Antwortet die konfigurierte Adresse noch, liegt es nicht an der IP -
 # dann bringt eine Netzwerksuche nichts (z. B. Credentials, Nachtmodus).
@@ -197,6 +215,6 @@ fi
 remember_serials "$found_serials"
 log "Thing-Konfiguration aktualisiert - das Binding initialisiert sich neu."
 
-sleep 15
-verify="$(auth_curl "$REST/things/$THING_UID/status" || true)"
-log "Thing-Status nach dem Update: $(json_str "$verify" status || echo unbekannt)"
+sleep 20
+verify="$(auth_curl "$REST/things/$WATCH_THING_UID/status" || true)"
+log "Status von $WATCH_THING_UID nach dem Update: $(json_str "$verify" status || echo unbekannt)"

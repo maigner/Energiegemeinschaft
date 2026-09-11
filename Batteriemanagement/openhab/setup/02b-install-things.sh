@@ -17,7 +17,11 @@
 # ibm.conf ein - dazu muss der Admin-Benutzer in der Main UI bereits
 # angelegt sein (der einzige verbleibende UI-Schritt).
 #
-# Idempotent: existierende Things werden nicht angetastet.
+# Idempotent: existierende Things werden nicht neu angelegt; die Konfiguration
+# der Kind-Things (Poller, Daten-Things) wird aber mit dem Manifest abgeglichen,
+# damit ein neues Paket Registeradressen und Wertetypen nachziehen kann. Die
+# Adresse der Bridge pflegt der Watchdog, die Zugangsdaten
+# update_bridge_credentials - beides bleibt hier unangetastet.
 # ============================================================================
 set -euo pipefail
 
@@ -292,6 +296,63 @@ while IFS=$'\t' read -r uid payload; do
 done < <(printf '%s' "$things_manifest" | things_manifest_lines)
 
 [ -n "$INVERTER_PASSWORD" ] && update_bridge_credentials
+
+# --- 4b. Bestehende Kind-Things mit dem Manifest abgleichen -----------------
+# Aendert ein neues Paket die Konfiguration eines Things (Registeradresse,
+# Wertetyp - z. B. writeValueType uint16 -> int16, das das Modbus-Binding
+# ablehnt und das Thing UNINITIALIZED laesst), bekommt ein bestehendes Thing
+# nur die abweichenden Schluessel per PUT. Things, die die Netzwerkadresse
+# tragen, bleiben aussen vor (die pflegt der Watchdog).
+reconcile_thing() {
+  local uid="$1" payload="$2" current diff code
+  current="$(auth_curl -m 10 "$REST/things/$uid" || true)"
+  diff="$(IBM_R_PAYLOAD="$payload" IBM_R_CURRENT="$current" \
+          IBM_R_HOST_PARAM="${INVERTER_HOST_PARAM:-}" python3 -c '
+import json, os, sys
+try:
+    want = json.loads(os.environ["IBM_R_PAYLOAD"]).get("configuration") or {}
+    have = json.loads(os.environ["IBM_R_CURRENT"]).get("configuration") or {}
+except Exception:
+    sys.exit(0)
+host_param = os.environ.get("IBM_R_HOST_PARAM")
+if host_param and host_param in want:
+    sys.exit(0)
+def norm(v):
+    return str(v).lower() if isinstance(v, bool) else str(v)
+diff = {k: v for k, v in want.items() if k not in have or norm(have[k]) != norm(v)}
+if diff:
+    print(json.dumps(diff))
+')"
+  [ -n "$diff" ] || return 0
+  code="$(auth_curl -o /dev/null -w '%{http_code}' -m 10 -X PUT -H 'Content-Type: application/json' \
+            -d "$diff" "$REST/things/$uid/config" || true)"
+  if [ "$code" = "200" ]; then
+    log "Thing-Konfiguration nachgezogen: $uid -> $diff"
+  else
+    warn "Thing-Konfiguration konnte nicht nachgezogen werden (HTTP $code): $uid"
+  fi
+}
+while IFS=$'\t' read -r uid payload; do
+  [ -n "$uid" ] || continue
+  reconcile_thing "$uid" "$payload"
+done < <(printf '%s' "$things_manifest" | things_manifest_lines)
+
+# Hat der Watchdog die Adresse im Bridge-Thing geaendert (DHCP), ibm.conf
+# nachziehen - sonst startet eine Neuinstallation mit der alten Adresse.
+if [ -n "$INVERTER_HOST_THING_PREFIX" ] && [ -n "$INVERTER_HOST_PARAM" ]; then
+  live_host="$(auth_curl -m 10 "$REST/things/${INVERTER_HOST_THING_PREFIX}:ibm" \
+    | IBM_J_HOST_PARAM="$INVERTER_HOST_PARAM" python3 -c '
+import json, os, sys
+try:
+    print(json.load(sys.stdin).get("configuration", {}).get(os.environ["IBM_J_HOST_PARAM"]) or "")
+except Exception:
+    pass' || true)"
+  if [ -n "$live_host" ] && [ "$live_host" != "$INVERTER_HOST" ]; then
+    log "Adresse im Bridge-Thing ($live_host) weicht von ibm.conf ($INVERTER_HOST) ab - ibm.conf nachgezogen."
+    conf_set INVERTER_HOST "$live_host"
+    INVERTER_HOST="$live_host"
+  fi
+fi
 
 # --- 5. Auf ONLINE warten -----------------------------------------------------
 log "Warte, bis der Wechselrichter ONLINE meldet ..."
