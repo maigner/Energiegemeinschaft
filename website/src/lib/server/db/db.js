@@ -32,6 +32,16 @@ export const middlewareDbPool = new Pool({
 });
 
 
+// Ohne Handler beendet ein 'error'-Event auf dem Pool den ganzen Node-Prozess.
+// Das passiert z.B. wenn Postgres eine idle Verbindung schliesst
+// ("terminating connection due to administrator command" bei einem
+// Postgres-Neustart durch unattended-upgrades). Mit Handler wird der Client
+// aus dem Pool entfernt und die naechste Query verbindet neu.
+const logPoolError = (name) => (err) => {
+    console.error(`pg pool ${name}: idle client error: ${err.message}`);
+};
+authDbPool.on('error', logPoolError('authjs'));
+middlewareDbPool.on('error', logPoolError('middleware'));
 
 const originalMiddlewareDbPoolQuery = middlewareDbPool.query.bind(middlewareDbPool);
 
