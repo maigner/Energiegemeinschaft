@@ -708,7 +708,7 @@ Inhalt in der Code-Ansicht einfuegen.
 | `ibm_status_push.js` (optional) | `../eeg-api/status_push.js` | jede Minute (voller Zustand alle 5 Minuten) |
 | `ibm_init.js` | generiert | alle 10 Minuten |
 | `ibm_pause.js` | generiert | taeglich 00:30 |
-| `ibm_watchdog.js` (optional) | generiert | bei Bridge-OFFLINE + alle 15 Minuten |
+| `ibm_watchdog.js` (optional) | generiert | bei OFFLINE des Wechselrichter-Things (bei Modbus geht nur das OFFLINE, die Bridge nie) + alle 15 Minuten |
 
 ## Status-Push (Vorstands-Dashboard)
 

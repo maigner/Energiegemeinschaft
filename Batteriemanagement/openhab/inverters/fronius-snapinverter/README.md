@@ -211,10 +211,35 @@ Protokoll in `~/spike_datamanager.log` auf pi-020.
 - Aufwachlatenz aus dem Energiesparmodus (Punkt 10) mit stehender
   Batterie messen.
 - Ende-zu-Ende ueber openHAB (Hauptschalter ON, Modbus-Binding schreibt
-  statt Spike-Skript); dabei klaeren, warum `IBM_MB_StorCtl` nach der
-  Einrichtung `NULL` war.
+  statt Spike-Skript). Der `NULL`-Wert von `IBM_MB_StorCtl` ist geklaert,
+  siehe Nachtrag 2026-09-11.
 - Installer/Poller: `IBM_MB_ModelId != 124` als Fehler melden (siehe
   "Lehre" unten).
+
+#### Nachtrag 2026-09-11: IP-Wechsel und StorCtl-Thing
+
+In der Nacht hat der Router die DHCP-Adressen neu verteilt (Hybrid
+192.168.68.83 -> .70, Symo 5.0-3-M .81 -> .69, auf .83 sitzt seither ein
+Shelly). Ab 03:00 stand der Poller auf COMMUNICATION_ERROR, die Items froren
+bei 36,4 % ein - und der Netzwerk-Watchdog griff nicht, weil er den Status
+der **tcp-Bridge** las, die beim Modbus-Binding auch bei "Connection
+refused" ONLINE bleibt. `ibm_rediscover.sh --force` fand den Hybrid ueber
+die gemerkte Seriennummer 557330 sofort. Seitdem liest der Watchdog den
+Status am Wechselrichter-Thing (`INVERTER_THING_UID`), und der
+Thing-Installer zieht beim naechsten Paket `INVERTER_HOST` in `ibm.conf`
+aus dem Bridge-Thing nach. Dauerhaft hilft eine DHCP-Reservierung fuer den
+Hybrid (MAC cc:f9:57:1c:f0:2d) im Router.
+
+Beim Nachsehen fiel der zweite Fehler auf: das Daten-Thing
+`modbus:data:ibm:p124:storctl` war seit der Einrichtung UNINITIALIZED,
+weil `writeValueType = uint16` im Modbus-Binding (openHAB 5.2.1) nicht
+erlaubt ist - "int16" deckt beide Faelle ab. Damit haette der Adapter
+`StorCtl_Mod` ueber openHAB nie schreiben koennen; Ladesperre und
+Entladung waeren Ende-zu-Ende gescheitert. Die Profile
+fronius-snapinverter, sigenergy, deye und victron schreiben jetzt
+`int16` fuer beschreibbare uint16-Register, und der Thing-Installer
+gleicht bestehende Kind-Things mit dem Manifest ab (pi-020 wurde am
+2026-09-11 per REST vorab korrigiert, Thing ONLINE, `IBM_MB_StorCtl = 0`).
 
 #### Befunde im Einzelnen
 
