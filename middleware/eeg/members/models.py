@@ -2,6 +2,21 @@ from django.db import models
 
 # Create your models here.
 
+class TransformerStation(models.Model):
+    """Ortsnetz-Trafostation (Netz OOe), z. B. "ASCHAU SUED 00270": die
+    Kennung ist die fuehrende-Nullen-behaftete Nummer ("00270"), der Name
+    der Ortsteil ("ASCHAU SUED"). Ein Mitglied haengt ueber
+    Member.transformer_station an genau einer Station."""
+    identifier = models.CharField(max_length=10, unique=True)
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ["identifier"]
+
+    def __str__(self):
+        return f"{self.name} {self.identifier}"
+
+
 class Member(models.Model):
     identifier = models.IntegerField(unique=True)
     email = models.EmailField(unique=False)
@@ -16,6 +31,11 @@ class Member(models.Model):
     latitude = models.FloatField(null=True)
     longitude = models.FloatField(null=True)
     member_since = models.DateField(null=True)
+    # Trafostation, an der der Netzanschluss haengt (null = unbekannt)
+    transformer_station = models.ForeignKey(
+        TransformerStation, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="members",
+    )
     def __str__(self):
         return f"{self.identifier}: {self.email}"
     

@@ -12,6 +12,7 @@ from .models import MembershipApplication
 from .models import MemberTombstone
 from .models import MemberDataAccessLog
 from .models import Consent
+from .models import TransformerStation
 
 admin.site.register(Member)
 admin.site.register(MeasurementPoint)
@@ -22,3 +23,4 @@ admin.site.register(MembershipApplication)
 admin.site.register(MemberTombstone)
 admin.site.register(MemberDataAccessLog)
 admin.site.register(Consent)
+admin.site.register(TransformerStation)
