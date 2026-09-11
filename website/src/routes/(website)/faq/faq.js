@@ -2,8 +2,12 @@
 // rendert Sprungleiste, Sektionen und Accordions generisch aus diesem
 // Katalog und erzeugt daraus auch das FAQPage-JSON-LD fuer Suchmaschinen.
 
+import { CURRENT, fmtCt } from "$lib/tariffs";
+
 const STATUTEN_URL =
     "/statuten-ischlstrom.pdf";
+const FEED_IN = `${fmtCt(CURRENT.eeg.feedInCt)} Cent/kWh`;
+const PURCHASE = `${fmtCt(CURRENT.eeg.purchaseCt)} Cent/kWh`;
 
 /**
  * @param {{progressPercent: number} | null} batteryGoal - Fortschritt zum
@@ -41,11 +45,11 @@ export const getFaqCategories = (batteryGoal) => [
         questions: [
             {
                 question: "Wie hoch ist der aktuelle Einspeisetarif?",
-                answer: "9,5 Cent/kWh (seit 1.1.2026) bekommt, wer Sonnenstrom in die Gemeinschaft einspeist.",
+                answer: `${FEED_IN} (seit 1.1.2026) bekommt, wer Sonnenstrom in die Gemeinschaft einspeist.`,
             },
             {
                 question: "Wie hoch ist der aktuelle Bezugstarif?",
-                answer: "10 Cent/kWh (seit 1.1.2026) zahlt, wer Sonnenstrom aus der Gemeinschaft bezieht.",
+                answer: `${PURCHASE} (seit 1.1.2026) zahlt, wer Sonnenstrom aus der Gemeinschaft bezieht.`,
             },
             {
                 question: "Wie hoch ist der Mitgliedsbeitrag?",
@@ -84,7 +88,7 @@ export const getFaqCategories = (batteryGoal) => [
             },
             {
                 question: "Bekomme ich etwas dafür?",
-                answer: "Ja. Für Strom, den Ihre Batterie am Abend und in der Nacht einspeist, bekommen Sie 9,5 Cent pro kWh, deutlich mehr als die übliche Einspeisevergütung untertags.",
+                answer: `Ja. Für Strom, den Ihre Batterie am Abend und in der Nacht einspeist, bekommen Sie ${fmtCt(CURRENT.eeg.feedInCt)} Cent pro kWh, deutlich mehr als die übliche Einspeisevergütung untertags.`,
             },
             {
                 question: "Bleibt genug Strom für meinen Haushalt?",

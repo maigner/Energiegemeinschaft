@@ -1,5 +1,6 @@
 <script>
     import Fab from "$lib/Fab.svelte";
+    import { CURRENT, fmtCt } from "$lib/tariffs";
     import {
         Blockquote,
         Heading,
@@ -333,7 +334,7 @@
         <List class="mb-4 ml-4 space-y-2">
             <Li>
                 Für den Strom, den Ihre Batterie am Abend und in der Nacht
-                einspeist, bekommen Sie <strong>9,5 Cent pro kWh</strong>,
+                einspeist, bekommen Sie <strong>{fmtCt(CURRENT.eeg.feedInCt)} Cent pro kWh</strong>,
                 deutlich mehr als die übliche Einspeisevergütung untertags.
             </Li>
             <Li>
