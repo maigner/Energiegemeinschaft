@@ -55,7 +55,9 @@ kein Fehler.
 Die Adressen in `profile.sh` und die Konstanten in `adapter.js` folgen der
 offiziellen Fronius-Registerkarte 1.1.5-1 (int + SF) und der Modbus-
 Anleitung 42,0410,2049 (beides in `docs/`, Desk-Check 2026-09-10 siehe
-unten), sind aber noch **nicht am Geraet verifiziert**.
+unten) und sind seit dem **Spike am 2026-09-10 an der Anlage Pfandl
+(pi-020) am Geraet bestaetigt** - Ergebnis und offene Punkte unter
+"Spike-Ergebnis" weiter unten.
 
 Werkzeug: `tools/spike_datamanager.py` arbeitet die Punkte 1-10 direkt
 gegen den Datamanager ab (nur Standardbibliothek, laeuft am Laptop wie am
@@ -140,8 +142,8 @@ wird); bei Bedarf ueber manuals.fronius.com nachschlagen.
 
 Abgleich von `profile.sh`/`adapter.js` mit der Modbus-Anleitung v033 und
 der Registerkarte 1.1.5-1. Die drei Abweichungen sind **in Profil,
-Adapter und Simulator uebernommen**, aber noch nicht am Geraet
-verifiziert - der Spike bestaetigt sie:
+Adapter und Simulator uebernommen** und seit dem Spike am 2026-09-10 am
+Geraet bestaetigt:
 
 - **Basisadresse.** Modbus-Anleitung S. 47: Startadresse des Basic Storage
   Control Registers ist **40303 bei int+SF**, 40313 bei float. Das Profil
@@ -153,13 +155,13 @@ verifiziert - der Spike bestaetigt sie:
   und `InOutWRte_RmpTms`. `M124_HAS_RVRTTMS` steht jetzt auf `false`, das
   Register wird im Profil nur noch gelesen; der Fail-Safe ist der
   zyklische Reset durch den Kern (Restrisiko siehe Fail-Safe-Analyse).
-  Spike-Punkt 7 kann das nur noch widerlegen.
+  Spike-Punkt 7 hat es bestaetigt (Write wird geschluckt, nicht gehalten).
 - **Forcierte Entladung mit beiden Bits.** Beispiel 6 der Modbus-Anleitung
   (S. 46-47, "Entladen mit 50 % der nominalen Leistung"): `InWRte = -50 %`,
   `OutWRte = 50 %`, `StorCtl_Mod = 3`. `ibmForceDischarge` schreibt jetzt
   genau dieses Fenster (vorher nur negatives `InWRte` mit Bit 0); die
   Ladesperre entsprach schon Beispiel 2 (`InWRte = 0`, `StorCtl_Mod = 1`).
-  Spike-Punkt 6 misst beide Varianten.
+  Spike-Punkt 6 hat beide Varianten gemessen: beide wirken (1000 W -> 1032 W).
 - **Skalierungen passen zur Registerkarte:** `WchaMax_SF = 0`
   (`M124_WCHAMAX_W_PER_UNIT = 1`), `InOutWRte_SF = -2`
   (`M124_WRTE_RAW_PER_PCT = 100`), `ChaState_SF = -2`
@@ -170,7 +172,8 @@ verifiziert - der Spike bestaetigt sie:
   ID 100. Bei Master/Slave im Solar Net antwortet also jeder Wechselrichter
   unter seiner eigenen ID ueber denselben Datamanager; Model 124 liefert
   nur der Hybrid (`WChaMax = 0` ohne Speicher, S. 45). `MODBUS_UNIT_ID = 1`
-  ist eine Annahme - Spike-Punkt 9.
+  ist durch Spike-Punkt 9 bestaetigt (an der Anlage Pfandl haengt der
+  zweite Wechselrichter an einem eigenen Datamanager).
 - **Antwortzeiten:** bei mehreren Geraeten im Solar Net Ring empfiehlt
   Fronius ein Timeout von mindestens 10 s und nur sequenzielle Abfragen
   (S. 15) - beim Bridge-Thing und im Spike-Skript beruecksichtigen.
@@ -185,34 +188,155 @@ verifiziert - der Spike bestaetigt sie:
   ueber den letzten SoC gesetzt wird (S. 47) - moeglicher Hebel gegen die
   Aufwachlatenz aus Spike-Punkt 10.
 
-### Registertabelle (im Spike ausfuellen)
+Stand 2026-09-10 (Anlage Pfandl): Punkte 1, 2, 3, 4, 6, 7, 8 und 9
+bestanden; Punkt 5 nur zur Haelfte (Write angenommen, Entladung lief
+weiter - die Wirkung auf das PV-Laden ist erst bei Sonne messbar); Punkt
+10 offen (Batterie war nie im Standby). Details im Spike-Ergebnis.
 
-Erwartungen aus der Registerkarte 1.1.5-1 (int + SF), Adressen 0-basiert:
+### Spike-Ergebnis (Anlage Pfandl / pi-020, 2026-09-10)
+
+**Kurzfassung:** Profil und Adapter passen zum Geraet, es war keine
+Aenderung an `profile.sh` oder `adapter.js` noetig. Einzige Ueberraschung
+war der Datamanager selbst, der auf float stand (Voraussetzung 3). Alle
+Skalierungen, die Basisadresse 40303, Unit-ID 1, Ladesperre nach Beispiel
+2 und forcierte Entladung nach Beispiel 6 sind verifiziert; `InOutWRte_RvrtTms`
+wirkt nicht, ein stehender Befehl ueberlebt den Ausfall des Masters
+(10 min gemessen). Werkzeug war `tools/spike_datamanager.py` vom Pi aus,
+Protokoll in `~/spike_datamanager.log` auf pi-020.
+
+**Noch offen:**
+
+- `prevent` bei Sonne wiederholen: stoppt die Sperre das PV-Laden
+  (`P_Akku` darf nicht negativ werden)?
+- Aufwachlatenz aus dem Energiesparmodus (Punkt 10) mit stehender
+  Batterie messen.
+- Ende-zu-Ende ueber openHAB (Hauptschalter ON, Modbus-Binding schreibt
+  statt Spike-Skript); dabei klaeren, warum `IBM_MB_StorCtl` nach der
+  Einrichtung `NULL` war.
+- Installer/Poller: `IBM_MB_ModelId != 124` als Fehler melden (siehe
+  "Lehre" unten).
+
+#### Befunde im Einzelnen
+
+**Schritt 1 (`chain`):**
+
+Ziel 192.168.68.83 (Symo Hybrid 5.0-3-S, SN 28461000860250001, integrierter
+Datamanager, Speicher BYD Battery-Box HV 11,52 kWh). Der zweite Fronius im
+LAN (192.168.68.81, Symo 5.0-3-M mit Datamanager-Steckkarte) ist ein
+eigener Solar-Net-Ring ohne Speicher und mit geschlossenem Modbus-Port -
+fuer die Steuerung ohne Belang.
+
+Erster Lauf: Datamanager stand auf **float** (Model 113 an 40069, Model 124
+an 40313); das Profil las mit Basis 40303 in den Schwanz von Model 160
+(ModelId 47900, SoC 655.35 in den Items). Nach Umstellung auf "int + SF"
+(Voraussetzung 3 oben) zweiter Lauf, SunSpec-Kette ab 40000 ("SunS"),
+Adressen 0-basiert:
+
+| Model | L | Adresse | Bemerkung |
+| --- | --- | --- | --- |
+| 1 | 65 | 40002 | Fronius, Symo Hybrid 5.0-3-S, Geraeteadresse 1 |
+| 103 | 50 | 40069 | int+SF-Inverter-Model |
+| 120 | 26 | 40121 | |
+| 121 | 30 | 40149 | |
+| 122 | 44 | 40181 | |
+| 123 | 24 | 40227 | |
+| 160 | 48 | 40253 | 2 Module 'String 1'/'String 2', keine Batterie (Punkt 8 bestaetigt) |
+| 124 | 24 | **40303** | wie `profile.sh` |
+
+**Schritte 2/3/4/9 (`units reads`, 19:53):** Unit 1 = Hybrid mit
+Model 124 und `WChaMax = 11520`, alle anderen Unit-IDs antworten mit
+"Gateway target failed" (kein zweiter Wechselrichter an diesem Datamanager).
+Model-124-Block: `WChaGra`/`WDisChaGra` 100, `StorCtl_Mod` 0, `MinRsvPct` 0,
+`ChaState` 79,7 % (= Solar API), `ChaSt` 3 DISCHARGING, `InWRte`/`OutWRte`
++100 %, `ChaGriSet` 1; `VAChaMax`, `StorAval`, `InBatV`, `WinTms`,
+`RvrtTms`, `RmpTms` melden 65535/SF -32768 (nicht unterstuetzt). Alle drei
+Skalierungen wie erwartet (SF 0 / -2 / -2). Damit sind die
+Konstanten `MODBUS_UNIT_ID`, `MODBUS_SOC_GAIN`, `M124_WCHAMAX_W_PER_UNIT`
+und `M124_WRTE_RAW_PER_PCT` am Geraet bestaetigt; offen sind nur noch die
+schreibenden Punkte 5, 6, 7 und 10.
+
+**Punkt 5 (`prevent`, 19:58, nach Sonnenuntergang):** `InWRte = 0`
+und `StorCtl_Mod = 1` per FC06 ohne Exception angenommen, Read-back 1/0,
+Wert blieb ueber die 20 s Beobachtung stehen. Waehrend der Sperre lief die
+Entladung fuer den Haushalt weiter (`ChaSt` DISCHARGING, `P_Akku` +440 W),
+wie von Beispiel 2 vorgesehen. Reset (InWRte/OutWRte 10000, StorCtl_Mod 0)
+angenommen, Read-back OK. **Offen:** dass die Sperre das PV-Laden
+tatsaechlich stoppt, laesst sich nur bei Tag mit PV-Ueberschuss messen
+(`prevent` bei Sonne wiederholen, `P_Akku` darf dann nicht negativ werden).
+
+**Punkt 6 und 10 (`discharge --watts 1000`, 20:06):** Batterie
+war bereits im Haushaltsbetrieb am Entladen, SoC 78,8 %): `InWRte = -900`,
+`OutWRte = +900`, `StorCtl_Mod = 3` per FC06 angenommen, Read-back exakt.
+Solar API `P_Akku` sprang innerhalb von ca. 10 s von +320 W auf +1031 W und
+hielt ueber drei Minuten 1028-1035 W (Sollwert 9 % von 11520 W = 1037 W);
+der Ueberschuss ging als Einspeisung ins Netz. Zwischendurch meldete
+`ChaSt` fuer zwei Abfragen (20 s) HOLDING und `P_Akku` fiel kurz auf 938 W,
+danach wieder DISCHARGING mit Sollwert - fuer die Regelung unkritisch, aber
+ein Grund, `ChaSt` nicht als harten Fehlerindikator zu nehmen. Der Befehl
+blieb ohne Wiederholung stehen (kein Revert). Reset angenommen, danach
+innerhalb von 30 s wieder Haushaltsniveau (`P_Akku` 324 -> 272 W, `P_Grid`
+um 0). `ibmForceDischarge` in `adapter.js` (beide Bits) ist damit am Geraet
+bestaetigt. **Aufwachlatenz aus dem Energiesparmodus (Punkt 10) konnte so
+nicht gemessen werden**, weil die Batterie schon aktiv war - bei Gelegenheit
+mit stehender Batterie (z. B. tagsueber bei vollem Speicher oder nachts bei
+`BatteryStandby = true`) wiederholen. 
+**Punkt 7 (`revert`, 20:25):** Write `InOutWRte_RvrtTms = 120` wird
+**ohne Exception angenommen, aber nicht gehalten** (Read-back 65535).
+Damit gibt es keinen Auto-Revert am Datamanager; `M124_HAS_RVRTTMS =
+false` bleibt. Wichtig fuer den Adapter: ein "erfolgreicher" Write auf
+dieses Register beweist nichts, nur der Read-back zaehlt.
+
+**Gegenprobe (`discharge-inonly`, 20:25):** nur `InWRte = -900` mit
+`StorCtl_Mod = 1` (Bit 0), `OutWRte` bleibt 100 %: `P_Akku` +400 -> +1047 W
+binnen 10 s, dann drei Minuten 1031-1036 W. **Das negative Ladelimit allein
+erzwingt die Entladung bereits**; Beispiel 6 mit beiden Bits verhaelt sich
+identisch. `ibmForceDischarge` bleibt bei der dokumentierten Variante
+(beide Bits), weil `OutWRte = +x` zusaetzlich die Entladung nach oben
+deckelt - bei Bit 0 allein darf der Haushalt weiterhin bis 100 % ziehen.
+
+**`failsafe` (20:29-20:39):** Entladung 9 % kommandiert, Verbindung
+getrennt, kein Master. **Der Befehl blieb die vollen 10 Minuten stehen**
+(`P_Akku` 1028-1036 W, `P_Grid` -663 bis -710 W Einspeisung, SoC 77,4 ->
+75,0 %), Registerstand danach unveraendert (StorCtl 3, InWRte -900,
+OutWRte 900). Anschliessender `reset` angenommen, nach 30 s `P_Akku` 76 W,
+`P_Grid` +88 W - Normalbetrieb. Das Restrisiko aus der Fail-Safe-Analyse
+ist damit belegt: faellt der Pi mit stehendem Entladefenster aus, entlaedt
+die Batterie bis zur Untergrenze (`MinRsvPct`/Fronius-Reserve) weiter.
+
+**Lehre fuer die Einrichtung:** Ein Datamanager auf float verraet sich im
+Profil durch `IBM_MB_ModelId != 124` - das sollte der Installer oder der
+Poller als Fehler melden, statt still Unsinn zu lesen.
+
+#### Registertabelle
+
+Erwartungen aus der Registerkarte 1.1.5-1 (int + SF), Adressen 0-basiert,
+Spalte "Gelesen/verifiziert" vom 2026-09-10:
 
 | Punkt | Offset | Adresse (erwartet) | Typ | SF (erwartet) | Gelesen/verifiziert |
 | --- | --- | --- | --- | --- | --- |
-| ID (= 124) | +0 | 40303 | uint16 | - | AUSSTEHEND |
-| WChaMax | +2 | 40305 | uint16 | WChaMax_SF (+18) = 0 | AUSSTEHEND |
-| StorCtl_Mod | +5 | 40308 | uint16 (Bitfeld: 1 InWRte, 2 OutWRte) | - | AUSSTEHEND |
-| MinRsvPct | +7 | 40310 | uint16 | MinRsvPct_SF (+21) = -2 | AUSSTEHEND |
-| ChaState (SoC) | +8 | 40311 | uint16 | ChaState_SF (+22) = -2 | AUSSTEHEND |
-| ChaSt | +11 | 40314 | enum16 (1 OFF ... 7 TESTING) | - | AUSSTEHEND |
-| OutWRte | +12 | 40315 | int16 | InOutWRte_SF (+25) = -2 | AUSSTEHEND |
-| InWRte | +13 | 40316 | int16 | InOutWRte_SF (+25) = -2 | AUSSTEHEND |
-| InOutWRte_RvrtTms | +15 | 40318 | uint16, laut Karte nur lesbar | - | AUSSTEHEND |
-| ChaGriSet | +17 | 40320 | enum16 (0 PV, 1 GRID) | - | AUSSTEHEND |
+| ID (= 124) | +0 | 40303 | uint16 | - | **40303 bestaetigt** 2026-09-10 (nach Umstellung auf int+SF, siehe Befund Schritt 1) |
+| WChaMax | +2 | 40305 | uint16 | WChaMax_SF (+18) = 0 | **11520 W, SF 0** (2026-09-10) |
+| StorCtl_Mod | +5 | 40308 | uint16 (Bitfeld: 1 InWRte, 2 OutWRte) | - | **0** im Ruhezustand; Write 1 (Punkt 5) und 3 (Punkt 6) angenommen und gehalten, Reset auf 0 OK |
+| MinRsvPct | +7 | 40310 | uint16 | MinRsvPct_SF (+21) = -2 | **0, SF -2** |
+| ChaState (SoC) | +8 | 40311 | uint16 | ChaState_SF (+22) = -2 | **7970 -> 79,7 %, SF -2**, Solar API 79,7 % -> `MODBUS_SOC_GAIN = 0.01` bestaetigt |
+| ChaSt | +11 | 40314 | enum16 (1 OFF ... 7 TESTING) | - | **3 DISCHARGING** bei P_Akku +292 W (Solar API) |
+| OutWRte | +12 | 40315 | int16 | InOutWRte_SF (+25) = -2 | **10000 = 100 %, SF -2** -> `M124_WRTE_RAW_PER_PCT = 100` bestaetigt; Write +900 mit StorCtl 3 -> P_Akku ~1033 W (Punkt 6) |
+| InWRte | +13 | 40316 | int16 | InOutWRte_SF (+25) = -2 | **10000 = 100 %, SF -2**; Write 0 angenommen, Read-back 0, Reset 10000 OK (Punkt 5) |
+| InOutWRte_RvrtTms | +15 | 40318 | uint16, laut Karte nur lesbar | - | **65535 (nicht unterstuetzt)**, ebenso WinTms/RmpTms; Write 120 ohne Exception angenommen, Read-back bleibt 65535 -> kein Auto-Revert (Punkt 7) |
+| ChaGriSet | +17 | 40320 | enum16 (0 PV, 1 GRID) | - | **1 (GRID)** gelesen |
 
-Firmwarestand Datamanager: AUSSTEHEND | Unit-ID Hybrid: AUSSTEHEND |
-Unit-ID Slave: AUSSTEHEND | RvrtTms unterstuetzt: AUSSTEHEND (Erwartung: nein) |
-Entladung nur mit InWRte wirksam: AUSSTEHEND
+Firmwarestand Datamanager: Solar API 1.34.1-5 (HW 2.4D), Common Block `Vr` 0.3.30.0 | Unit-ID Hybrid: **1** (Units 2-10 und 100: Gateway target failed) |
+Unit-ID Slave: keiner - der Symo 5.0-3-M haengt an einem eigenen Datamanager (192.168.68.81) | RvrtTms unterstuetzt: **nein** (Write wird geschluckt, nicht gehalten) |
+Entladung nur mit InWRte wirksam: **ja** (Bit 0 + InWRte -9 % -> 1032 W, gleich wie Beispiel 6 mit beiden Bits)
 
 ## Fail-Safe-Analyse
 
 Die GEN24-Schedules laufen von selbst ab - faellt openHAB aus, kehrt der
 Wechselrichter binnen 5 Minuten zum Werksverhalten zurueck. Modbus-Writes
-dagegen **bleiben stehen**, und der Datamanager kennt laut Registerkarte
-kein Revert-Timeout (`InOutWRte_RvrtTms` "Not supported", nur lesbar).
-Deshalb:
+dagegen **bleiben stehen**, und der Datamanager kennt kein Revert-Timeout
+(`InOutWRte_RvrtTms` "Not supported"; im Spike am 2026-09-10 bestaetigt:
+Write wird geschluckt, nicht gehalten, ein Entladebefehl stand 10 Minuten
+ohne Master unveraendert). Deshalb:
 
 - Der Kern setzt die Steuerung in jedem 5-Minuten-Zyklus neu auf (Reset +
   aktuelles Fenster) - haengengebliebene Zustaende ueberleben keinen
@@ -226,10 +350,10 @@ Deshalb:
   setzt alle Modbus-Steuerbefehle zurueck.
 - Zusaetzlich moeglich (bisher nicht umgesetzt): ein systemd-Timer am Pi,
   der `StorCtl_Mod = 0` schreibt, wenn openHAB nicht laeuft.
-- Sollte Spike-Punkt 7 wider Erwarten ein wirksames Revert-Timeout
-  nachweisen: `M124_HAS_RVRTTMS = true` in `adapter.js`, `rvrttms` im
-  Profil wieder beschreibbar - der Adapter setzt es dann vor jedem
-  Steuer-Write auf Fensterlaenge + 60 s.
+- `M124_HAS_RVRTTMS = true` in `adapter.js` bleibt als Pfad fuer ein
+  Geraet erhalten, das das Revert-Timeout doch unterstuetzt (Adapter setzt
+  es dann vor jedem Steuer-Write auf Fensterlaenge + 60 s); der Symo
+  Hybrid mit Datamanager 2.0 gehoert nicht dazu.
 
 ## Bekannte Grenzen
 
