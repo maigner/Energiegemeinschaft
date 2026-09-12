@@ -70,6 +70,14 @@ Alles landet in `spike_datamanager.log`. Zum Testen ohne Anlage:
     python3 tools/sim_datamanager.py --port 5020 &
     python3 tools/spike_datamanager.py 127.0.0.1 --port 5020 --no-api --yes chain units reads prevent discharge revert reset
 
+Nach der Installation prueft `tools/spike_openhab.py` denselben Ablauf
+ueber die openHAB-Items (Entladung, Freigabe, Ladesperre, Reset als
+Item-Commands, Kontrolle per Solar API und direktem Modbus-Read) - das ist
+der Pfad, den der Adapter im Betrieb nutzt. Nur bei PV-Ueberschuss und mit
+Hauptschalter OFF starten, auf dem Pi als `openhabian`:
+
+    python3 tools/spike_openhab.py <IP des Datamanagers> --watts 2000
+
 Checkliste (Ergebnis in die Tabelle unten eintragen, danach `profile.sh`/
 `adapter.js` anpassen; Schritt des Spike-Skripts in Klammern):
 
@@ -188,10 +196,12 @@ Geraet bestaetigt:
   ueber den letzten SoC gesetzt wird (S. 47) - moeglicher Hebel gegen die
   Aufwachlatenz aus Spike-Punkt 10.
 
-Stand 2026-09-10 (Anlage Pfandl): Punkte 1, 2, 3, 4, 6, 7, 8 und 9
-bestanden; Punkt 5 nur zur Haelfte (Write angenommen, Entladung lief
-weiter - die Wirkung auf das PV-Laden ist erst bei Sonne messbar); Punkt
-10 offen (Batterie war nie im Standby). Details im Spike-Ergebnis.
+Stand 2026-09-12 (Anlage Pfandl): Punkte 1 bis 9 bestanden, Punkt 5 seit
+dem 2026-09-12 auch bei Sonne (die Ladesperre stoppt das PV-Laden binnen
+10 s), und der Schreibpfad ueber das openHAB-Modbus-Binding ist am Geraet
+bestaetigt. Punkt 10 offen (Batterie war nie im Standby, `BatteryStandby`
+der Solar API blieb auch bei vollem Speicher `false`). Details im
+Spike-Ergebnis.
 
 ### Spike-Ergebnis (Anlage Pfandl / pi-020, 2026-09-10)
 
@@ -202,19 +212,25 @@ Skalierungen, die Basisadresse 40303, Unit-ID 1, Ladesperre nach Beispiel
 2 und forcierte Entladung nach Beispiel 6 sind verifiziert; `InOutWRte_RvrtTms`
 wirkt nicht, ein stehender Befehl ueberlebt den Ausfall des Masters
 (10 min gemessen). Werkzeug war `tools/spike_datamanager.py` vom Pi aus,
-Protokoll in `~/spike_datamanager.log` auf pi-020.
+Protokoll in `~/spike_datamanager.log` auf pi-020. Nachtrag 2026-09-12:
+dieselben Kommandos als openHAB-Item-Commands (Modbus-Binding statt
+Skript, `tools/spike_openhab.py`) wirken identisch, und die Ladesperre
+stoppt bei PV-Ueberschuss das Laden binnen 10 s.
 
 **Noch offen:**
 
-- `prevent` bei Sonne wiederholen: stoppt die Sperre das PV-Laden
-  (`P_Akku` darf nicht negativ werden)?
 - Aufwachlatenz aus dem Energiesparmodus (Punkt 10) mit stehender
-  Batterie messen.
-- Ende-zu-Ende ueber openHAB (Hauptschalter ON, Modbus-Binding schreibt
-  statt Spike-Skript). Der `NULL`-Wert von `IBM_MB_StorCtl` ist geklaert,
-  siehe Nachtrag 2026-09-11.
+  Batterie messen. Indikator ist `BatteryStandby` in
+  `GetPowerFlowRealtimeData.fcgi`; am 2026-09-12 blieb er auch bei 99 %
+  SoC und 20 min `ChaSt = FULL` auf `false`, die Batterie war also nie im
+  Standby. Eher nachts bei leerem Speicher probieren.
+- Regelbetrieb: Hauptschalter ON und den ersten 5-Minuten-Zyklus des
+  Cores mitlesen. Das prueft nur noch die Adapter-Logik; der Registerpfad
+  Item -> Binding -> Datamanager ist seit dem 2026-09-12 bestaetigt.
 - Installer/Poller: `IBM_MB_ModelId != 124` als Fehler melden (siehe
   "Lehre" unten).
+- Betrieb: DHCP-Reservierung fuer den Hybrid (MAC cc:f9:57:1c:f0:2d) im
+  Router von Pfandl - die Adresse hat in zwei Naechten zweimal gewechselt.
 
 #### Nachtrag 2026-09-11: IP-Wechsel und StorCtl-Thing
 
@@ -240,6 +256,50 @@ fronius-snapinverter, sigenergy, deye und victron schreiben jetzt
 `int16` fuer beschreibbare uint16-Register, und der Thing-Installer
 gleicht bestehende Kind-Things mit dem Manifest ab (pi-020 wurde am
 2026-09-11 per REST vorab korrigiert, Thing ONLINE, `IBM_MB_StorCtl = 0`).
+
+#### Nachtrag 2026-09-12: zweiter IP-Wechsel, Schreibpfad ueber openHAB, Ladesperre bei Sonne
+
+**Zweiter IP-Wechsel, diesmal vom Watchdog abgefangen.** Um 03:00:41 fiel
+der Poller erneut auf COMMUNICATION_ERROR (Hybrid .70 -> .56, auf .70 sitzt
+seither ein anderes Geraet). Um 03:07 installierte `ibm-update` das Paket
+mit dem korrigierten Watchdog, der um 03:09:38 lief; um 03:09:46 war der
+Poller mit der neuen Adresse 192.168.68.56 wieder ONLINE, kein Eingriff
+noetig. `INVERTER_HOST` in `ibm.conf` steht noch auf .70, weil der Abgleich
+im Installer zwei Minuten vor dem Watchdog lief - nur ein Fallback, beim
+naechsten Paket zieht er nach. Die DHCP-Reservierung bleibt der eigentliche
+Fix.
+
+**Schreibpfad ueber openHAB (11:25-11:38, Sonne, PV 2,3-2,5 kW, Haus
+1,3 kW, Speicher 99 %).** Werkzeug `tools/spike_openhab.py`: alle Writes
+als Item-Commands per REST (`IBM_MB_InWRte`, `IBM_MB_OutWRte`,
+`IBM_MB_StorCtl`), also Item -> Modbus-Binding (`writeValueType int16`)
+-> Datamanager, Kontrolle ueber die gepollten Items, die Solar API
+(`P_Akku`) und einmal je Phase ein direkter Modbus-Read mit
+`spike_datamanager.py reads`. Protokoll `~/spike_openhab.log` auf pi-020.
+
+- **Entladung 2000 W** (InWRte -1700, OutWRte +1700, StorCtl 3 = Beispiel
+  6): Read-back in den Items nach 1 s, `P_Akku` +861 W nach 10 s, +1952 W
+  nach 21 s (Soll 17 % von 11520 W = 1958 W), vier Minuten 1950-1955 W
+  gehalten, SoC 99,3 -> 98,2 %. Direkter Modbus-Read: StorCtl 3, OutWRte
+  1700, InWRte 63836 (= -1700). Der Adapterpfad `ibmForceDischarge`
+  funktioniert damit Ende-zu-Ende ueber das Binding.
+- **Freigabe** (Reset ueber Items): nach 31 s laedt die Batterie aus dem
+  Ueberschuss (`P_Akku` -470 -> -880 W, `P_Grid` um 0, `ChaSt` CHARGING).
+- **Ladesperre bei Sonne** (InWRte 0, StorCtl 1 = Beispiel 2, Punkt 5):
+  `P_Akku` -804 W -> 0 W nach 10 s, danach drei Minuten -10 bis -14 W
+  (Erhaltung), der Ueberschuss ging als Einspeisung ins Netz (`P_Grid`
+  +18 -> -720 bis -810 W), `ChaSt` kurz HOLDING, dann wieder CHARGING bei
+  0 W - `ChaSt` taugt also auch hier nicht als Indikator, `P_Akku` schon.
+  Direkter Modbus-Read: StorCtl 1, InWRte 0. **Punkt 5 ist damit
+  vollstaendig bestanden: die Sperre stoppt das PV-Laden.**
+- **Reset** (Items): `P_Akku` -351 W nach 20 s, -669 W nach 30 s, spaeter
+  bis -3373 W - mehr als der eigene PV-Ertrag von 2,4 kW, der Hybrid laedt
+  offenbar auch den AC-Ueberschuss des zweiten Symo mit. Direkter
+  Modbus-Read: StorCtl 0.
+
+Nebenbefund: Solar API und Modbus vertragen sich - die Solar API unter .56
+antwortete waehrend des ganzen Laufs in unter 1 s, parallel zum
+10-s-Poller und zu den direkten Reads des Spike-Skripts.
 
 #### Befunde im Einzelnen
 
@@ -285,9 +345,9 @@ und `StorCtl_Mod = 1` per FC06 ohne Exception angenommen, Read-back 1/0,
 Wert blieb ueber die 20 s Beobachtung stehen. Waehrend der Sperre lief die
 Entladung fuer den Haushalt weiter (`ChaSt` DISCHARGING, `P_Akku` +440 W),
 wie von Beispiel 2 vorgesehen. Reset (InWRte/OutWRte 10000, StorCtl_Mod 0)
-angenommen, Read-back OK. **Offen:** dass die Sperre das PV-Laden
-tatsaechlich stoppt, laesst sich nur bei Tag mit PV-Ueberschuss messen
-(`prevent` bei Sonne wiederholen, `P_Akku` darf dann nicht negativ werden).
+angenommen, Read-back OK. Dass die Sperre das PV-Laden tatsaechlich stoppt,
+ist seit dem 2026-09-12 belegt (Nachtrag oben: `P_Akku` -804 -> 0 W in
+10 s).
 
 **Punkt 6 und 10 (`discharge --watts 1000`, 20:06):** Batterie
 war bereits im Haushaltsbetrieb am Entladen, SoC 78,8 %): `InWRte = -900`,
@@ -303,8 +363,9 @@ innerhalb von 30 s wieder Haushaltsniveau (`P_Akku` 324 -> 272 W, `P_Grid`
 um 0). `ibmForceDischarge` in `adapter.js` (beide Bits) ist damit am Geraet
 bestaetigt. **Aufwachlatenz aus dem Energiesparmodus (Punkt 10) konnte so
 nicht gemessen werden**, weil die Batterie schon aktiv war - bei Gelegenheit
-mit stehender Batterie (z. B. tagsueber bei vollem Speicher oder nachts bei
-`BatteryStandby = true`) wiederholen. 
+mit stehender Batterie (`BatteryStandby = true` in der Solar API)
+wiederholen; am 2026-09-12 war sie auch bei 99 % SoC nicht im Standby,
+Latenz ueber openHAB 21 s bis Sollwert. 
 **Punkt 7 (`revert`, 20:25):** Write `InOutWRte_RvrtTms = 120` wird
 **ohne Exception angenommen, aber nicht gehalten** (Read-back 65535).
 Damit gibt es keinen Auto-Revert am Datamanager; `M124_HAS_RVRTTMS =
@@ -341,12 +402,12 @@ Spalte "Gelesen/verifiziert" vom 2026-09-10:
 | --- | --- | --- | --- | --- | --- |
 | ID (= 124) | +0 | 40303 | uint16 | - | **40303 bestaetigt** 2026-09-10 (nach Umstellung auf int+SF, siehe Befund Schritt 1) |
 | WChaMax | +2 | 40305 | uint16 | WChaMax_SF (+18) = 0 | **11520 W, SF 0** (2026-09-10) |
-| StorCtl_Mod | +5 | 40308 | uint16 (Bitfeld: 1 InWRte, 2 OutWRte) | - | **0** im Ruhezustand; Write 1 (Punkt 5) und 3 (Punkt 6) angenommen und gehalten, Reset auf 0 OK |
+| StorCtl_Mod | +5 | 40308 | uint16 (Bitfeld: 1 InWRte, 2 OutWRte) | - | **0** im Ruhezustand; Write 1 (Punkt 5) und 3 (Punkt 6) angenommen und gehalten, Reset auf 0 OK; ueber openHAB-Item (Binding schreibt int16) am 2026-09-12 identisch |
 | MinRsvPct | +7 | 40310 | uint16 | MinRsvPct_SF (+21) = -2 | **0, SF -2** |
 | ChaState (SoC) | +8 | 40311 | uint16 | ChaState_SF (+22) = -2 | **7970 -> 79,7 %, SF -2**, Solar API 79,7 % -> `MODBUS_SOC_GAIN = 0.01` bestaetigt |
 | ChaSt | +11 | 40314 | enum16 (1 OFF ... 7 TESTING) | - | **3 DISCHARGING** bei P_Akku +292 W (Solar API) |
 | OutWRte | +12 | 40315 | int16 | InOutWRte_SF (+25) = -2 | **10000 = 100 %, SF -2** -> `M124_WRTE_RAW_PER_PCT = 100` bestaetigt; Write +900 mit StorCtl 3 -> P_Akku ~1033 W (Punkt 6) |
-| InWRte | +13 | 40316 | int16 | InOutWRte_SF (+25) = -2 | **10000 = 100 %, SF -2**; Write 0 angenommen, Read-back 0, Reset 10000 OK (Punkt 5) |
+| InWRte | +13 | 40316 | int16 | InOutWRte_SF (+25) = -2 | **10000 = 100 %, SF -2**; Write 0 angenommen, Read-back 0, Reset 10000 OK (Punkt 5); bei Sonne stoppt InWRte 0 + StorCtl 1 das PV-Laden binnen 10 s (2026-09-12) |
 | InOutWRte_RvrtTms | +15 | 40318 | uint16, laut Karte nur lesbar | - | **65535 (nicht unterstuetzt)**, ebenso WinTms/RmpTms; Write 120 ohne Exception angenommen, Read-back bleibt 65535 -> kein Auto-Revert (Punkt 7) |
 | ChaGriSet | +17 | 40320 | enum16 (0 PV, 1 GRID) | - | **1 (GRID)** gelesen |
 
