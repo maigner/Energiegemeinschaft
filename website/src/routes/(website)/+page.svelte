@@ -1,6 +1,7 @@
 <script>
     import Project from "$lib/Project.svelte";
     import Fab from "$lib/Fab.svelte";
+    import { CURRENT, fmtCt } from "$lib/tariffs";
     import { Blockquote, Heading, Progressbar } from "flowbite-svelte";
     import {
         SunOutline,
@@ -173,7 +174,7 @@
             <p
                 class="text-3xl font-bold text-primary-600 dark:text-primary-500"
             >
-                9,5 Cent/kWh
+                {fmtCt(CURRENT.eeg.feedInCt)} Cent/kWh
             </p>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 bekommt, wer Sonnenstrom in die Gemeinschaft einspeist
@@ -185,7 +186,7 @@
             <p
                 class="text-3xl font-bold text-primary-600 dark:text-primary-500"
             >
-                10 Cent/kWh
+                {fmtCt(CURRENT.eeg.purchaseCt)} Cent/kWh
             </p>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 zahlt, wer Sonnenstrom aus der Gemeinschaft bezieht
@@ -197,7 +198,7 @@
             <p
                 class="text-3xl font-bold text-primary-600 dark:text-primary-500"
             >
-                0 Euro
+                {CURRENT.eeg.membershipFeeEur} Euro
             </p>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Mitgliedsbeitrag seit 2026

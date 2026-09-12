@@ -9,6 +9,7 @@
         TableHead,
         TableHeadCell,
     } from "flowbite-svelte";
+    import { tariffFor, gridSavingCt, fmtCt } from "$lib/tariffs";
 
     /** @type {{ yearlySums: any[] }} */
     let { yearlySums } = $props();
@@ -35,13 +36,14 @@
         return row ? Number(row.mwh) : null;
     };
 
-    // Arbeitspreis der EEG in €/MWh
+    // Preise je Jahr aus $lib/tariffs.js (ct/kWh = €/MWh / 10)
     const pricePerMwh = (/** @type {any} */ year) =>
-        ({ 2024: 110.0, 2025: 110.0, 2026: 100.0 })[String(year)] ?? 0;
+        tariffFor(year).eeg.purchaseCt * 10;
 
-    // Netzentgelt Arbeitspreis Netz OÖ in €/MWh, Mitglieder sparen davon 28 %
-    // https://www.energiemagazin.at/netzkosten-in-oesterreich-2025-alle-bundeslaender-im-vergleich/
-    const gridCostPerMwh = 81.6;
+    // Netzkosten-Ersparnis je MWh: Rabatt der regionalen EEG auf den
+    // Netznutzungs-Arbeitspreis Netz OÖ, Netzebene 7
+    const gridSavingPerMwh = (/** @type {any} */ year) =>
+        gridSavingCt(tariffFor(year)) * 10;
 
     const fmtMwh = (/** @type {number | null} */ v) =>
         v == null
@@ -104,7 +106,7 @@
                             {fmtEur(
                                 distributed == null
                                     ? null
-                                    : distributed * gridCostPerMwh * 0.28,
+                                    : distributed * gridSavingPerMwh(year),
                             )}
                         </TableBodyCell>
                     </TableBodyRow>
@@ -114,8 +116,13 @@
     </div>
 
     <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">
-        Umsatz: Verteilte Energie × Arbeitspreis (2024/25: 110 €/MWh, ab 2026:
-        100 €/MWh). Netzkosten-Ersparnis: 28 % des Netzentgelt-Arbeitspreises
-        (81,6 €/MWh, Netz OÖ) auf die verteilte Energie.
+        Umsatz: verteilte Energie × Bezugstarif der EEG. Netzkosten-Ersparnis:
+        Rabatt der regionalen EEG auf den Netznutzungs-Arbeitspreis von Netz OÖ
+        (Netzebene 7, ohne Leistungsmessung) für die verteilte Energie. Je Jahr:
+        {#each years as year, i}
+            {@const t = tariffFor(year)}
+            {i > 0 ? "; " : ""}{year}: Bezug {fmtCt(t.eeg.purchaseCt)} ct/kWh,
+            Netz {fmtCt(t.grid.usageCt)} ct/kWh, Rabatt {t.rebate.regionalPct}%
+        {/each}. Quelle der Werte: src/lib/tariffs.js.
     </p>
 </Card>

@@ -37,6 +37,7 @@ Key conventions:
 - **Auth & authorization** live in `src/auth.ts` + `src/hooks.server.js`. Login is passwordless magic-link email via Nodemailer (`@auth/sveltekit`). Authorization is route-prefix based in `authorizationHandle`: route groups `/(website)/board`, `/finance`, and `/user` require a session and redirect to `/login` otherwise. Adding a new protected area means adding its prefix there.
 - **Scheduled jobs** are registered with `node-cron` inside `cronHandle` in `hooks.server.js` (weather fetch, activation reminders, materialized-view refresh). Every job early-returns when `dev` is true. An `initialized` guard prevents double-scheduling under HMR.
 - **Server-only DB/mail/nextcloud code** lives under `src/lib/server/` (organized by domain: `db/energy`, `db/finance`, `db/members`, `db/weather`, `mail`, `nextcloud`). Never import these from client code.
+- **Prices and tariffs** (EEG Bezugs-/Einspeisetarif, Netz OÖ Netzentgelte per year, EEG rebates, levies, competitor tariffs such as Energie AG) live in one place: `src/lib/tariffs.js` (`TARIFFS` by year, `CURRENT`, `tariffFor(year)`). Homepage, FAQ, `/board/energy` YearlySummary and the local-EEG assessment on `/board/map` read from it; never hard-code a ct/kWh value in a page, extend the store (new year on top, old years stay).
 - Routing uses the `(website)` route group; `board/*` is the admin area. Dynamic user pages are `user/[memberId]`.
 - `csrf.checkOrigin` is disabled in `svelte.config.js` (for the contact form) — noted as a TODO.
 
@@ -51,7 +52,7 @@ Commands (run from `middleware/eeg/`, using the local `middleware/.venvDjango` v
 
 Apps: `members` (Member, MeasurementPoint, OpenhabStatus, OpenhabCounterSnapshot, BoardApproval, EventRegistration), `metering` (MeterCode, Measurement), `accounting` (Booking, BookingLabel, BookingAttachment), `weather` (WeatherData). URL config exposes `members/`, `accounting/`, and `admin/`.
 
-The database uses `django.db.backends.postgresql` with `OPTIONS.service = "eeg-middleware"` (resolved from `.pg_service.conf`). `middleware/README.md` documents the SQL for the `weekly_metering_summary` / `daily_metering_summary` materialized views that the website charts read from.
+The database uses `django.db.backends.postgresql` with `OPTIONS.service = "eeg-middleware"` (resolved from `.pg_service.conf`). `middleware/README.md` documents the SQL for the `weekly_metering_summary` / `daily_metering_summary` materialized views that the website charts read from, plus `station_metering_15min` (per-transformer-station 15-min sums for the local-EEG assessment on `/board/map`; refreshed by the EEG-Faktura import on s1).
 
 ## notebooks/
 

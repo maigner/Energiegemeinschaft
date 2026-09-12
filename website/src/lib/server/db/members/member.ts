@@ -162,9 +162,16 @@ export const getTaskStatus = async (newMemberEmails: string[]) => {
 export const getMemberLocations = async () => {
 
     const sql = await middlewareDbConnection();
+    // Trafostation (members_transformerstation) mitliefern, damit die Karte
+    // Mitglieder am selben Ortsnetz gemeinsam hervorheben kann.
     const result = await sql.query(`
-        select id, email, name, latitude, longitude
-        from members_member
+        select m.id, m.email, m.name, m.latitude, m.longitude,
+               t.id as station_id,
+               t.identifier as station_identifier,
+               t.name as station_name
+        from members_member m
+        left join members_transformerstation t on t.id = m.transformer_station_id
+        order by m.id
         `);
     sql.release();
     const rows = result?.rows;

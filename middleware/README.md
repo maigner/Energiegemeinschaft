@@ -176,6 +176,41 @@ GROUP BY 1 ORDER BY 1;
 ```
 
 
+# Bilanz je Trafostation (lokale EEG?)
+
+`/board/map` zeigt je Trafostation (`members_transformerstation`) Verbrauch,
+Erzeugung und die Frage, ob sich fuer die dort angeschlossenen Mitglieder eine
+eigene lokale EEG rechnen wuerde (Rabatt auf den Netznutzungs-Arbeitspreis
+57% statt 28%, § 5 Abs. 1a SNE-V 2018; Netz OÖ Netzebene 7 2026: 6,29 ct/kWh;
+alle Parameter samt Quellen stehen zentral in `website/src/lib/tariffs.js`). Dafuer
+braucht es je Station und Viertelstunde die Summen der Zaehlpunkte, denn die
+lokale Deckung ist `min(Verbrauch, Erzeugung)` je Viertelstunde. Direkt auf
+`metering_measurement` dauert das rund 15 s, deshalb diese View. Sie wird vom
+EEG-Faktura-Import auf s1 mit aufgefrischt (`MATERIALIZED_VIEWS` in
+`notebooks/energyData/eegfaktura_import.py`); die Zuordnung Mitglied -> Station
+wird dabei eingefroren, neue Zuordnungen erscheinen also erst nach dem
+naechsten Import. Ohne die View zeigt die Seite nur einen Hinweis.
+
+```sql
+DROP MATERIALIZED VIEW IF EXISTS station_metering_15min;
+
+CREATE MATERIALIZED VIEW station_metering_15min AS
+SELECT m.transformer_station_id AS station_id,
+       ms.timestamp,
+       SUM(ms.value) FILTER (WHERE ms.meter_code_id = 193) AS consumption_kwh,   -- Gesamtverbrauch lt. Messung
+       SUM(ms.value) FILTER (WHERE ms.meter_code_id = 195) AS self_coverage_kwh, -- Eigendeckung gem. Erzeugung
+       SUM(ms.value) FILTER (WHERE ms.meter_code_id = 196) AS generation_kwh,    -- Gesamte gemeinschaftliche Erzeugung
+       SUM(ms.value) FILTER (WHERE ms.meter_code_id = 197) AS surplus_kwh        -- Gemeinschaftsueberschuss
+FROM metering_measurement ms
+JOIN members_measurementpoint mp ON mp.id = ms.measurement_point_id
+JOIN members_member m ON m.id = mp.member_id
+WHERE m.transformer_station_id IS NOT NULL
+  AND ms.meter_code_id IN (193, 195, 196, 197)
+GROUP BY 1, 2;
+
+CREATE UNIQUE INDEX idx_station_metering_15min ON station_metering_15min (station_id, timestamp);
+```
+
 # Crossover-Zeiten der Energiegemeinschaft
 
 `energy_community_weekly_crossover_times` liefert je Kalenderwoche die

@@ -1,4 +1,5 @@
-//interface 
+// Rechenmodell fuer den Spar-Rechner (derzeit nicht eingebunden).
+import { CURRENT } from "$lib/tariffs";
 
 interface NetworkPriceDetails {
     //Verbrauchspreis
@@ -107,9 +108,10 @@ export class EegSavings {
             *
             this.networkUsageKwhPerYear();
 
-        // if we have selfUsageKwhPerYear > 0 => we have EEG => deduct 28% for regional EEG
-        // TODO: local EEG -50%
-        const deductionFactor = 1.0 - 0.28;
+        // Rabatt der regionalen EEG; nur der Netznutzungs-Arbeitspreis wird
+        // reduziert, hier vereinfacht auch auf das Netzverlustentgelt
+        // angewendet. TODO: lokale EEG (CURRENT.rebate.localPct)
+        const deductionFactor = 1.0 - CURRENT.rebate.regionalPct / 100;
         let deductableVariableCosts =
             (
                 this.providerPriceDetails.network.consumptionPriceCentPerKwh +
@@ -130,8 +132,8 @@ export class EegSavings {
 
     costOfPowerCommunityNetEuroPerYear(): number {
         const energyCosts =
-            (this.selfUsageKwhPerYear() * 11.0) / 100.0; // EURO
-        const membershipFee = 20.0;
+            (this.selfUsageKwhPerYear() * CURRENT.eeg.purchaseCt) / 100.0; // EURO
+        const membershipFee = CURRENT.eeg.membershipFeeEur;
         const result = energyCosts + membershipFee;
         this.log(`costOfPowerCommunityNetEuroPerYear ${result}`);
         return result;

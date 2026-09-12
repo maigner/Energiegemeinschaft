@@ -93,7 +93,8 @@ CODES_BY_DIRECTION = {
 UNIT = "KWH"
 QOV_LABELS = {0: "qov=0 (unbekannt)", 1: "L1", 2: "L2", 3: "L3", -1: "ohne qov"}
 
-MATERIALIZED_VIEWS = ("weekly_metering_summary", "daily_metering_summary", "daily_metering_quality")
+MATERIALIZED_VIEWS = ("weekly_metering_summary", "daily_metering_summary", "daily_metering_quality",
+                      "station_metering_15min")
 
 # Vergleichsversatz beim --verify, um einen Zeitzonenfehler der API zu erkennen
 VERIFY_SHIFTS_MIN = (-120, -60, 0, 60, 120)
