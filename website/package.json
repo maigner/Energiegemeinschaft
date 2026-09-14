@@ -5,7 +5,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"start": "PORT=8080 PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host node -r dotenv/config build",
+		"start": "PORT=8080 BODY_SIZE_LIMIT=20M PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host node -r dotenv/config build",
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
