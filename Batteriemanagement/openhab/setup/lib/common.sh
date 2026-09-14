@@ -154,7 +154,8 @@ load_profile() {
         INVERTER_HOST_THING_PREFIX INVERTER_HOST_PARAM \
         INVERTER_REDISCOVER_SCRIPT INVERTER_DEFAULT_USERNAME \
         INVERTER_USER_PARAM INVERTER_PASSWORD_PARAM \
-        INVERTER_THING_EXTRA_CONFIG INVERTER_AUTO_THING_UID 2>/dev/null || true
+        INVERTER_THING_EXTRA_CONFIG INVERTER_AUTO_THING_UID \
+        INVERTER_EXTRA_HOST_THINGS 2>/dev/null || true
   unset -f inverter_scan_hosts inverter_things_json inverter_battery_items inverter_verify 2>/dev/null || true
 
   # shellcheck disable=SC1090
@@ -201,6 +202,9 @@ load_profile() {
   INVERTER_HOST_THING_PREFIX="${INVERTER_HOST_THING_PREFIX:-}"
   INVERTER_HOST_PARAM="${INVERTER_HOST_PARAM:-hostname}"
   INVERTER_REDISCOVER_SCRIPT="${INVERTER_REDISCOVER_SCRIPT:-}"
+  # Weitere Things mit derselben Adresse ("uid=parameter", Leerzeichen-
+  # getrennt) - Watchdog und Thing-Installer halten sie mit der Bridge gleich
+  INVERTER_EXTRA_HOST_THINGS="${INVERTER_EXTRA_HOST_THINGS:-}"
 
   # Optional: automatisches Anlegen der Things (02b-install-things.sh);
   # braucht INVERTER_HOST_THING_PREFIX als Bridge-Thing-Typ
@@ -313,8 +317,9 @@ load_config() {
 # nur Schluessel, die in der ibm.conf noch gar nicht vorkommen (die Datei
 # stammt also von vor dem jeweiligen Feature), werden mit dem Wert ergaenzt,
 # den der Assistent heute vorgeben wuerde. Ein vorhandener, bewusst leer
-# gesetzter Schluessel bleibt unangetastet. Laeuft bei jedem load_config
-# und ist idempotent.
+# gesetzter Schluessel bleibt unangetastet - ausser bei den Leistungs-Items
+# der automatischen Einrichtung (siehe migrate_config_item). Laeuft bei
+# jedem load_config und ist idempotent.
 #
 # Interaktive Nachruestungen (Status-Push-Token) bleiben Sache der
 # Einzelschritte - hier wird nur ergaenzt, was ohne Rueckfrage entscheidbar
@@ -324,12 +329,19 @@ load_config() {
 # Ergaenzt ein fehlendes Leistungs-Item: bei der automatischen Einrichtung
 # der Standardname aus dem Profil (wie im Assistenten); am klassischen Weg
 # das bereits verknuepfte Item, ersatzweise ebenfalls der Standardname.
+# Bei der automatischen Einrichtung wird auch ein vorhandener LEERER
+# Schluessel ergaenzt: Assistent und 00-provision.sh schreiben dort immer
+# den Standardnamen des Profils - leer heisst also, das Profil kannte das
+# Item damals noch nicht (fronius-snapinverter vor den Solar-API-Werten),
+# nicht, dass jemand bewusst darauf verzichtet hat.
 #   $1 Schluessel  $2 Profil-Standardname  $3 detect-Funktion
 migrate_config_item() {
   local key="$1" placeholder="$2" detect="$3" value=""
   [ -n "$placeholder" ] || return 0
-  grep -qE "^${key}=" "$IBM_CONF" && return 0
-  if [ "$AUTO_CREATE_THING" = "1" ]; then
+  if grep -qE "^${key}=" "$IBM_CONF"; then
+    [ "$AUTO_CREATE_THING" = "1" ] && [ -z "${!key:-}" ] || return 0
+    value="$placeholder"
+  elif [ "$AUTO_CREATE_THING" = "1" ]; then
     value="$placeholder"
   else
     value="$("$detect" "$INVERTER_THING_UID" | head -n 1)"

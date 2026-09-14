@@ -50,6 +50,39 @@ brauchen, bis sie auf Kommandos reagiert. IBM kommandiert alle 5 Minuten
 neu; ein verzoegerter Anlauf der Entladung am Abend ist deshalb normal und
 kein Fehler.
 
+## Leistungswerte ueber die Solar API
+
+Modbus liefert auf dieser Generation nur Ladestand und Steuerregister.
+Batterie-, Netz- und PV-Leistung holt das Profil deshalb ueber die Fronius
+Solar API des Datamanagers (`GetPowerFlowRealtimeData`: `P_Akku`, `P_Grid`,
+`P_PV`), und zwar mit dem Fronius-Binding - denselben Channels wie im
+GEN24-Profil, ohne Zugangsdaten (die Batterie-Actions des Bindings werden
+nicht gebraucht). Das Setup legt dafuer neben dem Modbus-Baum eine Bridge
+`fronius:bridge:ibm` (gleiche Adresse) und `fronius:powerinverter:ibm:inverter1`
+(Geraetenummer = `MODBUS_UNIT_ID`) an und verknuepft die Items
+`Fronius_Symo_Inverter_Battery_Power`, `Fronius_Symo_Inverter_Grid_Power`
+und `Fronius_Symo_Inverter_Solar_Plant_Power`. Vorzeichen: Batterie
++ entladen / - laden, Netz + Bezug / - Einspeisung (im Spike bestaetigt:
+`P_Akku` +1031 W bei forcierter Entladung).
+
+Ohne diese Werte fehlen dem Kern Netzladeschutz, Einspeisezaehler
+(`batterie_netz_kwh`, Vorstands-Dashboard und oeffentliche IBM-Kennzahlen),
+Sonnenprofil und die direkte Ladeleistungs-Messung; die Ladeleistung wuerde
+nur grob aus dem Ladestandsanstieg geschaetzt. Bis 2026-09-14 lief pi-020
+so.
+
+Die Adresse traegt damit zwei Things. Der Watchdog schreibt eine neu
+gefundene IP in beide (`INVERTER_EXTRA_HOST_THINGS` im Profil) und gleicht
+die Solar-API-Bridge im Normalbetrieb alle 15 Minuten mit der Modbus-Bridge
+ab. Bestehende Installationen bekommen Bridge, Thing und Items mit dem
+naechsten Paket-Update: die Konfig-Migration traegt die bis dahin leeren
+Itemnamen in `ibm.conf` nach, 02b legt die Things mit der aktuellen Adresse
+der Modbus-Bridge an.
+
+Die Solar API ist am Datamanager 2.0 ohne Anmeldung lesbar. Steht sie bei
+einer anderen Firmware auf "aus" (Weboberflaeche -> Einstellungen ->
+Solar API), dort aktivieren.
+
 ## Spike: Registerkarte am Geraet verifizieren (VOR der ersten Installation)
 
 Die Adressen in `profile.sh` und die Konstanten in `adapter.js` folgen der
@@ -382,10 +415,11 @@ ohne Master unveraendert). Deshalb:
 
 ## Bekannte Grenzen
 
-- Die Hero-Karte der Overview zeigt nur den Ladestand: die
-  Batterieleistung ist laut Registerkarte per Modbus nicht lesbar (Model
-  160 fuehrt nur die PV-Strings). Nachruestbar ueber `P_Akku` der Solar
-  API (HTTP-Binding) - Spike-Punkt 8 bestaetigt die Registerkarte.
+- Batterie-, Netz- und PV-Leistung sind per Modbus nicht lesbar (Model 160
+  fuehrt nur die PV-Strings, Spike-Punkt 8). Sie kommen deshalb ueber die
+  Solar API des Datamanagers (siehe "Leistungswerte ueber die Solar API");
+  faellt die Solar API aus, steuert IBM weiter, nur ohne Netzladeschutz,
+  Einspeisezaehler und Sonnenprofil.
 - Beim manuellen Weg (ohne automatisches Anlegen) muessen die Modbus-Things
   von Hand angelegt werden; das Setup erwartet dann ein SoC-Item am
   `number`-Channel eines Data-Things. Empfohlen ist durchgehend die
@@ -415,3 +449,9 @@ dann als Adresse `127.0.0.1` angeben und im Profil `MODBUS_M124_BASE`
 unveraendert lassen. Port 502 braucht root; der Parameter `--port`
 erlaubt einen unprivilegierten Port, der dann im Bridge-Thing
 einzutragen ist.
+
+Der Simulator spricht nur Modbus, keine Solar API: die beiden Things des
+Fronius-Bindings (`fronius:bridge:ibm`, `fronius:powerinverter:ibm:inverter1`)
+bleiben dabei OFFLINE, und `06-verify.sh` meldet das als Warnung. Die
+Leistungs-Items bleiben leer; Steuerung und Register-Writes lassen sich
+trotzdem vollstaendig testen.

@@ -35,9 +35,10 @@ version: 1
 # einfuegen; die Seite "overview" ersetzt die vorhandene Overview.
 #
 # Profil fronius-snapinverter: abgeleitet von fronius/overview.yaml - gleiche Seiten, nur
-# der Item-Name des Ladestands ist ein anderer; die Hero-Karte zeigt nur den
-# Ladestand (die Generation liefert keine Batterieleistung per Modbus, siehe
-# profile.sh). Aenderungen bitte in allen Profilen nachziehen.
+# der Item-Name des Ladestands ist ein anderer (Modbus). Batterie- und
+# Netzleistung kommen wie beim GEN24 aus der Solar API (Fronius-Binding,
+# siehe profile.sh), die Hero-Karte ist deshalb identisch.
+# Aenderungen bitte in allen Profilen nachziehen.
 # ============================================================================
 pages:
   # --- Home-Konfiguration: nur der Overview-Tab ------------------------------
@@ -87,8 +88,9 @@ pages:
                         stylesheet: >
                           .ibm-page-head { padding: 0 16px; font-size: 22px; font-weight: 600; line-height: 1.3; }
                         content: HALLOIBMGREETING
-        # Hero-Karte: Ladestand als Halbkreis-Anzeige, unten der IBM-Status.
-        # Tippen oeffnet den Verlauf des Ladestands.
+        # Hero-Karte: Ladestand als Halbkreis-Anzeige, daneben die aktuelle
+        # Batterieleistung und die Netzeinspeisung, unten der IBM-Status.
+        # Tippen oeffnet den Verlauf von Ladestand und Batterieleistung.
         - component: oh-block
           config: {}
           slots:
@@ -114,12 +116,13 @@ pages:
                               action: analyzer
                               actionAnalyzerItems:
                                 - IBM_MB_SoC
+                                - Fronius_Symo_Inverter_Battery_Power
                               actionAnalyzerCoordSystem: time
                               stylesheet: >
                                 .ibm-hero-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
                                 .ibm-hero-brand { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; font-weight: 600; }
                                 .ibm-hero-title { font-size: 13px; opacity: 0.85; }
-                                .ibm-hero-row { display: flex; align-items: center; justify-content: center; gap: 14px; }
+                                .ibm-hero-row { display: flex; align-items: center; gap: 14px; }
                                 .ibm-hero-gauge { flex: 0 0 auto; margin-top: 4px; }
                                 .ibm-hero-stats { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
                                 .ibm-stat { background: rgba(255, 255, 255, 0.14); border-radius: 12px; padding: 8px 12px; }
@@ -173,6 +176,41 @@ pages:
                                                 labelText: Ladestand
                                                 labelTextColor: rgba(255, 255, 255, 0.8)
                                                 labelFontSize: 12
+                                      - component: div
+                                        config:
+                                          class: [ibm-hero-stats]
+                                        slots:
+                                          default:
+                                            # BEGIN batterie-stat (entfaellt ohne Batterieleistungs-Item)
+                                            - component: div
+                                              config:
+                                                class: [ibm-stat]
+                                              slots:
+                                                default:
+                                                  - component: div
+                                                    config:
+                                                      class: [ibm-stat-label]
+                                                      content: "=Number.isNaN(Number.parseFloat(items.Fronius_Symo_Inverter_Battery_Power.state)) ? 'Batterie' : (Number.parseFloat(items.Fronius_Symo_Inverter_Battery_Power.state) < -20 ? 'Batterie lädt' : (Number.parseFloat(items.Fronius_Symo_Inverter_Battery_Power.state) > 20 ? 'Batterie entlädt' : 'Batterie ruht'))"
+                                                  - component: div
+                                                    config:
+                                                      class: [ibm-stat-value]
+                                                      content: "=Number.isNaN(Number.parseFloat(items.Fronius_Symo_Inverter_Battery_Power.state)) ? '-' : (Math.abs(Number.parseFloat(items.Fronius_Symo_Inverter_Battery_Power.state)) >= 1000 ? (Math.round(Math.abs(Number.parseFloat(items.Fronius_Symo_Inverter_Battery_Power.state)) / 100) / 10).toFixed(1).replace('.', ',') + ' kW' : Math.round(Math.abs(Number.parseFloat(items.Fronius_Symo_Inverter_Battery_Power.state))) + ' W')"
+                                            # END batterie-stat
+                                            # BEGIN netz-stat (entfaellt ohne Netzleistungs-Item)
+                                            - component: div
+                                              config:
+                                                class: [ibm-stat]
+                                              slots:
+                                                default:
+                                                  - component: div
+                                                    config:
+                                                      class: [ibm-stat-label]
+                                                      content: Davon ins Netz
+                                                  - component: div
+                                                    config:
+                                                      class: [ibm-stat-value]
+                                                      content: "=Number.isNaN(Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG.state)) ? '-' : (Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG.state) >= 1000 ? (Math.round(Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG.state) / 100) / 10).toFixed(1).replace('.', ',') + ' kW' : Math.round(Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG.state)) + ' W')"
+                                            # END netz-stat
                                 - component: div
                                   config:
                                     class: [ibm-hero-foot]

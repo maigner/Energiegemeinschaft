@@ -400,7 +400,8 @@ ablehnt, bekommt wie bisher die Anleitung fuer die Main UI.
 
 Es gibt fuenf mitgelieferte Profile: `fronius` (Fronius GEN24, Hybrid mit
 Batterie; Batterie-Actions des Fronius-Bindings), `fronius-snapinverter`
-(Fronius Symo Hybrid, SnapINverter-Generation; Modbus/SunSpec Model 124),
+(Fronius Symo Hybrid, SnapINverter-Generation; Steuerung ueber Modbus/SunSpec
+Model 124, Leistungswerte ueber die Solar API mit dem Fronius-Binding),
 `sigenergy` (Sigenergy SigenStor, Modbus mit proprietaerer Registerkarte),
 `deye` (Deye Hybrid SG04LP3/SG05LP3, Modbus RTU hinter einem
 RS485-Ethernet-Gateway, TOU-Fahrplan) und `victron` (Victron Energy ueber
@@ -821,7 +822,10 @@ automatisch, ohne dass am Router des Mitglieds etwas umgestellt werden muss:
    `ONLINE` ist (`/var/lib/openhab/ibm/inverter_serial`).
 5. Die neue Adresse wird per REST API (`PUT /rest/things/<uid>/config`) in
    das Bridge-Thing eingetragen; das Binding verbindet sich daraufhin von
-   selbst neu.
+   selbst neu. Traegt ein Profil die Adresse in mehreren Things
+   (`INVERTER_EXTRA_HOST_THINGS`, z. B. `fronius-snapinverter`: Modbus-
+   und Solar-API-Bridge), bekommen alle die neue Adresse; im Normalbetrieb
+   gleicht der Watchdog sie still mit dem Bridge-Thing ab.
 
 Der Watchdog braucht ein **openHAB-API-Token** eines Admin-Benutzers. Im
 Normalfall erzeugt das Setup es selbst (`OH_API_TOKEN=auto`, die Vorgabe

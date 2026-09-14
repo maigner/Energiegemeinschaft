@@ -96,22 +96,31 @@ fi
 }
 build_things_manifest
 
-first_thing_type="$(printf '%s' "$things_manifest" \
-  | python3 -c 'import json, sys; print(json.load(sys.stdin)[0]["thingTypeUID"])')" \
+thing_types="$(printf '%s' "$things_manifest" | python3 -c '
+import json, sys
+seen = []
+for t in json.load(sys.stdin):
+    if t["thingTypeUID"] not in seen:
+        seen.append(t["thingTypeUID"])
+print(" ".join(seen))')" \
   || die "Thing-Manifest des Profils '$INVERTER_TYPE' ist kein gueltiges JSON-Array."
 
-# --- 2. Warten, bis das Binding installiert ist ------------------------------
-# 02-install-addons.sh traegt das Binding nur in addons.cfg ein; openHAB
-# installiert es asynchron. Erst wenn der Thing-Typ per REST aufloesbar ist,
-# koennen Things dieses Typs angelegt werden.
-log "Warte auf das Binding '${INVERTER_BINDING}' (Thing-Typ ${first_thing_type}) ..."
+# --- 2. Warten, bis die Bindings installiert sind -----------------------------
+# 02-install-addons.sh traegt die Bindings nur in addons.cfg ein; openHAB
+# installiert sie asynchron. Erst wenn jeder Thing-Typ des Manifests per REST
+# aufloesbar ist, koennen die Things angelegt werden - bei Profilen mit
+# mehreren Bindings (fronius-snapinverter: modbus + fronius) kommt ein
+# spaeter nachinstalliertes Binding sonst zu spaet.
+log "Warte auf die Binding(s) '${INVERTER_BINDINGS// /, }' (Thing-Typen: ${thing_types}) ..."
 waited=0
-until [ "$(curl -s -o /dev/null -w '%{http_code}' -m 5 "$REST/thing-types/$first_thing_type" || true)" = "200" ]; do
-  [ "$waited" -lt 300 ] || die "Binding nach 5 Minuten nicht verfuegbar - Status in openhab.log pruefen."
-  sleep 5
-  waited=$((waited + 5))
+for thing_type in $thing_types; do
+  until [ "$(curl -s -o /dev/null -w '%{http_code}' -m 5 "$REST/thing-types/$thing_type" || true)" = "200" ]; do
+    [ "$waited" -lt 300 ] || die "Thing-Typ $thing_type nach 5 Minuten nicht verfuegbar - Status in openhab.log pruefen."
+    sleep 5
+    waited=$((waited + 5))
+  done
 done
-log "Binding ist installiert."
+log "Binding(s) installiert."
 
 # --- 3. Admin-Konto und API-Token ----------------------------------------------
 # Bei der Provisionierung legt das Setup den openHAB-Admin-Benutzer selbst
@@ -134,6 +143,27 @@ until [ "$(auth_curl -o /dev/null -w '%{http_code}' -m 5 "$REST/things" || true)
   waited=$((waited + 5))
 done
 log "REST API ist bereit."
+
+# --- 3b2. Adresse aus dem Bridge-Thing uebernehmen ----------------------------
+# Hat der Watchdog die Adresse im Bridge-Thing geaendert (DHCP), ibm.conf
+# nachziehen - VOR dem Anlegen, damit neu hinzukommende Things (z. B. die
+# Solar-API-Bridge nach einem Paket-Update) gleich die aktuelle Adresse
+# bekommen und eine Neuinstallation nicht mit der alten startet.
+if [ -n "$INVERTER_HOST_THING_PREFIX" ] && [ -n "$INVERTER_HOST_PARAM" ]; then
+  live_host="$(auth_curl -m 10 "$REST/things/${INVERTER_HOST_THING_PREFIX}:ibm" \
+    | IBM_J_HOST_PARAM="$INVERTER_HOST_PARAM" python3 -c '
+import json, os, sys
+try:
+    print(json.load(sys.stdin).get("configuration", {}).get(os.environ["IBM_J_HOST_PARAM"]) or "")
+except Exception:
+    pass' || true)"
+  if [ -n "$live_host" ] && [ "$live_host" != "$INVERTER_HOST" ]; then
+    log "Adresse im Bridge-Thing ($live_host) weicht von ibm.conf (${INVERTER_HOST:-leer}) ab - ibm.conf nachgezogen."
+    conf_set INVERTER_HOST "$live_host"
+    INVERTER_HOST="$live_host"
+    build_things_manifest
+  fi
+fi
 
 # --- 3c. Wechselrichter-Adresse ------------------------------------------------
 # Erst NACH Admin-Konto und API-Token pruefen (Standardablauf: die Karte
@@ -302,20 +332,24 @@ done < <(printf '%s' "$things_manifest" | things_manifest_lines)
 # Wertetyp - z. B. writeValueType uint16 -> int16, das das Modbus-Binding
 # ablehnt und das Thing UNINITIALIZED laesst), bekommt ein bestehendes Thing
 # nur die abweichenden Schluessel per PUT. Things, die die Netzwerkadresse
-# tragen, bleiben aussen vor (die pflegt der Watchdog).
+# tragen (Bridge und INVERTER_EXTRA_HOST_THINGS), bleiben aussen vor - die
+# pflegt der Watchdog.
+host_params="${INVERTER_HOST_PARAM:-}"
+for entry in $INVERTER_EXTRA_HOST_THINGS; do
+  host_params="$host_params ${entry##*=}"
+done
 reconcile_thing() {
   local uid="$1" payload="$2" current diff code
   current="$(auth_curl -m 10 "$REST/things/$uid" || true)"
   diff="$(IBM_R_PAYLOAD="$payload" IBM_R_CURRENT="$current" \
-          IBM_R_HOST_PARAM="${INVERTER_HOST_PARAM:-}" python3 -c '
+          IBM_R_HOST_PARAMS="$host_params" python3 -c '
 import json, os, sys
 try:
     want = json.loads(os.environ["IBM_R_PAYLOAD"]).get("configuration") or {}
     have = json.loads(os.environ["IBM_R_CURRENT"]).get("configuration") or {}
 except Exception:
     sys.exit(0)
-host_param = os.environ.get("IBM_R_HOST_PARAM")
-if host_param and host_param in want:
+if any(p in want for p in os.environ.get("IBM_R_HOST_PARAMS", "").split()):
     sys.exit(0)
 def norm(v):
     return str(v).lower() if isinstance(v, bool) else str(v)
@@ -336,23 +370,6 @@ while IFS=$'\t' read -r uid payload; do
   [ -n "$uid" ] || continue
   reconcile_thing "$uid" "$payload"
 done < <(printf '%s' "$things_manifest" | things_manifest_lines)
-
-# Hat der Watchdog die Adresse im Bridge-Thing geaendert (DHCP), ibm.conf
-# nachziehen - sonst startet eine Neuinstallation mit der alten Adresse.
-if [ -n "$INVERTER_HOST_THING_PREFIX" ] && [ -n "$INVERTER_HOST_PARAM" ]; then
-  live_host="$(auth_curl -m 10 "$REST/things/${INVERTER_HOST_THING_PREFIX}:ibm" \
-    | IBM_J_HOST_PARAM="$INVERTER_HOST_PARAM" python3 -c '
-import json, os, sys
-try:
-    print(json.load(sys.stdin).get("configuration", {}).get(os.environ["IBM_J_HOST_PARAM"]) or "")
-except Exception:
-    pass' || true)"
-  if [ -n "$live_host" ] && [ "$live_host" != "$INVERTER_HOST" ]; then
-    log "Adresse im Bridge-Thing ($live_host) weicht von ibm.conf ($INVERTER_HOST) ab - ibm.conf nachgezogen."
-    conf_set INVERTER_HOST "$live_host"
-    INVERTER_HOST="$live_host"
-  fi
-fi
 
 # --- 5. Auf ONLINE warten -----------------------------------------------------
 log "Warte, bis der Wechselrichter ONLINE meldet ..."

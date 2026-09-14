@@ -454,6 +454,7 @@ install_watchdog() {
   sed -e "s|@IBM_HOST_THING_UID@|$(sed_escape "$INVERTER_HOST_THING_UID")|g" \
       -e "s|@IBM_WATCH_THING_UID@|$(sed_escape "$INVERTER_THING_UID")|g" \
       -e "s|@IBM_HOST_PARAM@|$(sed_escape "$INVERTER_HOST_PARAM")|g" \
+      -e "s|@IBM_EXTRA_HOST_THINGS@|$(sed_escape "$INVERTER_EXTRA_HOST_THINGS")|g" \
       -e "s|@IBM_TOKEN_FILE@|$(sed_escape "$token_file")|g" \
       -e "s|@IBM_STATE_DIR@|$(sed_escape "$state_dir")|g" \
       -e "s|@IBM_COOLDOWN_MIN@|$(sed_escape "$WATCHDOG_COOLDOWN_MIN")|g" \

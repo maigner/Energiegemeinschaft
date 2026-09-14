@@ -10,6 +10,12 @@
 # (StorCtl_Mod=3), jeweils in Prozent von WChaMax (Fronius-Anleitung
 # 42,0410,2049, Beispiele 2 und 6).
 #
+# Die Leistungswerte (Batterie, Netz, PV) liefert Modbus auf dieser
+# Generation nicht. Sie kommen ueber die Fronius Solar API des Datamanagers
+# (GetPowerFlowRealtimeData) und das Fronius-Binding - dieselben Channels
+# wie im GEN24-Profil, nur ohne Zugangsdaten (die Batterie-Actions des
+# Bindings werden hier nicht gebraucht).
+#
 # Voraussetzungen am Datamanager (Weboberflaeche -> Einstellungen -> Modbus):
 #   - "Wechselrichter-Steuerung ueber Modbus" aktivieren
 #   - Modbus TCP aktiv, Port 502
@@ -25,8 +31,9 @@
 # Anzeigename im Assistenten
 INVERTER_LABEL="Fronius Symo Hybrid (SnapINverter, Modbus)"
 
-# Addons fuer addons.cfg (Kategorie binding)
-INVERTER_BINDINGS="modbus"
+# Addons fuer addons.cfg (Kategorie binding): modbus fuer die Steuerung,
+# fronius fuer die Leistungswerte aus der Solar API
+INVERTER_BINDINGS="modbus fronius"
 
 # Praefix, unter dem bestehende Things erkannt werden (manueller Weg)
 INVERTER_THING_PREFIX="modbus:data"
@@ -43,26 +50,45 @@ INVERTER_ADAPTER_SCRIPT="inverters/fronius-snapinverter/adapter.js"
 # und Overview-Seiten durch das konfigurierte Item ersetzen.
 INVERTER_SOC_PLACEHOLDER="IBM_MB_SoC"
 
-# Keine Batterieleistungs-Karte: laut Registerkarte fuehrt Model 160 auf
-# dem Symo Hybrid nur "String 1"/"String 2", die Batterieleistung ist per
-# Modbus nicht lesbar (nur ChaSt als Status). Nachruestbar waere sie ueber
-# P_Akku der Solar API (GetPowerFlowRealtimeData); bis dahin entfaellt die
-# Karte (der Kontrakt ist optional).
+# Leistungs-Items: laut Registerkarte fuehrt Model 160 auf dem Symo Hybrid
+# nur "String 1"/"String 2", Batterie- und Netzleistung sind per Modbus
+# nicht lesbar. Deshalb haengen sie am powerinverter-Thing des Fronius-
+# Bindings (Solar API: P_Akku, P_Grid, P_PV). Vorzeichen wie im GEN24-Profil
+# und wie der Kern sie erwartet: Batterie + entladen / - laden, Netz
+# + Bezug / - Einspeisung. Die Standardnamen sind die des GEN24-Profils -
+# Status-Push, Overview-Seite und Netzeinspeisungs-Regel greifen damit
+# unveraendert.
+INVERTER_BATTERY_POWER_PLACEHOLDER="Fronius_Symo_Inverter_Battery_Power"
+INVERTER_GRID_POWER_PLACEHOLDER="Fronius_Symo_Inverter_Grid_Power"
+INVERTER_PV_POWER_PLACEHOLDER="Fronius_Symo_Inverter_Solar_Plant_Power"
+INVERTER_BATTERY_POWER_CHANNEL="powerflowchannelpakku"
+INVERTER_GRID_POWER_CHANNEL="powerflowchannelpgrid"
+INVERTER_PV_POWER_CHANNEL="powerflowchannelppv"
+
+# UID des Solar-API-Things, an dem die Leistungs-Channels haengen
+FRONIUS_POWER_THING_UID="fronius:powerinverter:ibm:inverter1"
 
 # Thing mit der Netzwerkadresse (fuer Watchdog und Auto-Anlage: die
 # Modbus-TCP-Bridge) und deren Adress-Parameter
 INVERTER_HOST_THING_PREFIX="modbus:tcp"
 INVERTER_HOST_PARAM="host"
 
+# Weitere Things mit derselben Netzwerkadresse ("uid=parameter", Leerzeichen-
+# getrennt): die Solar-API-Bridge des Fronius-Bindings. Der Watchdog traegt
+# eine neu gefundene Adresse auch dort ein und gleicht sie im Normalbetrieb
+# mit der Modbus-Bridge ab.
+INVERTER_EXTRA_HOST_THINGS="fronius:bridge:ibm=hostname"
+
 # Netzwerksuche: der Datamanager spricht weiterhin die Fronius Solar API -
 # Scan und Watchdog-Rediscover des GEN24-Profils passen unveraendert.
 INVERTER_REDISCOVER_SCRIPT="inverters/fronius/rediscover.sh"
 
-# Keine Zugangsdaten noetig - Modbus TCP kennt keine Anmeldung.
+# Keine Zugangsdaten noetig - Modbus TCP kennt keine Anmeldung, und die
+# Solar API ist lesend ohne Anmeldung erreichbar.
 # (INVERTER_USER_PARAM bleibt leer, der Assistent fragt nichts ab.)
 
 # Hinweis, der im Assistenten und am Ende der Installation angezeigt wird
-INVERTER_NOTES="Am Datamanager (Weboberflaeche -> Einstellungen -> Modbus) muss 'Wechselrichter-Steuerung ueber Modbus' aktiviert sein, Modbus TCP Port 502, SunSpec Model Type 'int + SF'. Die Batterie kann im Energiesparmodus bis zu 10 Minuten brauchen, bis sie auf Entladebefehle reagiert."
+INVERTER_NOTES="Am Datamanager (Weboberflaeche -> Einstellungen -> Modbus) muss 'Wechselrichter-Steuerung ueber Modbus' aktiviert sein, Modbus TCP Port 502, SunSpec Model Type 'int + SF'. Die Leistungswerte kommen ueber die Solar API des Datamanagers (ohne Anmeldung). Die Batterie kann im Energiesparmodus bis zu 10 Minuten brauchen, bis sie auf Entladebefehle reagiert."
 
 # --- Modbus-Registerkarte (int + SF) -----------------------------------------
 # Startadresse des Basic Storage Control Model laut Fronius-Anleitung
@@ -88,12 +114,15 @@ MODBUS_SOC_GAIN="${MODBUS_SOC_GAIN:-0.01}"
 # beschrieben; der Fail-Safe ist der zyklische Reset des Kerns (README).
 
 # Thing-Baum der automatischen Einrichtung: tcp-Bridge -> Poller ueber den
-# Model-124-Block -> Data-Things je Register. Reihenfolge = Anlegereihenfolge.
+# Model-124-Block -> Data-Things je Register, danach die Solar-API-Bridge
+# des Fronius-Bindings mit dem powerinverter-Thing fuer die Leistungswerte.
+# Reihenfolge = Anlegereihenfolge.
 inverter_things_json() {
   IBM_J_HOST="${INVERTER_HOST:-}" \
   IBM_J_UNIT_ID="$MODBUS_UNIT_ID" \
   IBM_J_BASE="$MODBUS_M124_BASE" \
   IBM_J_LABEL="$INVERTER_LABEL" \
+  IBM_J_POWER_UID="$FRONIUS_POWER_THING_UID" \
   python3 - <<'PY'
 import json, os
 e = os.environ
@@ -157,6 +186,24 @@ for reg_id, offset, valuetype, writable in registers:
         "configuration": cfg,
     })
 
+# Solar API (nur lesend): Bridge mit der Adresse, daran der Wechselrichter
+# unter derselben Geraetenummer wie die Modbus-Unit-ID. Ohne Zugangsdaten -
+# die Batterie-Actions des Bindings gibt es auf dieser Generation ohnehin
+# nicht, die Leistungs-Channels brauchen keine.
+things.append({
+    "UID": "fronius:bridge:ibm",
+    "thingTypeUID": "fronius:bridge",
+    "label": label + " (Solar API)",
+    "configuration": {"hostname": e["IBM_J_HOST"]},
+})
+things.append({
+    "UID": e["IBM_J_POWER_UID"],
+    "thingTypeUID": "fronius:powerinverter",
+    "bridgeUID": "fronius:bridge:ibm",
+    "label": label + " (Leistungswerte)",
+    "configuration": {"deviceId": int(e["IBM_J_UNIT_ID"])},
+})
+
 print(json.dumps(things))
 PY
 }
@@ -177,6 +224,20 @@ Number IBM_MB_OutWRte "OutWRte (roh) [%.0f]"             <settings> (IBM) { chan
 Number IBM_MB_InWRte  "InWRte (roh) [%.0f]"              <settings> (IBM) { channel="modbus:data:ibm:p124:inwrte:number" }
 Number IBM_MB_RvrtTms "Revert-Timeout (nur lesend) [%.0f s]" <time> (IBM) { channel="modbus:data:ibm:p124:rvrttms:number" }
 EOF
+  # Leistungswerte aus der Solar API (Fronius-Binding); ohne Itemnamen in
+  # ibm.conf entfallen sie.
+  local power="${FRONIUS_POWER_THING_UID}"
+  [ -z "${BATTERY_POWER_ITEM:-}" ] || cat <<EOF
+
+// Leistungswerte aus der Solar API (Fronius-Binding)
+Number:Power ${BATTERY_POWER_ITEM} "Batterieleistung [%.0f W]" <energy> (IBM) { channel="${power}:${INVERTER_BATTERY_POWER_CHANNEL}", unit="W" }
+EOF
+  [ -z "${GRID_POWER_ITEM:-}" ] || cat <<EOF
+Number:Power ${GRID_POWER_ITEM} "Netzleistung [%.0f W]" <energy> (IBM) { channel="${power}:${INVERTER_GRID_POWER_CHANNEL}", unit="W" }
+EOF
+  [ -z "${PV_POWER_ITEM:-}" ] || cat <<EOF
+Number:Power ${PV_POWER_ITEM} "PV-Leistung [%.0f W]" <solarplant> (IBM) { channel="${power}:${INVERTER_PV_POWER_CHANNEL}", unit="W" }
+EOF
 }
 
 # Sucht Fronius-Geraete im eigenen /24-Netz (Solar-API-Endpunkt), eine IP je
@@ -193,7 +254,8 @@ inverter_scan_hosts() {
 }
 
 # Zusaetzliche Pruefungen fuer 06-verify.sh: alle Things des Baums ONLINE
-# und die Model-ID stimmt (124) - sonst zeigen die Adressen ins Leere.
+# (Modbus und Solar API) und die Model-ID stimmt (124) - sonst zeigen die
+# Adressen ins Leere.
 inverter_verify() {
   local ok=0 uid status
   case "${OH_API_TOKEN:-}" in

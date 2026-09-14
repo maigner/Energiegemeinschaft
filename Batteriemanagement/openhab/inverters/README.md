@@ -97,7 +97,7 @@ Drei Vorlagen:
    | --- | --- |
    | `INVERTER_BATTERY_POWER_CHANNEL` | Channel mit der aktuellen Batterieleistung (+ entladen, - laden) |
    | `INVERTER_BATTERY_POWER_PLACEHOLDER` | Itemname in den Main-UI-Seiten, den das Setup durch `BATTERY_POWER_ITEM` ersetzt |
-   | `INVERTER_GRID_POWER_CHANNEL` | Channel mit der aktuellen Netzleistung (+ Bezug, - Einspeisung); zusammen mit der Batterieleistung berechnet `control/netzeinspeisung.js` daraus `IBM_BATTERIE_NETZEINSPEISUNG` (Wert "Davon ins Netz" in der Hero-Karte - bisher nur im fronius-Profil) |
+   | `INVERTER_GRID_POWER_CHANNEL` | Channel mit der aktuellen Netzleistung (+ Bezug, - Einspeisung); zusammen mit der Batterieleistung berechnet `control/netzeinspeisung.js` daraus `IBM_BATTERIE_NETZEINSPEISUNG` (Wert "Davon ins Netz" in der Hero-Karte - bisher in den Profilen fronius und fronius-snapinverter) |
    | `INVERTER_GRID_POWER_PLACEHOLDER` | Standard-Itemname der Netzleistung; wird durch `GRID_POWER_ITEM` ersetzt |
    | `INVERTER_PV_POWER_CHANNEL` | Channel mit der aktuellen PV-Leistung (Erzeugung); der Status-Push meldet sie an das Vorstands-Dashboard (Kachel "PV-Leistung") |
    | `INVERTER_PV_POWER_PLACEHOLDER` | Standard-Itemname der PV-Leistung; wird durch `PV_POWER_ITEM` ersetzt |
@@ -110,6 +110,7 @@ Drei Vorlagen:
    | `INVERTER_HOST_THING_PREFIX` | Praefix des Things, das die Netzwerkadresse traegt (bei Fronius die Bridge: `fronius:bridge`; bei Modbus die tcp-Bridge: `modbus:tcp`) |
    | `INVERTER_HOST_PARAM` | Name des Konfigurationsparameters mit der Adresse (Vorgabe: `hostname`) |
    | `INVERTER_REDISCOVER_SCRIPT` | Pfad zur Netzwerksuche, relativ zu `openhab/` |
+   | `INVERTER_EXTRA_HOST_THINGS` | Weitere Things mit derselben Adresse, `uid=parameter` Leerzeichen-getrennt (z. B. `fronius-snapinverter`: `fronius:bridge:ibm=hostname` fuer die Solar-API-Werte neben der Modbus-Bridge). Der Watchdog traegt eine neue Adresse dort mit ein und gleicht sie im Normalbetrieb ab; 02b laesst diese Things beim Konfig-Abgleich aus |
 
    Optional, fuer das automatische Anlegen der Things (02b):
 
@@ -140,7 +141,9 @@ Drei Vorlagen:
    | Platzhalter | Wert |
    | --- | --- |
    | `@IBM_HOST_THING_UID@` | UID des Things mit der Netzwerkadresse |
+   | `@IBM_WATCH_THING_UID@` | UID des Things, an dem der Verbindungsstatus abgelesen wird (`INVERTER_THING_UID`) |
    | `@IBM_HOST_PARAM@` | Name des Adress-Parameters |
+   | `@IBM_EXTRA_HOST_THINGS@` | `INVERTER_EXTRA_HOST_THINGS` des Profils (leer, wenn keine) |
    | `@IBM_TOKEN_FILE@` | Datei mit dem openHAB-API-Token |
    | `@IBM_STATE_DIR@` | Arbeitsverzeichnis (Lock, gemerkte Seriennummer) |
    | `@IBM_COOLDOWN_MIN@` | Mindestabstand zwischen zwei Suchen in Minuten |

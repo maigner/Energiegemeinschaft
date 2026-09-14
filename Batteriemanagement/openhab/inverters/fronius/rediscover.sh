@@ -23,6 +23,9 @@ set -u
 THING_UID="@IBM_HOST_THING_UID@"        # traegt die Adresse (bei Modbus die tcp-Bridge)
 WATCH_THING_UID="@IBM_WATCH_THING_UID@" # zeigt die Verbindung an (bei Modbus ein Daten-Thing)
 HOST_PARAM="@IBM_HOST_PARAM@"
+# Weitere Things mit derselben Adresse, "uid=parameter" Leerzeichen-getrennt
+# (fronius-snapinverter: die Solar-API-Bridge neben der Modbus-Bridge)
+EXTRA_HOST_THINGS="@IBM_EXTRA_HOST_THINGS@"
 TOKEN_FILE="@IBM_TOKEN_FILE@"
 STATE_DIR="@IBM_STATE_DIR@"
 COOLDOWN_MIN="@IBM_COOLDOWN_MIN@"
@@ -42,6 +45,7 @@ serial_file="$STATE_DIR/inverter_serial"
 # die Adresse aus dem Bridge-Thing nehmen. Aeltere Installationen ohne den
 # Platzhalter fallen auf das Bridge-Thing zurueck.
 case "$WATCH_THING_UID" in ""|@*) WATCH_THING_UID="$THING_UID" ;; esac
+case "$EXTRA_HOST_THINGS" in @*) EXTRA_HOST_THINGS="" ;; esac
 
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
@@ -100,6 +104,31 @@ fetch_thing() {
   esac
 }
 
+# Traegt die Adresse $1 in die weiteren Things (EXTRA_HOST_THINGS) ein, wo
+# sie abweicht. Still, solange alles stimmt; ein fehlendes Thing (aelteres
+# Paket, noch nicht angelegt) wird uebersprungen.
+sync_extra_hosts() {
+  local target="$1" entry uid param response http_code have
+  [ -n "$target" ] || return 0
+  for entry in $EXTRA_HOST_THINGS; do
+    uid="${entry%=*}"; param="${entry##*=}"
+    response="$(auth_curl -w '\n%{http_code}' -m 10 "$REST/things/$uid")"
+    http_code="${response##*$'\n'}"
+    [ "$http_code" = "200" ] || continue
+    have="$(json_str "${response%$'\n'*}" "$param")"
+    [ "$have" = "$target" ] && continue
+    http_code="$(auth_curl -o /dev/null -w '%{http_code}' -m 10 -X PUT \
+      -H 'Content-Type: application/json' \
+      -d "{\"$param\": \"$target\"}" \
+      "$REST/things/$uid/config")"
+    if [ "$http_code" = "200" ]; then
+      log "Adresse in $uid nachgezogen: ${have:-leer} -> $target"
+    else
+      log "FEHLER: Adresse in $uid konnte nicht nachgezogen werden (HTTP $http_code)."
+    fi
+  done
+}
+
 host_json="$(fetch_thing "$THING_UID")"
 if [ "$WATCH_THING_UID" = "$THING_UID" ]; then
   watch_json="$host_json"
@@ -114,6 +143,7 @@ current_host="$(json_str "$host_json" "$HOST_PARAM")"
 # --- Normalbetrieb: nichts tun, nebenbei die Seriennummern aktuell halten ---
 if [ "$status" = "ONLINE" ] && [ "$FORCE" -ne 1 ]; then
   [ -n "$current_host" ] && remember_serials "$(serials_of "$current_host" || true)"
+  sync_extra_hosts "$current_host"
   exit 0
 fi
 
@@ -124,6 +154,7 @@ log "Thing $WATCH_THING_UID ist $status ($detail), konfigurierte Adresse in $THI
 if [ -n "$current_host" ] && probe "$current_host"; then
   log "Wechselrichter antwortet weiterhin unter $current_host - keine Suche."
   log "Ursache liegt nicht an der Adresse (Credentials? Binding? openhab.log pruefen)."
+  sync_extra_hosts "$current_host"
   exit 0
 fi
 
@@ -197,6 +228,7 @@ fi
 
 if [ "$found" = "$current_host" ]; then
   log "Gefundene Adresse entspricht der konfigurierten ($found) - das Binding verbindet sich von selbst neu."
+  sync_extra_hosts "$found"
   exit 0
 fi
 
@@ -214,6 +246,7 @@ fi
 
 remember_serials "$found_serials"
 log "Thing-Konfiguration aktualisiert - das Binding initialisiert sich neu."
+sync_extra_hosts "$found"
 
 sleep 20
 verify="$(auth_curl "$REST/things/$WATCH_THING_UID/status" || true)"
