@@ -122,7 +122,7 @@ export const upsertMembersFromSpreadsheet = async (rows) => {
             RETURNING *, xmax::text::int > 0 AS updated
       `, [
                 identifier,
-                row["E-Mail"] || null,
+                String(row["E-Mail"] ?? "").trim() || null,
                 fullName || null,
                 firstName,
                 lastName,

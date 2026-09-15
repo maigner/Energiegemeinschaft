@@ -5,7 +5,7 @@ export const getBoardMemberByEmail = async (email: string) => {
     if (!email) return null;
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member
-    where lower(email) = lower($1) and board_member = true`, [email]);
+    where lower(btrim(email)) = lower(btrim($1)) and board_member = true`, [email]);
     sql.release();
     return (result?.rows.length > 0 ? result?.rows[0] : null);
 };
@@ -14,7 +14,7 @@ export const getCommunityMembersByEmail = async (email: string) => {
     if (!email) return null;
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member
-    where lower(email) = lower($1)`, [email]);
+    where lower(btrim(email)) = lower(btrim($1))`, [email]);
     sql.release();
     return (result?.rows.length > 0 ? result?.rows : null);
 };
@@ -24,7 +24,7 @@ export const getUsersByEmail = async (email: string) => {
     if (!email) return null;
     const sql = await middlewareDbConnection();
     const result = await sql.query(`SELECT * FROM members_member
-    where lower(email) = lower($1)`, [email]);
+    where lower(btrim(email)) = lower(btrim($1))`, [email]);
     sql.release();
     return (result?.rows.length > 0 ? result?.rows : null);
 };
