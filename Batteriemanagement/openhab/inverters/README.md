@@ -45,7 +45,10 @@ Regeln fuer Adapter:
 * **Fail-Safe-Pflicht:** Jede Aktion muss nach `minutes` Minuten von selbst
   ablaufen (Schedule wie beim GEN24, Revert-Timeout wie bei SunSpec 124).
   Kann der Hersteller das nicht, dokumentiert das Profil-README das
-  Restrisiko ausdruecklich.
+  Restrisiko ausdruecklich. Faktisch erfuellt nur das GEN24-Profil diese
+  Pflicht; fuer alle Modbus-Profile traegt der zyklische Reset des Kerns
+  den Fail-Safe allein - Fehlerbilder, geplante Absicherung am Pi und der
+  offene Testplan stehen in [failsafe-modbus.md](failsafe-modbus.md).
 * **Nie aus dem Netz laden:** Kein Adapter verwendet Kommandos, die die
   Batterie aus dem Netz laden koennten (Lade-Kommandos,
   Command-Charging-Modi, TOU-Netzladen-Flags) - Sperren, Begrenzen und

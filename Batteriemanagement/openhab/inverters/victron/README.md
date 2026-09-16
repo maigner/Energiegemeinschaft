@@ -148,6 +148,10 @@ Setpoint 2700 wirksam (trotz 3.50+-Override): AUSSTEHEND
 
 ## Fail-Safe-Analyse
 
+> Profiluebergreifend: Fehlerbilder, die geplante Absicherung am Pi
+> (Deadman-Timer, Boot-Reset, Hardware-Watchdog) und der Stand je Profil
+> stehen in [../failsafe-modbus.md](../failsafe-modbus.md).
+
 Die Settings-Register **bleiben stehen**, wenn openHAB ausfaellt - Victron
 kennt fuer diesen Steuerweg kein geraeteseitiges Auto-Revert wie das
 SunSpec-`InOutWRte_RvrtTms`. (ESS Mode 3 haette einen 60-s-Watchdog, endet

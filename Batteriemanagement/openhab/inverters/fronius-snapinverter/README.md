@@ -450,6 +450,11 @@ Entladung nur mit InWRte wirksam: **ja** (Bit 0 + InWRte -9 % -> 1032 W, gleich 
 
 ## Fail-Safe-Analyse
 
+> Die Sitzungsbefunde vom 2026-09-16 (Fehlerbilder, geplante Absicherung am
+> Pi, geraeteseitige Hebel wie Min SoC und "Datenausgabe ueber Modbus", der
+> offene Testplan fuer Anlage 020) stehen profiluebergreifend in
+> [../failsafe-modbus.md](../failsafe-modbus.md).
+
 Die GEN24-Schedules laufen von selbst ab - faellt openHAB aus, kehrt der
 Wechselrichter binnen 5 Minuten zum Werksverhalten zurueck. Modbus-Writes
 dagegen **bleiben stehen**, und der Datamanager kennt kein Revert-Timeout
@@ -468,7 +473,9 @@ ohne Master unveraendert). Deshalb:
 - Not-Aus von Hand: "Datenausgabe ueber Modbus" am Datamanager auf "aus"
   setzt alle Modbus-Steuerbefehle zurueck.
 - Zusaetzlich moeglich (bisher nicht umgesetzt): ein systemd-Timer am Pi,
-  der `StorCtl_Mod = 0` schreibt, wenn openHAB nicht laeuft.
+  der `StorCtl_Mod = 0` schreibt, wenn openHAB nicht laeuft - ausgearbeitet
+  als Schicht L1 in [../failsafe-modbus.md](../failsafe-modbus.md), zusammen
+  mit Boot-Reset und Hardware-Watchdog.
 - `M124_HAS_RVRTTMS = true` in `adapter.js` bleibt als Pfad fuer ein
   Geraet erhalten, das das Revert-Timeout doch unterstuetzt (Adapter setzt
   es dann vor jedem Steuer-Write auf Fensterlaenge + 60 s); der Symo

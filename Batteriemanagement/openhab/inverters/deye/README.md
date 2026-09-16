@@ -138,6 +138,10 @@ Registerwerte ueberleben Neustart (Flash): AUSSTEHEND
 
 ## Fail-Safe-Analyse
 
+> Profiluebergreifend: Fehlerbilder, die geplante Absicherung am Pi
+> (Deadman-Timer, Boot-Reset, Hardware-Watchdog) und der Stand je Profil
+> stehen in [../failsafe-modbus.md](../failsafe-modbus.md).
+
 Modbus-Writes **bleiben stehen**, wenn openHAB ausfaellt - und Deye kennt
 (Community-Stand) kein geraeteseitiges Auto-Revert wie das
 SunSpec-`InOutWRte_RvrtTms`.

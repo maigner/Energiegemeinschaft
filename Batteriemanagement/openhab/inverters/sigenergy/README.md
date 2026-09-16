@@ -260,6 +260,10 @@ Auto-Revert bei Kommunikationsverlust: AUSSTEHEND
 
 ## Fail-Safe-Analyse
 
+> Profiluebergreifend: Fehlerbilder, die geplante Absicherung am Pi
+> (Deadman-Timer, Boot-Reset, Hardware-Watchdog) und der Stand je Profil
+> stehen in [../failsafe-modbus.md](../failsafe-modbus.md).
+
 Modbus-Writes **bleiben stehen**, wenn openHAB ausfaellt - und Sigenergy
 kennt (Stand Protokoll V1.7) kein geraeteseitiges Auto-Revert wie das
 SunSpec-`InOutWRte_RvrtTms`. Der Abschnitt "Interaction timeout" des
