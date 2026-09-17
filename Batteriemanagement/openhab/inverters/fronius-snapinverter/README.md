@@ -11,8 +11,8 @@ TCP** und das **SunSpec Basic Storage Control Model (124)**:
 | Reset (Werksverhalten) | `StorCtl_Mod = 0`, `InWRte = 100 %`, `OutWRte = 100 %` |
 | Ladesperre | `InWRte = 0` + `StorCtl_Mod = 1` (Fronius-Beispiel 2 "nur Entladen erlauben") |
 | Laderegelung (ibmLimitCharge) | `InWRte = Prozent von WChaMax` + `StorCtl_Mod = 1` - das Storage-Model ist genau dafuer gebaut |
-| Forcierte Entladung | Fenster `InWRte = -x %`, `OutWRte = +x %`, `StorCtl_Mod = 3` (Fronius-Beispiel 6 "Entladen mit x %") |
-| Fail-Safe | KEIN geraeteseitiges Auto-Revert: `InOutWRte_RvrtTms` ist laut Registerkarte "Not supported" - siehe Fail-Safe-Analyse |
+| Forcierte Entladung | `InWRte = -x %` + `StorCtl_Mod = 1`, `OutWRte = 100 %` = Fenster [x %, 100 %]: mindestens x %, der Haushalt darf mehr ziehen. Bewusst NICHT Fronius-Beispiel 6 (`OutWRte = +x %`, `StorCtl_Mod = 3`), das die Entladung auf genau x % deckelt - siehe "Hausvorrang" unten |
+| Fail-Safe | KEIN geraeteseitiges Auto-Revert (`InOutWRte_RvrtTms` "Not supported"). Stattdessen: zyklischer Reset des Kerns plus root-Timer `ibm-failsafe` und Boot-Reset ausserhalb von openHAB (`inverter_failsafe_reset` -> `tools/failsafe_reset.py`) - siehe Fail-Safe-Analyse |
 
 Quelle der Semantik: Fronius "Datamanager Modbus TCP & RTU" (42,0410,2049,
 S. 45-48, in `docs/`): `InWRte`/`OutWRte` spannen ein Leistungsfenster in
@@ -133,7 +133,8 @@ Checkliste (Ergebnis in die Tabelle unten eintragen, danach `profile.sh`/
    `StorCtl_Mod = 1`; per Solar API (`P_Akku` nicht negativ) pruefen, dass
    das PV-Laden stoppt und die Entladung fuer den Haushalt weiter geht.
    Ruecksetzen testen (`reset`).
-6. (`discharge`, `discharge-inonly`) Forcierte Entladung wie Beispiel 6:
+6. (`discharge`, `discharge-inonly`) Forcierte Entladung wie Beispiel 6
+   (der Adapter nutzt seit 2026-09-17 die Variante `discharge-inonly`):
    `InWRte = -x %`, `OutWRte = +x %`, `StorCtl_Mod = 3`; `ChaSt` muss auf
    DISCHARGING gehen, `P_Akku` ~ +x % von `WChaMax` (gegen Solar.web/
    Zaehler messen). Gegenprobe `discharge-inonly` (nur `InWRte`, Bit 0):
@@ -197,12 +198,15 @@ Geraet bestaetigt:
   Register wird im Profil nur noch gelesen; der Fail-Safe ist der
   zyklische Reset durch den Kern (Restrisiko siehe Fail-Safe-Analyse).
   Spike-Punkt 7 hat es bestaetigt (Write wird geschluckt, nicht gehalten).
-- **Forcierte Entladung mit beiden Bits.** Beispiel 6 der Modbus-Anleitung
-  (S. 46-47, "Entladen mit 50 % der nominalen Leistung"): `InWRte = -50 %`,
-  `OutWRte = 50 %`, `StorCtl_Mod = 3`. `ibmForceDischarge` schreibt jetzt
-  genau dieses Fenster (vorher nur negatives `InWRte` mit Bit 0); die
-  Ladesperre entsprach schon Beispiel 2 (`InWRte = 0`, `StorCtl_Mod = 1`).
-  Spike-Punkt 6 hat beide Varianten gemessen: beide wirken (1000 W -> 1032 W).
+- **Forcierte Entladung: nur die Untergrenze (seit 2026-09-17).** Beispiel
+  6 der Modbus-Anleitung (S. 46-47, "Entladen mit 50 % der nominalen
+  Leistung"): `InWRte = -50 %`, `OutWRte = 50 %`, `StorCtl_Mod = 3` nagelt
+  die Entladung auf genau x % fest. Spike-Punkt 6 hat beide Varianten
+  gemessen, beide wirken (1000 W -> 1032 W). `ibmForceDischarge` schrieb
+  bis 2026-09-17 Beispiel 6 und schreibt jetzt nur noch `InWRte = -x %` mit
+  Bit 0 (`OutWRte = 100 %`, Bit 1 aus) - Begruendung im Abschnitt
+  "Hausvorrang". Die Ladesperre entspricht Beispiel 2 (`InWRte = 0`,
+  `StorCtl_Mod = 1`).
 - **Skalierungen passen zur Registerkarte:** `WchaMax_SF = 0`
   (`M124_WCHAMAX_W_PER_UNIT = 1`), `InOutWRte_SF = -2`
   (`M124_WRTE_RAW_PER_PCT = 100`), `ChaState_SF = -2`
@@ -409,9 +413,12 @@ dieses Register beweist nichts, nur der Read-back zaehlt.
 `StorCtl_Mod = 1` (Bit 0), `OutWRte` bleibt 100 %: `P_Akku` +400 -> +1047 W
 binnen 10 s, dann drei Minuten 1031-1036 W. **Das negative Ladelimit allein
 erzwingt die Entladung bereits**; Beispiel 6 mit beiden Bits verhaelt sich
-identisch. `ibmForceDischarge` bleibt bei der dokumentierten Variante
-(beide Bits), weil `OutWRte = +x` zusaetzlich die Entladung nach oben
-deckelt - bei Bit 0 allein darf der Haushalt weiterhin bis 100 % ziehen.
+identisch. `ibmForceDischarge` blieb zunaechst bei der dokumentierten
+Variante (beide Bits), weil `OutWRte = +x` zusaetzlich die Entladung nach
+oben deckelt - bei Bit 0 allein darf der Haushalt weiterhin bis 100 %
+ziehen. **Genau dieser Deckel ist seit 2026-09-17 unerwuenscht** (Abschnitt
+"Hausvorrang"): der Adapter kommandiert jetzt die Variante dieser
+Gegenprobe.
 
 **`failsafe` (20:29-20:39):** Entladung 9 % kommandiert, Verbindung
 getrennt, kein Master. **Der Befehl blieb die vollen 10 Minuten stehen**
@@ -448,6 +455,37 @@ Firmwarestand Datamanager: Solar API 1.34.1-5 (HW 2.4D), Common Block `Vr` 0.3.3
 Unit-ID Slave: keiner - der Symo 5.0-3-M haengt an einem eigenen Datamanager (192.168.68.81) | RvrtTms unterstuetzt: **nein** (Write wird geschluckt, nicht gehalten) |
 Entladung nur mit InWRte wirksam: **ja** (Bit 0 + InWRte -9 % -> 1032 W, gleich wie Beispiel 6 mit beiden Bits)
 
+## Hausvorrang: kein Netzbezug waehrend der forcierten Entladung
+
+Entlaedt die Steuerung z. B. mit 1 kW an die Gemeinschaft und schaltet sich
+ein Verbraucher mit mehr als 1 kW zu, muss die Batterie den ganzen Bedarf
+decken - Netzbezug bei geladener Batterie kostet das Mitglied Arbeitspreis
+und ab 2027 auch Leistungspreis (hoechste Viertelstunde des Monats).
+
+Das feste Fenster aus Beispiel 6 (`InWRte = -x`, `OutWRte = +x`,
+`StorCtl_Mod = 3`) verletzt das: die Entladung ist auf genau x % gedeckelt,
+der Rest kaeme aus dem Netz. Seit 2026-09-17 kommandiert
+`ibmForceDischarge` deshalb nur die Untergrenze (`InWRte = -x`,
+`StorCtl_Mod = 1`, `OutWRte = 100 %`): Fenster [x %, 100 %], darin regelt
+der Wechselrichter selbst auf den Netzpunkt - mindestens x %, bei hoeherem
+Hausverbrauch entsprechend mehr. Die Reaktion liegt im Wechselrichter
+(Sekunden), nicht im 5-Minuten-Zyklus des Kerns.
+
+Zweite Ebene im Kern (`core.js`, "Hausvorrang"): wird im Entladefenster
+trotzdem Netzbezug ueber 200 W gemessen, oder zieht der Haushalt allein
+mehr aus der Batterie als die geplante Einspeiseleistung, setzt der Kern
+den Entladebefehl fuer diesen Zyklus aus - der Reset vom Zyklusanfang
+bleibt stehen, der Wechselrichter arbeitet im Eigenverbrauchsbetrieb.
+
+**Offener Test an der Anlage (Punkt 11):** Die Gegenprobe vom 2026-09-10
+lief bei ~400 W Hauslast, der Fall "Last groesser als x" ist am Geraet noch
+nicht gemessen. Ablauf: `spike_datamanager.py discharge-inonly --watts
+1000`, dann einen Verbraucher mit 2 kW oder mehr zuschalten (Wasserkocher,
+Backrohr) und per Solar API pruefen: `P_Akku` steigt auf Hauslast, `P_Grid`
+bleibt um 0. Bleibt `P_Akku` bei ~1000 W und `P_Grid` wird positiv, deckelt
+das Geraet doch - dann faengt nur der Hausvorrang des Kerns den Fall ab
+(bis zu 5 Minuten Bezug), und das Ergebnis gehoert hierher.
+
 ## Fail-Safe-Analyse
 
 > Die Sitzungsbefunde vom 2026-09-16 (Fehlerbilder, geplante Absicherung am
@@ -472,10 +510,14 @@ ohne Master unveraendert). Deshalb:
   Entladeuntergrenze stoppt. Das MUSS dem Mitglied kommuniziert werden.
 - Not-Aus von Hand: "Datenausgabe ueber Modbus" am Datamanager auf "aus"
   setzt alle Modbus-Steuerbefehle zurueck.
-- Zusaetzlich moeglich (bisher nicht umgesetzt): ein systemd-Timer am Pi,
-  der `StorCtl_Mod = 0` schreibt, wenn openHAB nicht laeuft - ausgearbeitet
-  als Schicht L1 in [../failsafe-modbus.md](../failsafe-modbus.md), zusammen
-  mit Boot-Reset und Hardware-Watchdog.
+- **Umgesetzt (2026-09-17):** der root-Timer `ibm-failsafe` schreibt
+  `InWRte`/`OutWRte` 100 % und `StorCtl_Mod = 0` direkt per Modbus
+  (`tools/failsafe_reset.py`, Read-back-Pruefung, Model-124-Guard wie im
+  Adapter), sobald der Heartbeat des Kerns ausbleibt oder openHAB nicht
+  laeuft, und beim Boot vor openHAB (`setup/10-install-failsafe.sh`). Das
+  deckt alle Faelle ab, in denen der Pi selbst noch laeuft - nicht den hart
+  toten Pi; dafuer der Offline-Alarm der Website und der Not-Aus von Hand.
+  Details und Testplan: [../failsafe-modbus.md](../failsafe-modbus.md).
 - `M124_HAS_RVRTTMS = true` in `adapter.js` bleibt als Pfad fuer ein
   Geraet erhalten, das das Revert-Timeout doch unterstuetzt (Adapter setzt
   es dann vor jedem Steuer-Write auf Fensterlaenge + 60 s); der Symo

@@ -111,6 +111,11 @@ class OpenhabStatus(models.Model):
     # Paket-Update vom Dashboard angefordert: die naechste Statusmeldung
     # des Pi bekommt update=true, danach wird die Spalte geleert
     update_requested_at = models.DateTimeField(null=True, blank=True)
+    # Offline-Alarm (Website-Cron checkSilentPlants): Zeitpunkt, zu dem der
+    # Vorstand ueber eine verstummte Anlage benachrichtigt wurde. Die
+    # naechste Statusmeldung des Pi leert die Spalte und loest die
+    # Entwarnung aus - so gibt es je Ausfall genau eine Meldung.
+    offline_alerted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name_plural = "Openhab statuses"

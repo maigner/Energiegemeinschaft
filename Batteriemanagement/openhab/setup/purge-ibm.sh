@@ -155,6 +155,18 @@ if [ -f /etc/systemd/system/ibm-update.timer ]; then
   log "Selbst-Update entfernt (ibm-update.timer)."
 fi
 
+# --- 5c. Fail-Safe ---------------------------------------------------------------
+if [ -f /etc/systemd/system/ibm-failsafe.timer ] || [ -f /usr/local/sbin/ibm-failsafe ]; then
+  systemctl disable --now ibm-failsafe.timer ibm-failsafe-boot.service >/dev/null 2>&1 || true
+  rm -f /etc/systemd/system/ibm-failsafe.timer /etc/systemd/system/ibm-failsafe.service \
+        /etc/systemd/system/ibm-failsafe-boot.service /usr/local/sbin/ibm-failsafe \
+        /etc/systemd/system/openhab.service.d/ibm-failsafe.conf \
+        /etc/systemd/system.conf.d/ibm-watchdog.conf
+  rmdir /etc/systemd/system/openhab.service.d /etc/systemd/system.conf.d 2>/dev/null || true
+  systemctl daemon-reload >/dev/null 2>&1 || true
+  log "Fail-Safe entfernt (ibm-failsafe.timer, Boot-Reset, Drop-ins)."
+fi
+
 # --- 6. WireGuard ---------------------------------------------------------------
 if [ -f /etc/wireguard/wg0.conf ] || [ -f /etc/wireguard/ibm-pi.key ]; then
   systemctl disable --now wg-quick@wg0 >/dev/null 2>&1 || true

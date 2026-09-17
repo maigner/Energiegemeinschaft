@@ -69,23 +69,31 @@ export const deleteOpenhabToken = async (id) => {
  * Anforderung geloescht - der Pi legt daraufhin den Marker fuer seinen
  * Update-Timer an.
  *
- * @returns {Promise<{ stored: boolean, update: boolean, id: number | null }>}
+ * `recovered` ist true, wenn fuer die Anlage ein Offline-Alarm ausstand
+ * (offline_alerted_at, Cron checkSilentPlants) - die Meldung hebt ihn auf,
+ * der Aufrufer schickt die Entwarnung.
+ *
+ * @returns {Promise<{ stored: boolean, update: boolean, id: number | null, recovered: boolean }>}
  */
 export const pushOpenhabStatus = async (token, name, data) => {
     const isFull = Object.prototype.hasOwnProperty.call(data, 'versions');
     const db = await middlewareDbConnection();
     try {
+        // Der alte Wert von offline_alerted_at kommt aus der Unterabfrage:
+        // RETURNING sieht sonst nur die schon geleerte Spalte.
         const result = await db.query(
-            `UPDATE members_openhabstatus
+            `UPDATE members_openhabstatus s
                 SET last_seen = now(),
-                    name = COALESCE(NULLIF($2, ''), name),
-                    data = CASE WHEN $4 THEN $3::jsonb ELSE data || $3::jsonb END
-              WHERE token = $1
-             RETURNING id`,
+                    name = COALESCE(NULLIF($2, ''), s.name),
+                    data = CASE WHEN $4 THEN $3::jsonb ELSE s.data || $3::jsonb END,
+                    offline_alerted_at = NULL
+               FROM (SELECT id, offline_alerted_at FROM members_openhabstatus WHERE token = $1) old
+              WHERE s.id = old.id
+             RETURNING s.id, (old.offline_alerted_at IS NOT NULL) AS recovered`,
             [token, name, JSON.stringify(data), isFull]
         );
         if (result.rowCount === 0) {
-            return { stored: false, update: false, id: null };
+            return { stored: false, update: false, id: null, recovered: false };
         }
         const upd = await db.query(
             `UPDATE members_openhabstatus SET update_requested_at = NULL
@@ -111,7 +119,67 @@ export const pushOpenhabStatus = async (token, name, data) => {
                 [result.rows[0].id, JSON.stringify(historyData)]
             );
         }
-        return { stored: true, update, id: result.rows[0].id };
+        return { stored: true, update, id: result.rows[0].id, recovered: result.rows[0].recovered === true };
+    } finally {
+        db.release();
+    }
+};
+
+/**
+ * Anlagen, die laenger als `minutes` Minuten nichts gemeldet haben und
+ * fuer die noch kein Offline-Alarm ausstand (Cron checkSilentPlants).
+ * Anlagen ohne jede Meldung (Token erzeugt, Pi nie in Betrieb) und am
+ * Dashboard geloeschte bleiben aussen vor. Mit dem letzten bekannten
+ * Zustand, damit die Meldung sagen kann, ob am Wechselrichter ein
+ * Steuerbefehl stehen geblieben sein kann.
+ *
+ * @param {number} minutes
+ */
+export const findSilentPlants = async (minutes) => {
+    const db = await middlewareDbConnection();
+    try {
+        const result = await db.query(
+            `SELECT s.id,
+                    s.name,
+                    s.last_seen,
+                    EXTRACT(EPOCH FROM (now() - s.last_seen)) AS age_seconds,
+                    s.data->>'inverter_type' AS inverter_type,
+                    s.data->>'hauptschalter' AS hauptschalter,
+                    s.data->>'entladung_aktiv' AS entladung_aktiv,
+                    s.data->>'ladesperre_aktiv' AS ladesperre_aktiv,
+                    s.data->>'soc' AS soc,
+                    s.data->>'battery_power_w' AS battery_power_w,
+                    s.data->'failsafe' AS failsafe,
+                    m.name AS member_name,
+                    m.identifier AS member_identifier
+               FROM members_openhabstatus s
+               JOIN members_member m ON s.member_id = m.id
+              WHERE s.last_seen IS NOT NULL
+                AND s.last_seen < now() - make_interval(mins => $1)
+                AND s.offline_alerted_at IS NULL
+                AND COALESCE(s.setup_phase, '') <> 'geloescht'
+              ORDER BY s.last_seen`,
+            [minutes]
+        );
+        return result.rows;
+    } finally {
+        db.release();
+    }
+};
+
+/**
+ * Offline-Alarm als verschickt markieren; die naechste Statusmeldung der
+ * Anlage leert die Spalte wieder (pushOpenhabStatus).
+ *
+ * @param {number} id - members_openhabstatus.id
+ */
+export const markOfflineAlerted = async (id) => {
+    const db = await middlewareDbConnection();
+    try {
+        await db.query(
+            `UPDATE members_openhabstatus SET offline_alerted_at = now() WHERE id = $1`,
+            [id]
+        );
     } finally {
         db.release();
     }

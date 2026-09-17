@@ -278,8 +278,11 @@ Protokolls beschreibt nur Request-Timing, kein Steuerungs-Fallback.
   sie mit dem zuletzt kommandierten Limit weiter, bis die Anlage an ihrer
   eigenen Entladeuntergrenze stoppt. Das MUSS dem Mitglied kommuniziert
   werden, solange Spike-Punkt 9 kein Auto-Revert nachweist.
-- Zusaetzlich moeglich (bisher nicht umgesetzt): ein systemd-Timer am Pi,
-  der `Remote EMS enable = 0` schreibt, wenn openHAB nicht laeuft.
+- Der root-Timer `ibm-failsafe` (`setup/10-install-failsafe.sh`) uebernimmt
+  das, sobald dieses Profil `inverter_failsafe_reset` definiert: ein
+  Skript ohne openHAB, das `Remote EMS enable = 0` schreibt und per
+  Read-back prueft (Vorlage `fronius-snapinverter/tools/failsafe_reset.py`).
+  **Noch offen fuer dieses Profil.**
 
 ## Bekannte Grenzen
 
@@ -291,6 +294,16 @@ Protokolls beschreibt nur Request-Timing, kein Steuerungs-Fallback.
   Wechselrichter oder Batterietuerme.
 - Die Registerkarte gilt fuer Protokoll V1.7; neuere Firmwarestaende im
   Spike gegenpruefen.
+- **Hausvorrang offen (VOR dem Feldeinsatz klaeren):** Das Entladelimit
+  (40034) in Modus 6 ist ein Deckel. Zieht der Haushalt waehrend der
+  forcierten Entladung mehr als die kommandierte Leistung, kaeme die
+  Differenz aus dem Netz - der Adapter-Kontrakt verlangt aber eine
+  Untergrenze (`core.js`, Adapter-Kontrakt und Abschnitt "Hausvorrang").
+  Der Hausvorrang des Kerns faengt das ab, braucht dafuer aber ein
+  Netzleistungs-Item (`GRID_POWER_ITEM`), das dieses Profil noch nicht
+  anlegt. Im Spike bei Punkt 8 pruefen: Verbraucher groesser als das Limit
+  zuschalten, Netzbezug beobachten; Netzleistungs-Register ins Profil
+  aufnehmen.
 
 ## Simulator (Tests ohne Anlage)
 

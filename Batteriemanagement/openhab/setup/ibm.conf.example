@@ -248,6 +248,20 @@ WATCHDOG_COOLDOWN_MIN=10
 # wenn auf ischlstrom.org ein neues Paket liegt. 0 = kein Selbst-Update.
 INSTALL_AUTO_UPDATE=1
 
+# --- Fail-Safe (nur Modbus-Profile) -----------------------------------------
+# Wechselrichter-Reset ausserhalb von openHAB (10-install-failsafe.sh):
+# root-Timer ibm-failsafe schreibt das Werksverhalten, wenn der Heartbeat
+# des Kerns aelter als FAILSAFE_STALE_MIN Minuten ist oder openHAB nicht
+# laeuft, und wiederholt das alle FAILSAFE_REPEAT_MIN Minuten; dazu ein
+# Reset bei jedem Boot. Profile ohne inverter_failsafe_reset (GEN24)
+# brauchen nichts davon. 0 = aus.
+INSTALL_FAILSAFE=1
+FAILSAFE_STALE_MIN=12
+FAILSAFE_REPEAT_MIN=10
+# Hardware-Watchdog: systemd bedient /dev/watchdog, ein eingefrorener Pi
+# startet neu (harter Reset, auch bei Swap-Stau) - bewusst entscheiden.
+INSTALL_HW_WATCHDOG=0
+
 # --- WireGuard-Fernwartung ---------------------------------------------------
 # Ausgehender WireGuard-Tunnel zum Wartungsserver, damit die Anlage fuer
 # Updates und Fehlersuche per SSH erreichbar bleibt. Der Pi baut die

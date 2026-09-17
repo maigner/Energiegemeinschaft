@@ -156,3 +156,25 @@ export async function relayContactForm(email, message) {
     return json(result);
 
 }
+
+// Interne Benachrichtigung an den Vorstand (info@ischlstrom.org), reiner
+// Text. Wirft bei Versandfehler - der Aufrufer entscheidet, ob er es spaeter
+// erneut versucht (der Offline-Alarm markiert die Anlage erst danach).
+export async function relayPlain(subject, text) {
+    let transporter = nodemailer.createTransport({
+        host: SMTP_ENDPOINT,
+        port: SMTP_TLS_PORT,
+        secure: true, // use TLS
+        auth: {
+            user: SMTP_USER,
+            pass: SMTP_PWD,
+        },
+    });
+
+    await transporter.sendMail({
+        from: "info@ischlstrom.org",
+        to: "info@ischlstrom.org",
+        subject: subject,
+        text: text
+    });
+}

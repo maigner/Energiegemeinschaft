@@ -1,6 +1,8 @@
 import { json } from '@sveltejs/kit';
 import { pushOpenhabStatus, MAX_STATUS_DATA_BYTES } from '$lib/server/db/members/openhabStatus';
 import { getBatteryGridFeedInForPlant } from '$lib/server/db/energy/batteryGridFeedIn';
+import { notifyPlantRecovered } from '$lib/server/mail/notifications/ibmAlerts';
+import { dev } from '$app/environment';
 
 /**
  * Live-Status-Push der openHABian-Anlagen (Regel ibm_status_push.js).
@@ -47,11 +49,17 @@ export async function POST({ request }) {
         return json({ error: "Feld 'data' ist zu groß" }, { status: 413 });
     }
 
-    const { stored, update, id } = await pushOpenhabStatus(token, anlage, data);
+    const { stored, update, id, recovered } = await pushOpenhabStatus(token, anlage, data);
 
     if (!stored) {
         console.log(`openhab status push rejected (unknown token): ${anlage || 'ohne Namen'}`);
         return json({ error: 'Unbekanntes Token. Der Vorstand erzeugt Tokens auf ischlstrom.org unter /board/openhab.' }, { status: 401 });
+    }
+
+    // Erste Meldung nach einem Offline-Alarm: Entwarnung an den Vorstand,
+    // ohne die Antwort an den Pi zu verzoegern.
+    if (recovered && id !== null && !dev) {
+        notifyPlantRecovered(id).catch((e) => console.error('entwarnung fehlgeschlagen:', e?.message ?? e));
     }
 
     // update=true genau einmal, wenn der Vorstand am Dashboard ein

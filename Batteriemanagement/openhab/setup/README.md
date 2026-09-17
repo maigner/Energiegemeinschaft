@@ -104,6 +104,47 @@ Die Pis aktualisieren sich selbst (`09-install-updater.sh`, root-Timer
 * `build-dist.sh` legt neben dem Paket `ibm/VERSION` ab; das Dashboard
   markiert Anlagen mit aelterem Stand ("IBM-Paket ... veraltet").
 
+### Fail-Safe fuer Modbus-Wechselrichter
+
+Bei den Modbus-Profilen (fronius-snapinverter, sigenergy, deye, victron)
+bleiben Steuerbefehle am Geraet stehen, wenn openHAB ausfaellt - nur die
+GEN24-Schedules laufen von selbst ab. `10-install-failsafe.sh` richtet
+deshalb eine Absicherung **ausserhalb von openHAB** ein (Hintergrund und
+Testplan: [inverters/failsafe-modbus.md](../inverters/failsafe-modbus.md)):
+
+* **Heartbeat:** der Kern (`control/core.js`) beruehrt nach jedem
+  bestaetigten Reset `/var/lib/ischlstrom/requests/heartbeat`; ohne
+  `ok=true` bewusst nicht.
+* **`ibm-failsafe.timer`** (root, jede Minute, Skript
+  `/usr/local/sbin/ibm-failsafe`): Heartbeat aelter als
+  `FAILSAFE_STALE_MIN` (12) Minuten oder `openhab.service` nicht aktiv ->
+  Werksverhalten direkt per Modbus schreiben (`inverter_failsafe_reset`
+  des Profils, eigene TCP-Verbindung, kein Java), Wiederholung alle
+  `FAILSAFE_REPEAT_MIN` (10) Minuten bis der Heartbeat zurueck ist. Die
+  Adresse kommt aus dem Bridge-Thing der JSONDB (vom Netzwerk-Watchdog
+  gepflegt), ersatzweise aus `INVERTER_HOST` in `ibm.conf`.
+* **`ibm-failsafe-boot.service`:** derselbe Reset bei jedem Boot vor dem
+  Start von openHAB (bis zu zwei Minuten Wiederholung).
+* **Drop-in `openhab.service.d/ibm-failsafe.conf`:** `Restart=on-failure`.
+* **Standby (Hauptschalter AUS):** der Kern schickt beim Ausschalten genau
+  einen letzten Reset und legt `requests/failsafe-standby` an; solange der
+  Marker existiert, ruehren Kern, Timer und Boot-Reset den Wechselrichter
+  nicht an - das Mitglied darf ihn anders steuern. Einschalten entfernt
+  den Marker.
+* **Optional `INSTALL_HW_WATCHDOG=1`:** systemd bedient den Hardware-
+  Watchdog (`RuntimeWatchdogSec=15s`), ein eingefrorener Pi startet neu und
+  der Boot-Reset greift. Vorgabe aus, bewusst zu entscheiden.
+* Zustand: `sudo ibm-failsafe --status`; Reset von Hand: `--now`; Log
+  `/var/log/ibm-failsafe.log`. Der letzte Eingriff geht als `failsafe` im
+  Status-Push ans Dashboard. `INSTALL_FAILSAFE=0` schaltet alles ab; bei
+  Profilen ohne `inverter_failsafe_reset` (GEN24) wird nichts eingerichtet.
+
+Was der Fail-Safe nicht abdeckt: einen hart toten Pi (Netzteil, SD-Karte).
+Dafuer meldet die Website verstummte Anlagen per Mail an den Vorstand
+(Cron `checkSilentPlants`, ab 30 Minuten ohne Status-Push, je Ausfall eine
+Meldung plus Entwarnung), und am Wechselrichter bleibt der Not-Aus von
+Hand (Profil-README).
+
 ### Standardablauf: Test im Netz des Vorstands
 
 Standard seit 2026-08: der Vorstand baut das Image, flasht die Karte und

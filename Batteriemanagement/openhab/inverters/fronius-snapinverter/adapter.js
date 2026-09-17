@@ -20,8 +20,12 @@
 // Werte = Ladung, positive = Entladung, jeweils in % von WChaMax. Die
 // Beispiele dort sind die Vorlage der Kommandos:
 //   Beispiel 2 "nur Entladen erlauben" = Ladesperre: InWRte=0, StorCtl_Mod=1
-//   Beispiel 6 "Entladen mit x %"      = forcierte Entladung:
-//                                        InWRte=-x, OutWRte=x, StorCtl_Mod=3
+//   forcierte Entladung: InWRte=-x, StorCtl_Mod=1 (OutWRte bleibt 100 %) =
+//                        Fenster [x, 100 %], "entlade mit MINDESTENS x %".
+//                        Bewusst NICHT Beispiel 6 "Entladen mit x %"
+//                        (OutWRte=x, StorCtl_Mod=3): dessen festes Fenster
+//                        deckelt die Entladung, ein groesserer Verbraucher
+//                        wuerde dann aus dem Netz versorgt.
 // Alle Vorgaben sind Empfehlungen; der Wechselrichter darf aus Gruenden
 // der Betriebssicherheit abweichen.
 //
@@ -172,15 +176,20 @@ function ibmForceDischarge(watts, minutes) {
   if (pct > 100) pct = 100;
 
   __ibmMbArmRevert(minutes);
-  // Beispiel 6 der Anleitung ("Entladen mit x % der nominalen Leistung"):
-  // Ladelimit -x % und Entladelimit +x % ergeben das feste Fenster
-  // [-x, -x] = Entladung mit genau x % von WChaMax; dafuer muessen BEIDE
-  // Limits aktiv sein (StorCtl_Mod = 3). Reihenfolge: erst die Limits,
-  // dann das Bitfeld, damit kein Zwischenzustand mit alten Limits wirkt.
+  // Nur die UNTERGRENZE der Entladung kommandieren: Ladelimit -x % mit
+  // Bit 0 ergibt das Fenster [x %, 100 %] - die Batterie entlaedt mit
+  // mindestens x % von WChaMax, und braucht der Haushalt mehr, regelt der
+  // Wechselrichter von selbst bis 100 % nach (Spike 2026-09-10, Gegenprobe
+  // discharge-inonly). Beispiel 6 der Anleitung (zusaetzlich OutWRte = +x,
+  // StorCtl_Mod = 3) wuerde die Entladung auf GENAU x % festnageln: schaltet
+  // sich ein groesserer Verbraucher zu, kaeme der Rest trotz voller Batterie
+  // aus dem Netz. OutWRte wird deshalb ausdruecklich auf 100 % gestellt
+  // (kein Altwert), Bit 1 bleibt aus. Reihenfolge: erst die Limits, dann
+  // das Bitfeld, damit kein Zwischenzustand mit alten Limits wirkt.
   var raw = pct * M124_WRTE_RAW_PER_PCT;
-  var ok = __ibmMbSend('IBM_MB_InWRte', -raw);
-  ok = __ibmMbSend('IBM_MB_OutWRte', raw) && ok;
-  ok = __ibmMbSend('IBM_MB_StorCtl', M124_STORCTL_CHARGE_BIT | M124_STORCTL_DISCHARGE_BIT) && ok;
+  var ok = __ibmMbSend('IBM_MB_OutWRte', 100 * M124_WRTE_RAW_PER_PCT);
+  ok = __ibmMbSend('IBM_MB_InWRte', -raw) && ok;
+  ok = __ibmMbSend('IBM_MB_StorCtl', M124_STORCTL_CHARGE_BIT) && ok;
 
   return { ok: ok, appliedW: Math.round(maxW * pct / 100) };
 }

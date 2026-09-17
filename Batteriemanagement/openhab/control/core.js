@@ -69,8 +69,14 @@
 //     nicht, dokumentiert das Profil-README das Restrisiko.
 //
 //   ibmForceDischarge(watts, minutes) -> { ok: boolean, appliedW?: number }
-//     Entladung mit ~`watts` fuer `minutes` Minuten erzwingen, ebenfalls
-//     selbst ablaufend. `watts` ist bereits validiert und auf
+//     Entladung mit MINDESTENS ~`watts` fuer `minutes` Minuten erzwingen,
+//     ebenfalls selbst ablaufend. `watts` ist eine Untergrenze, kein
+//     Deckel: braucht der Haushalt mehr, muss die Batterie weiter den
+//     ganzen Bedarf decken (kein Netzbezug bei geladener Batterie). Kann
+//     ein Hersteller nur einen festen Wert oder ein Limit kommandieren,
+//     faengt das der Hausvorrang des Kerns ab (Abschnitt "Hausvorrang") -
+//     dafuer braucht das Profil ein Netzleistungs-Item. `watts` ist
+//     bereits validiert und auf
 //     ABSOLUTE_MAX_DISCHARGE_W begrenzt. `appliedW` ist die nach
 //     herstellerseitiger Quantisierung tatsaechlich kommandierte Leistung
 //     (z. B. Prozent-Rundung); fehlt sie, rechnet der Kapazitaetsschaetzer
@@ -100,7 +106,10 @@
 // hier hinterlegte Rueckfallwert, das Skript laeuft also auch unvollstaendig
 // eingerichtet weiter.
 //
-// Vom Setup ersetzt: @IBM_SOC_ITEM@ (Itemname des Ladestands).
+// Vom Setup ersetzt: @IBM_SOC_ITEM@ (Itemname des Ladestands),
+// @IBM_HEARTBEAT_FILE@ (Heartbeat-Datei fuer den Fail-Safe-Timer),
+// @IBM_FAILSAFE_STANDBY@ (Standby-Marker: Hauptschalter AUS, IBM und
+// Fail-Safe ruehren den Wechselrichter nicht an).
 // ============================================================================
 
 // Laenge eines Steuer-Zeitschlitzes. Muss zum Cron der Batterie-Regel
@@ -304,6 +313,24 @@ var FALLBACK_MAX_DISCHARGE_W = 3000;
 // Harte Sicherheits-Obergrenze der Entladeleistung. Wird NIE ueberschritten -
 // weder durch Einstellungen noch durch die Kapazitaetsschaetzung.
 var ABSOLUTE_MAX_DISCHARGE_W = 5000;
+
+// --- Hausvorrang waehrend der forcierten Entladung --------------------------
+// Die forcierte Entladung darf den Haushalt nie ins Netz draengen: schaltet
+// sich ein Verbraucher zu, der mehr braucht als die kommandierte Leistung,
+// muss die Batterie den ganzen Bedarf decken. Adapter mit Untergrenzen-
+// Semantik (Fronius, Victron) regeln das im Wechselrichter binnen Sekunden.
+// Als Sicherheitsnetz fuer alle Profile setzt der Kern den Entladebefehl
+// einen Zyklus lang aus (der Reset am Zyklusanfang gilt dann weiter, der
+// Wechselrichter versorgt im Eigenverbrauchsbetrieb das Haus), wenn
+//   - trotz Entladefenster Netzbezug gemessen wird, oder
+//   - die Batterie deutlich mehr abgibt als geplant und trotzdem nichts
+//     eingespeist wird - der Haushalt zieht dann allein mehr als die
+//     Einspeiseleistung, ein Kommando mit Deckel-Semantik (Sigenergy, Deye)
+//     wuerde die Differenz ins Netz legen.
+// Ohne Netzleistungs-Item bleibt der Hausvorrang aus (Sigenergy, Deye und
+// Victron legen derzeit keines an - dort vor dem Feldeinsatz nachziehen).
+var HAUSVORRANG_BEZUG_W = 200;    // Netzbezug darueber -> Entladebefehl aussetzen
+var HAUSVORRANG_MARGE_W = 250;    // Batterie gibt so viel mehr ab als geplant
 
 // --- Dynamische Entladeleistung ---------------------------------------------
 // Die Anlagen haben unterschiedlich grosse Batterien, deren Kapazitaet bei der
@@ -1338,6 +1365,28 @@ function currentEinspeisungW() {
   return Math.round(Math.min(Math.max(dischargeW, 0), Math.max(exportW, 0)));
 }
 
+// Hausvorrang (siehe Konstanten): Grund als Text, wenn der Entladebefehl mit
+// `plannedW` in diesem Zyklus ausgesetzt werden muss, sonst null.
+function hausvorrangGrund(plannedW) {
+  var grid = readItem('@IBM_GRID_POWER_ITEM@');
+  if (grid === null) return null;
+  var gridW = parseFloat(grid.numericState); // Netz positiv = Bezug
+  if (isNaN(gridW)) return null;
+  if (gridW > HAUSVORRANG_BEZUG_W) {
+    return 'Netzbezug ' + Math.round(gridW) + ' W im Entladefenster';
+  }
+  // Mehr Entladung als geplant UND nichts davon geht ins Netz: der Haushalt
+  // allein zieht mehr als die Einspeiseleistung. (Mit Einspeisung ist die
+  // hoehere Entladung gewollt - Victron regelt am Netzpunkt und legt den
+  // Hausverbrauch auf die kommandierte Leistung drauf.)
+  var batt = readItem('@IBM_BATTERY_POWER_ITEM@');
+  var battW = (batt === null) ? NaN : parseFloat(batt.numericState); // Batterie positiv = entladen
+  if (!isNaN(battW) && battW > plannedW + HAUSVORRANG_MARGE_W && gridW > -HAUSVORRANG_BEZUG_W) {
+    return 'Haushalt zieht ' + Math.round(battW) + ' W aus der Batterie, geplant sind ' + plannedW + ' W Einspeisung';
+  }
+  return null;
+}
+
 // --- Laderegelung: PWM-Zustand und Slot-Planung -----------------------------
 // PWM-Zustand als JSON in einem String-Item (persistiert):
 //   schuld     angesammelte Sperrschuld in Slots (Bresenham-Akkumulator:
@@ -1810,16 +1859,60 @@ function cloudForecast() {
 }
 
 // ----------------------------------------------------------------------------
-// Gemeinsamer Schritt: Toggle-abhaengiger Reset und Pause
+// Gemeinsamer Schritt: Hauptschalter, Reset, Heartbeat und Pause
 // ----------------------------------------------------------------------------
+// Hauptschalter AUS heisst: das Mitglied darf den Wechselrichter anders
+// steuern (Hersteller-App, anderes EMS). IBM schickt deshalb beim
+// Ausschalten genau EINEN letzten Reset - damit bei Wechselrichtern ohne
+// selbst ablaufende Kommandos (Modbus-Profile) kein Fenster stehen bleibt -
+// und ruehrt das Geraet danach nicht mehr an. Gemerkt wird das ueber den
+// Standby-Marker @IBM_FAILSAFE_STANDBY@: fehlt er bei AUS, ist das der
+// Uebergang (Reset, bei ok=true Marker anlegen, sonst naechster Zyklus
+// erneut); bei EIN wird er entfernt. Derselbe Marker stellt den
+// Fail-Safe-Timer und den Boot-Reset ruhig (setup/10-install-failsafe.sh).
+//
+// Heartbeat: nach einem BESTAETIGTEN Reset im EIN-Betrieb beruehrt der Kern
+// die Datei @IBM_HEARTBEAT_FILE@. Der root-Timer ibm-failsafe (ausserhalb
+// von openHAB) schreibt das Werksverhalten selbst per Modbus, wenn der
+// Heartbeat ausbleibt - weil openHAB haengt, die Regel nicht mehr laeuft
+// oder der Reset ueber das Binding scheitert. Deshalb gibt es ohne ok=true
+// bewusst keinen Heartbeat.
+function ibmShell(command) {
+  try {
+    var out = actions.Exec.executeCommandLine(time.Duration.ofSeconds(5), '/bin/sh', '-c', command);
+    return (out === null || out === undefined) ? '' : String(out).trim();
+  } catch (e) {
+    console.log('[IBM] Shell-Aufruf fehlgeschlagen (' + command + '): ' + e);
+    return null;
+  }
+}
+
 var toggleOn = onOff('Schalte_ISCHLSTROM_Empfehlung_einaus', false);
 
-if (toggleOn) {
-  var resetResult = ibmReset();
-  console.log('[IBM] Toggle=ON - Reset (ok=' + (resetResult && resetResult.ok === true) + ')');
-} else {
-  console.log('[IBM] Toggle=OFF - Tue nichts');
+if (!toggleOn) {
+  var standby = ibmShell("[ -f '@IBM_FAILSAFE_STANDBY@' ] && echo ja || echo nein");
+  if (standby === 'ja') {
+    console.log('[IBM] Toggle=OFF - Standby, Wechselrichter bleibt unangetastet');
+  } else {
+    var lastReset = ibmReset();
+    if (lastReset && lastReset.ok === true) {
+      ibmShell("touch '@IBM_FAILSAFE_STANDBY@'");
+      console.log('[IBM] Toggle=OFF - letzter Reset (ok=true), IBM und Fail-Safe geben den Wechselrichter frei');
+    } else {
+      console.log('[IBM] Toggle=OFF - letzter Reset nicht bestaetigt, Wiederholung im naechsten Zyklus');
+    }
+  }
   return;
+}
+
+var resetResult = ibmReset();
+var resetOk = resetResult && resetResult.ok === true;
+console.log('[IBM] Toggle=ON - Reset (ok=' + resetOk + ')');
+if (resetOk) {
+  ibmShell("rm -f '@IBM_FAILSAFE_STANDBY@'; touch '@IBM_HEARTBEAT_FILE@'");
+} else {
+  ibmShell("rm -f '@IBM_FAILSAFE_STANDBY@'");
+  console.log('[IBM] Reset nicht bestaetigt - kein Heartbeat, der Fail-Safe-Timer uebernimmt');
 }
 
 // Pause (Unterseite "IBM pausieren"): solange Pausentage uebrig sind, wird
@@ -2235,6 +2328,17 @@ function handleForcedDischarge() {
         dischargeW = stretched;
       }
     }
+  }
+
+  // Hausvorrang: der Haushalt braucht mehr, als die Einspeisung hergibt -
+  // Entladebefehl aussetzen, der Reset vom Zyklusanfang laesst die Batterie
+  // den ganzen Bedarf decken. Die Messwerte stammen noch aus dem Betrieb
+  // unter dem Befehl des letzten Zyklus.
+  var vorrang = hausvorrangGrund(dischargeW);
+  if (vorrang !== null) {
+    console.log('[IBM][Entladung] Hausvorrang: ' + vorrang + ' - kein Entladebefehl in diesem Zyklus, die Batterie versorgt das Haus');
+    updateCapacityEstimate(soc, 0, false);
+    return;
   }
 
   dischargeCommanded = true;

@@ -168,8 +168,12 @@ siehe oben.)
   wird nie unter die konfigurierte Reserve entladen. Das ist ein harter,
   anlagenseitiger Boden, den z. B. das Deye-Profil nicht hat. Das
   Restrisiko MUSS dem Mitglied trotzdem kommuniziert werden.
-- Zusaetzlich moeglich (bisher nicht umgesetzt): ein systemd-Timer am Pi,
-  der die Werkswerte schreibt, wenn openHAB nicht laeuft.
+- Der root-Timer `ibm-failsafe` (`setup/10-install-failsafe.sh`) uebernimmt
+  das, sobald dieses Profil `inverter_failsafe_reset` definiert: ein
+  Skript ohne openHAB, das grid setpoint und MaxChargeCurrent auf die
+  gemerkten Werkswerte schreibt und per Read-back prueft (Vorlage
+  `fronius-snapinverter/tools/failsafe_reset.py`). **Noch offen fuer
+  dieses Profil.**
 
 ## Bekannte Grenzen
 

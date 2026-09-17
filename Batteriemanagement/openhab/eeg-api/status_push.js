@@ -214,6 +214,29 @@ function collectSystemHealth() {
   };
 }
 
+// Zustand des Fail-Safe-Timers (ibm-failsafe, setup/10-install-failsafe.sh):
+// die JSON-Datei schreibt der root-Timer nach jedem Reset-Versuch; das
+// Dashboard sieht so, ob und warum ausserhalb von openHAB zurueckgesetzt
+// wurde. null ohne Fail-Safe (GEN24) oder solange nie eingegriffen wurde.
+function collectFailsafe() {
+  var raw;
+  try {
+    raw = actions.Exec.executeCommandLine(
+      time.Duration.ofSeconds(5),
+      '/bin/sh', '-c', "cat '@IBM_FAILSAFE_STATUS@' 2>/dev/null"
+    );
+  } catch (e) {
+    return null;
+  }
+  if (raw === null || raw === undefined || String(raw).trim().length === 0) return null;
+  try {
+    var parsed = JSON.parse(String(raw));
+    return (typeof parsed === 'object' && parsed !== null) ? parsed : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 var payload = {
   anlage: '@IBM_ANLAGE_NAME@',
   token: '@IBM_STATUS_TOKEN@',
@@ -287,6 +310,7 @@ if (voll) {
   payload.data.versions = collectVersions();
   payload.data.apt_updates = collectAptUpdates();
   payload.data.system = collectSystemHealth();
+  payload.data.failsafe = collectFailsafe();
 }
 
 var response = actions.HTTP.sendHttpPostRequest(url, "application/json", JSON.stringify(payload), 15000);

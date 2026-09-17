@@ -6,9 +6,10 @@
 # GEN24-Config-API nicht - die Batterie-Actions des Fronius-Bindings
 # funktionieren dort nicht. Gesteuert wird stattdessen ueber Modbus TCP und
 # das SunSpec Basic Storage Control Model (124): Ladesperre ueber InWRte=0
-# (StorCtl_Mod=1), forcierte Entladung ueber das Fenster InWRte=-x/OutWRte=x
-# (StorCtl_Mod=3), jeweils in Prozent von WChaMax (Fronius-Anleitung
-# 42,0410,2049, Beispiele 2 und 6).
+# (StorCtl_Mod=1), forcierte Entladung ueber die Untergrenze InWRte=-x
+# (StorCtl_Mod=1, OutWRte=100 % - der Haushalt darf mehr ziehen), jeweils in
+# Prozent von WChaMax (Fronius-Anleitung 42,0410,2049, Beispiel 2; bewusst
+# nicht das feste Fenster aus Beispiel 6, siehe README "Hausvorrang").
 #
 # Die Leistungswerte (Batterie, Netz, PV) liefert Modbus auf dieser
 # Generation nicht. Sie kommen ueber die Fronius Solar API des Datamanagers
@@ -101,6 +102,9 @@ INVERTER_NOTES="Am Datamanager (Weboberflaeche -> Einstellungen -> Modbus) muss 
 # seiner eigenen Nummer, Model 124 liefert nur der Hybrid.
 MODBUS_UNIT_ID="${MODBUS_UNIT_ID:-1}"
 MODBUS_M124_BASE="${MODBUS_M124_BASE:-40303}"
+# TCP-Port des Datamanagers (Weboberflaeche -> Modbus; Vorgabe 502). Gilt
+# fuer die Bridge der automatischen Einrichtung und den Fail-Safe-Reset.
+MODBUS_PORT="${MODBUS_PORT:-502}"
 
 # Skalierung des Ladestands: ChaState hat ueblicherweise ChaState_SF=-2
 # (Registerwert 5500 = 55,00 %) -> Gain 0.01. Im Spike verifizieren.
@@ -119,6 +123,7 @@ MODBUS_SOC_GAIN="${MODBUS_SOC_GAIN:-0.01}"
 # Reihenfolge = Anlegereihenfolge.
 inverter_things_json() {
   IBM_J_HOST="${INVERTER_HOST:-}" \
+  IBM_J_PORT="$MODBUS_PORT" \
   IBM_J_UNIT_ID="$MODBUS_UNIT_ID" \
   IBM_J_BASE="$MODBUS_M124_BASE" \
   IBM_J_LABEL="$INVERTER_LABEL" \
@@ -136,7 +141,7 @@ things = [
         "label": label + " (Verbindung)",
         "configuration": {
             "host": e["IBM_J_HOST"],
-            "port": 502,
+            "port": int(e["IBM_J_PORT"]),
             "id": int(e["IBM_J_UNIT_ID"]),
         },
     },
@@ -289,4 +294,16 @@ for t in json.load(sys.stdin): print(t["UID"])')
       warn "Register an MODBUS_M124_BASE liefert '$model_id' statt 124 - Adresse/Registerkarte pruefen (README)."; ok=1 ;;
   esac
   return $ok
+}
+
+# Fail-Safe-Reset ohne openHAB (root-Timer ibm-failsafe und Boot-Reset,
+# siehe setup/10-install-failsafe.sh): der Datamanager kennt kein
+# Revert-Timeout, Modbus-Writes bleiben stehen, wenn openHAB ausfaellt.
+# Schreibt das Werksverhalten des Storage-Models (dieselben drei Writes wie
+# ibmReset() im Adapter) und prueft per Read-back. $1 = Adresse des
+# Datamanagers (aus dem Bridge-Thing, ersatzweise INVERTER_HOST).
+# Exit 0 nur bei bestaetigtem Reset - der Timer wiederholt sonst.
+inverter_failsafe_reset() {
+  python3 "$IBM_INVERTER_DIR/fronius-snapinverter/tools/failsafe_reset.py" \
+    --host "$1" --port "$MODBUS_PORT" --unit "$MODBUS_UNIT_ID" --base "$MODBUS_M124_BASE"
 }

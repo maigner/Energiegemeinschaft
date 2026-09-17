@@ -35,7 +35,9 @@ const time = {
     now: () => new ZDT(NOW_MS),
     parse: (s) => { const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?/); if (!m) throw new Error('parse ' + s); return new ZDT(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0))); }
   },
-  Duration: { between: (a, b) => { const d = b.ms - a.ms; return { toMinutes: () => Math.trunc(d / 60000), toHours: () => Math.trunc(d / 3600000), toMillis: () => d }; } }
+  Duration: { between: (a, b) => { const d = b.ms - a.ms; return { toMinutes: () => Math.trunc(d / 60000), toHours: () => Math.trunc(d / 3600000), toMillis: () => d }; },
+              // Timeout-Argument des Heartbeat-Aufrufs (actions.Exec) - Wert egal
+              ofSeconds: () => null }
 };
 function localMs(str) { const m = str.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/); return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]); }
 const pad = (n) => (n < 10 ? '0' : '') + n;
@@ -183,7 +185,8 @@ for (const pid of Object.keys(hist).sort((a, b) => a - b)) {
     setItem('Ischlstrom_Wolken_Stunden', wolkenStunden(day, nowMin));
 
     calls.length = 0; logs.length = 0;
-    cycle(items, time, con, calls, {});
+    // actions.Exec: der Kern beruehrt damit den Heartbeat des Fail-Safe-Timers
+    cycle(items, time, con, calls, { Exec: { executeCommandLine: () => '' } });
     if (verboseDay === day && pid === (onlyPlant || pid)) { console.log('--- ' + r.t + ' simSoc=' + (simSoc === null ? '-' : simSoc.toFixed(1)) + ' pot=' + potential + ' PV=' + r.pv); for (const l of logs) console.log('   ' + l); }
 
     const locked = calls.some(c => c.t === 'lock');

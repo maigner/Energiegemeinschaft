@@ -7,6 +7,7 @@ import { fetchAndStoreWeatherData } from "$lib/server/db/weather/openmeteo";
 import { checkActivationReminders, sendActivationReminders } from "$lib/server/mail/reminders/memberReminders";
 import { refreshMaterializedViewCrossoverTimes } from "$lib/server/db/energy/overview";
 import { pruneOpenhabStatusHistory } from "$lib/server/db/members/openhabStatus";
+import { checkSilentPlants } from "$lib/server/mail/notifications/ibmAlerts";
 import { rollupOpenhabCounterSnapshots } from "$lib/server/db/energy/batteryGridFeedIn";
 import { pruneExpiredAuthData, pruneMemberDataAccessLog } from "$lib/server/db/retention";
 import { dev } from "$app/environment";
@@ -70,6 +71,15 @@ export async function cronHandle({ event, resolve }) {
 			if (dev) return;
 			console.log('Runs once a week: checkActivationReminders');
 			checkActivationReminders();
+		});
+
+		// checkSilentPlants
+		// IBM-Anlagen, die verstummt sind (kein Status-Push mehr), dem
+		// Vorstand melden - bei Modbus-Wechselrichtern kann sonst ein
+		// Steuerbefehl unbemerkt stehen bleiben (inverters/failsafe-modbus.md)
+		cron.schedule('*/5 * * * *', () => {
+			if (dev) return;
+			checkSilentPlants();
 		});
 
 		// rollupOpenhabCounterSnapshots

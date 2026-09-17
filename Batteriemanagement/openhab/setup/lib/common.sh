@@ -14,6 +14,17 @@ OPENHAB_USER="${OPENHAB_USER:-openhab}"
 # root-Timer ibm-update wertet sie aus - siehe 09-install-updater.sh).
 IBM_REQUEST_DIR="${IBM_REQUEST_DIR:-/var/lib/ischlstrom/requests}"
 IBM_UPDATE_FLAG="$IBM_REQUEST_DIR/update-requested"
+# Fail-Safe (10-install-failsafe.sh): der Kern beruehrt den Heartbeat nach
+# jedem bestaetigten Reset; der root-Timer ibm-failsafe setzt den
+# Wechselrichter zurueck, wenn er ausbleibt, und legt seinen Zustand als
+# JSON ab (der Status-Push meldet ihn ans Dashboard).
+IBM_HEARTBEAT_FILE="$IBM_REQUEST_DIR/heartbeat"
+IBM_FAILSAFE_STATUS="$IBM_REQUEST_DIR/failsafe-status"
+# Standby-Marker: der Kern legt ihn beim Ausschalten des Hauptschalters nach
+# einem letzten Reset an (und entfernt ihn beim Einschalten) - solange er
+# existiert, ruehren weder Timer noch Boot-Reset den Wechselrichter an,
+# das Mitglied darf ihn anders steuern.
+IBM_FAILSAFE_STANDBY="$IBM_REQUEST_DIR/failsafe-standby"
 OPENHAB_GROUP="${OPENHAB_GROUP:-openhab}"
 
 # Verzeichnis, in dem die Setup-Skripte liegen
@@ -31,7 +42,9 @@ IBM_CONF="${IBM_CONF:-$IBM_SETUP_DIR/ibm.conf}"
 # ohne abschliessenden Schraegstrich.
 IBM_CLOUD_BASE_URL="${IBM_CLOUD_BASE_URL:-https://hac.ischlstrom.org}"
 
-log()  { echo "[IBM] $*"; }
+# IBM_QUIET=1 unterdrueckt die Hinweise (ibm-failsafe laeuft minuetlich und
+# soll das Journal nicht mit "Profil geladen" fuellen); Warnungen bleiben.
+log()  { [ "${IBM_QUIET:-0}" = "1" ] || echo "[IBM] $*"; }
 warn() { echo "[IBM] WARNUNG: $*" >&2; }
 die()  { echo "[IBM] FEHLER: $*" >&2; exit 1; }
 
@@ -156,7 +169,8 @@ load_profile() {
         INVERTER_USER_PARAM INVERTER_PASSWORD_PARAM \
         INVERTER_THING_EXTRA_CONFIG INVERTER_AUTO_THING_UID \
         INVERTER_EXTRA_HOST_THINGS 2>/dev/null || true
-  unset -f inverter_scan_hosts inverter_things_json inverter_battery_items inverter_verify 2>/dev/null || true
+  unset -f inverter_scan_hosts inverter_things_json inverter_battery_items inverter_verify \
+           inverter_failsafe_reset 2>/dev/null || true
 
   # shellcheck disable=SC1090
   . "$profile"
@@ -223,6 +237,8 @@ load_profile() {
   #   inverter_things_json   - geordnetes JSON-Array der anzulegenden Things
   #   inverter_battery_items - .items-Zeilen der Batterie-/Steuer-Items
   #   inverter_verify        - zusaetzliche Pruefungen fuer 06-verify.sh
+  #   inverter_failsafe_reset - Werksverhalten ohne openHAB schreiben
+  #                            (Modbus-Profile; 10-install-failsafe.sh)
 
   log "Wechselrichter-Profil geladen: $INVERTER_LABEL ($type)"
 }
@@ -268,6 +284,15 @@ load_config() {
   # Netzwerk-Watchdog (aeltere ibm.conf kennt die Optionen noch nicht)
   INSTALL_WATCHDOG="${INSTALL_WATCHDOG:-0}"
   INSTALL_AUTO_UPDATE="${INSTALL_AUTO_UPDATE:-1}"
+  # Fail-Safe ausserhalb von openHAB (10-install-failsafe.sh; nur Profile mit
+  # inverter_failsafe_reset). Heartbeat aelter als FAILSAFE_STALE_MIN Minuten
+  # oder openHAB nicht aktiv -> Reset, wiederholt alle FAILSAFE_REPEAT_MIN
+  # Minuten, bis der Heartbeat zurueck ist. Der Hardware-Watchdog (Reboot
+  # bei eingefrorenem Pi) ist ein eigener Schalter, Vorgabe aus.
+  INSTALL_FAILSAFE="${INSTALL_FAILSAFE:-1}"
+  INSTALL_HW_WATCHDOG="${INSTALL_HW_WATCHDOG:-0}"
+  FAILSAFE_STALE_MIN="${FAILSAFE_STALE_MIN:-12}"
+  FAILSAFE_REPEAT_MIN="${FAILSAFE_REPEAT_MIN:-10}"
   INVERTER_HOST_THING_UID="${INVERTER_HOST_THING_UID:-}"
   OH_API_TOKEN="${OH_API_TOKEN:-}"
   CRON_WATCHDOG="${CRON_WATCHDOG:-0 7/15 * * * ?}"
@@ -460,6 +485,30 @@ detect_thing_uids() {
     | tr -d '"' \
     | awk -F: 'NF>=3 && NF<=5' \
     | sort -u || true
+}
+
+# Konfigurationsparameter eines Things aus der JSONDB - lesbar ohne
+# laufendes openHAB (der Fail-Safe braucht die Adresse des Wechselrichters,
+# wenn openHAB gerade nicht antwortet; der Netzwerk-Watchdog pflegt sie im
+# Thing). Leer, wenn Datei, Thing oder Parameter fehlen.
+#   $1 Thing-UID  $2 Parametername
+thing_config_param() {
+  local db="$OPENHAB_USERDATA/jsondb/org.openhab.core.thing.Thing.json"
+  [ -f "$db" ] || return 0
+  IBM_J_UID="$1" IBM_J_PARAM="$2" python3 - "$db" <<'PY' 2>/dev/null || true
+import json, os, sys
+try:
+    with open(sys.argv[1]) as f:
+        db = json.load(f)
+    cfg = db.get(os.environ["IBM_J_UID"], {}).get("value", {}).get("configuration", {})
+    # openHAB legt die Werte unter configuration.properties ab
+    cfg = cfg.get("properties", cfg)
+    value = cfg.get(os.environ["IBM_J_PARAM"])
+    if value not in (None, ""):
+        print(value)
+except Exception:
+    pass
+PY
 }
 
 # Kandidaten fuer das SoC-Item. Zuerst ueber die Channel-Verknuepfung,

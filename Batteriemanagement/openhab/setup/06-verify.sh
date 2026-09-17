@@ -106,6 +106,25 @@ if grep -q '@IBM_THING_UID@' "$control_src" 2>/dev/null; then
 fi
 
 # --- Wechselrichter-spezifische Pruefungen ----------------------------------
+# --- Fail-Safe (nur Profile mit inverter_failsafe_reset) -------------------
+if type inverter_failsafe_reset >/dev/null 2>&1 && [ "$INSTALL_FAILSAFE" = "1" ]; then
+  if systemctl is-active --quiet ibm-failsafe.timer 2>/dev/null; then
+    log "Fail-Safe-Timer aktiv: ibm-failsafe.timer"
+  else
+    fail "ibm-failsafe.timer nicht aktiv - beheben mit: sudo $IBM_SETUP_DIR/10-install-failsafe.sh"
+  fi
+  if systemctl is-enabled --quiet ibm-failsafe-boot.service 2>/dev/null; then
+    log "Boot-Reset aktiv: ibm-failsafe-boot.service"
+  else
+    fail "ibm-failsafe-boot.service nicht aktiviert - beheben mit: sudo $IBM_SETUP_DIR/10-install-failsafe.sh"
+  fi
+  if [ -f "$IBM_HEARTBEAT_FILE" ]; then
+    log "Heartbeat vorhanden: $IBM_HEARTBEAT_FILE ($(date -r "$IBM_HEARTBEAT_FILE" '+%F %H:%M'))"
+  else
+    log "Noch kein Heartbeat ($IBM_HEARTBEAT_FILE) - entsteht mit dem ersten bestaetigten Reset des Kerns."
+  fi
+fi
+
 if type inverter_verify >/dev/null 2>&1; then
   if inverter_verify; then
     log "Wechselrichter-Pruefung (inverter_verify) OK."

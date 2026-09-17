@@ -33,7 +33,7 @@ und optional eine vierte:
 | --- | --- | --- |
 | `ibmReset()` | Wechselrichter sofort auf Werksverhalten. Laeuft bei Toggle=ON in jedem Zyklus (auch waehrend der Pause); muss idempotent sein. | `{ ok }` |
 | `ibmPreventCharge(minutes)` | Batterieladen fuer `minutes` Minuten sperren. | `{ ok }` |
-| `ibmForceDischarge(watts, minutes)` | Entladung mit ~`watts` fuer `minutes` Minuten erzwingen. `watts` ist vom Kern bereits validiert und begrenzt. | `{ ok, appliedW? }` |
+| `ibmForceDischarge(watts, minutes)` | Entladung mit MINDESTENS ~`watts` fuer `minutes` Minuten erzwingen. `watts` ist eine Untergrenze, kein Deckel: braucht der Haushalt mehr, deckt die Batterie weiter den ganzen Bedarf (kein Netzbezug bei geladener Batterie). Kann der Hersteller nur einen festen Wert oder ein Limit, faengt das der Hausvorrang des Kerns ab - dafuer braucht das Profil ein Netzleistungs-Item. `watts` ist vom Kern bereits validiert und begrenzt. | `{ ok, appliedW? }` |
 | `ibmLimitCharge(watts, minutes)` | OPTIONAL. Ladeleistung fuer `minutes` Minuten auf ~`watts` begrenzen (nicht erzwingen - geladen wird weiter nur aus PV). Fehlt die Funktion, bildet die Laderegelung des Kerns die Begrenzung per PWM ueber `ibmPreventCharge` nach (gesperrte/freie 15-Minuten-Bloecke). NICHT ueber Kommandos implementieren, die aus dem Netz laden koennten. | `{ ok, appliedW? }` |
 
 `appliedW` ist die nach herstellerseitiger Quantisierung tatsaechlich
@@ -46,9 +46,11 @@ Regeln fuer Adapter:
   ablaufen (Schedule wie beim GEN24, Revert-Timeout wie bei SunSpec 124).
   Kann der Hersteller das nicht, dokumentiert das Profil-README das
   Restrisiko ausdruecklich. Faktisch erfuellt nur das GEN24-Profil diese
-  Pflicht; fuer alle Modbus-Profile traegt der zyklische Reset des Kerns
-  den Fail-Safe allein - Fehlerbilder, geplante Absicherung am Pi und der
-  offene Testplan stehen in [failsafe-modbus.md](failsafe-modbus.md).
+  Pflicht. Alle Modbus-Profile stuetzen sich stattdessen auf den
+  zyklischen Reset des Kerns plus den Fail-Safe ausserhalb von openHAB
+  (`inverter_failsafe_reset`, root-Timer `ibm-failsafe`, Boot-Reset -
+  `setup/10-install-failsafe.sh`); Fehlerbilder, Restrisiko und Testplan
+  stehen in [failsafe-modbus.md](failsafe-modbus.md).
 * **Nie aus dem Netz laden:** Kein Adapter verwendet Kommandos, die die
   Batterie aus dem Netz laden koennten (Lade-Kommandos,
   Command-Charging-Modi, TOU-Netzladen-Flags) - Sperren, Begrenzen und
@@ -132,6 +134,7 @@ Drei Vorlagen:
    | `inverter_things_json()` | Geordnetes JSON-Array der anzulegenden Things `[{"UID","thingTypeUID","bridgeUID"?,"label","configuration"},...]` - noetig, sobald der Thing-Baum vom klassischen Muster "eine Bridge + ein Thing" abweicht (z. B. Modbus: tcp -> Poller -> Data-Things). Anlegereihenfolge = Arrayreihenfolge; `purge-ibm.sh` loescht in umgekehrter Reihenfolge. Muss auch mit leerem `INVERTER_HOST` ein gueltiges Array liefern (fuer den Purge). |
    | `inverter_battery_items()` | `.items`-Zeilen der Batterie- und Steuer-Items (automatische Einrichtung) - noetig, wenn die Messwerte an verschiedenen Things haengen oder der Adapter Schreib-Items braucht. Itemnamen stehen in der zweiten Spalte; 01-preflight.sh prueft sie auf Kollisionen. |
    | `inverter_verify()` | Zusaetzliche Pruefungen fuer `06-verify.sh` (Things ONLINE, Werte plausibel); Rueckgabe != 0 zaehlt als Problem |
+   | `inverter_failsafe_reset(host)` | **Pflicht fuer Profile ohne geraeteseitiges Auto-Revert** (alle Modbus-Profile): Werksverhalten OHNE openHAB schreiben, eigene Verbindung, nur Standardwerkzeuge (python3/curl), Exit 0 nur bei per Read-back bestaetigtem Reset. Wird vom root-Timer `ibm-failsafe` und beim Boot aufgerufen (`setup/10-install-failsafe.sh`). Vorlage: `fronius-snapinverter/tools/failsafe_reset.py`. Profile ohne die Funktion (GEN24) bekommen keinen Timer. |
 
 4. Adapter schreiben (siehe oben) - **nicht** den Kern kopieren.
 

@@ -165,7 +165,7 @@ Funktion & Semantik & Rückgabe \\
 \midrule
 \code{ibmReset()} & Wechselrichter sofort auf Werksverhalten & \code{\{ok\}} \\
 \code{ibmPreventCharge(min)} & Batterieladen für \code{min} Minuten sperren & \code{\{ok\}} \\
-\code{ibmForceDischarge(W, min)} & Entladung mit $\approx$\code{W} Watt erzwingen & \code{\{ok, appliedW?\}} \\
+\code{ibmForceDischarge(W, min)} & Entladung mit mindestens $\approx$\code{W} Watt erzwingen (Untergrenze, kein Deckel) & \code{\{ok, appliedW?\}} \\
 \code{ibmLimitCharge(W, min)} & optional: Ladeleistung auf $\approx$\code{W} Watt begrenzen & \code{\{ok, appliedW?\}} \\
 \bottomrule
 \end{tabular}
@@ -690,6 +690,33 @@ werden aber ersetzt, sobald die Kapazitätsschätzung belastbar ist
 5-kWh-Batterie mit 500 bis 1500\,W. Unabhängig von Einstellung und
 Schätzung gilt eine harte Sicherheits-Obergrenze von 5000\,W, die nie
 überschritten wird.
+
+\subsection{Hausvorrang: kein Netzbezug während der Entladung}
+
+Die kommandierte Entladeleistung ist eine Untergrenze, kein Deckel.
+Entlädt die Steuerung zum Beispiel mit 1\,kW an die Gemeinschaft und
+schaltet sich ein Verbraucher mit mehr als 1\,kW zu, muss die Batterie den
+ganzen Bedarf des Hauses decken; Netzbezug bei geladener Batterie würde das
+Mitglied Arbeitspreis und ab 2027 auch Leistungspreis kosten (höchste
+Viertelstunde des Monats). Zwei Ebenen stellen das sicher:
+
+\begin{itemize}
+  \item \textbf{Im Wechselrichter (Sekunden):} Die Adapter kommandieren nur
+    die Untergrenze. Beim Fronius GEN24 ist das die Semantik des
+    Entlade-Schedules, beim Victron regelt der Grid-Setpoint am Netzpunkt,
+    und beim Symo Hybrid schreibt der Adapter nur das negative Ladelimit
+    (\code{InWRte}\,=\,$-x$, \code{StorCtl\_Mod}\,=\,1) statt des festen
+    Fensters aus dem Fronius-Beispiel~6, das die Entladung auf genau $x$\,\%
+    deckeln würde.
+  \item \textbf{Im Kern (5-Minuten-Zyklus):} Wird im Entladefenster trotzdem
+    Netzbezug über 200\,W gemessen, oder zieht der Haushalt allein mehr aus
+    der Batterie als die geplante Einspeiseleistung, setzt der Kern den
+    Entladebefehl für diesen Zyklus aus. Der Reset vom Zyklusanfang bleibt
+    dann stehen, der Wechselrichter versorgt das Haus im
+    Eigenverbrauchsbetrieb. Das ist das Sicherheitsnetz für Hersteller, die
+    nur ein Entladelimit kennen (Sigenergy, Deye), und setzt ein
+    Netzleistungs-Item im Profil voraus.
+\end{itemize}
 
 \subsection{Untergrenzen: Reserve und Nachtbudget}
 

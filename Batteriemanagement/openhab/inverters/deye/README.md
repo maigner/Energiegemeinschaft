@@ -160,8 +160,11 @@ SunSpec-`InOutWRte_RvrtTms`.
   Display des Wechselrichters** beenden (TOU/Zeitplan abschalten) - kein
   Installateur-Zugang noetig. Ein Neustart des Pi genuegt ebenfalls: der
   Kern setzt im naechsten 5-Minuten-Zyklus zurueck.
-- Zusaetzlich moeglich (bisher nicht umgesetzt): ein systemd-Timer am Pi,
-  der `Time of Use enable = 0` schreibt, wenn openHAB nicht laeuft.
+- Der root-Timer `ibm-failsafe` (`setup/10-install-failsafe.sh`) uebernimmt
+  das, sobald dieses Profil `inverter_failsafe_reset` definiert: ein
+  Skript ohne openHAB, das `Time of Use enable = 0` schreibt und per
+  Read-back prueft (Vorlage `fronius-snapinverter/tools/failsafe_reset.py`).
+  **Noch offen fuer dieses Profil.**
 
 ### Moegliche Haertung EEPROM (bisher nicht umgesetzt)
 
@@ -189,6 +192,16 @@ pflegen).
   KOMPLETT andere Registerkarte - dieses Profil passt dort nicht.
 - IBM ueberschreibt die TOU-Slot-Werte dauerhaft; ein vom Mitglied
   gepflegter TOU-Zeitplan ist mit IBM nicht kombinierbar.
+- **Hausvorrang offen (VOR dem Feldeinsatz klaeren):** Die TOU-Slot-Leistung
+  ist mutmasslich ein Deckel der Batterieentladung. Zieht der Haushalt
+  waehrend der forcierten Entladung mehr als die kommandierte Leistung,
+  kaeme die Differenz aus dem Netz - der Adapter-Kontrakt verlangt aber
+  eine Untergrenze (`core.js`, Adapter-Kontrakt und Abschnitt
+  "Hausvorrang"). Der Hausvorrang des Kerns faengt das ab, braucht dafuer
+  aber ein Netzleistungs-Item (`GRID_POWER_ITEM`), das dieses Profil noch
+  nicht anlegt. Im Spike bei Punkt 6 pruefen: Verbraucher groesser als die
+  Slot-Leistung zuschalten, Netzbezug beobachten; Netzleistungs-Register
+  ins Profil aufnehmen.
 
 ## Simulator (Tests ohne Anlage)
 

@@ -87,6 +87,15 @@ js_dir="$OPENHAB_CONF/automation/js"
 mkdir -p "$js_dir"
 chown "$OPENHAB_USER:$OPENHAB_GROUP" "$js_dir" 2>/dev/null || true
 
+# Marker-Verzeichnis fuer Heartbeat und Standby des Kerns (und die
+# Dashboard-Anforderungen des Status-Push): die Regeln schreiben dort als
+# openHAB-Benutzer, das Verzeichnis liegt unter dem root-eigenen
+# /var/lib/ischlstrom - hier anlegen, unabhaengig davon, ob Updater oder
+# Fail-Safe installiert werden.
+mkdir -p "$IBM_REQUEST_DIR"
+chown "$OPENHAB_USER:$OPENHAB_GROUP" "$IBM_REQUEST_DIR" 2>/dev/null || true
+chmod 0755 "$IBM_REQUEST_DIR"
+
 # Sonderzeichen fuer die rechte Seite eines sed-Ausdrucks entschaerfen.
 sed_escape() { printf '%s' "$1" | sed -e 's/[\\&|]/\\&/g'; }
 
@@ -139,6 +148,9 @@ render_payload() {
       -e "s|@IBM_LOG_DIR@|${logdir_esc}|g" \
       -e "s|@IBM_PAKET_VERSION@|${ibm_version_esc}|g" \
       -e "s|@IBM_UPDATE_FLAG@|$(sed_escape "$IBM_UPDATE_FLAG")|g" \
+      -e "s|@IBM_HEARTBEAT_FILE@|$(sed_escape "$IBM_HEARTBEAT_FILE")|g" \
+      -e "s|@IBM_FAILSAFE_STATUS@|$(sed_escape "$IBM_FAILSAFE_STATUS")|g" \
+      -e "s|@IBM_FAILSAFE_STANDBY@|$(sed_escape "$IBM_FAILSAFE_STANDBY")|g" \
       "$1"
 }
 
