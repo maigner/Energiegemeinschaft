@@ -112,9 +112,7 @@ fi
 rc=0
 IBM_ASSUME_YES=1 IBM_BASE_URL="$base" bash /run/ibm-install.sh >> "$LOG" 2>&1 || rc=$?
 rm -f /run/ibm-install.sh
-# install.sh sichert die alte Installation als openhab.bak-<zeit>; nur die
-# letzten drei Sicherungen behalten, sonst fuellt sich die SD-Karte.
-ls -dt "$(dirname "@IBM_SETUP_DIR@")"/openhab.bak-* 2>/dev/null | tail -n +4 | xargs -r rm -rf
+# Die Sicherungen (openhab.bak-<zeit>) duennt install.sh selbst aus.
 if [ "$rc" -eq 0 ]; then
   log "Update abgeschlossen."
 elif [ "$rc" -eq 75 ]; then

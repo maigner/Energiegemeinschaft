@@ -280,6 +280,19 @@ Datum des letzten Imports. Der 09-03 waere damit sofort aufgefallen.
 
 ## Teil C: Pis halten ihre Debian-Pakete selbst aktuell
 
+**Stand 2026-09-17: in den Setup-Skripten umgesetzt**
+(`setup/11-install-apt-auto.sh`, Schritt 14 von `install-ibm.sh`), Rollout
+und Dashboard-Markierung offen. Befund auf pi-003 und pi-020: die
+Debian-Vorgabe erlaubt das Hauptarchiv bereits, liegen blieben fast nur
+Pakete aus dem Archiv "Raspberry Pi Foundation" (38 von 43 bzw. 66 von 71,
+darunter Kernel 6.12 auf 6.18 und `raspi-firmware`); der Rest sind neue
+Debian-Abhaengigkeiten dieser Pakete. Abweichend vom Plan unten bleibt es
+bei `Remove-New-Unused-Dependencies` (kein allgemeines `autoremove`), und
+`ibm-update` wartet nicht auf `/run/reboot-required`: die naechtliche
+Paketpruefung laeuft ab 03:00 und ist vor 03:40 fertig. Der Neustart
+liegt auf 10:00 statt 04:20 (Entscheidung Martin, 2026-09-17): am
+Vormittag faellt ein Pi, der nicht mehr hochkommt, sofort auf.
+
 Heute (`04-install-rules.sh`): `apt-daily.timer` aktualisiert die
 Paketlisten, `unattended-upgrades` spielt nur das Security-Archiv ein, kein
 Reboot, `autoremove` aus. Alles Uebrige zeigt nur das Dashboard, deshalb

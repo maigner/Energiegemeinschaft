@@ -291,6 +291,11 @@ load_config() {
   # bei eingefrorenem Pi) ist ein eigener Schalter, Vorgabe aus.
   INSTALL_FAILSAFE="${INSTALL_FAILSAFE:-1}"
   INSTALL_HW_WATCHDOG="${INSTALL_HW_WATCHDOG:-0}"
+  # Automatische Betriebssystem-Updates (11-install-apt-auto.sh): Debian und
+  # Raspberry-Pi-Archiv ueber unattended-upgrades, Neustart bei Bedarf.
+  INSTALL_APT_AUTO="${INSTALL_APT_AUTO:-1}"
+  APT_AUTO_REBOOT="${APT_AUTO_REBOOT:-1}"
+  APT_AUTO_REBOOT_TIME="${APT_AUTO_REBOOT_TIME:-10:00}"
   FAILSAFE_STALE_MIN="${FAILSAFE_STALE_MIN:-12}"
   FAILSAFE_REPEAT_MIN="${FAILSAFE_REPEAT_MIN:-10}"
   INVERTER_HOST_THING_UID="${INVERTER_HOST_THING_UID:-}"

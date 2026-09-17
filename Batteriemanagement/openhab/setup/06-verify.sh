@@ -125,6 +125,16 @@ if type inverter_failsafe_reset >/dev/null 2>&1 && [ "$INSTALL_FAILSAFE" = "1" ]
   fi
 fi
 
+# --- Automatische Betriebssystem-Updates ------------------------------------
+if [ "$INSTALL_APT_AUTO" = "1" ] && command -v apt-get >/dev/null 2>&1; then
+  if [ -f /etc/apt/apt.conf.d/52ibm-unattended ] \
+     && systemctl is-active --quiet apt-daily-upgrade.timer 2>/dev/null; then
+    log "Automatische Updates aktiv: 52ibm-unattended, apt-daily-upgrade.timer"
+  else
+    fail "Automatische Updates nicht eingerichtet - beheben mit: sudo $IBM_SETUP_DIR/11-install-apt-auto.sh"
+  fi
+fi
+
 if type inverter_verify >/dev/null 2>&1; then
   if inverter_verify; then
     log "Wechselrichter-Pruefung (inverter_verify) OK."

@@ -345,8 +345,10 @@ Aufwand: 1 bis 2 Tage (ohne Kommandos).
 - Kein Bild-zu-Bild-Assistent auf dem Pi selbst (eigene Weboberflaeche am
   Pi): das Mitglied muesste dafuer wieder die IP des Pi finden; der
   Mitgliederbereich existiert schon und ist von ueberall erreichbar.
-- Keine automatische openHAB- oder Firmware-Updates: bleibt manuell ueber
-  den Tunnel, wie heute dokumentiert.
+- Keine automatischen openHAB-Updates: bleibt manuell ueber den Tunnel,
+  wie heute dokumentiert. (Debian-Pakete, Kernel und Pi-Firmware spielt
+  seit 2026-09-17 `11-install-apt-auto.sh` ueber unattended-upgrades ein,
+  Neustart bei Bedarf um 10:00.)
 - Keine Rueckkehr zu SSH-Schluesseln: Passwort-Anmeldung durch den Tunnel
   bleibt, nur wird das Passwort pro Anlage zufaellig und am Dashboard
   abrufbar.

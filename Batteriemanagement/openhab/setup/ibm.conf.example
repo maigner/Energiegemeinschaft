@@ -262,6 +262,18 @@ FAILSAFE_REPEAT_MIN=10
 # startet neu (harter Reset, auch bei Swap-Stau) - bewusst entscheiden.
 INSTALL_HW_WATCHDOG=0
 
+# --- Automatische Betriebssystem-Updates ------------------------------------
+# unattended-upgrades spielt taeglich ab 03:40 die Updates aus den Debian-
+# Archiven und dem Archiv der Raspberry Pi Foundation ein (Kernel, Firmware)
+# - 11-install-apt-auto.sh. openHAB, Java, NodeSource und Tailscale bleiben
+# Handarbeit. Verlangt ein Update einen Neustart, startet der Pi um
+# APT_AUTO_REBOOT_TIME neu - am Vormittag, damit ein Pi, der nicht mehr
+# hochkommt, sofort auffaellt (APT_AUTO_REBOOT=0: nie, das Dashboard zeigt
+# den ausstehenden Reboot). INSTALL_APT_AUTO=0: nur die Debian-Vorgabe.
+INSTALL_APT_AUTO=1
+APT_AUTO_REBOOT=1
+APT_AUTO_REBOOT_TIME="10:00"
+
 # --- WireGuard-Fernwartung ---------------------------------------------------
 # Ausgehender WireGuard-Tunnel zum Wartungsserver, damit die Anlage fuer
 # Updates und Fehlersuche per SSH erreichbar bleibt. Der Pi baut die

@@ -101,6 +101,12 @@ tar -xzf "$tmp/ibm-openhab.tgz" -C "$DEST"
 if [ -n "${keep_conf:-}" ] && [ -f "$keep_conf" ]; then
   cp -a "$keep_conf" "$DEST/openhab/setup/ibm.conf"
 fi
+# Nur die letzten drei Sicherungen behalten, sonst fuellt sich die SD-Karte.
+# Hier und nicht im Aufrufer, damit es fuer jeden Weg gilt: ibm-update, die
+# ibm-firstboot-Schleife (alle 10 Minuten, solange die Einrichtung
+# unvollstaendig ist - pi-223 hatte so 2200 Sicherungen) und den Aufruf von
+# Hand.
+ls -dt "$DEST"/openhab.bak-* 2>/dev/null | tail -n +4 | xargs -r rm -rf
 # Pruefsumme des installierten Pakets: der Selbst-Update-Timer (ibm-update)
 # vergleicht sie naechtlich mit der auf dem Server.
 if [ -f "$tmp/ibm-openhab.tgz.sha256" ]; then
@@ -118,4 +124,9 @@ log "Entpackt nach: $DEST/openhab"
 log ""
 log "Starte Einrichtung ..."
 log ""
+# exec ersetzt die Shell, der EXIT-Trap liefe nie - das Download-Verzeichnis
+# (27 MB) bliebe bei jedem Lauf in /tmp liegen (tmpfs, am 2026-09-16 auf
+# pi-223 voll). Deshalb hier von Hand aufraeumen.
+cleanup
+trap - EXIT
 exec "$DEST/openhab/setup/install-ibm.sh"

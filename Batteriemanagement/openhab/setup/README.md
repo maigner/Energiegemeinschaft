@@ -145,6 +145,49 @@ Dafuer meldet die Website verstummte Anlagen per Mail an den Vorstand
 Meldung plus Entwarnung), und am Wechselrichter bleibt der Not-Aus von
 Hand (Profil-README).
 
+### Automatische Betriebssystem-Updates
+
+`11-install-apt-auto.sh` laesst den Pi seine Pakete selbst aktuell halten,
+ueber die Debian-eigene Mechanik (`apt-daily.timer`,
+`apt-daily-upgrade.timer`, `unattended-upgrades`):
+
+* **Quellen** (`/etc/apt/apt.conf.d/52ibm-unattended`): zur Debian-Vorgabe
+  (`origin=Debian`, Hauptarchiv und Security) kommen `<codename>-updates`
+  und das Archiv **Raspberry Pi Foundation** dazu. Von dort stammen Kernel,
+  Firmware und die rpt-Varianten von libc & Co.; ohne den Eintrag lief
+  unattended-upgrades zwar jede Nacht, liess aber genau diese Pakete liegen
+  (Stand 2026-09-17: 43 bis 75 ausstehende Updates je Anlage, fast alle aus
+  diesem Archiv).
+* **Nicht automatisch:** openHAB, Java (Adoptium), NodeSource, Tailscale,
+  comitup. openHAB-Versionen brauchen den Migrationstest im Vorstandsnetz;
+  diese Pakete bleiben am Dashboard als "ausstehend" sichtbar.
+* **Zeitplan:** Drop-in fuer `apt-daily-upgrade.timer`, taeglich 03:40
+  (+ bis zu 20 Minuten) - nach der naechtlichen Paketpruefung von
+  `ibm-update` (ab 03:00).
+* **Neustart:** verlangt ein Update einen Reboot (Kernel, Firmware;
+  `/run/reboot-required`), startet der Pi um `APT_AUTO_REBOOT_TIME`
+  (Vorgabe 10:00) neu - bewusst am Vormittag: kommt ein Pi nach einem
+  Kernel-Update nicht mehr hoch, faellt das sofort auf (Offline-Alarm nach
+  30 Minuten) und es ist jemand erreichbar. Waehrend des Neustarts ruht
+  die Steuerung ein paar Minuten: GEN24-Schedules laufen von selbst ab,
+  bei den Modbus-Profilen setzt der Boot-Reset des Fail-Safe den
+  Wechselrichter zurueck; eine laufende Ladesperre setzt der Kern im
+  naechsten 5-Minuten-Zyklus wieder. `APT_AUTO_REBOOT=0`
+  schaltet den Neustart ab; das Dashboard zeigt dann den ausstehenden
+  Reboot.
+* Alte Kernel werden entfernt (`Remove-Unused-Kernel-Packages`), damit
+  `/boot/firmware` nicht vollaeuft; `MinimalSteps` haelt einen
+  unterbrochenen Lauf klein.
+* `INSTALL_APT_AUTO=0` in `ibm.conf` entfernt `52ibm-unattended` und das
+  Drop-in wieder (Debian-Vorgabe, kein Reboot).
+
+Kontrolle: `sudo unattended-upgrade --dry-run -v` (zeigt die erlaubten
+Quellen und was eingespielt wuerde), `/var/log/unattended-upgrades/`,
+`systemctl list-timers apt-daily-upgrade.timer`. Bestehende Anlagen
+bekommen die Einstellung mit dem naechsten Paket-Update; beim ersten Lauf
+faellt einmalig die aufgestaute Update-Welle samt Kernel an, danach ein
+Neustart um 10:00.
+
 ### Standardablauf: Test im Netz des Vorstands
 
 Standard seit 2026-08: der Vorstand baut das Image, flasht die Karte und
@@ -307,8 +350,8 @@ sudo IBM_ASSUME_YES=1 bash install.sh
 | `IBM_PROVISION_CODE` | aus `/boot/firmware/ibm-provision.conf` | Provisionierungs-Code (Zero-Touch); setzt `IBM_ASSUME_YES=1` |
 
 Bei einer erneuten Installation wird das alte Verzeichnis nach
-`openhab.bak-<zeitstempel>` gesichert und eine vorhandene `ibm.conf`
-uebernommen: ein Update aendert bestehende Einstellungen der Anlage also
+`openhab.bak-<zeitstempel>` gesichert (`install.sh` behaelt die letzten
+drei Sicherungen) und eine vorhandene `ibm.conf` uebernommen: ein Update aendert bestehende Einstellungen der Anlage also
 nicht. **Neue Konfig-Schluessel ergaenzt das Update aber automatisch**
 (`migrate_config` in `lib/common.sh`, laeuft bei jedem `load_config`):
 Schluessel, die in der uebernommenen `ibm.conf` noch gar nicht vorkommen,
@@ -361,8 +404,9 @@ von `install-ibm.sh` ist: Konfiguration (`00-provision.sh` bei vorhandenem
 Provisionierungs-Code, sonst `00-wizard.sh`), Regionaleinstellungen, `08`
 (WireGuard), `10` (Passwoerter), `07` (Cloud-Identitaet, nur wenn eine
 `CLOUD_UUID` vom Server vorliegt), `02` (Addons), `01` (Preflight), `02b`,
-`03`, `04`, `05`, `06` und zuletzt `07` (klassische Registrierung, nur ohne
-Provisionierung).
+`03`, `04`, `05`, `09` (Selbst-Update), `10` (Fail-Safe), `11`
+(automatische Updates), `06` und zuletzt `07` (klassische Registrierung,
+nur ohne Provisionierung).
 
 | Skript | Wirkung |
 | --- | --- |
@@ -378,6 +422,7 @@ Provisionierung).
 | `07-myopenhab.sh` | Bei der Provisionierung (`CLOUD_UUID`/`CLOUD_SECRET` vom Server): schreibt UUID und Secret nach `userdata/uuid` bzw. `userdata/openhabcloud/secret` und startet openHAB bei einer Aenderung neu. Sonst: zeigt UUID und Secret fuer die Registrierung auf der ISCHLSTROM-Cloud (hac.ischlstrom.org) an (wartet ggf. auf das Cloud-Addon) und aendert nichts. |
 | `08-install-wireguard.sh` | Richtet den WireGuard-Tunnel zum Wartungsserver ein und baut die SSH-Haertung aelterer Versionen zurueck - die Anmeldung durch den Tunnel laeuft per Passwort (siehe [Fernwartung](#fernwartung-wireguard)). |
 | `10-change-passwords.sh` | Aendert die Standardpasswoerter des Linux-Benutzers `openhabian` und der Karaf-Konsole (siehe [Standardpasswoerter aendern](#standardpasswoerter-aendern)). |
+| `11-install-apt-auto.sh` | Automatische Betriebssystem-Updates ueber `unattended-upgrades`: Debian- und Raspberry-Pi-Archiv, taeglich ab 03:40, Neustart bei Bedarf um 10:00 (siehe [Automatische Betriebssystem-Updates](#automatische-betriebssystem-updates)). |
 | `purge-ibm.sh` | Entfernt das Batteriemanagement komplett wieder (Things, Regeln, Items, Seiten, Token, WireGuard, `/opt/ischlstrom`) und setzt die Anlage auf "frisches openHABian + Admin-Konto" zurueck - fuer Test-Wiederholungen oder Ausserbetriebnahme. Entfernt auch `/var/lib/ischlstrom` (Firstboot-Marker) und `/run/ibm-provision.env`, sodass die Zero-Touch-Einrichtung wiederholt werden kann. Admin-Konto, Linux-Passwort, Zeitzone und Cloud-Identitaet (UUID/Secret) bleiben. |
 | `prepare-sd.sh` | Nur auf dem Entwicklungsrechner (root): schreibt die SD-Karte fuer eine provisionierte Anlage aus dem Zip des Dashboards. Schreibt das Image und kopiert `openhabian.conf`, `ibm-provision.conf` und `user-data` auf die Boot-Partition; die systemd-Unit `ibm-firstboot` installiert cloud-init aus der `user-data` beim ersten Boot am Pi. |
 | `firstboot/` | `ibm-firstboot.sh` + systemd-Unit: startet nach der openHABian-Erstinstallation das Setup und wiederholt es alle 10 Minuten, bis es vollstaendig ist. |
@@ -786,13 +831,13 @@ Zahl der **ausstehenden apt-Updates** (per `apt-get -s dist-upgrade`
 aus dem lokalen Paket-Cache, samt Stand der Paketlisten). Damit die Zahl
 aktuell bleibt, aktiviert das Setup ein taegliches `apt-get update` ueber
 die Debian-eigene apt-daily-Mechanik (`/etc/apt/apt.conf.d/02ibm-periodic`,
-`APT::Periodic::Update-Package-Lists`). **Sicherheitsupdates spielt die
-Anlage automatisch ein**: das Setup installiert `unattended-upgrades` und
-aktiviert es (`APT::Periodic::Unattended-Upgrade`) in der
-Debian-Standardkonfiguration: nur Pakete aus dem Debian-Security-Archiv,
-kein automatischer Reboot. openHAB selbst und die Pi-Firmware kommen aus
-anderen Repositories und werden nie automatisch aktualisiert; was das
-Dashboard als "ausstehend" zeigt, sind genau diese manuellen Updates.
+`APT::Periodic::Update-Package-Lists`). **Betriebssystem-Updates spielt die
+Anlage automatisch ein** (Debian und Raspberry-Pi-Archiv samt Kernel und
+Firmware, siehe
+[Automatische Betriebssystem-Updates](#automatische-betriebssystem-updates)).
+openHAB selbst, Java, NodeSource und Tailscale kommen aus anderen
+Repositories und werden nie automatisch aktualisiert; was das Dashboard
+dauerhaft als "ausstehend" zeigt, sind genau diese manuellen Updates.
 Schliesslich meldet die Anlage ihren **Systemzustand**: CPU-Temperatur und
 das throttled-Register des Pi (erkennt Unterspannung durch schwache
 Netzteile und Drosselung), Fuellstand der SD-Karte, Boot-Zeitpunkt,

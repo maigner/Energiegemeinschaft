@@ -122,12 +122,18 @@ rm -f "$OPENHAB_CONF"/automation/js/ibm_*.js \
       "$OPENHAB_CONF"/persistence/mapdb.persist \
       "$OPENHAB_CONF"/persistence/rrd4j.persist
 log "Regeln, Items und Persistence-Konfiguration entfernt."
-# Taegliches apt-get update und automatische Sicherheitsupdates fuer den
-# Status-Push (die apt-daily-Timer und das Paket unattended-upgrades sind
-# Debian-Standard und bleiben installiert - ohne die Periodic-Eintraege
-# tun sie nichts mehr).
-rm -f /etc/apt/apt.conf.d/02ibm-periodic \
-  && log "entfernt: /etc/apt/apt.conf.d/02ibm-periodic (apt-Update und Sicherheitsupdates deaktiviert)"
+# Automatische Betriebssystem-Updates (11-install-apt-auto.sh). Die
+# apt-daily-Timer und das Paket unattended-upgrades sind Debian-Standard und
+# bleiben installiert - ohne die Periodic-Eintraege tun sie nichts mehr.
+rm -f /etc/apt/apt.conf.d/02ibm-periodic /etc/apt/apt.conf.d/52ibm-unattended \
+  && log "entfernt: 02ibm-periodic, 52ibm-unattended (apt-Update und automatische Updates deaktiviert)"
+if [ -f /etc/systemd/system/apt-daily-upgrade.timer.d/ibm.conf ]; then
+  rm -f /etc/systemd/system/apt-daily-upgrade.timer.d/ibm.conf
+  rmdir /etc/systemd/system/apt-daily-upgrade.timer.d 2>/dev/null || true
+  systemctl daemon-reload
+  systemctl restart apt-daily-upgrade.timer >/dev/null 2>&1 || true
+  log "entfernt: Drop-in fuer apt-daily-upgrade.timer"
+fi
 rm -rf /var/lib/openhab/persistence/mapdb /var/lib/openhab/persistence/rrd4j \
   && log "mapdb- und rrd4j-Daten entfernt."
 # Der Standard-Dienst zeigt sonst auf das dann deinstallierte rrd4j.

@@ -984,8 +984,10 @@ Seriennummer (nie wird ein fremdes Gerät übernommen) und trägt die neue
 Adresse per REST-API in das Thing ein. Für die Wartung hält jeder Pi einen
 ausgehenden WireGuard-Tunnel zum Wartungsserver offen; am Router des
 Mitglieds muss nichts geöffnet werden, und durch den Tunnel läuft
-ausschließlich das Wartungsnetz. Sicherheitsupdates des Betriebssystems
-spielt die Anlage über \code{unattended-upgrades} automatisch ein.
+ausschließlich das Wartungsnetz. Updates des Betriebssystems (Debian und
+Raspberry-Pi-Archiv samt Kernel und Firmware) spielt die Anlage über
+\code{unattended-upgrades} nachts automatisch ein und startet bei Bedarf
+am Vormittag um 10:00 neu; openHAB selbst wird bewusst von Hand aktualisiert.
 
 \subsection{Installation}
 

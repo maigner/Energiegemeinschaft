@@ -18,6 +18,9 @@ export const SETUP_PHASES = [
     { key: 'items', label: 'Datenpunkte', progress: 70 },
     { key: 'regeln', label: 'Steuerung', progress: 80 },
     { key: 'overview', label: 'Oberfläche', progress: 90 },
+    { key: 'updater', label: 'Selbst-Update', progress: 92 },
+    { key: 'failsafe', label: 'Fail-Safe', progress: 93 },
+    { key: 'systemupdates', label: 'Automatische Updates', progress: 94 },
     { key: 'unvollstaendig', label: 'Wartet, wird automatisch fortgesetzt', progress: 95, waiting: true },
     { key: 'fertig', label: 'Einrichtung abgeschlossen', progress: 100 }
 ];
