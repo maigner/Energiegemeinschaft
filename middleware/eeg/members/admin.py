@@ -13,6 +13,7 @@ from .models import MemberTombstone
 from .models import MemberDataAccessLog
 from .models import Consent
 from .models import TransformerStation
+from .models import EnergyReportLog
 
 admin.site.register(Member)
 admin.site.register(MeasurementPoint)
@@ -24,3 +25,4 @@ admin.site.register(MemberTombstone)
 admin.site.register(MemberDataAccessLog)
 admin.site.register(Consent)
 admin.site.register(TransformerStation)
+admin.site.register(EnergyReportLog)

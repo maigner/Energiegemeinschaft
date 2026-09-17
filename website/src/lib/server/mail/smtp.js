@@ -178,3 +178,28 @@ export async function relayPlain(subject, text) {
         text: text
     });
 }
+
+// Serienmail an ein Mitglied (monatlicher Energiebericht): HTML plus
+// Textfassung, bewusst ohne cc an info@ (sonst landet je Mitglied eine Kopie
+// im Vorstandspostfach). Wirft bei Versandfehler - der Aufrufer protokolliert
+// den Versand erst danach.
+export async function relayMemberMail(recipientEmail, subject, html, text, attachments = []) {
+    let transporter = nodemailer.createTransport({
+        host: SMTP_ENDPOINT,
+        port: SMTP_TLS_PORT,
+        secure: true, // use TLS
+        auth: {
+            user: SMTP_USER,
+            pass: SMTP_PWD,
+        },
+    });
+
+    await transporter.sendMail({
+        from: `"EEG ISCHLSTROM" <info@ischlstrom.org>`,
+        to: recipientEmail,
+        subject: subject,
+        html: html,
+        text: text,
+        attachments: attachments
+    });
+}

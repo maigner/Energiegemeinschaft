@@ -36,6 +36,9 @@ class Member(models.Model):
         TransformerStation, on_delete=models.PROTECT, null=True, blank=True,
         related_name="members",
     )
+    # Monatlicher Energiebericht per E-Mail (Website-Cron); False = abgemeldet.
+    # db_default, weil die Website Mitglieder per SQL anlegt.
+    energy_report = models.BooleanField(default=True, db_default=True)
     def __str__(self):
         return f"{self.identifier}: {self.email}"
     
@@ -287,3 +290,22 @@ class MemberDataAccessLog(models.Model):
 
     def __str__(self):
         return f"{self.accessor_email} -> {self.member_identifier} @ {self.created_at}"
+
+
+class EnergyReportLog(models.Model):
+    """Versandprotokoll des monatlichen Energieberichts. Die Website schreibt
+    je Mitglied und Berichtsmonat eine Zeile (lib/server/mail/reports/), damit
+    ein Bericht nach Neustarts oder verspaeteten Datenlieferungen genau einmal
+    hinausgeht. month ist der Monatserste."""
+    member = models.ForeignKey(Member, on_delete=models.CASCADE)
+    month = models.DateField()
+    email = models.EmailField()
+    sent_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["member", "month"], name="unique_energy_report"),
+        ]
+
+    def __str__(self):
+        return f"{self.member} {self.month:%Y-%m}"

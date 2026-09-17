@@ -185,6 +185,18 @@ export function gridSavingCt(t, kind = "regional") {
 }
 
 /**
+ * Wie gridSavingCt, aber fuer einen konkreten Monat: Oktober bis Dezember
+ * 2026 wird kein Rabatt verrechnet (siehe REBATE), dann 0.
+ * @param {number} year
+ * @param {number} month  1 bis 12
+ * @param {"regional"|"local"} [kind]
+ */
+export function gridSavingCtForMonth(year, month, kind = "regional") {
+    if (Number(year) === 2026 && Number(month) >= 10) return 0;
+    return gridSavingCt(tariffFor(year), kind);
+}
+
+/**
  * Preisvorteil des EEG-Bezugs gegenueber dem ersten Vergleichstarif in ct/kWh.
  * @param {YearTariff} t
  */

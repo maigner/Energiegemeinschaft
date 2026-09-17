@@ -7,6 +7,7 @@ import { fetchAndStoreWeatherData } from "$lib/server/db/weather/openmeteo";
 import { checkActivationReminders, sendActivationReminders } from "$lib/server/mail/reminders/memberReminders";
 import { refreshMaterializedViewCrossoverTimes } from "$lib/server/db/energy/overview";
 import { pruneOpenhabStatusHistory } from "$lib/server/db/members/openhabStatus";
+import { sendMonthlyEnergyReports } from "$lib/server/mail/reports/monthlyEnergyReport";
 import { checkSilentPlants } from "$lib/server/mail/notifications/ibmAlerts";
 import { rollupOpenhabCounterSnapshots } from "$lib/server/db/energy/batteryGridFeedIn";
 import { pruneExpiredAuthData, pruneMemberDataAccessLog } from "$lib/server/db/retention";
@@ -80,6 +81,17 @@ export async function cronHandle({ event, resolve }) {
 		cron.schedule('*/5 * * * *', () => {
 			if (dev) return;
 			checkSilentPlants();
+		});
+
+		// sendMonthlyEnergyReports
+		// Energiebericht des Vormonats an die Mitglieder - taeglich pruefen,
+		// weil die EEG-Faktura-Daten (Import 05:00) dem Monatsende einige Tage
+		// nachhaengen; das Versandprotokoll verhindert Doppelversand.
+		// Empfaengerkreis: ENERGY_REPORT_RECIPIENTS in .env
+		cron.schedule('30 8 * * *', () => {
+			if (dev) return;
+			console.log('Runs daily at 08:30: sendMonthlyEnergyReports');
+			sendMonthlyEnergyReports();
 		});
 
 		// rollupOpenhabCounterSnapshots
