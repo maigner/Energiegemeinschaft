@@ -6,6 +6,7 @@
 //   node scripts/energy-report.js --member 1 --out /tmp/bericht.html   (dazu .txt und .pdf)
 //   node scripts/energy-report.js --member 1 --to test@example.org
 //   node scripts/energy-report.js --member 1 --month 2026-07 --to ...
+//   node scripts/energy-report.js --member 1 --to ... --bcc info@ischlstrom.org
 //
 // Ohne --month gilt der zuletzt abgeschlossene Monat. Zugangsdaten kommen wie
 // bei `npm run dev` aus website/.env (also Produktivdaten von s1).
@@ -25,12 +26,13 @@ const { values: args } = parseArgs({
         member: { type: 'string' },
         month: { type: 'string' },
         to: { type: 'string' },
+        bcc: { type: 'string' },
         out: { type: 'string' },
     },
 });
 
 if (!args.member || (!args.to && !args.out)) {
-    console.error('Aufruf: energy-report.js --member <nr> [--month YYYY-MM] (--to <adresse> | --out <datei.html>)');
+    console.error('Aufruf: energy-report.js --member <nr> [--month YYYY-MM] (--to <adresse> [--bcc <adresse>] | --out <datei.html>)');
     process.exit(1);
 }
 const month = args.month ?? previousMonth();
@@ -79,6 +81,7 @@ try {
         const info = await transporter.sendMail({
             from: '"EEG ISCHLSTROM" <info@ischlstrom.org>',
             to: args.to,
+            bcc: args.bcc,
             subject: mail.subject,
             html: mail.html,
             text: mail.text,

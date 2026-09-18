@@ -84,13 +84,14 @@ export async function cronHandle({ event, resolve }) {
 		});
 
 		// sendMonthlyEnergyReports
-		// Energiebericht des Vormonats an die Mitglieder - taeglich pruefen,
-		// weil die EEG-Faktura-Daten (Import 05:00) dem Monatsende einige Tage
-		// nachhaengen; das Versandprotokoll verhindert Doppelversand.
-		// Empfaengerkreis: ENERGY_REPORT_RECIPIENTS in .env
-		cron.schedule('30 8 * * *', () => {
+		// Energiebericht des Vormonats an die Mitglieder - stuendlich tagsueber
+		// pruefen, weil die EEG-Faktura-Daten (Import 05:00) dem Monatsende
+		// einige Tage nachhaengen; je Lauf gehen hoechstens MAX_PER_RUN Mails
+		// hinaus (Ratenbegrenzung fuer den Mailserver), das Versandprotokoll
+		// verhindert Doppelversand. Empfaengerkreis: ENERGY_REPORT_RECIPIENTS
+		cron.schedule('30 8-18 * * *', () => {
 			if (dev) return;
-			console.log('Runs daily at 08:30: sendMonthlyEnergyReports');
+			console.log('Runs hourly 08:30-18:30: sendMonthlyEnergyReports');
 			sendMonthlyEnergyReports();
 		});
 

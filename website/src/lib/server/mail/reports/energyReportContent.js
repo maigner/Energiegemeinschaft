@@ -277,7 +277,9 @@ export function buildReportContent(data) {
         closing: ['Beste Grüße,', 'der Vorstand der EEG ISCHLSTROM'],
         footer: [
             `Sie erhalten diesen Bericht als Mitglied Nr. ${member.identifier} der Erneuerbaren Energiegemeinschaft ISCHLSTROM. `
-                + 'Die Zahlen stammen aus den Viertelstundenwerten Ihres Smart Meters, die der Netzbetreiber an die Gemeinschaft liefert.',
+                + 'Die Zahlen stammen aus den Viertelstundenwerten Ihres Smart Meters, die der Netzbetreiber an die Gemeinschaft liefert. '
+                + 'Die Netz Oberösterreich liefert manche Werte erst mit großer Verzögerung, deshalb können die Daten eines Monats '
+                + 'noch unvollständig sein. In seltenen Fällen ändern sich Werte auch nachträglich.',
             'Sie möchten den Bericht nicht mehr bekommen? Eine kurze Antwort auf diese E-Mail genügt.',
         ],
     };
