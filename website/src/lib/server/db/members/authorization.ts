@@ -1,4 +1,4 @@
-import { CASHIER1, CASHIER2, CHAIR1, CHAIR2, CONTROLLER1 } from "$env/static/private";
+import { CASHIER1, CASHIER2, CHAIR1, CHAIR2, CONTROLLER1, CONTROLLER2 } from "$env/static/private";
 import { getBoardMemberByEmail, getCommunityMembersByEmail } from "$lib/server/db/members/member";
 import { middlewareDbConnection } from "$lib/server/db/db";
 
@@ -92,6 +92,9 @@ export const cashierSession = async (session: any) => {
         return true;
     }
     if (session?.user?.email === CONTROLLER1) {
+        return true;
+    }
+    if (session?.user?.email === CONTROLLER2) {
         return true;
     }
     return false;
