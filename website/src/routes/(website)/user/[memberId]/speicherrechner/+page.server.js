@@ -1,10 +1,11 @@
 import { error } from '@sveltejs/kit';
-import { getBatteryCalculatorSeries } from '$lib/server/db/energy/batteryCalculator';
+import { getBatteryCalculatorSeries, isBatteryCalculatorEnabled } from '$lib/server/db/energy/batteryCalculator';
 
 /**
  * Mitgliederbereich "Speicherrechner": schlaegt aus dem eigenen Bezugs- und
  * Einspeiseprofil eine Speichergroesse vor. Nur fuer den Standort des
- * angemeldeten Mitglieds (gleiche Pruefung wie /user/[memberId]). Die
+ * angemeldeten Mitglieds (gleiche Pruefung wie /user/[memberId]) und in
+ * der Pilotphase nur fuer freigeschaltete Mitglieder (PILOT_MEMBERS). Die
  * Viertelstundenwerte eines Jahres gehen an den Browser, gerechnet wird
  * dort ($lib/batteryCalculator.js); die Abfrage dauert rund zwei Sekunden
  * und wird deshalb gestreamt.
@@ -21,6 +22,9 @@ export async function load({ params, parent }) {
         error(403, 'not a valid user');
     }
     const user = valid[0];
+    if (!isBatteryCalculatorEnabled(user.identifier)) {
+        error(404, 'not found');
+    }
 
     return {
         user,

@@ -10,6 +10,15 @@ import { middlewareDbConnection } from "$lib/server/db/db";
 
 const MISSING_TABLE = "42P01";
 
+// Pilotphase: der Speicherrechner ist noch nicht fuer alle Mitglieder
+// freigegeben, sondern nur fuer diese Mitgliedsnummern (Navigation und
+// Seite pruefen beide dagegen). Leere Liste = fuer alle mit Einspeisung.
+const PILOT_MEMBERS = [1];
+
+/** @param {number} memberIdentifier */
+export const isBatteryCalculatorEnabled = (memberIdentifier) =>
+    PILOT_MEMBERS.length === 0 || PILOT_MEMBERS.includes(memberIdentifier);
+
 // Rueckfall ohne station_metering_15min: abends und nachts nimmt die
 // Gemeinschaft praktisch jede Batterieeinspeisung ab (Defizit 80-120 kW),
 // tagsueber wird nicht entladen
@@ -130,11 +139,13 @@ export const getBatteryCalculatorSeries = async (memberIdentifier) => {
 
 /**
  * Identifier der Mitglieder (aus der uebergebenen Liste) mit aktivem
- * Einspeisezaehlpunkt - nur fuer sie gibt es den Speicherrechner.
+ * Einspeisezaehlpunkt, die in der Pilotphase freigeschaltet sind - nur
+ * fuer sie gibt es den Speicherrechner.
  * @param {number[]} memberIdentifiers
  * @returns {Promise<number[]>}
  */
 export const getMembersWithGeneration = async (memberIdentifiers) => {
+    memberIdentifiers = memberIdentifiers.filter(isBatteryCalculatorEnabled);
     if (memberIdentifiers.length === 0) return [];
     const db = await middlewareDbConnection();
     try {
