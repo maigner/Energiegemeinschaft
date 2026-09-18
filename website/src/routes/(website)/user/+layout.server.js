@@ -3,6 +3,7 @@ import { getUsersByEmail } from '$lib/server/db/members/member';
 import { relayDebug } from '$lib/server/mail/smtp';
 import { getMemberPlants } from '$lib/server/db/members/openhabProvision';
 import { secretsConfigured } from '$lib/server/secrets';
+import { getMembersWithGeneration } from '$lib/server/db/energy/batteryCalculator';
 
 // Benachrichtigung über neue (Nicht-Mitglieds-)Logins nur einmal pro
 // Serverlauf und E-Mail-Adresse, nicht bei jedem Seitenaufruf
@@ -35,9 +36,16 @@ export async function load({ parent, locals }) {
         }
     }
 
+    // Standorte mit Einspeisezaehlpunkt: nur sie bekommen den
+    // Speicherrechner in der Navigation
+    const solarMembers = users
+        ? await getMembersWithGeneration(users.map((/** @type {{ identifier: number }} */ user) => user.identifier))
+        : [];
+
     return {
         users: users,
-        plantMembers
+        plantMembers,
+        solarMembers
     }
 
 }

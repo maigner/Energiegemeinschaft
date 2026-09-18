@@ -205,6 +205,68 @@ export function priceAdvantageCt(t) {
     return ref ? ref.workCt - t.eeg.purchaseCt : 0;
 }
 
+// Annahmen des Speicherrechners im Mitgliederbereich
+// (/user/[memberId]/speicherrechner, Rechenlogik in batteryCalculator.js).
+// Alle Werte sind dort Startwerte editierbarer Felder.
+export const BATTERY_CALCULATOR = {
+    asOf: "2026-09-17",
+    // Verguetung fuer Einspeisung, die die Gemeinschaft nicht abnimmt
+    restFeedIn: {
+        ct: 8.997,
+        note: "OeMAG-Marktpreis Photovoltaik August 2026",
+        source: "https://www.oem-ag.at/marktpreis",
+    },
+    // Leistungspreis der Netzentgelte ab 1.1.2027: verrechnet wird die
+    // hoechste Viertelstunde Netzbezug je Monat, mindestens 2 kW; ueber
+    // 10 kW gilt fuer den uebersteigenden Teil der doppelte Preis. Die
+    // Euro-Werte sind VORLAEUFIG (Einstiegsstufe, rund 30 % des
+    // Netzentgelts ueber die Leistung; Endstufe um 2030 laut E-Control
+    // 33,82 bzw. 67,64 Euro/kW); die Tarifverordnung kommt im Herbst 2026.
+    powerTariff: {
+        validFrom: "2027-01-01",
+        thresholdKw: 10,
+        minKw: 2,
+        eurPerKwYear: 19,
+        eurPerKwYearAbove: 38,
+        provisional: true,
+        source: "https://stromliste.at/strompreis/zusammensetzung/netzentgelte/leistungstarif",
+    },
+    // Speicher samt Einbau, brutto; grobe Marktwerte 2026
+    battery: {
+        costFixEur: 1500,
+        costPerKwhEur: 450,
+        lifetimeYears: 15,
+        roundTripEff: 0.9,
+        powerPerKwh: 0.5,
+        maxPowerKw: 10,
+    },
+};
+
+const VAT = 1.2;
+
+/**
+ * Was eine kWh Netzbezug das Mitglied am Ende kostet, in ct brutto: vom
+ * Lieferanten (erster Vergleichstarif ohne Spot, volle Netzentgelte und
+ * Abgaben, 20 % USt) und aus der Gemeinschaft (EEG-Tarif ohne USt,
+ * reduziertes Netznutzungsentgelt, keine Elektrizitaetsabgabe und kein
+ * Foerderbeitrag).
+ * @param {YearTariff} t
+ * @param {"regional"|"local"} [kind]
+ */
+export function importPricesCt(t, kind = "regional") {
+    const supplier = t.competitors.find((c) => !c.spot);
+    const workCt = supplier ? supplier.workCt : t.eeg.purchaseCt;
+    return {
+        supplierName: supplier?.name ?? null,
+        gridCt:
+            (workCt + t.grid.usageCt + t.grid.lossCt + t.levies.electricityTaxCt
+                + t.levies.renewableContributionCt) * VAT,
+        eegCt:
+            t.eeg.purchaseCt
+            + (t.grid.usageCt - gridSavingCt(t, kind) + t.grid.lossCt) * VAT,
+    };
+}
+
 /**
  * Deutsche Zahl mit bis zu zwei Nachkommastellen, etwa "9,5" oder "10".
  * @param {number|null|undefined} v

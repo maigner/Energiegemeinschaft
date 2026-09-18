@@ -26,6 +26,16 @@
             ? `/user/${data.plantMembers[0]}/speichermanagement`
             : null,
     );
+
+    // Speicherrechner: der gerade angezeigte Standort, wenn er eine
+    // PV-Anlage hat, sonst der erste mit Anlage
+    let calculatorHref = $derived.by(() => {
+        /** @type {number[]} */
+        const solar = data.solarMembers ?? [];
+        if (solar.length === 0) return null;
+        const current = Number(page.params.memberId);
+        return `/user/${solar.includes(current) ? current : solar[0]}/speicherrechner`;
+    });
 </script>
 
 <Navbar>
@@ -78,6 +88,18 @@
                     class="hover:text-green-600"
                 >
                     Speichermanagement
+                </NavLi>
+            {/if}
+
+            {#if calculatorHref}
+                <NavLi
+                    href={calculatorHref}
+                    onclick={() => toggle()}
+                    activeClass="text-green-600 bg-secundary-100"
+                    nonActiveClass="text-green-800"
+                    class="hover:text-green-600"
+                >
+                    Speicherrechner
                 </NavLi>
             {/if}
 
