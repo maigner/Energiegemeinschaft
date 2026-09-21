@@ -10,9 +10,18 @@
 // checkSilentPlants (alle 5 Minuten) je Ausfall genau eine Meldung an
 // info@ischlstrom.org, mit dem letzten bekannten Zustand; die erste Meldung
 // des Pi danach loest die Entwarnung aus (notifyPlantRecovered).
+//
+// Weil das Postfach abends niemand liest, geht seit 2026-09-19 dieselbe
+// Meldung gekuerzt zusaetzlich per Signal hinaus (lib/server/signal.js,
+// SIGNAL_* in .env; ohne Konfiguration bleibt es bei der Mail). Als
+// verschickt gilt ein Alarm, sobald einer der beiden Kanaele durchkam -
+// sonst wuerde ein haengender Mailserver jede fuenf Minuten eine neue
+// Signal-Nachricht ausloesen.
 
 import { findSilentPlants, markOfflineAlerted, getOpenhabStatus } from '$lib/server/db/members/openhabStatus';
 import { relayPlain } from '$lib/server/mail/smtp';
+import { env } from '$env/dynamic/private';
+import { signalConfigFromEnv, sendSignal } from '$lib/server/signal';
 
 // Ab so vielen Minuten ohne Meldung gilt eine Anlage als verstummt. Das
 // Dashboard zeigt "verspaetet" ab 15 und "offline" ab 60 Minuten; der
@@ -111,9 +120,38 @@ const buildOfflineMail = (plant) => {
 };
 
 /**
- * Cron (alle 5 Minuten): verstummte Anlagen melden. Markiert wird erst nach
- * erfolgreichem Versand, ein Mailfehler fuehrt also zum Neuversuch im
- * naechsten Lauf.
+ * Kurzfassung des Offline-Alarms fuer Signal (Handy-Bildschirm).
+ *
+ * @param {Parameters<typeof buildOfflineMail>[0]} plant
+ */
+const buildOfflineSignal = (plant) => {
+    const age = formatAge(plant.age_seconds === null ? null : Number(plant.age_seconds));
+    const profile = plant.inverter_type || 'unbekannt';
+    const commandsCanStand = !SELF_EXPIRING_PROFILES.has(profile);
+    const switchedOn = plant.hauptschalter === 'ON';
+    const soc = plant.soc !== null && plant.soc !== undefined ? `${Math.round(Number(plant.soc))}%` : '?';
+
+    const lines = [
+        `${commandsCanStand && switchedOn ? 'DRINGEND: ' : ''}Speichermanagement: Anlage ${plant.name || 'ohne Namen'} (Mitglied ${plant.member_identifier}, ${plant.member_name}) seit ${age} ohne Meldung, zuletzt ${formatTime(plant.last_seen)}.`
+    ];
+    if (commandsCanStand && switchedOn) {
+        lines.push(`Modbus-Wechselrichter (${profile}), Hauptschalter war EIN: ein Steuerbefehl kann am Geraet stehen bleiben. Pi per Fernwartung pruefen, sonst Mitglied bitten, Modbus am Datamanager auszuschalten.`);
+    } else if (commandsCanStand) {
+        lines.push(`Modbus-Wechselrichter (${profile}), Hauptschalter war AUS - es sollte nichts stehen, trotzdem pruefen.`);
+    } else {
+        lines.push('GEN24: Kommandos laufen am Geraet von selbst ab, nur nicht mehr erreichbar.');
+    }
+    lines.push(
+        `Ladestand ${soc}, Entladung ${plant.entladung_aktiv ?? '?'}, Ladesperre ${plant.ladesperre_aktiv ?? '?'}.`,
+        `${DASHBOARD_URL}/${plant.id}`
+    );
+    return lines.join('\n');
+};
+
+/**
+ * Cron (alle 5 Minuten): verstummte Anlagen melden - per Mail und, wenn
+ * konfiguriert, per Signal. Markiert wird, sobald ein Kanal durchkam;
+ * scheitern beide, folgt im naechsten Lauf ein neuer Versuch.
  */
 export const checkSilentPlants = async () => {
     let plants;
@@ -123,14 +161,27 @@ export const checkSilentPlants = async () => {
         console.error('checkSilentPlants: Abfrage fehlgeschlagen:', e instanceof Error ? e.message : e);
         return;
     }
+    const signal = signalConfigFromEnv(env);
     for (const plant of plants) {
         const mail = buildOfflineMail(plant);
+        const delivered = [];
         try {
             await relayPlain(mail.subject, mail.text);
-            await markOfflineAlerted(plant.id);
-            console.log(`checkSilentPlants: Offline-Alarm fuer Anlage ${plant.id} verschickt`);
+            delivered.push('Mail');
         } catch (e) {
-            console.error(`checkSilentPlants: Alarm fuer Anlage ${plant.id} fehlgeschlagen:`, e instanceof Error ? e.message : e);
+            console.error(`checkSilentPlants: Mail fuer Anlage ${plant.id} fehlgeschlagen:`, e instanceof Error ? e.message : e);
+        }
+        try {
+            if (await sendSignal(signal, buildOfflineSignal(plant))) delivered.push('Signal');
+        } catch (e) {
+            console.error(`checkSilentPlants: Signal fuer Anlage ${plant.id} fehlgeschlagen:`, e instanceof Error ? e.message : e);
+        }
+        if (!delivered.length) continue;
+        try {
+            await markOfflineAlerted(plant.id);
+            console.log(`checkSilentPlants: Offline-Alarm fuer Anlage ${plant.id} verschickt (${delivered.join(', ')})`);
+        } catch (e) {
+            console.error(`checkSilentPlants: Markierung fuer Anlage ${plant.id} fehlgeschlagen:`, e instanceof Error ? e.message : e);
         }
     }
 };
@@ -157,5 +208,11 @@ export const notifyPlantRecovered = async (statusId) => {
         );
     }
     lines.push(`Dashboard: ${DASHBOARD_URL}/${statusId}`);
-    await relayPlain(`[Speichermanagement] Anlage ${status.name || status.member_identifier} meldet wieder`, lines.join('\n'));
+    const results = await Promise.allSettled([
+        relayPlain(`[Speichermanagement] Anlage ${status.name || status.member_identifier} meldet wieder`, lines.join('\n')),
+        sendSignal(signalConfigFromEnv(env), `Entwarnung Speichermanagement: Anlage ${label} meldet wieder (${formatTime(status.last_seen)}).\n${DASHBOARD_URL}/${statusId}`)
+    ]);
+    for (const [i, r] of results.entries()) {
+        if (r.status === 'rejected') console.error(`notifyPlantRecovered: ${i === 0 ? 'Mail' : 'Signal'} fehlgeschlagen:`, r.reason instanceof Error ? r.reason.message : r.reason);
+    }
 };

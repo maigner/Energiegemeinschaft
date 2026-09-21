@@ -18,6 +18,7 @@ TLS terminiert **Caddy** am Host (`/etc/caddy/Caddyfile`):
 | remote.hac.ischlstrom.org | localhost:3000 | openHAB Cloud Remote-Proxy (Main UI der Anlagen) |
 | nextcloud.ischlstrom.org | localhost:11000 | Nextcloud AIO |
 | newsletter.ischlstrom.org | localhost:4000 | keila |
+| (kein Hostname) | 127.0.0.1:8180, 172.17.0.1:8180 | signal-cli-rest-api (Signal-Alarme, siehe unten) |
 
 Achtung: `s1.ischlstrom.org` gehoert mailcow, Port 3000 gehoert openHAB
 Cloud - die Website nutzt deshalb Host-Port **3001**.
@@ -158,6 +159,45 @@ auf s1):
   ueberschrieben, sodass `migrate` nur die Dev-DB traf); Host kommt aus
   `middleware/eeg/.pg_service.conf` (s1), das Passwort aus
   `middleware/eeg/.pgpass` (braucht die s1-Zeile, gitignored).
+
+## Signal-Alarme (signal-cli-rest-api, seit 19. September 2026)
+
+Die Offline-Alarme des Speichermanagements
+(`website/src/lib/server/mail/notifications/ibmAlerts.js`) gehen neben
+der Mail an info@ auch per Signal hinaus, weil das Postfach abends
+niemand liest. Dafuer laeuft auf s1 der Container
+`signal-cli-rest-api` (`bbernhard/signal-cli-rest-api`, Modus `native`),
+Compose-Datei `~/Container/signal-cli/compose.yaml`, Kontodaten in
+`~/Container/signal-cli/data/` (im nightly Backup der Configs
+mitnehmen). Kein TLS, keine Authentifizierung: der Port 8180 ist nur
+an `127.0.0.1` und an die Docker-Bridge `172.17.0.1` gebunden, die
+Website erreicht ihn wie die Datenbanken ueber `172.17.0.1`.
+
+- **Konto:** Martins Signal-Konto, als Zweitgeraet `ischlstrom-s1`
+  verknuepft (kein eigenes Handy, keine eigene Nummer). Verknuepfen:
+  `curl -o qr.png "http://127.0.0.1:8180/v1/qrcodelink?device_name=ischlstrom-s1"`,
+  QR-Code am Handy unter Einstellungen -> Gekoppelte Geraete scannen;
+  danach zeigt `curl http://127.0.0.1:8180/v1/accounts` die Nummer.
+  Signal entkoppelt Zweitgeraete, die laenger (rund 30 Tage) nicht
+  aktiv waren - `AUTO_RECEIVE_SCHEDULE` (stuendlicher Empfang) haelt das
+  Geraet aktiv. Ein entkoppeltes Geraet faellt durch Fehler beim Senden
+  im Website-Log auf (`checkSilentPlants: Signal ... fehlgeschlagen`);
+  dann neu verknuepfen.
+- **Website-`.env`:** `SIGNAL_API_URL=http://172.17.0.1:8180`,
+  `SIGNAL_NUMBER=+43...` (die verknuepfte Nummer),
+  `SIGNAL_RECIPIENTS` (leer = "Notiz an mich"; sonst Nummern oder
+  Gruppen-IDs, kommagetrennt - Gruppen-IDs liefert
+  `curl http://127.0.0.1:8180/v1/groups/<nummer>`). Ohne
+  `SIGNAL_API_URL` bleibt es bei der Mail.
+- **Test:** `node scripts/signal-send.js "Test"` in `website/` (liest
+  `.env`; vom Entwicklungsrechner per `ssh -L 8180:127.0.0.1:8180
+  s1.ischlstrom.org` und `SIGNAL_API_URL=http://127.0.0.1:8180`), oder
+  direkt auf s1:
+  `curl -X POST -H 'Content-Type: application/json' -d '{"number":"+43...","recipients":["+43..."],"message":"Test"}' http://127.0.0.1:8180/v2/send`.
+- **Betrieb:** `docker compose -f ~/Container/signal-cli/compose.yaml
+  logs`, Update mit `docker compose pull && docker compose up -d` im
+  selben Verzeichnis (noetig, wenn Signal das Protokoll aendert und der
+  Versand mit Fehlern aus dem Container quittiert wird).
 
 ## Energiedaten-Import (eegfaktura-import, seit September 2026)
 
