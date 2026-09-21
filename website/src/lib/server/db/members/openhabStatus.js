@@ -186,6 +186,61 @@ export const markOfflineAlerted = async (id) => {
 };
 
 /**
+ * Anlagen mit frischem Systemzustand fuer die Systemalarme (Cron
+ * checkSystemAlerts): alle, die in den letzten `minutes` Minuten gemeldet
+ * haben und nicht geloescht sind, mit data->'system' der letzten vollen
+ * Meldung und dem Stand der offenen Alarme (system_alerts, NULL = keine).
+ * Verstummte Anlagen bleiben aussen vor - fuer die gibt es den
+ * Offline-Alarm, und ihre Systemwerte waeren veraltet.
+ *
+ * @param {number} minutes
+ * @returns {Promise<Array<{ id: number, name: string, member_name: string, member_identifier: string,
+ *           system: Record<string, any> | null, system_alerts: Record<string, string> | null }>>}
+ */
+export const findPlantsForSystemCheck = async (minutes) => {
+    const db = await middlewareDbConnection();
+    try {
+        const result = await db.query(
+            `SELECT s.id,
+                    s.name,
+                    s.data->'system' AS system,
+                    s.system_alerts,
+                    m.name AS member_name,
+                    m.identifier AS member_identifier
+               FROM members_openhabstatus s
+               JOIN members_member m ON s.member_id = m.id
+              WHERE s.last_seen > now() - make_interval(mins => $1)
+                AND jsonb_typeof(s.data->'system') = 'object'
+                AND COALESCE(s.setup_phase, '') <> 'geloescht'
+              ORDER BY s.id`,
+            [minutes]
+        );
+        return result.rows;
+    } finally {
+        db.release();
+    }
+};
+
+/**
+ * Stand der Systemalarme einer Anlage speichern (Cron checkSystemAlerts);
+ * ein leeres Objekt wird als NULL abgelegt.
+ *
+ * @param {number} id - members_openhabstatus.id
+ * @param {Record<string, string>} alerts - Kennzahl -> ISO-Zeitpunkt des Alarms
+ */
+export const setSystemAlerts = async (id, alerts) => {
+    const db = await middlewareDbConnection();
+    try {
+        await db.query(
+            `UPDATE members_openhabstatus SET system_alerts = $2::jsonb WHERE id = $1`,
+            [id, Object.keys(alerts).length ? JSON.stringify(alerts) : null]
+        );
+    } finally {
+        db.release();
+    }
+};
+
+/**
  * Anlage zu einem Status-Token, fuer die individualisierte Ladefenster-API
  * (/api/ibm/ladefenster/v1): liefert die zuletzt gepushten Daten der Anlage
  * (geschaetzte Batteriekapazitaet und Ladeleistung), mit denen der Server

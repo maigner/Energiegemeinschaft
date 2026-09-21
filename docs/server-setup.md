@@ -165,7 +165,12 @@ auf s1):
 Die Offline-Alarme des Speichermanagements
 (`website/src/lib/server/mail/notifications/ibmAlerts.js`) gehen neben
 der Mail an info@ auch per Signal hinaus, weil das Postfach abends
-niemand liest. Dafuer laeuft auf s1 der Container
+niemand liest. Die Systemalarme der Pis (`ibmSystemAlerts.js`, Cron
+`checkSystemAlerts` alle 5 Minuten: SD-Karte ab 70% belegt,
+CPU-Temperatur ab 60 °C, RAM ab 50%, Swap sobald belegt; Entwarnung
+5 Punkte unter der Schwelle bzw. bei leerem Swap, je Anlage und
+Kennzahl eine Meldung, Stand in `members_openhabstatus.system_alerts`)
+gehen nur per Signal hinaus, ohne `SIGNAL_API_URL` gar nicht. Dafuer laeuft auf s1 der Container
 `signal-cli-rest-api` (`bbernhard/signal-cli-rest-api`, Modus `native`),
 Compose-Datei `~/Container/signal-cli/compose.yaml`, Kontodaten in
 `~/Container/signal-cli/data/` (im nightly Backup der Configs
@@ -181,7 +186,8 @@ Website erreicht ihn wie die Datenbanken ueber `172.17.0.1`.
   Signal entkoppelt Zweitgeraete, die laenger (rund 30 Tage) nicht
   aktiv waren - `AUTO_RECEIVE_SCHEDULE` (stuendlicher Empfang) haelt das
   Geraet aktiv. Ein entkoppeltes Geraet faellt durch Fehler beim Senden
-  im Website-Log auf (`checkSilentPlants: Signal ... fehlgeschlagen`);
+  im Website-Log auf (`checkSilentPlants: Signal ... fehlgeschlagen`,
+  `checkSystemAlerts: Signal ... fehlgeschlagen`);
   dann neu verknuepfen.
 - **Website-`.env`:** `SIGNAL_API_URL=http://172.17.0.1:8180`,
   `SIGNAL_NUMBER=+43...` (die verknuepfte Nummer),

@@ -119,6 +119,13 @@ class OpenhabStatus(models.Model):
     # naechste Statusmeldung des Pi leert die Spalte und loest die
     # Entwarnung aus - so gibt es je Ausfall genau eine Meldung.
     offline_alerted_at = models.DateTimeField(null=True, blank=True)
+    # Systemalarme (Website-Cron checkSystemAlerts, nur per Signal): je
+    # Kennzahl aus data->'system' (disk, temp, mem, swap) der Zeitpunkt, seit
+    # dem der Alarm steht, z. B. {"temp": "2026-09-21T13:05:00Z"}. Der Cron
+    # meldet den Eintritt einmal und entfernt den Eintrag mit der Entwarnung,
+    # sobald der Wert wieder unter der Schwelle (mit Hysterese) liegt.
+    # NULL bedeutet: kein Alarm.
+    system_alerts = models.JSONField(null=True, blank=True)
 
     class Meta:
         verbose_name_plural = "Openhab statuses"

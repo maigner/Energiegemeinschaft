@@ -9,6 +9,7 @@ import { refreshMaterializedViewCrossoverTimes } from "$lib/server/db/energy/ove
 import { pruneOpenhabStatusHistory } from "$lib/server/db/members/openhabStatus";
 import { sendMonthlyEnergyReports } from "$lib/server/mail/reports/monthlyEnergyReport";
 import { checkSilentPlants } from "$lib/server/mail/notifications/ibmAlerts";
+import { checkSystemAlerts } from "$lib/server/mail/notifications/ibmSystemAlerts";
 import { rollupOpenhabCounterSnapshots } from "$lib/server/db/energy/batteryGridFeedIn";
 import { pruneExpiredAuthData, pruneMemberDataAccessLog } from "$lib/server/db/retention";
 import { dev } from "$app/environment";
@@ -81,6 +82,16 @@ export async function cronHandle({ event, resolve }) {
 		cron.schedule('*/5 * * * *', () => {
 			if (dev) return;
 			checkSilentPlants();
+		});
+
+		// checkSystemAlerts
+		// Systemwerte der Pis (SD-Karte, CPU-Temperatur, RAM, Swap) gegen
+		// feste Schwellen pruefen, Ein- und Austritt je Kennzahl per Signal
+		// melden; um zwei Minuten versetzt, damit die vollen Statusmeldungen
+		// im 5-Minuten-Raster schon gespeichert sind
+		cron.schedule('2-59/5 * * * *', () => {
+			if (dev) return;
+			checkSystemAlerts();
 		});
 
 		// sendMonthlyEnergyReports

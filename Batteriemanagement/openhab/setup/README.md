@@ -142,8 +142,13 @@ Testplan: [inverters/failsafe-modbus.md](../inverters/failsafe-modbus.md)):
 Was der Fail-Safe nicht abdeckt: einen hart toten Pi (Netzteil, SD-Karte).
 Dafuer meldet die Website verstummte Anlagen per Mail an den Vorstand
 (Cron `checkSilentPlants`, ab 30 Minuten ohne Status-Push, je Ausfall eine
-Meldung plus Entwarnung), und am Wechselrichter bleibt der Not-Aus von
-Hand (Profil-README).
+Meldung plus Entwarnung, zusaetzlich per Signal), und am Wechselrichter
+bleibt der Not-Aus von Hand (Profil-README). Aus dem Systemzustand des
+Status-Push (`collectSystemHealth` in `eeg-api/status_push.js`) macht die
+Website ausserdem Signal-Alarme, bevor ein Pi kippt: SD-Karte ab 70%
+belegt, CPU ab 60 °C, RAM ab 50%, Swap sobald er benutzt wird (Cron
+`checkSystemAlerts`, je Anlage und Kennzahl eine Meldung und eine
+Entwarnung).
 
 ### Automatische Betriebssystem-Updates
 
