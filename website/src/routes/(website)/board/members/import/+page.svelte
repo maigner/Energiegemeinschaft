@@ -26,6 +26,22 @@
         {data.counts.skipped} übersprungen (Mitglieder und Zählpunkte).
     </p>
 
+    {#if data.conflicts.length > 0}
+        <div class="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-900 dark:border-red-700 dark:bg-red-950 dark:text-red-200">
+            <p class="mb-2 font-semibold">
+                {data.conflicts.length === 1 ? 'Eine Mitgliedsnummer ist' : `${data.conflicts.length} Mitgliedsnummern sind`}
+                in der Datei für verschiedene Personen vergeben. Diese Nummern wurden samt
+                Zählpunkten nicht importiert. Bitte in EEG-Faktura eigene Nummern vergeben
+                und die Datei neu exportieren.
+            </p>
+            <ul class="list-disc pl-5 font-mono">
+                {#each data.conflicts as conflict}
+                    <li class="py-0.5">{conflict}</li>
+                {/each}
+            </ul>
+        </div>
+    {/if}
+
     <Heading tag="h5" class="mb-4">Neu aufgenommene Datensätze</Heading>
 
     {#if data.messages.length > 0}

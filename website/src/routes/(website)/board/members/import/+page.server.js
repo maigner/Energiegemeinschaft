@@ -7,7 +7,7 @@ import { importMemberDataFromNextcloud } from "$lib/server/nextcloud/members/mem
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ fetch, params, parent, locals }) {
 
-    const { file, messages } = await importMemberDataFromNextcloud();
+    const { file, messages, conflicts } = await importMemberDataFromNextcloud();
 
     await updateMissingMemberCoordinates();
 
@@ -33,7 +33,9 @@ export async function load({ fetch, params, parent, locals }) {
             updated: countByAction("UPDATED"),
             skipped: countByAction("SKIPPED")
         },
-        messages: inserted
+        messages: inserted,
+        // doppelt vergebene Mitgliedsnummern, nicht importiert (memberdata.js)
+        conflicts
     }
 
 }

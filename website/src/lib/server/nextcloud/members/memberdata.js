@@ -1,6 +1,7 @@
 import { nextcloudClient } from "../client";
 import * as XLSX from "xlsx";
 import { middlewareDbConnection } from "$lib/server/db/db";
+import { findMemberNumberConflicts, describeConflict } from "./masterdataConflicts.js";
 
 /**
  * Datum aus dem Dateinamen (RC101533-EEG-Masterdata-YYYYMMDD.xlsx) als
@@ -19,7 +20,11 @@ const masterdataFileDate = (basename) => {
  * ist nicht verlaesslich, weil der Nextcloud-Desktop-Client die lokale
  * mtime beim Upload beibehaelt.
  *
- * @returns {Promise<{ file: { name: string, lastmod: string }, messages: string[] }>}
+ * Mitgliedsnummern, die im Sheet fuer verschiedene Personen stehen, werden
+ * komplett uebersprungen und als `conflicts` zurueckgegeben (siehe
+ * masterdataConflicts.js).
+ *
+ * @returns {Promise<{ file: { name: string, lastmod: string }, messages: string[], conflicts: string[] }>}
  */
 export const importMemberDataFromNextcloud = async () => {
 
@@ -57,15 +62,24 @@ export const importMemberDataFromNextcloud = async () => {
 
     const rows = XLSX.utils.sheet_to_json(sheet);
 
+    // Doppelt vergebene Mitgliedsnummern: weder Mitglied noch Zaehlpunkte
+    // importieren, sonst verschmelzen zwei Personen zu einem Datensatz
+    const conflicts = findMemberNumberConflicts(rows);
+    const blocked = new Set(conflicts.map((c) => c.number));
+    const importable = rows.filter((row) => !blocked.has(Number(row["Mit. Nr."])));
+    const conflictMessages = conflicts.map(describeConflict);
+    for (const message of conflictMessages) console.warn(`[KONFLIKT] ${message}`);
+
     // import member data
-    const messages = await upsertMembersFromSpreadsheet(rows);
+    const messages = await upsertMembersFromSpreadsheet(importable);
 
     // import meter point data
-    const measurementPointMessages = await upsertMeasurementPointsFromSpreadsheet(rows);
+    const measurementPointMessages = await upsertMeasurementPointsFromSpreadsheet(importable);
 
     return {
         file: { name: latest.basename, lastmod: latest.lastmod },
-        messages: [...messages, ...measurementPointMessages]
+        messages: [...messages, ...measurementPointMessages],
+        conflicts: conflictMessages
     };
 };
 
