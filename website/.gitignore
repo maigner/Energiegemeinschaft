@@ -28,3 +28,6 @@ static/ibm/ibm-openhab.tgz.sha256
 
 # SD-Karten-Images im Dev-Modus (src/lib/server/ibmImage.js)
 /data/
+
+# Newsletter-Export mit personenbezogenen Daten (scripts/keila-contacts.js --out)
+keila-*.csv

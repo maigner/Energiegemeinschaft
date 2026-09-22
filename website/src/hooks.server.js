@@ -11,6 +11,7 @@ import { sendMonthlyEnergyReports } from "$lib/server/mail/reports/monthlyEnergy
 import { checkSilentPlants } from "$lib/server/mail/notifications/ibmAlerts";
 import { checkSystemAlerts } from "$lib/server/mail/notifications/ibmSystemAlerts";
 import { rollupOpenhabCounterSnapshots } from "$lib/server/db/energy/batteryGridFeedIn";
+import { syncNewsletterContacts } from "$lib/server/newsletter/keilaSync";
 import { pruneExpiredAuthData, pruneMemberDataAccessLog } from "$lib/server/db/retention";
 import { dev } from "$app/environment";
 
@@ -130,6 +131,15 @@ export async function cronHandle({ event, resolve }) {
 			console.log('Runs daily at 03:41: pruneExpiredAuthData + pruneMemberDataAccessLog');
 			pruneExpiredAuthData();
 			pruneMemberDataAccessLog();
+		});
+
+		// syncNewsletterContacts
+		// Newsletter-Kontakte in Keila mit den Mitgliedern (aktiver Zaehlpunkt)
+		// abgleichen; ohne KEILA_API_URL/KEILA_API_KEY passiert nichts
+		cron.schedule('50 4 * * *', () => {
+			if (dev) return;
+			console.log('Runs daily at 04:50: syncNewsletterContacts');
+			syncNewsletterContacts();
 		});
 
 		// refreshMaterializedViewCrossoverTimes

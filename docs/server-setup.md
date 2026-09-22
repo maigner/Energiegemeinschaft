@@ -217,6 +217,45 @@ Website erreicht ihn wie die Datenbanken ueber `172.17.0.1`.
   selben Verzeichnis (noetig, wenn Signal das Protokoll aendert und der
   Versand mit Fehlern aus dem Container quittiert wird).
 
+## Newsletter (keila)
+
+Der Newsletter laeuft auf Keila (Container `keila`, `pentacent/keila`,
+Port 4000, Caddy-Vhost `newsletter.ischlstrom.org`, DB im Host-Postgres
+und damit im nightly Backup). Die Kontaktliste pflegt die Website:
+der Cron `syncNewsletterContacts` (taeglich 04:50,
+`website/src/lib/server/newsletter/keilaSync.js`) gleicht alle
+Mitglieder mit mindestens einem aktiven Zaehlpunkt ueber die Keila-API
+ab - anlegen, bei Namens- oder Datenaenderung aktualisieren, nach dem
+Austritt loeschen. Je E-Mail-Adresse entsteht ein Kontakt (Betriebe und
+Familien mit mehreren Mitgliedsnummern: Namen der kleinsten Nummer, alle
+Nummern in den Daten). Kontaktdaten in Keila: `mitglied` (true),
+`mitgliedsnummer`, `mitgliedsnummern`, `ort`, `erzeuger` (hat einen
+Erzeugungs-Zaehlpunkt). Der Abgleich schickt nie einen Status mit:
+wer sich abgemeldet hat, bleibt abgemeldet; Kontakte ohne `mitglied`
+(von Hand angelegt, Formular) bleiben unangetastet.
+
+- **Einrichten:** in Keila im Projekt unter Einstellungen einen
+  API-Schluessel anlegen und in die Website-`.env` eintragen:
+  `KEILA_API_URL=http://172.17.0.1:4000`, `KEILA_API_KEY=...`. Ohne die
+  beiden Variablen tut der Cron nichts. Fuer Aussendungen an alle
+  Mitglieder in Keila ein Segment mit dem Filter `{"data.mitglied": true}`
+  anlegen (Erzeuger: zusaetzlich `"data.erzeuger": true`).
+- **Probelauf und Import von Hand:** `node scripts/keila-contacts.js
+  --sync --dry-run` in `website/` zeigt, was der Abgleich taete (liest
+  `.env`; vom Entwicklungsrechner per `ssh -L 4000:127.0.0.1:4000
+  s1.ischlstrom.org` und `KEILA_API_URL=http://127.0.0.1:4000`);
+  `--out kontakte.csv` schreibt dieselbe Liste als CSV fuer Kontakte ->
+  Importieren (Haken "Duplikate ersetzen"; die Datei hat absichtlich
+  keine Spalte `status`, sonst wuerde der Import Abgemeldete wieder
+  aktivieren). Die CSV enthaelt personenbezogene Daten (`keila-*.csv`
+  ist in `website/.gitignore`), nach dem Import loeschen.
+- **Betrieb:** Compose-Datei `/opt/keila/docker-compose.yml`, Update
+  mit `docker compose pull && docker compose up -d` dort. Port 4000 ist
+  seit 22. September 2026 wie bei signal-cli nur an `127.0.0.1` und an
+  die Docker-Bridge `172.17.0.1` gebunden (vorher `0.0.0.0`, Keila war
+  damit ohne TLS aus dem Internet erreichbar); Caddy und die Website
+  brauchen nicht mehr.
+
 ## Energiedaten-Import (eegfaktura-import, seit September 2026)
 
 Die Viertelstundenwerte kommen taeglich direkt aus dem Energystore von
