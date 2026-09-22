@@ -69,6 +69,13 @@ Skripte in `scripts/backup-s1/`:
   mailcow-Backup (7 Tage Rotation - Vollkopien der Maildaten), Config-Tar
   (`/etc/caddy`, `/etc/wireguard` = Anlagen-Registry, `/etc/postgresql`).
   Ziel `/var/backups/s1/`, 14 Tage Rotation. Log: `journalctl -u s1-backup`.
+  Achtung: `/var/backups/s1/mailcow` muss `0755` bleiben - das mailcow-Skript
+  prueft die Others-Rechte des Zielverzeichnisses und bricht sonst ab
+  ("is not write-able for others"). Genau das passierte vom 2. August bis
+  22. September 2026 (die Rechte-Bereinigung am Skriptende hatte o-rwx
+  gesetzt): sieben Wochen kein mailcow-Backup, keine Config-Tarballs und
+  keine Rotation, 53 Tage Dumps (33 GB) auf `/` (92% voll). Seit dem Fix
+  laeuft die Rotation auch, wenn mailcow fehlschlaegt.
 - **Heimserver, taeglich 05:30** (crontab martin): `pull-backups-home.sh`
   spiegelt `/var/backups/s1/` nach `~/backups-s1/` (Offsite-Kopie; Pull,
   s1 erreicht den Heimserver nicht). Log: `~/backups-s1/pull.log`.
@@ -264,7 +271,12 @@ Noch offen:
 4. Plattenplatz beobachten: `journalctl -u s1-backup` zeigt Belegung und
    freien Platz nach jedem Lauf. Stand 23. August 2026: 15 GB frei; der
    Image-Bau braucht 7 GB, liegen mehrere fertige Images herum, wird es
-   eng (siehe SD-Karten-Image oben).
+   eng (siehe SD-Karten-Image oben). Stand 22. September 2026: 13 GB frei,
+   groesste Posten Docker-Build-Cache (40 GB, `docker builder prune -a`),
+   Images 27 GB, Dumps 33 GB (Rotation war kaputt, s.o.), Journal 2 GB
+   (`journalctl --vacuum-size=500M`). Das LVM-Volume `/mnt/backup` (196 GB)
+   ist praktisch leer - Kandidat fuer `BACKUP_ROOT`, dann auch
+   `pull-backups-home.sh` anpassen.
 5. openHAB Cloud: die MongoDB des Stacks (Konten, UUID/Secret der Anlagen)
    wird noch nicht gesichert - `mongodump` in `s1-backup.sh` ergaenzen
    (siehe [openhab-cloud.md](openhab-cloud.md)).

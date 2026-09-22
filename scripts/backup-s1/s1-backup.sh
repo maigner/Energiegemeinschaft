@@ -39,11 +39,22 @@ for db in $(runuser -u postgres -- psql -tAc \
 done
 
 # --- mailcow ----------------------------------------------------------------
+# Das mailcow-Skript verlangt, dass das Zielverzeichnis fuer "others"
+# mindestens r-x hat (prueft die letzte Oktalstelle auf 5-7), sonst bricht es
+# mit "is not write-able for others" ab. Die Rechte-Bereinigung unten darf
+# dieses eine Verzeichnis daher nicht auf o-rwx setzen (die Dateien darin
+# schon). Ein Fehler hier bricht das Skript nicht ab, damit Rotation und
+# Config-Tar trotzdem laufen; der Exit-Status bleibt aber 1.
+rc=0
 if [ -x "$MAILCOW_DIR/helper-scripts/backup_and_restore.sh" ]; then
   log "mailcow: Backup (Rotation ${MAILCOW_KEEP_DAYS} Tage) ..."
-  MAILCOW_BACKUP_LOCATION="$BACKUP_ROOT/mailcow" \
-    "$MAILCOW_DIR/helper-scripts/backup_and_restore.sh" backup all \
-    --delete-days "$MAILCOW_KEEP_DAYS"
+  chmod 0755 "$BACKUP_ROOT/mailcow"
+  if ! MAILCOW_BACKUP_LOCATION="$BACKUP_ROOT/mailcow" \
+      "$MAILCOW_DIR/helper-scripts/backup_and_restore.sh" backup all \
+      --delete-days "$MAILCOW_KEEP_DAYS"; then
+    log "mailcow: Backup FEHLGESCHLAGEN - Rotation und Configs laufen trotzdem."
+    rc=1
+  fi
 else
   log "mailcow: $MAILCOW_DIR nicht gefunden - uebersprungen."
 fi
@@ -59,5 +70,7 @@ find "$BACKUP_ROOT/postgres" "$BACKUP_ROOT/config" -type f \
 
 chgrp -R "$PULL_GROUP" "$BACKUP_ROOT"
 chmod -R g+rX,o-rwx "$BACKUP_ROOT"
+chmod 0755 "$BACKUP_ROOT/mailcow"   # siehe mailcow-Abschnitt
 
 log "Fertig. Belegung: $(du -sh "$BACKUP_ROOT" | cut -f1), frei auf /: $(df -h / | awk 'NR==2{print $4}')"
+exit "$rc"
