@@ -15,7 +15,9 @@
 // in der Soll-Liste ist, werden geloescht (Austritt: der Zweck der
 // Verarbeitung entfaellt). Der Status (active/unsubscribed) wird nie
 // mitgeschickt - wer sich in Keila abgemeldet hat, bleibt abgemeldet, und
-// von Hand angelegte Kontakte ohne data.mitglied ruehrt der Abgleich nicht an.
+// von Hand angelegte Kontakte ohne data.mitglied ruehrt der Abgleich nicht an
+// (Ausnahme: Option deleteOthers, ein bewusster Aufraeumlauf ueber die CLI,
+// der alle Kontakte ausserhalb der Soll-Liste loescht).
 //
 // Keila-API (REST, /api/v1, Bearer-Token): Liste seitenweise ueber
 // paginate[page]/paginate[page_size]; Antworten liegen unter `data`, Listen
@@ -127,13 +129,15 @@ const needsUpdate = (existing, wanted) =>
  *
  * @param {NonNullable<KeilaConfig>} config
  * @param {NewsletterContact[]} wanted
- * @param {{ dryRun?: boolean, log?: (line: string) => void }} [options]
+ * @param {{ dryRun?: boolean, deleteOthers?: boolean, log?: (line: string) => void }} [options]
+ *   deleteOthers: auch Kontakte ohne data.mitglied loeschen, die nicht in der
+ *   Soll-Liste sind (Aufraeumlauf, nur ueber die CLI)
  * @returns {Promise<{ created: number, updated: number, deleted: number, unchanged: number,
  *                     skipped: number, errors: string[] }>}
  *   skipped = Kontakte, die in Keila ohne data.mitglied existieren und deshalb
  *   nur gelesen, nicht angefasst werden
  */
-export const syncKeilaContacts = async (config, wanted, { dryRun = false, log = () => {} } = {}) => {
+export const syncKeilaContacts = async (config, wanted, { dryRun = false, deleteOthers = false, log = () => {} } = {}) => {
     const existing = await listKeilaContacts(config);
     /** @type {Map<string, KeilaContact>} */
     const byEmail = new Map(existing.map((c) => [c.email.trim().toLowerCase(), c]));
@@ -174,11 +178,12 @@ export const syncKeilaContacts = async (config, wanted, { dryRun = false, log = 
 
     for (const [email, current] of byEmail) {
         if (wantedEmails.has(email)) continue;
-        if (current.data?.mitglied !== true) {
+        if (current.data?.mitglied !== true && !deleteOthers) {
             result.skipped++;
             continue;
         }
-        if (await attempt(`loeschen ${email} (Mitglied ${current.data?.mitgliedsnummer ?? '?'}, kein aktiver Zaehlpunkt mehr)`,
+        const who = current.data?.mitglied === true ? `Mitglied ${current.data?.mitgliedsnummer ?? '?'}` : 'kein Mitgliedskontakt';
+        if (await attempt(`loeschen ${email} (${who}, kein aktiver Zaehlpunkt)`,
             () => request(config, 'DELETE', `/contacts/${encodeURIComponent(current.id)}`))) result.deleted++;
     }
 

@@ -238,13 +238,18 @@ wer sich abgemeldet hat, bleibt abgemeldet; Kontakte ohne `mitglied`
   API-Schluessel anlegen und in die Website-`.env` eintragen:
   `KEILA_API_URL=http://172.17.0.1:4000`, `KEILA_API_KEY=...`. Ohne die
   beiden Variablen tut der Cron nichts. Fuer Aussendungen an alle
-  Mitglieder in Keila ein Segment mit dem Filter `{"data.mitglied": true}`
-  anlegen (Erzeuger: zusaetzlich `"data.erzeuger": true`).
+  Mitglieder gibt es in Keila das Segment "Mitglieder" (angelegt am
+  22. September 2026) mit dem Filter `{"data.mitglied": "true"}` - der
+  Wert als Zeichenkette, Keila 0.19 antwortet auf ein JSON-Boolean im
+  Filter mit einem Serverfehler (Erzeuger: `"data.erzeuger": "true"`).
 - **Probelauf und Import von Hand:** `node scripts/keila-contacts.js
   --sync --dry-run` in `website/` zeigt, was der Abgleich taete (liest
   `.env`; vom Entwicklungsrechner per `ssh -L 4000:127.0.0.1:4000
   s1.ischlstrom.org` und `KEILA_API_URL=http://127.0.0.1:4000`);
-  `--out kontakte.csv` schreibt dieselbe Liste als CSV fuer Kontakte ->
+  `--sync --delete-others` ist der Aufraeumlauf: loescht zusaetzlich alle
+  Kontakte, die kein Mitglied mit aktivem Zaehlpunkt sind, auch von Hand
+  angelegte (am 22. September 2026 so die 34 Altkontakte des Mai-Imports
+  entfernt). `--out kontakte.csv` schreibt dieselbe Liste als CSV fuer Kontakte ->
   Importieren (Haken "Duplikate ersetzen"; die Datei hat absichtlich
   keine Spalte `status`, sonst wuerde der Import Abgemeldete wieder
   aktivieren). Die CSV enthaelt personenbezogene Daten (`keila-*.csv`

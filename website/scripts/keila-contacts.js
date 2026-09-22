@@ -6,6 +6,9 @@
 //   node scripts/keila-contacts.js --out kontakte.csv       CSV fuer Kontakte -> Importieren
 //   node scripts/keila-contacts.js --sync --dry-run          zeigt, was der Abgleich taete
 //   node scripts/keila-contacts.js --sync                    Abgleich ausfuehren
+//   node scripts/keila-contacts.js --sync --delete-others    zusaetzlich alle Kontakte loeschen,
+//                                                            die kein Mitglied mit aktivem
+//                                                            Zaehlpunkt sind (auch von Hand angelegte)
 //
 // Zugangsdaten kommen wie bei `npm run dev` aus website/.env (Datenbank von
 // s1, KEILA_API_URL und KEILA_API_KEY). Vom Entwicklungsrechner aus erreicht
@@ -24,10 +27,11 @@ const { values: args } = parseArgs({
         out: { type: 'string' },
         sync: { type: 'boolean' },
         'dry-run': { type: 'boolean' },
+        'delete-others': { type: 'boolean' },
     },
 });
 if (!args.out && !args.sync) {
-    console.error('Aufruf: keila-contacts.js (--out <datei.csv> | --sync [--dry-run])');
+    console.error('Aufruf: keila-contacts.js (--out <datei.csv> | --sync [--dry-run] [--delete-others])');
     process.exit(1);
 }
 
@@ -56,7 +60,9 @@ try {
     if (args.sync) {
         const config = keilaConfigFromEnv(env);
         if (!config) throw new Error('KEILA_API_URL / KEILA_API_KEY nicht gesetzt');
-        const result = await syncKeilaContacts(config, contacts, { dryRun: args['dry-run'], log: console.log });
+        const result = await syncKeilaContacts(config, contacts, {
+            dryRun: args['dry-run'], deleteOthers: args['delete-others'], log: console.log,
+        });
         console.log(`${result.created} angelegt, ${result.updated} aktualisiert, ${result.deleted} geloescht, `
             + `${result.unchanged} unveraendert, ${result.skipped} fremde Kontakte unangetastet`);
         for (const error of result.errors) console.error(error);
