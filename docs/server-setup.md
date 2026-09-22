@@ -75,7 +75,12 @@ Skripte in `scripts/backup-s1/`:
   22. September 2026 (die Rechte-Bereinigung am Skriptende hatte o-rwx
   gesetzt): sieben Wochen kein mailcow-Backup, keine Config-Tarballs und
   keine Rotation, 53 Tage Dumps (33 GB) auf `/` (92% voll). Seit dem Fix
-  laeuft die Rotation auch, wenn mailcow fehlschlaegt.
+  laeuft die Rotation auch, wenn mailcow fehlschlaegt, und nach jedem Lauf
+  geht eine Ergebnis-Mail (`[s1-backup] OK` bzw. `FEHLER`, mit Protokoll
+  und Plattenbelegung) an `BACKUP_MAIL_TO` aus `/etc/default/s1-backup`
+  (`s1-backup-notify.sh` als `ExecStopPost`, Versand ueber das
+  Host-Postfix, das per SASL an mailcow weiterreicht). Bleibt die Mail
+  aus, ist der Timer oder das Host-Postfix das Problem.
 - **Heimserver, taeglich 05:30** (crontab martin): `pull-backups-home.sh`
   spiegelt `/var/backups/s1/` nach `~/backups-s1/` (Offsite-Kopie; Pull,
   s1 erreicht den Heimserver nicht). Log: `~/backups-s1/pull.log`.

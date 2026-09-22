@@ -3,6 +3,10 @@ Description=Naechtliches Backup (PostgreSQL, mailcow, Configs)
 
 [Service]
 Type=oneshot
+# BACKUP_MAIL_TO (und optional KEEP_DAYS, MAILCOW_KEEP_DAYS, BACKUP_ROOT)
+EnvironmentFile=-/etc/default/s1-backup
 ExecStart=/usr/local/bin/s1-backup.sh
+# Laeuft auch nach einem Fehler und mailt das Protokoll des Laufs
+ExecStopPost=/usr/local/bin/s1-backup-notify.sh
 Nice=10
 IOSchedulingClass=idle
