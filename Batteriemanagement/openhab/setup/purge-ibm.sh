@@ -174,6 +174,13 @@ if [ -f /etc/systemd/system/ibm-failsafe.timer ] || [ -f /usr/local/sbin/ibm-fai
 fi
 
 # --- 6. WireGuard ---------------------------------------------------------------
+if [ -f /etc/systemd/system/ibm-wg-watchdog.timer ] || [ -f /usr/local/sbin/ibm-wg-watchdog ]; then
+  systemctl disable --now ibm-wg-watchdog.timer >/dev/null 2>&1 || true
+  rm -f /etc/systemd/system/ibm-wg-watchdog.timer /etc/systemd/system/ibm-wg-watchdog.service \
+        /usr/local/sbin/ibm-wg-watchdog /run/ibm-wg-watchdog.last
+  systemctl daemon-reload >/dev/null 2>&1 || true
+  log "Tunnel-Watchdog entfernt (ibm-wg-watchdog.timer)."
+fi
 if [ -f /etc/wireguard/wg0.conf ] || [ -f /etc/wireguard/ibm-pi.key ]; then
   systemctl disable --now wg-quick@wg0 >/dev/null 2>&1 || true
   rm -f /etc/wireguard/wg0.conf /etc/wireguard/ibm-pi.key /etc/wireguard/ibm-pi.pub

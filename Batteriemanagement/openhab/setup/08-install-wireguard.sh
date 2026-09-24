@@ -118,19 +118,133 @@ fi
 rm -f "$tmp"
 
 # --- Dienst -----------------------------------------------------------------
+# wg-quick@ ist eine oneshot-Unit mit RemainAfterExit: sie meldet "active",
+# solange niemand "down" aufruft - auch wenn das Interface laengst weg ist
+# oder der Tunnel seit Stunden keinen Handshake mehr hat. Deshalb zaehlt
+# hier der Handshake, nicht der Unit-Zustand: ohne frischen Handshake wird
+# der Tunnel neu gestartet (loest dabei auch den Endpoint-Namen neu auf).
+WG_STALE_SEC=600
+# Sekunden seit dem letzten Handshake; leer ohne Interface oder ohne
+# jemals erfolgten Handshake.
+handshake_age() {
+  local ts
+  ts="$(wg show "$WG_IF" latest-handshakes 2>/dev/null | awk '{print $2; exit}')"
+  [ -n "$ts" ] && [ "$ts" -gt 0 ] || return 0
+  echo $(( $(date +%s) - ts ))
+}
 systemctl enable "wg-quick@${WG_IF}" >/dev/null 2>&1 \
   || warn "Autostart konnte nicht aktiviert werden: systemctl enable wg-quick@${WG_IF}"
 if systemctl is-active --quiet "wg-quick@${WG_IF}"; then
+  age="$(handshake_age)"
   if [ "$changed" = "1" ]; then
     systemctl restart "wg-quick@${WG_IF}" || die "wg-quick@${WG_IF} konnte nicht neu gestartet werden."
-    log "Tunnel neu gestartet."
+    log "Tunnel neu gestartet (Konfiguration geaendert)."
+  elif [ -z "$age" ] || [ "$age" -gt "$WG_STALE_SEC" ]; then
+    systemctl restart "wg-quick@${WG_IF}" || die "wg-quick@${WG_IF} konnte nicht neu gestartet werden."
+    log "Tunnel neu gestartet (kein Handshake seit ${age:-unbekannt} s)."
   else
-    log "Tunnel laeuft bereits."
+    log "Tunnel laeuft (letzter Handshake vor ${age} s)."
   fi
 else
   systemctl start "wg-quick@${WG_IF}" || die "wg-quick@${WG_IF} konnte nicht gestartet werden."
   log "Tunnel gestartet."
 fi
+
+# --- Tunnel-Watchdog ----------------------------------------------------------
+# Root-Timer ibm-wg-watchdog (alle 5 min): startet wg-quick@wg0 neu, wenn das
+# Interface fehlt oder der letzte Handshake aelter als WG_STALE_SEC ist -
+# hoechstens alle 15 min, damit ein wirklich blockierter Tunnel (Router des
+# Mitglieds) nicht im Sekundentakt neu gestartet wird. Ausloeser: pi-087
+# verlor am 2026-09-23 mit einem kurzen Netzausfall den Tunnel und war einen
+# Tag lang unerreichbar, waehrend die Status-Pushes per HTTPS weiterliefen.
+# Log: journalctl -t ibm-wg-watchdog
+UNIT_DIR=/etc/systemd/system
+WATCHDOG=/usr/local/sbin/ibm-wg-watchdog
+watchdog_tmp="$(mktemp)"
+cat > "$watchdog_tmp" <<'WD'
+#!/usr/bin/env bash
+# ISCHLSTROM Speichermanagement - WireGuard-Tunnel-Watchdog
+# (erzeugt von 08-install-wireguard.sh, laeuft als root ueber ibm-wg-watchdog.timer)
+set -uo pipefail
+IF=@WG_IF@
+STALE=@WG_STALE_SEC@
+MIN_RESTART_GAP=900
+MARK=/run/ibm-wg-watchdog.last
+
+say() { logger -t ibm-wg-watchdog -- "$*"; }
+
+now="$(date +%s)"
+ts="$(wg show "$IF" latest-handshakes 2>/dev/null | awk '{print $2; exit}')"
+if [ -n "$ts" ] && [ "$ts" -gt 0 ] && [ $(( now - ts )) -le "$STALE" ]; then
+  exit 0
+fi
+if [ -n "$ts" ]; then
+  grund="kein Handshake seit $(( now - ts )) s"
+elif ip link show "$IF" >/dev/null 2>&1; then
+  grund="noch nie ein Handshake"
+else
+  grund="Interface $IF fehlt"
+fi
+if [ -f "$MARK" ]; then
+  last="$(cat "$MARK" 2>/dev/null || echo 0)"
+  if [ $(( now - last )) -lt "$MIN_RESTART_GAP" ]; then
+    exit 0
+  fi
+fi
+echo "$now" > "$MARK"
+say "$grund - starte wg-quick@$IF neu"
+if ! systemctl restart "wg-quick@$IF"; then
+  say "Neustart von wg-quick@$IF fehlgeschlagen (systemctl status wg-quick@$IF)"
+  exit 1
+fi
+for _ in 1 2 3 4 5 6; do
+  sleep 10
+  ts="$(wg show "$IF" latest-handshakes 2>/dev/null | awk '{print $2; exit}')"
+  if [ -n "$ts" ] && [ "$ts" -gt 0 ] && [ $(( $(date +%s) - ts )) -le 60 ]; then
+    say "Tunnel steht wieder (Handshake nach Neustart)"
+    exit 0
+  fi
+done
+say "Nach dem Neustart weiterhin kein Handshake - Endpoint, UDP-Ausgang beim Mitglied und Peer auf dem Server pruefen"
+exit 0
+WD
+sed -i -e "s|@WG_IF@|$WG_IF|g" -e "s|@WG_STALE_SEC@|$WG_STALE_SEC|g" "$watchdog_tmp"
+chown root:root "$watchdog_tmp"
+chmod 0755 "$watchdog_tmp"
+if [ -f "$WATCHDOG" ] && cmp -s "$watchdog_tmp" "$WATCHDOG"; then
+  rm -f "$watchdog_tmp"
+  log "unveraendert: $WATCHDOG"
+else
+  mv -f "$watchdog_tmp" "$WATCHDOG"
+  log "geschrieben: $WATCHDOG"
+fi
+install_file "$UNIT_DIR/ibm-wg-watchdog.service" <<'UNIT'
+[Unit]
+Description=ISCHLSTROM Speichermanagement - WireGuard-Tunnel pruefen
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ibm-wg-watchdog
+UNIT
+install_file "$UNIT_DIR/ibm-wg-watchdog.timer" <<'UNIT'
+[Unit]
+Description=ISCHLSTROM Speichermanagement - WireGuard-Tunnel-Watchdog
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target
+UNIT
+chown root:root "$UNIT_DIR/ibm-wg-watchdog.service" "$UNIT_DIR/ibm-wg-watchdog.timer"
+systemctl daemon-reload
+systemctl enable --now ibm-wg-watchdog.timer >/dev/null 2>&1 \
+  || warn "ibm-wg-watchdog.timer konnte nicht aktiviert werden."
+log "Tunnel-Watchdog eingerichtet: ibm-wg-watchdog.timer (alle 5 min, Neustart ohne Handshake > ${WG_STALE_SEC} s)."
 
 # --- Rueckbau der frueheren SSH-Haertung ------------------------------------
 # Fruehere Versionen schalteten die Passwort-Anmeldung von sshd ab und

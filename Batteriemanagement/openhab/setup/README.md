@@ -1024,6 +1024,19 @@ Marker `/etc/wireguard/ibm-allow-fewer-peers` liegt vor). Details:
 `scripts/ibm-provision/` und
 [docs/server-setup.md](../../../docs/server-setup.md).
 
+**Tunnel-Watchdog:** `wg-quick@wg0` ist eine oneshot-Unit und meldet
+"active", auch wenn der Tunnel laengst keinen Handshake mehr hat (pi-087
+verlor ihn am 2026-09-23 mit einem kurzen Netzausfall und war einen Tag
+unerreichbar, obwohl die Status-Pushes per HTTPS weiterliefen). Deshalb
+installiert `08-install-wireguard.sh` den Root-Timer `ibm-wg-watchdog`
+(alle 5 min): fehlt das Interface oder ist der letzte Handshake aelter als
+10 min, startet er `wg-quick@wg0` neu (hoechstens alle 15 min; der
+Neustart loest auch den Endpoint-Namen neu auf) und protokolliert das
+Ergebnis (`journalctl -t ibm-wg-watchdog`). Das Setup-Skript selbst
+startet den Tunnel nach derselben Regel neu, ein "Paket aktualisieren" am
+Vorstands-Dashboard heilt einen stillen Tunnelverlust also sofort. Auf s1
+sieht man den Stand mit `sudo wg show wg0 latest-handshakes`.
+
 ### Einmalig auf dem Wartungsserver
 
 ```bash
