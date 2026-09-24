@@ -21,7 +21,7 @@
 # kommen trotzdem vollstaendig an. Der Lauf gilt deshalb als
 # fehlgeschlagen, wenn andere "pg_restore: error:"-Zeilen auftreten oder die
 # Plausibilitaetspruefung (Kerntabelle muss Zeilen haben) scheitert - dann
-# Exit 1, Cron schreibt das Log nach backups-s1/refresh-dev-db.log.
+# Exit 1, Cron schreibt das Log nach ~/logs/refresh-dev-db.log (nicht in den Spiegel, den rsync --delete leert).
 set -uo pipefail
 
 BACKUP_DIR="${BACKUP_DIR:-/home/martin/backups-s1/postgres}"

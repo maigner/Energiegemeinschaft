@@ -52,7 +52,7 @@ Was daraus folgt:
 | 05:30 | Heimserver | `pull-backups-home.sh` (crontab martin): spiegelt die Backups nach `~/backups-s1/` |
 | 06:00 | Heimserver | `refresh-dev-db.sh` (crontab martin): spielt die neuesten Dumps der beiden Website-DBs in das lokale PostgreSQL ein |
 
-Log des Refresh: `~/backups-s1/refresh-dev-db.log` auf dem Heimserver;
+Log des Refresh: `~/logs/refresh-dev-db.log` auf dem Heimserver;
 bei Fehlern endet der Lauf mit Exit 1 (Cron mailt die Ausgabe).
 
 ## refresh-dev-db.sh im Detail

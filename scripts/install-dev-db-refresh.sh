@@ -25,8 +25,9 @@ grep '^server:' "$pgpass" | ssh "$SERVER" '
     while IFS= read -r line; do
         grep -qxF "$line" ~/.pgpass || echo "$line" >> ~/.pgpass
     done
+    mkdir -p /home/martin/logs
     chmod +x /home/martin/refresh-dev-db.sh /home/martin/anonymize-dev-db.sh
-    entry="0 6 * * * /home/martin/refresh-dev-db.sh >> /home/martin/backups-s1/refresh-dev-db.log 2>&1"
+    entry="0 6 * * * /home/martin/refresh-dev-db.sh >> /home/martin/logs/refresh-dev-db.log 2>&1"
     (crontab -l 2>/dev/null | grep -vF "refresh-dev-db.sh"; echo "$entry") | crontab -
     echo "Cron auf dem Heimserver:"
     crontab -l | grep -v "^#"

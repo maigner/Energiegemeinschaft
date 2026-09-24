@@ -154,9 +154,9 @@ Benutzername und Grund ("Authentication failed for ..."); Health-Endpoint
 
 ## Noch offen
 
-- **Backup**: das s1-Backup (siehe [server-setup.md](server-setup.md)) sichert
-  die MongoDB des Stacks bisher **nicht** - dort liegen alle Konten und die
-  UUID/Secret-Zuordnung der Anlagen. `mongodump` in `s1-backup.sh` ergaenzen.
+- ~~Backup der MongoDB~~ - seit 23. September 2026 sichert das s1-Backup
+  (siehe [server-setup.md](server-setup.md)) die MongoDB naechtlich per
+  `mongodump` (Konten, UUID/Secret der Anlagen; Restore dort beschrieben).
 - Migration der Bestandsanlagen von myopenhab.org (laufend; ein Paket-Update
   stellt die `baseURL` um, das Konto muss vorher auf der neuen Cloud
   existieren).

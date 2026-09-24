@@ -66,8 +66,19 @@ Skripte in `scripts/backup-s1/`:
 - **s1, taeglich 03:14** (`s1-backup.timer` -> `/usr/local/bin/s1-backup.sh`):
   `pg_dump -Fc` aller Datenbanken + Globals (das Host-PostgreSQL traegt
   neben der Website auch die OpenHAB-DBs der Mitglieder, keila und KEM),
-  mailcow-Backup (7 Tage Rotation - Vollkopien der Maildaten), Config-Tar
-  (`/etc/caddy`, `/etc/wireguard` = Anlagen-Registry, `/etc/postgresql`).
+  `mongodump` der openHAB-Cloud-MongoDB (Konten und UUID/Secret der
+  Anlagen, seit 23. September 2026; Restore: `docker exec -i
+  openhab-cloud-ischlstrom-mongodb-1 mongorestore --archive --gzip --drop
+  < datei`), mailcow-Backup (7 Tage Rotation - Vollkopien der Maildaten),
+  Config-Tar mit allem, was nicht im Repo oder in einer DB liegt
+  (`CONFIG_PATHS` im Skript): Caddy, WireGuard (= Anlagen-Registry),
+  PostgreSQL, Postfix inkl. `sasl_passwd`, fail2ban, ufw, sshd, cron,
+  systemd-Units, `/usr/local/{bin,sbin,lib/ibm-provision}`, Keila,
+  `/etc/ibm-provision.conf`, `/etc/eegfaktura-import.env`, die
+  `website/.env` auf s1 (mit `IBM_SECRET_KEY`!), die Compose-Verzeichnisse
+  unter `~/Container` und `~/openhab-cloud` samt `.env` und die
+  signal-cli-Daten. Die Tarballs enthalten damit Secrets im Klartext - der
+  Heimserver als Spiegel gilt als vertrauenswuerdig.
   Ziel `/var/backups/s1/`, 14 Tage Rotation. Log: `journalctl -u s1-backup`.
   Achtung: `/var/backups/s1/mailcow` muss `0755` bleiben - das mailcow-Skript
   prueft die Others-Rechte des Zielverzeichnisses und bricht sonst ab
@@ -83,7 +94,7 @@ Skripte in `scripts/backup-s1/`:
   aus, ist der Timer oder das Host-Postfix das Problem.
 - **Heimserver, taeglich 05:30** (crontab martin): `pull-backups-home.sh`
   spiegelt `/var/backups/s1/` nach `~/backups-s1/` (Offsite-Kopie; Pull,
-  s1 erreicht den Heimserver nicht). Log: `~/backups-s1/pull.log`.
+  s1 erreicht den Heimserver nicht). Log: `~/logs/pull-backups-s1.log`.
 - **Heimserver, taeglich 06:00** (crontab martin): `refresh-dev-db.sh`
   spielt die neuesten Dumps der beiden Website-DBs in das lokale
   PostgreSQL ein - der Heimserver ist damit die taeglich aufgefrischte
@@ -310,9 +321,9 @@ Noch offen:
 
 1. Nextcloud AIO: Borg-Backup im Master-UI pruefen/aktivieren und die
    **Borg-Passphrase sicher ablegen**.
-2. Gitignorte Secrets (`website/.env*`, `notebooks/.pgpass`,
-   `.pg_service.conf`) existieren nur auf Workstation und Servern -
-   separat privat sichern.
+2. Gitignorte Secrets der Workstation (`website/.env`, `notebooks/.pgpass`,
+   `.pg_service.conf`) sind nirgends gesichert - separat privat ablegen.
+   Die Secrets auf s1 stecken seit 23. September 2026 im Config-Tar.
 3. Restore-Test einplanen (Dump in eine Scratch-DB einspielen). Die
    beiden Website-DBs sind durch den taeglichen Dev-Refresh abgedeckt;
    offen bleiben die uebrigen DBs (openhabian*, keila, KEM), mailcow und
@@ -326,6 +337,3 @@ Noch offen:
    (`journalctl --vacuum-size=500M`). Das LVM-Volume `/mnt/backup` (196 GB)
    ist praktisch leer - Kandidat fuer `BACKUP_ROOT`, dann auch
    `pull-backups-home.sh` anpassen.
-5. openHAB Cloud: die MongoDB des Stacks (Konten, UUID/Secret der Anlagen)
-   wird noch nicht gesichert - `mongodump` in `s1-backup.sh` ergaenzen
-   (siehe [openhab-cloud.md](openhab-cloud.md)).
