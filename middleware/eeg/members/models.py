@@ -85,6 +85,10 @@ class OpenhabStatus(models.Model):
     wg_address = models.CharField(max_length=20, blank=True, default="")
     wg_public_key = models.CharField(max_length=100, blank=True, default="")
     wg_synced_at = models.DateTimeField(null=True, blank=True)
+    # Letzter WireGuard-Handshake des Peers (wg show wg0 latest-handshakes),
+    # jede Minute vom s1-Timer gestempelt; NULL = noch nie oder Timer ohne
+    # diese Spalte. Grundlage der Tunnel-Spalte auf /board/openhab/health.
+    wg_handshake_at = models.DateTimeField(null=True, blank=True)
     # openHAB-Cloud (hac.ischlstrom.org): Identitaet der Anlage (UUID/Secret,
     # serverseitig erzeugt, vom Pi in userdata geschrieben) und das Konto
     # des Mitglieds (Alias <nnn>@ischlstrom.org). cloud_account_state:

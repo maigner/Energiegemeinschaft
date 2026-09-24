@@ -36,7 +36,9 @@ const DASHBOARD_URL = 'https://ischlstrom.org/board/openhab';
  *                value: (system: Record<string, any>) => number | null,
  *                format: (value: number) => string, limit: string }>}
  */
-const METRICS = [
+// Auch die Flotten-Gesundheitsseite (/board/openhab/health, $lib/ibmHealth.js)
+// faerbt die Systemwerte nach diesen Schwellen.
+export const SYSTEM_METRICS = [
     {
         key: 'disk',
         label: 'SD-Karte',
@@ -91,7 +93,7 @@ const numberOrNull = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : n
  * @param {Record<string, any>} system - data->'system' der Anlage
  * @param {Record<string, string>} current - offene Alarme (Kennzahl -> ISO)
  * @param {Date} now
- * @returns {{ alerts: Record<string, string>, raised: typeof METRICS, cleared: typeof METRICS, values: Record<string, number | null> }}
+ * @returns {{ alerts: Record<string, string>, raised: typeof SYSTEM_METRICS, cleared: typeof SYSTEM_METRICS, values: Record<string, number | null> }}
  */
 export const evaluateSystemAlerts = (system, current, now) => {
     const alerts = { ...current };
@@ -99,7 +101,7 @@ export const evaluateSystemAlerts = (system, current, now) => {
     const cleared = [];
     /** @type {Record<string, number | null>} */
     const values = {};
-    for (const metric of METRICS) {
+    for (const metric of SYSTEM_METRICS) {
         const value = metric.value(system);
         values[metric.key] = value;
         // Kein Wert gemeldet: Stand unveraendert lassen, weder Alarm noch
@@ -131,7 +133,7 @@ const plantLabel = (plant) => `${plant.name || 'ohne Namen'} (Mitglied ${plant.m
  */
 const buildSignalText = (plant, result) => {
     const lines = [];
-    const describe = (/** @type {typeof METRICS[number]} */ m) => `${m.label} ${m.format(/** @type {number} */ (result.values[m.key]))}`;
+    const describe = (/** @type {typeof SYSTEM_METRICS[number]} */ m) => `${m.label} ${m.format(/** @type {number} */ (result.values[m.key]))}`;
     if (result.raised.length) {
         lines.push(`Speichermanagement, Pi ${plantLabel(plant)}:`);
         for (const m of result.raised) lines.push(`- ${describe(m)} (${m.limit})`);
@@ -140,7 +142,7 @@ const buildSignalText = (plant, result) => {
         lines.push(result.raised.length ? 'Entwarnung:' : `Entwarnung Speichermanagement, Pi ${plantLabel(plant)}:`);
         for (const m of result.cleared) lines.push(`- ${describe(m)} (${m.limit})`);
     }
-    const stillOpen = METRICS.filter((m) => result.alerts[m.key] && !result.raised.includes(m));
+    const stillOpen = SYSTEM_METRICS.filter((m) => result.alerts[m.key] && !result.raised.includes(m));
     if (stillOpen.length) {
         lines.push(`Weiterhin offen: ${stillOpen.map(describe).join(', ')}.`);
     }

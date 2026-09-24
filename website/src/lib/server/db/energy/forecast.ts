@@ -494,3 +494,44 @@ export const getForecastAccuracy = async (limit: number = 30) => {
     sql.release();
     return (result?.rows ?? []).reverse();
 };
+
+/**
+ * Je Prognosetag eines Laufs (ab heute, `days` Tage): ob die Gemeinschaft
+ * laut Prognose ueberhaupt einen Ueberschuss hat (Erzeugung >= Verbrauch
+ * in mindestens einem Slot) und der morgendliche/abendliche Crossover.
+ * Tage ohne Crossover bekommen von der Token-API weder Ladefenster-Ende
+ * noch Entladestart; die Steuerung am Pi faellt dann auf den woechentlichen
+ * Crossover zurueck. Die Flotten-Gesundheitsseite zeigt diese Tage an.
+ */
+export const getForecastDayCrossovers = async (runId: number, days: number = 14) => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+        WITH slots AS (
+            SELECT (timestamp AT TIME ZONE 'Europe/Vienna')::date AS day,
+                   timestamp AT TIME ZONE 'Europe/Vienna' AS ts_local,
+                   generation_kwh AS g,
+                   consumption_kwh AS c
+            FROM metering_energyforecast
+            WHERE run_id = $1
+              AND (timestamp AT TIME ZONE 'Europe/Vienna')::date
+                  BETWEEN (now() AT TIME ZONE 'Europe/Vienna')::date
+                      AND (now() AT TIME ZONE 'Europe/Vienna')::date + ($2::int - 1)
+        )
+        SELECT to_char(day, 'YYYY-MM-DD') AS day,
+               to_char(MIN(ts_local) FILTER (WHERE g >= c AND EXTRACT(hour FROM ts_local) >= 3), 'HH24:MI') AS morning,
+               to_char(MAX(ts_local) FILTER (WHERE g >= c AND EXTRACT(hour FROM ts_local) >= 12), 'HH24:MI') AS evening,
+               ROUND((SUM(g))::numeric) AS generation_kwh,
+               ROUND((SUM(c))::numeric) AS consumption_kwh
+        FROM slots
+        GROUP BY day
+        ORDER BY day
+    `, [runId, days]);
+    sql.release();
+    return (result?.rows ?? []).map((r: any) => ({
+        day: String(r.day),
+        morning: r.morning ?? null,
+        evening: r.evening ?? null,
+        generationKwh: Number(r.generation_kwh),
+        consumptionKwh: Number(r.consumption_kwh)
+    }));
+};

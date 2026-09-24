@@ -341,6 +341,7 @@
         {:else}
             <Badge color="red" large>keine Prognose gespeichert</Badge>
         {/if}
+        <Button size="xs" color="light" href="/board/openhab/health">Flotten-Gesundheit</Button>
         <form method="POST" action="?/requestUpdateAll" use:enhance
             onsubmit={(/** @type {SubmitEvent} */ e) => {
                 if (!confirm("Alle online gemeldeten Anlagen spielen das IBM-Paket innerhalb von 10 Minuten neu ein. Fortfahren?")) e.preventDefault();

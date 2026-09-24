@@ -111,3 +111,28 @@ export const refreshMaterializedViewCrossoverTimes = async () => {
     
     return result?.rows.length > 0 ? result.rows : null;
 };
+/**
+ * Kalenderwochen, fuer die die Sicht energy_community_weekly_crossover_times
+ * eine Zeile hat (mit der Zahl der gemittelten Tage). Wochen ohne Zeile
+ * (Winter: nie ein Ueberschuss) bekommen von /api/eeginfo/crossover/v1 ein
+ * 404, und die Steuerung am Pi entlaedt dann nicht - die Flotten-
+ * Gesundheitsseite warnt vor solchen Wochen.
+ */
+export const getCrossoverWeeks = async () => {
+    const sql = await middlewareDbConnection();
+    const result = await sql.query(`
+    SELECT week_number,
+           avg_morning_crossover::time AS avg_morning_crossover,
+           avg_evening_crossover::time AS avg_evening_crossover,
+           days_averaged
+    FROM energy_community_weekly_crossover_times
+    ORDER BY week_number
+    `);
+    sql.release();
+    return (result?.rows ?? []).map((r: any) => ({
+        week: Number(r.week_number),
+        morning: String(r.avg_morning_crossover).slice(0, 5),
+        evening: String(r.avg_evening_crossover).slice(0, 5),
+        days: Number(r.days_averaged)
+    }));
+};

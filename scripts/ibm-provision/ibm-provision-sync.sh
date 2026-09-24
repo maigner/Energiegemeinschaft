@@ -17,6 +17,11 @@
 #   3. Loeschen: Anlagen mit setup_phase = 'geloescht' (Dashboard "Anlage
 #      loeschen") verlieren ihren Peer (Schritt 1 laesst sie weg), ihr
 #      Cloud-Konto (Schritt 2) und werden danach aus der DB entfernt.
+#   4. Handshakes: den letzten WireGuard-Handshake jedes Peers
+#      (`wg show wg0 latest-handshakes`) nach wg_handshake_at stempeln -
+#      die Tunnel-Spalte auf /board/openhab/health liest daraus, denn die
+#      Website im Container darf wg nicht selbst fragen. Faellt weg,
+#      solange die DB die Spalte noch nicht hat (Migration 0038).
 #
 # Konfiguration: /etc/ibm-provision.conf (siehe setup-on-s1.sh).
 # Log: journalctl -u ibm-provision-sync
@@ -207,7 +212,28 @@ finalize_deletions() {
   done
 }
 
+# --- 4. Handshakes stempeln -------------------------------------------------
+stamp_handshakes() {
+  wg show "$WG_IF" >/dev/null 2>&1 || return 0
+  if [ "$(psql_db -c "SELECT count(*) FROM information_schema.columns
+                       WHERE table_name = 'members_openhabstatus' AND column_name = 'wg_handshake_at'")" != "1" ]; then
+    log "Handshakes: Spalte wg_handshake_at fehlt (Migration 0038) - uebersprungen."
+    return 0
+  fi
+  local key ts sql=""
+  while read -r key ts; do
+    [ -n "$key" ] && [ -n "$ts" ] && [ "$ts" -gt 0 ] 2>/dev/null || continue
+    case "$key" in *[!A-Za-z0-9+/=]*) continue ;; esac
+    sql+="UPDATE members_openhabstatus SET wg_handshake_at = to_timestamp($ts)
+           WHERE wg_public_key = $(sql_quote "$key")
+             AND (wg_handshake_at IS NULL OR wg_handshake_at < to_timestamp($ts));"$'\n'
+  done < <(wg show "$WG_IF" latest-handshakes 2>/dev/null)
+  [ -n "$sql" ] || return 0
+  printf '%s' "$sql" | psql_db >/dev/null
+}
+
 sync_wireguard
 sync_cloud_accounts
 delete_cloud_accounts
 finalize_deletions
+stamp_handshakes
