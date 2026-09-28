@@ -17,7 +17,6 @@
     }
     return days;
   };
-  const l3Dates = (mp) => distinctDays(mp.occurrences.map((o) => o.timestamp));
   const missingDays = (mp) => distinctDays(mp.occurrences);
 
   let missingSamples = $derived(energy ? energy.meter_points_with_missing_samples : []);
@@ -105,10 +104,10 @@
               <li>
                 <div>
                   <span class="font-mono text-xs">{mp.meter_point_id}</span> — {mp.name}
-                  <span class="text-gray-400">({mp.occurrences.length} L3-Werte)</span>
+                  <span class="text-gray-400">({mp.count} L3-Werte)</span>
                 </div>
                 <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                  Tage: {l3Dates(mp).join(", ")}
+                  Tage: {mp.affected_days.join(", ")}
                 </div>
               </li>
             {/each}
