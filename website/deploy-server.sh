@@ -1,6 +1,7 @@
 #!/bin/bash
 # Deploy der Website:
-#   1. IBM-Paket bauen (landet in static/ibm/)
+#   1. IBM-Paket bauen (landet in static/ibm/; nur wenn sich sein Inhalt
+#      geaendert hat, sonst wuerde jeder Deploy ein Flotten-Update ausloesen)
 #   2. Dateien per rsync auf den Zielserver kopieren
 #   3. Docker-Container auf dem Zielserver neu bauen und starten
 #

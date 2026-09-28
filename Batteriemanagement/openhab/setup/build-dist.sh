@@ -12,8 +12,22 @@
 #
 # Wird von website/deploy-server.sh automatisch aufgerufen; fuer einen
 # lokalen Test kann es auch einzeln ausgefuehrt werden.
+#
+# Gebaut wird nur, wenn sich der Paketinhalt seit dem letzten Build geaendert
+# hat: die Pruefsumme der Quellen liegt neben dem Paket in
+# ibm-openhab.tgz.source, stimmt sie ueberein, bleibt das Paket unangetastet.
+# Sonst wuerde jeder Website-Deploy ein neues Paket (Build-Datum, Commit in
+# BUILD-INFO) erzeugen und damit ein naechtliches Update der ganzen Flotte
+# ausloesen. Mit --force wird in jedem Fall neu gebaut.
 # ============================================================================
 set -euo pipefail
+
+force=0
+case "${1:-}" in
+  --force) force=1 ;;
+  "") ;;
+  *) echo "Aufruf: $0 [--force]" >&2; exit 1 ;;
+esac
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 openhab_dir="$(cd "$here/.." && pwd)"          # Batteriemanagement/openhab
@@ -22,6 +36,7 @@ dist_dir="$repo_root/website/static/ibm"
 
 tarball="$dist_dir/ibm-openhab.tgz"
 checksum="$tarball.sha256"
+source_stamp="$tarball.source"
 
 log() { echo "[IBM] $*"; }
 die() { echo "[IBM] FEHLER: $*" >&2; exit 1; }
@@ -33,6 +48,35 @@ command -v python3 >/dev/null 2>&1 || die "python3 fehlt (wird fuer die Overview
 python3 -c 'import yaml' 2>/dev/null || die "PyYAML fehlt: sudo apt install python3-yaml"
 
 mkdir -p "$dist_dir"
+
+# Was nicht auf die Pis gehoert: lokale Konfiguration, Backups, die
+# Replay-Daten (Betriebsdaten aus der Produktivdatenbank, gitignored) und die
+# Hersteller-PDFs der Profile (nur Entwicklungsunterlagen, ~25 MB).
+excludes=(
+  --exclude='setup/ibm.conf'
+  --exclude='*.bak-*'
+  --exclude='.gitignore'
+  --exclude='control/replay/*.csv'
+  --exclude='control/replay/*.txt'
+  --exclude='inverters/*/docs/*.pdf'
+)
+
+# Pruefsumme des Paketinhalts: dieselben Quellen und Ausschluesse wie der
+# tar-Aufruf unten, ohne die erzeugten Dateien (BUILD-INFO, page-*.json) und
+# mit neutralisierten Zeitstempeln/Eigentuemern, damit nur der Inhalt zaehlt.
+source_hash="$(tar -cf - \
+    -C "$(dirname "$openhab_dir")" \
+    --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
+    "${excludes[@]}" \
+    --exclude='BUILD-INFO' \
+    --exclude='page-*.json' \
+    "$(basename "$openhab_dir")" | sha256sum | cut -d' ' -f1)"
+
+if [ "$force" -eq 0 ] && [ -f "$tarball" ] && [ -f "$checksum" ] && [ -f "$dist_dir/VERSION" ] \
+   && [ "$(cat "$source_stamp" 2>/dev/null)" = "$source_hash" ]; then
+  log "Paketinhalt unveraendert seit dem letzten Build - kein Neubau (Stand: $(cat "$dist_dir/VERSION"), --force erzwingt)."
+  exit 0
+fi
 
 # Main-UI-Seiten der Profile in das REST-Format wandeln - die Main UI
 # speichert Seiten in der JSONDB, 05-install-overview.sh schreibt sie daher
@@ -70,9 +114,7 @@ build_info="$openhab_dir/BUILD-INFO"
 log "Packe $openhab_dir ..."
 tar -czf "$tarball" \
     -C "$(dirname "$openhab_dir")" \
-    --exclude='setup/ibm.conf' \
-    --exclude='*.bak-*' \
-    --exclude='.gitignore' \
+    "${excludes[@]}" \
     "$(basename "$openhab_dir")"
 
 # Versionsstring wie ihn die Pis melden (04-install-rules.sh aus BUILD-INFO):
@@ -88,6 +130,7 @@ rm -f "$build_info"
 [ "${#generated_pages[@]}" -gt 0 ] && rm -f "${generated_pages[@]}"
 
 ( cd "$dist_dir" && sha256sum "$(basename "$tarball")" > "$(basename "$checksum")" )
+echo "$source_hash" > "$source_stamp"
 
 log "erzeugt: $tarball ($(du -h "$tarball" | cut -f1))"
 log "erzeugt: $checksum"

@@ -387,6 +387,18 @@ Das Deploy-Skript ruft zuerst `build-dist.sh` auf (erzeugt
 Server und baut dort den Docker-Container neu. `build-dist.sh` kann fuer
 einen lokalen Test auch weiterhin einzeln ausgefuehrt werden.
 
+Gebaut wird nur, wenn sich der Paketinhalt geaendert hat: `build-dist.sh`
+merkt sich eine Pruefsumme der Quellen in `ibm-openhab.tgz.source` und
+laesst das Paket bei gleichem Stand unangetastet. Ein Deploy, der nur die
+Website betrifft, erzeugt so kein neues Paket (die `BUILD-INFO` mit Datum
+und Commit wuerde sonst jedes Mal die Pruefsumme aendern und die Flotte in
+der Nacht ein Update ziehen lassen). `build-dist.sh --force` baut trotzdem.
+
+Nicht ins Paket kommen `setup/ibm.conf`, Backups (`*.bak-*`), die
+Replay-Daten `control/replay/*.csv` / `*.txt` (Betriebsdaten aus der
+Produktivdatenbank) und die Hersteller-PDFs unter `inverters/*/docs/`; die
+Liste steht als `excludes` in `build-dist.sh`.
+
 `build-dist.sh` legt das Paket in `website/static/ibm/` ab; SvelteKit liefert
 alles unter `static/` an der Wurzel aus, das Paket ist danach unter
 `https://ischlstrom.org/ibm/ibm-openhab.tgz` erreichbar. Tarball und
