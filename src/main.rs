@@ -191,19 +191,12 @@ fn print_missing_samples(label: &str, mps: &[MissingSamplesMeterPoint]) {
 fn print_l3(label: &str, l3: &[L3MeterPoint]) {
     println!("  {} ({}):", label, l3.len());
     for mp in l3 {
-        // distinct dates on which L3 values occur (occurrences are chronological)
-        let mut dates: Vec<String> = Vec::new();
-        for o in &mp.occurrences {
-            let day = o.timestamp.date().to_string();
-            if dates.last().map(|last| last != &day).unwrap_or(true) {
-                dates.push(day);
-            }
-        }
+        let dates: Vec<String> = mp.affected_days.iter().map(|d| d.to_string()).collect();
         println!(
             "    {}\t{}\t{} L3-Werte an {} Tagen: {}",
             mp.meter_point_id,
             mp.name,
-            mp.occurrences.len(),
+            mp.count,
             dates.len(),
             dates.join(", "),
         );
