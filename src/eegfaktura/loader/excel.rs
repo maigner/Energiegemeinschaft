@@ -6,9 +6,22 @@ use chrono::{NaiveDate, NaiveDateTime};
 // access types from parent
 use crate::eegfaktura::loader::{
     ActivationStats, EnergyDirection, EnergyReportMeterPointStats, Masterdata, Measurement, Member,
-    MemberType, MeterCode, MeterPoint, MeterPointStatus, PodList, QoV, QovSample, QovSamples,
-    Sample, Timestamp,
+    MemberType, MeterCode, MeterPoint, MeterPointStatus, PodList, Sample, Timestamp,
 };
+
+use super::comments::{parse_affected_days, read_comments};
+
+/// Parses a `dd.mm.yyyy HH:MM:SS` timestamp, ignoring any trailing digits
+/// beyond the seconds field. The export inconsistently appends a few extra
+/// zero digits after the seconds (e.g. `"...23:45:0000"` vs plain
+/// `"...23:45:00"`); those digits don't encode real sub-second precision, so
+/// rather than track exactly when the export does or doesn't add them, this
+/// truncates to the fixed-width `dd.mm.yyyy HH:MM:SS` prefix and ignores
+/// whatever follows.
+fn parse_ddmmyyyy_hms(s: &str) -> Result<NaiveDateTime, chrono::ParseError> {
+    let prefix = if s.len() > 19 { &s[..19] } else { s };
+    NaiveDateTime::parse_from_str(prefix, "%d.%m.%Y %H:%M:%S")
+}
 
 // use calamine to parse excel and create a generic data structure for processing
 // that does not depend on calamine methods
@@ -39,29 +52,19 @@ impl super::EnergyReport {
         };
 
         // member data from energy report. to compare with masterdata file for conflicts.
+        // also carries the L0/L2/L3 quality counts per meter point (replaces the old,
+        // now-removed "QoV Log" sheet - the export no longer includes it; quality is
+        // now on the Energiedaten cells themselves as fill color, and aggregated here
+        // in Summary as counts + comments listing the affected days).
         let member_range = match workbook.worksheet_range("Summary") {
             Ok(r) => r,
             Err(error) => panic!("Problem fetching Sheet Summary: {error:?}"),
         };
-        let meter_points_stats = match parse_meter_point_data(&member_range) {
+        let comments = read_comments(&path);
+        let meter_points_stats = match parse_meter_point_data(&member_range, &comments) {
             Ok(m) => m,
             Err(error) => panic!("Problem parse_meter_point_data Summary: {error:?}"),
         };
-
-        // the QoV Log. May not exist!
-        // has it's own timeline. parse it and compare to timeline from "Energiedaten"
-        let (qov_timeline, qov_samples) = workbook
-            .worksheet_range("QoV Log")
-            .ok()
-            .and_then(|qov_range| {
-                let timeline = parse_qov_timeline(&qov_range).ok()?;
-                let samples = parse_qov_samples(&qov_range, &timeline).ok()?;
-                Some((timeline, samples))
-            })
-            .unwrap_or_else(|| {
-                println!("Sheet QoV not found or failed to parse, using empty data");
-                (vec![], vec![])
-            });
 
         super::EnergyReport {
             timeline: timeline,
@@ -69,20 +72,20 @@ impl super::EnergyReport {
             measurements_complete: None,
             missing_samples: Vec::new(),
             meter_points_stats: meter_points_stats,
-            qov_timeline: qov_timeline,
-            qov_samples: qov_samples,
         }
     }
 }
 
 fn parse_meter_point_data(
     range: &Range<Data>,
+    comments: &HashMap<String, String>,
 ) -> Result<HashMap<String, EnergyReportMeterPointStats>, Error> {
     let mut result: HashMap<String, EnergyReportMeterPointStats> = HashMap::new();
 
     // get sub-range from range
     let mut timeline_range_start = range.start().unwrap();
-    timeline_range_start.0 = 12; // start row index below "Verbrauchszählpunkt"
+    let data_start_row = 12; // start row index below "Verbrauchszählpunkt"
+    timeline_range_start.0 = data_start_row;
     let timeline_range_end = range.end().unwrap();
     //timeline_range_end.1 = 0; // single column
 
@@ -95,7 +98,11 @@ fn parse_meter_point_data(
     // then there is "Einspeisezählpunkt"
     // then the rest
 
-    for row in meter_point_range.rows() {
+    for (i, row) in meter_point_range.rows().enumerate() {
+        // 1-based Excel row number of this row, needed to look up its L0/L2/L3
+        // comments (e.g. "H13") by cell reference.
+        let row_no = data_start_row as usize + 1 + i;
+
         // timestamp is stored as string in excel
 
         match row[0].as_string() {
@@ -113,20 +120,19 @@ fn parse_meter_point_data(
 
                         let name = row[1].as_string().unwrap();
 
-                        // datetime format "05.02.2024 00:00:0000" -> "%d.%m.%Y %H:%M:%S%f"
+                        // datetime format varies: "05.02.2024 00:00:0000" or
+                        // "25.09.2026 23:45:00" - trailing digits after the
+                        // seconds field are inconsistent padding, not real
+                        // sub-second precision (see parse_ddmmyyyy_hms).
                         // col index 2
-                        let datetime_start = NaiveDateTime::parse_from_str(
-                            row[2].as_string().unwrap().as_str(),
-                            "%d.%m.%Y %H:%M:%S%f",
-                        )
-                        .unwrap();
+                        let datetime_start =
+                            parse_ddmmyyyy_hms(row[2].as_string().unwrap().as_str())
+                                .expect("Failed to parse Beginn der Daten");
 
                         // col index 3
-                        let datetime_end = NaiveDateTime::parse_from_str(
-                            row[3].as_string().unwrap().as_str(),
-                            "%d.%m.%Y %H:%M:%S%f",
-                        )
-                        .unwrap();
+                        let datetime_end =
+                            parse_ddmmyyyy_hms(row[3].as_string().unwrap().as_str())
+                                .expect("Failed to parse Ende der Daten");
 
                         // col 4
                         // format: 04-08-2025 - 31-12-2999
@@ -145,6 +151,30 @@ fn parse_meter_point_data(
                         //println!("Start: {}", date_active_start); // 2025-10-09
                         //println!("End: {}", date_active_end); // 2999-12-31
 
+                        // col 5 (F): "Daten vollständig? Ja/Nein" as 1/0.
+                        let data_complete = row
+                            .get(5)
+                            .and_then(|c| c.as_f64())
+                            .map(|v| v != 0.0)
+                            .unwrap_or(true);
+
+                        // cols 6-8 (G/H/I): L0/L2/L3 quarter-hour counts, blank when
+                        // zero. Non-zero cells carry a comment naming the affected
+                        // days (col letters are fixed by the export's layout).
+                        let l0_count = row.get(6).and_then(|c| c.as_f64()).unwrap_or(0.0) as u32;
+                        let l2_count = row.get(7).and_then(|c| c.as_f64()).unwrap_or(0.0) as u32;
+                        let l3_count = row.get(8).and_then(|c| c.as_f64()).unwrap_or(0.0) as u32;
+
+                        let affected_days = |col: &str| -> Vec<NaiveDate> {
+                            comments
+                                .get(&format!("{col}{row_no}"))
+                                .map(|text| parse_affected_days(text))
+                                .unwrap_or_default()
+                        };
+                        let l0_days = affected_days("G");
+                        let l2_days = affected_days("H");
+                        let l3_days = affected_days("I");
+
                         let meter_point_stats = EnergyReportMeterPointStats {
                             meter_point_id: meter_point_id.clone(),
                             energy_direction: current_energy_direction.clone(),
@@ -153,6 +183,13 @@ fn parse_meter_point_data(
                             timestamp_end: datetime_end,
                             date_active_start: date_active_start,
                             date_active_end: date_active_end,
+                            data_complete,
+                            l0_count,
+                            l2_count,
+                            l3_count,
+                            l0_days,
+                            l2_days,
+                            l3_days,
                         };
 
                         result.insert(meter_point_id.clone(), meter_point_stats);
@@ -187,116 +224,12 @@ fn parse_timeline(range: &Range<Data>) -> Result<Vec<Timestamp>, Error> {
         // timestamp is stored as string in excel
         let ts_string = row[0].as_string().unwrap();
         let timestamp = Timestamp {
-            timestamp: NaiveDateTime::parse_from_str(ts_string.as_str(), "%d.%m.%Y %H:%M:%S")
-                .expect("Failed to parse date"),
+            timestamp: parse_ddmmyyyy_hms(ts_string.as_str()).expect("Failed to parse date"),
         };
         timeline.push(timestamp);
     }
 
     Ok(timeline)
-}
-
-fn parse_qov_timeline(range: &Range<Data>) -> Result<Vec<Timestamp>, Error> {
-    let mut timeline: Vec<Timestamp> = Vec::new();
-
-    // get sub-range from range
-    let mut timeline_range_start = range.start().unwrap();
-    timeline_range_start.0 = 8; // start row index
-    let mut timeline_range_end = range.end().unwrap();
-    timeline_range_end.1 = 0; // single column
-
-    // slice range
-    let timeline_range = range.range(timeline_range_start, timeline_range_end);
-
-    for row in timeline_range.rows() {
-        // timestamp is stored as string in excel
-        let ts_string = row[0].as_string().unwrap();
-        let timestamp = Timestamp {
-            timestamp: NaiveDateTime::parse_from_str(ts_string.as_str(), "%d.%m.%Y %H:%M:%S")
-                .expect("Failed to parse date"),
-        };
-        timeline.push(timestamp);
-    }
-
-    Ok(timeline)
-}
-
-//parse_qov_samples
-
-fn parse_qov_samples(
-    range: &Range<Data>,
-    qov_timeline: &Vec<Timestamp>,
-) -> Result<Vec<QovSamples>, Error> {
-    let mut meter_point_qov_samples: Vec<QovSamples> = Vec::new();
-
-    // get sub-range from range
-    let mut data_range_start = range.start().unwrap();
-    data_range_start.1 = 1; // start col index
-    let data_range_end = range.end().unwrap();
-    let data_range = range.range(data_range_start, data_range_end);
-
-    let mut col_index = 0;
-    while col_index < data_range.width() {
-        let point_nr = data_range.get((0, col_index)).unwrap().as_string().unwrap();
-        let name = data_range.get((1, col_index)).unwrap().as_string().unwrap();
-        let energy_direction = data_range.get((2, col_index)).unwrap().as_string().unwrap();
-        //let period_start = data_range.get((3, col_index)).unwrap().as_string().unwrap();
-        //let period_end = data_range.get((4, col_index)).unwrap().as_string().unwrap();
-        let meter_code = data_range.get((5, col_index)).unwrap().as_string().unwrap();
-
-        // setup measurement. values are added later
-        let mut qov_samples = QovSamples {
-            meter_point_id: point_nr,
-            name: name,
-            direction: EnergyDirection::from_str(energy_direction.as_str()).unwrap(),
-            meter_code: MeterCode::from_str(meter_code.as_str()).unwrap(),
-            samples: Vec::new(),
-        };
-
-        // row 6 is empty
-
-        // starting at row index 7, we can scroll down the column
-        let data_row_offset = 7;
-        let mut row_index = data_row_offset;
-        while row_index < data_range.height() {
-            // index into timeline to fetch dateTime
-            let timestamp_index = row_index - data_row_offset;
-
-            // convert cell content to Sample
-            let sample: Option<QovSample> = match data_range.get((row_index, col_index)) {
-                Some(v) => {
-                    // parse cell value, if any
-                    let value: Option<f64> = if v.is_empty() { None } else { v.as_f64() };
-
-                    // if there is a value, this means there is a QoV that is NOT L0
-                    // in the next column
-
-                    let qov: Option<QoV> = data_range
-                        .get((row_index, col_index + 1))
-                        .and_then(|cell| cell.as_string())
-                        .and_then(|data| QoV::from_str(&data).ok());
-
-                    qov.map(|qov| QovSample {
-                        timestamp: qov_timeline.get(timestamp_index).unwrap().timestamp,
-                        value: value,
-                        qov: qov,
-                    })
-                }
-                None => None,
-            };
-            //println!("row_index {}, value {:?}", row_index, sample);
-
-            qov_samples.samples.push(sample);
-
-            row_index += 1;
-        }
-
-        meter_point_qov_samples.push(qov_samples);
-
-        col_index += 2; // skip QoV Column, increment of 2
-    }
-
-    Ok(meter_point_qov_samples)
 }
 
 fn parse_meter_points(
@@ -323,10 +256,8 @@ fn parse_meter_points(
         // setup measurement. values are added later
         let mut measurement = Measurement {
             meter_point_id: point_nr,
-            period_start: NaiveDateTime::parse_from_str(period_start.as_str(), "%d.%m.%Y %H:%M:%S")
-                .expect("Failed to parse date"),
-            period_end: NaiveDateTime::parse_from_str(period_end.as_str(), "%d.%m.%Y %H:%M:%S")
-                .expect("Failed to parse date"),
+            period_start: parse_ddmmyyyy_hms(period_start.as_str()).expect("Failed to parse date"),
+            period_end: parse_ddmmyyyy_hms(period_end.as_str()).expect("Failed to parse date"),
             name: name,
             direction: match energy_direction.as_str() {
                 "CONSUMPTION" => EnergyDirection::Consumption,

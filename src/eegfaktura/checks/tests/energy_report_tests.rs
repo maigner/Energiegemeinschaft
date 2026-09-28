@@ -39,11 +39,12 @@ fn test_report_flags_only_l3_meter_points() {
         ]
     );
 
-    // Each flagged meter point records when its L3 values occur.
+    // Each flagged meter point records its L3 count and affected days.
     for mp in &checks.meter_points_with_l3_values {
+        assert!(mp.count > 0, "expected L3 count for {}", mp.meter_point_id);
         assert!(
-            !mp.occurrences.is_empty(),
-            "expected L3 occurrences for {}",
+            !mp.affected_days.is_empty(),
+            "expected affected days for {}",
             mp.meter_point_id
         );
     }
@@ -95,7 +96,8 @@ fn l3_point(id: &str) -> L3MeterPoint {
     L3MeterPoint {
         meter_point_id: id.to_string(),
         name: "test".to_string(),
-        occurrences: vec![],
+        count: 1,
+        affected_days: vec![],
     }
 }
 

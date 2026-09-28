@@ -85,6 +85,13 @@ fn energy_report_with(points: Vec<(&str, NaiveDate, NaiveDate)>) -> EnergyReport
                 timestamp_end: end.and_hms_opt(0, 0, 0).unwrap(),
                 date_active_start: start,
                 date_active_end: end,
+                data_complete: true,
+                l0_count: 0,
+                l2_count: 0,
+                l3_count: 0,
+                l0_days: vec![],
+                l2_days: vec![],
+                l3_days: vec![],
             },
         );
     }
@@ -94,8 +101,6 @@ fn energy_report_with(points: Vec<(&str, NaiveDate, NaiveDate)>) -> EnergyReport
         measurements_complete: None,
         missing_samples: vec![],
         meter_points_stats,
-        qov_timeline: vec![],
-        qov_samples: vec![],
     }
 }
 

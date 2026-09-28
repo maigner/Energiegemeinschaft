@@ -11,27 +11,25 @@ use chrono::{Datelike, NaiveDate, NaiveDateTime};
 use serde::Serialize;
 
 use crate::eegfaktura::loader::{
-    EnergyReport, Masterdata, Member, MeterPoint, MeterPointStatus, PodList, QovSamples,
+    EnergyReport, EnergyReportMeterPointStats, Masterdata, Member, MeterPoint, MeterPointStatus,
+    PodList,
 };
 
 #[cfg(test)]
 mod tests;
 
-/// A single L3 (unreliable / extrapolated) sample and when it occurred.
-#[derive(Debug, Clone, Serialize, PartialEq)]
-pub struct L3Occurrence {
-    pub timestamp: NaiveDateTime,
-    pub value: Option<f64>,
-}
-
-/// A meter point that carries L3 values, together with the timestamps at which
-/// those values occur.
+/// A meter point that carries L3 (unreliable / extrapolated) values, with the
+/// count of affected quarter-hours and the days on which they occurred. The
+/// export only reports this at day granularity (a comment listing the
+/// affected days), not exact quarter-hour timestamps.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct L3MeterPoint {
     pub meter_point_id: String,
     pub name: String,
-    /// Every L3 sample, in chronological order.
-    pub occurrences: Vec<L3Occurrence>,
+    /// Number of L3 quarter-hours.
+    pub count: u32,
+    /// Days on which at least one L3 quarter-hour occurred, chronological.
+    pub affected_days: Vec<NaiveDate>,
 }
 
 /// A meter point with missing samples, together with the timestamps of the gaps.
@@ -83,7 +81,7 @@ impl EnergyReportChecks {
         EnergyReportChecks {
             measurements_complete,
             meter_points_with_missing_samples: missing_samples_meter_points(missing),
-            meter_points_with_l3_values: l3_meter_points(report.get_qov_l3_issues()),
+            meter_points_with_l3_values: l3_meter_points(&report.meter_points_stats),
         }
     }
 
@@ -603,24 +601,15 @@ fn missing_samples_meter_points(
         .collect()
 }
 
-fn l3_meter_points(map: HashMap<String, QovSamples>) -> Vec<L3MeterPoint> {
-    let mut result: Vec<L3MeterPoint> = map
-        .into_iter()
-        .map(|(meter_point_id, samples)| {
-            let occurrences: Vec<L3Occurrence> = samples
-                .samples
-                .into_iter()
-                .flatten()
-                .map(|sample| L3Occurrence {
-                    timestamp: sample.timestamp,
-                    value: sample.value,
-                })
-                .collect();
-            L3MeterPoint {
-                meter_point_id,
-                name: samples.name,
-                occurrences,
-            }
+fn l3_meter_points(stats: &HashMap<String, EnergyReportMeterPointStats>) -> Vec<L3MeterPoint> {
+    let mut result: Vec<L3MeterPoint> = stats
+        .values()
+        .filter(|s| s.l3_count > 0)
+        .map(|s| L3MeterPoint {
+            meter_point_id: s.meter_point_id.clone(),
+            name: s.name.clone(),
+            count: s.l3_count,
+            affected_days: s.l3_days.clone(),
         })
         .collect();
     result.sort_by(|a, b| a.meter_point_id.cmp(&b.meter_point_id));

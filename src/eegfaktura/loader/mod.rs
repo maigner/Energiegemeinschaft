@@ -5,6 +5,8 @@ use serde::Serialize;
 
 pub mod excel;
 
+mod comments;
+
 #[cfg(test)]
 mod tests;
 
@@ -90,42 +92,20 @@ pub struct EnergyReportMeterPointStats {
     pub timestamp_end: NaiveDateTime,
     pub date_active_start: NaiveDate,
     pub date_active_end: NaiveDate,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub enum QoV {
-    L0,
-    L1,
-    L2,
-    L3,
-}
-impl FromStr for QoV {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.trim() {
-            "L0" => Ok(QoV::L0),
-            "L1" => Ok(QoV::L1),
-            "L2" => Ok(QoV::L2),
-            "L3" => Ok(QoV::L3),
-            _ => Err(format!("Unknown meter code: {}", s)),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct QovSample {
-    pub timestamp: NaiveDateTime,
-    pub value: Option<f64>,
-    pub qov: QoV,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct QovSamples {
-    pub meter_point_id: String,
-    pub name: String,
-    pub direction: EnergyDirection,
-    pub meter_code: MeterCode,
-    pub samples: Vec<Option<QovSample>>,
+    /// From the Summary sheet's "Daten vollständig? Ja/Nein" column.
+    pub data_complete: bool,
+    /// Quarter-hours with no measurement at all (L0).
+    pub l0_count: u32,
+    /// Quarter-hours filled with a reliable substitute value (L2).
+    pub l2_count: u32,
+    /// Quarter-hours filled with an unreliable / extrapolated value (L3).
+    pub l3_count: u32,
+    /// Days on which an L0 quarter-hour occurred, from the cell comment.
+    pub l0_days: Vec<NaiveDate>,
+    /// Days on which an L2 quarter-hour occurred, from the cell comment.
+    pub l2_days: Vec<NaiveDate>,
+    /// Days on which an L3 quarter-hour occurred, from the cell comment.
+    pub l3_days: Vec<NaiveDate>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -135,8 +115,6 @@ pub struct EnergyReport {
     pub measurements_complete: Option<bool>,
     pub missing_samples: Vec<MissingSample>,
     pub meter_points_stats: HashMap<String, EnergyReportMeterPointStats>,
-    pub qov_timeline: Vec<Timestamp>,
-    pub qov_samples: Vec<QovSamples>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -252,83 +230,6 @@ impl Masterdata {
 }
 
 impl EnergyReport {
-    /**
-     * for all meter points, get a vector of qov_samples that have status L2 and L3
-     *
-     * L0: Energiedaten fehlen
-     * L1: Echtwert gemessen
-     * L2: Ersatzwert belastbar (Wert wird sich mit großer Wahrscheinlichkeit nicht mehr ändern)
-     * L3: Ersatzwert nicht belastbar (z. B. extrapolierter Wert; Wert wird sich mit großer Wahrscheinlichkeit noch ändern)
-     *
-     * L0 we skip, because missing samples are handled separately
-     *
-     */
-    pub fn get_qov_issues(&self) -> HashMap<String, QovSamples> {
-        // meter_point_id => L2/L3 Samples
-        let mut results: HashMap<String, QovSamples> = HashMap::new();
-
-        for qov_samples in &self.qov_samples {
-            // get only L2 and L3 samples
-            let l2_or_l3_samples: Vec<Option<QovSample>> = qov_samples
-                .samples
-                .iter()
-                .filter_map(|opt| {
-                    opt.as_ref()
-                        .filter(|s| matches!(s.qov, QoV::L2 | QoV::L3))
-                        .cloned()
-                        .map(Some) // wrap matched samples back in Some
-                })
-                .collect();
-
-            if !l2_or_l3_samples.is_empty() {
-                results.insert(
-                    qov_samples.meter_point_id.clone(),
-                    QovSamples {
-                        meter_point_id: qov_samples.meter_point_id.clone(),
-                        name: qov_samples.name.clone(),
-                        direction: qov_samples.direction.clone(),
-                        meter_code: qov_samples.meter_code.clone(),
-                        samples: l2_or_l3_samples.clone(),
-                    },
-                );
-            }
-        }
-        results
-    }
-
-    pub fn get_qov_l3_issues(&self) -> HashMap<String, QovSamples> {
-        // meter_point_id => L2/L3 Samples
-        let mut results: HashMap<String, QovSamples> = HashMap::new();
-
-        for qov_samples in &self.qov_samples {
-            // get L3 samples
-            let l3_samples: Vec<Option<QovSample>> = qov_samples
-                .samples
-                .iter()
-                .filter_map(|opt| {
-                    opt.as_ref()
-                        .filter(|s| matches!(s.qov, QoV::L3))
-                        .cloned()
-                        .map(Some) // wrap matched samples back in Some
-                })
-                .collect();
-
-            if !l3_samples.is_empty() {
-                results.insert(
-                    qov_samples.meter_point_id.clone(),
-                    QovSamples {
-                        meter_point_id: qov_samples.meter_point_id.clone(),
-                        name: qov_samples.name.clone(),
-                        direction: qov_samples.direction.clone(),
-                        meter_code: qov_samples.meter_code.clone(),
-                        samples: l3_samples.clone(),
-                    },
-                );
-            }
-        }
-        results
-    }
-
     pub fn get_missing_samples(&mut self) {
         //let mut measurements = &self.measurements; // immutable borrow
 
