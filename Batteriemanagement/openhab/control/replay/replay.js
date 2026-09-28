@@ -148,7 +148,7 @@ for (const pid of Object.keys(hist).sort((a, b) => a - b)) {
     IBM_LADERATE_MESSUNG: oldRate ? JSON.stringify({ kw: +rows[rows.length - 1].rate, messungen: 5 }) : '', IBM_LADELEISTUNG: '',
     IBM_LADESPERRE_LOKAL_ENDE: '', IBM_LADEREGELUNG_SOLL: '', IBM_LADEREGELUNG_STATUS: '', IBM_RESTLADEZEIT: '',
     IBM_NETZLADE_WAECHTER: '', IBM_NETZLADUNG: '', IBM_NETZEINSPEISUNG_ZAEHLER: '', IBM_BATTERIE_NETZEINSPEISUNG_KWH: '',
-    IBM_HAUSLAST: '', IBM_HAUSLAST_MESSUNG: '', IBM_NACHTBUDGET: '', IBM_SONNENPROFIL: '',
+    IBM_HAUSLAST: '', IBM_HAUSLAST_MESSUNG: '', IBM_NACHTBUDGET: '', IBM_BATTERIE_WARTUNG: '', IBM_SONNENPROFIL: '',
     Ischlstrom_Ladesperre_Individuell: 'OFF', Ischlstrom_Entladeende: '-', Ischlstrom_Crossover_Vormittag: '-',
     Ischlstrom_Wolken_Verlauf: '', Ischlstrom_Ertragsprognose: ertragPct === null ? 'NULL' : +ertragPct, Ischlstrom_Crossover_Zeit: '',
     SOC: 50, BAT: 0, GRID: 0, PV: 0

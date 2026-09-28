@@ -175,6 +175,11 @@ Number IBM_HAUSLAST              "Geschaetzte Hauslast [%.0f W]"               <
 String IBM_HAUSLAST_MESSUNG      "Hauslastschaetzung (intern) [%s]"            <settings> (IBM)
 Number IBM_NACHTBUDGET           "Nacht-Entladebudget [%.1f kWh]"              <energy>   (IBM)
 
+// Batteriewartung des Wechselrichters (Kalibrier-, Service-, Schutzladung),
+// vom Kern je Zyklus aus dem Adapter gelesen: "-" = keine, sonst Modus und
+// Rohwert, z. B. "Kalibrierung (ChaSt 7)". Waehrenddessen setzt IBM aus.
+String IBM_BATTERIE_WARTUNG      "Batteriewartung des Wechselrichters [%s]"    <battery>  (IBM)
+
 // Berechnet von ibm_netzeinspeisung.js aus Batterie- und Netzleistung:
 // Anteil der Batterie-Entladung, der tatsaechlich ins Netz fliesst (der
 // Rest versorgt den Haushalt). Bleibt NULL, wenn Batterieleistungs- oder

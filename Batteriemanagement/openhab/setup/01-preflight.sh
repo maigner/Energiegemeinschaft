@@ -122,6 +122,7 @@ if [ -f "$items_db" ]; then
               IBM_HAUSLAST \
               IBM_HAUSLAST_MESSUNG \
               IBM_NACHTBUDGET \
+              IBM_BATTERIE_WARTUNG \
               IBM_BATTERIE_NETZEINSPEISUNG \
               IBM_BATTERIE_NETZEINSPEISUNG_KWH \
               IBM_NETZEINSPEISUNG_ZAEHLER; do

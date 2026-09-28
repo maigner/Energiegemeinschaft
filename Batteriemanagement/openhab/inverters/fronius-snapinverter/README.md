@@ -523,6 +523,21 @@ ohne Master unveraendert). Deshalb:
   es dann vor jedem Steuer-Write auf Fensterlaenge + 60 s); der Symo
   Hybrid mit Datamanager 2.0 gehoert nicht dazu.
 
+## Kalibrierladung des Wechselrichters
+
+Der Symo Hybrid kalibriert die Batterie von sich aus. Beobachtet an pi-020
+am 2026-09-27/28: `ChaSt` sprang um 07:58 auf 7 (SunSpec TESTING), die
+Batterie lud auf 100% und hielt den Stand, ab 17:57 entlud sie ohne
+Entladebefehl konstant mit ~1030 W (davon ~700 W ins Netz, also unter
+`IBM_MIN_BATTERY_CHARGE` hindurch) bis 4,4%, um 01:26 kam `ChaSt` 2
+(EMPTY). Die zyklischen Resets des Kerns (`StorCtl_Mod = 0`) waren dabei
+wirkungslos. Der Adapter meldet `ChaSt` 7 deshalb ueber
+`ibmBatteryMaintenance()` als Kalibrierung (zweite Quelle: `Battery_Mode`
+der Solar API). Der Kern setzt waehrenddessen aus und verwirft die
+Hauslast-Messung der Nacht, die Kalibrier-Entladung saehe sonst wie
+~1,5 kW Hauslast aus. Das Board sieht den Zustand im Status-Push
+(`batterie_wartung`) und auf `/board/openhab/health`.
+
 ## Bekannte Grenzen
 
 - Batterie-, Netz- und PV-Leistung sind per Modbus nicht lesbar (Model 160

@@ -300,7 +300,14 @@ var payload = {
     hauslast_w: numberOf('IBM_HAUSLAST'),
     // Verbleibendes Nacht-Entladebudget (kWh ueber dem Ziel-Ladestand),
     // vom Kern aus Kapazitaet und Hauslast gerechnet; null ohne Schaetzung.
-    nachtbudget_kwh: numberOf('IBM_NACHTBUDGET')
+    nachtbudget_kwh: numberOf('IBM_NACHTBUDGET'),
+    // Batteriewartung des Wechselrichters (Kalibrier-, Service-,
+    // Schutzladung), vom Kern gesetzt: z. B. "Kalibrierung (ChaSt 7)";
+    // null ohne Wartung ("-") oder bei Profilen, die sie nicht erkennen.
+    batterie_wartung: (function () {
+      var w = stateOf('IBM_BATTERIE_WARTUNG');
+      return (w === null || w === '-') ? null : w;
+    })()
   }
 };
 

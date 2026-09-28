@@ -59,6 +59,11 @@ export const getFleetHealthPlants = async () => {
  *   netzladung_7d         Zyklen mit erkannter Netto-Netzladung in 7 Tagen
  *   below_min_7d          Zyklen in 7 Tagen, in denen die Anlage unter ihrem
  *                         Mindest-Ladestand noch ins Netz eingespeist hat
+ *                         (ohne Batteriewartung des Wechselrichters)
+ *   wartung_7d            Meldungen in 7 Tagen mit Batteriewartung
+ *                         (batterie_wartung, z. B. Kalibrierladung)
+ *   night_wartung         davon in der letzten Nacht, night_wartung_modus
+ *                         der zuletzt gemeldete Text
  *   night_min_soc_feeding tiefster Ladestand waehrend der Einspeisung der
  *                         letzten Nacht (gestern 16:00 bis heute 10:00)
  *   night_feed_hours      Stunden mit Einspeisung > 200 W in dieser Nacht
@@ -81,7 +86,9 @@ export const getFleetHealthStats = async () => {
                        CASE WHEN jsonb_typeof(data->'netzeinspeisung_w') = 'number' THEN (data->>'netzeinspeisung_w')::float ELSE 0 END AS einsp,
                        CASE WHEN jsonb_typeof(data->'min_battery_charge') = 'number' THEN (data->>'min_battery_charge')::float END AS min_soc,
                        CASE WHEN jsonb_typeof(data->'netzladung_w') = 'number' THEN (data->>'netzladung_w')::float ELSE 0 END AS netzladung,
-                       data->'system'->>'booted_at' AS booted
+                       data->'system'->>'booted_at' AS booted,
+                       COALESCE(data->>'batterie_wartung', '') NOT IN ('', '-') AS wartung,
+                       data->>'batterie_wartung' AS wartung_modus
                   FROM members_openhabstatushistory
                  WHERE time >= now() - interval '7 days'
             ), today AS (
@@ -107,8 +114,12 @@ export const getFleetHealthStats = async () => {
                    (SELECT count(*) FROM h WHERE h.status_id = s.id AND h.time >= now() - interval '24 hours')::int AS pushes_24h,
                    (SELECT count(DISTINCT booted) FROM h WHERE h.status_id = s.id AND booted IS NOT NULL)::int AS boots_7d,
                    (SELECT count(*) FROM h WHERE h.status_id = s.id AND netzladung > 0)::int AS netzladung_7d,
-                   (SELECT count(*) FROM h WHERE h.status_id = s.id AND einsp > 200 AND soc IS NOT NULL
+                   (SELECT count(*) FROM h WHERE h.status_id = s.id AND einsp > 200 AND soc IS NOT NULL AND NOT wartung
                                              AND min_soc IS NOT NULL AND soc < min_soc - 1)::int AS below_min_7d,
+                   (SELECT count(*) FROM h WHERE h.status_id = s.id AND wartung)::int AS wartung_7d,
+                   (SELECT count(*) FROM night n WHERE n.status_id = s.id AND wartung)::int AS night_wartung,
+                   (SELECT n.wartung_modus FROM night n
+                     WHERE n.status_id = s.id AND wartung ORDER BY n.time DESC LIMIT 1) AS night_wartung_modus,
                    (SELECT round(min(soc)) FROM night n WHERE n.status_id = s.id AND einsp > 200)::int AS night_min_soc_feeding,
                    (SELECT round(count(*) FILTER (WHERE einsp > 200) * 5.0 / 60, 1) FROM night n WHERE n.status_id = s.id)::float AS night_feed_hours,
                    (SELECT round((COALESCE(sum(einsp) FILTER (WHERE einsp > 200 AND soc IS NOT NULL AND min_soc IS NOT NULL AND soc < min_soc - 1), 0) * 5.0 / 60 / 1000)::numeric, 2)

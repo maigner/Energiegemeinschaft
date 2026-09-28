@@ -27,7 +27,7 @@ Pause, Kapazitaetsschaetzung, Leistungsberechnung) liegt herstellerneutral in
 `../control/core.js` und wird **nie kopiert**. Ein Profil liefert nur einen
 duennen **Adapter** (`INVERTER_ADAPTER_SCRIPT`), den das Setup dem Kern im
 selben Regel-Body voranstellt. Der Adapter definiert drei Pflichtfunktionen
-und optional eine vierte:
+und optional zwei weitere:
 
 | Funktion | Semantik | Rueckgabe |
 | --- | --- | --- |
@@ -35,6 +35,7 @@ und optional eine vierte:
 | `ibmPreventCharge(minutes)` | Batterieladen fuer `minutes` Minuten sperren. | `{ ok }` |
 | `ibmForceDischarge(watts, minutes)` | Entladung mit MINDESTENS ~`watts` fuer `minutes` Minuten erzwingen. `watts` ist eine Untergrenze, kein Deckel: braucht der Haushalt mehr, deckt die Batterie weiter den ganzen Bedarf (kein Netzbezug bei geladener Batterie). Kann der Hersteller nur einen festen Wert oder ein Limit, faengt das der Hausvorrang des Kerns ab - dafuer braucht das Profil ein Netzleistungs-Item. `watts` ist vom Kern bereits validiert und begrenzt. | `{ ok, appliedW? }` |
 | `ibmLimitCharge(watts, minutes)` | OPTIONAL. Ladeleistung fuer `minutes` Minuten auf ~`watts` begrenzen (nicht erzwingen - geladen wird weiter nur aus PV). Fehlt die Funktion, bildet die Laderegelung des Kerns die Begrenzung per PWM ueber `ibmPreventCharge` nach (gesperrte/freie 15-Minuten-Bloecke). NICHT ueber Kommandos implementieren, die aus dem Netz laden koennten. | `{ ok, appliedW? }` |
+| `ibmBatteryMaintenance()` | OPTIONAL, nur lesend. Faehrt der Wechselrichter gerade selbst eine Batteriewartung (Kalibrier-, Service-, Schutzladung), in der er IBM-Kommandos ignoriert? Der Kern setzt dann mit der Steuerung aus, verwirft die Hauslast-Messung der Nacht, nimmt keine Ladeleistungs-Stichprobe, der Netzladeschutz warnt nur; Anzeige und Status-Push ueber `IBM_BATTERIE_WARTUNG`. Laeuft in jedem Zyklus, auch bei Hauptschalter AUS - nie schreiben. Fronius: `ChaSt` 7 (SunSpec TESTING) bzw. `Battery_Mode` der Solar API. | `null` oder `{ modus, quelle }`, z. B. `{ modus: 'Kalibrierung', quelle: 'ChaSt 7' }` |
 
 `appliedW` ist die nach herstellerseitiger Quantisierung tatsaechlich
 kommandierte Leistung (z. B. Prozent-Rundung) - der Kapazitaetsschaetzer des
@@ -63,8 +64,8 @@ Regeln fuer Adapter:
   `setup/04-install-rules.sh`), keine Thing-UID-Literale.
 * Niemals werfen: Fehler fangen, loggen und `{ ok: false }` zurueckgeben.
 * Alle Logausgaben mit `[IBM]` praefixieren.
-* Nur auf die openhab-js-Globals verlassen (`items`, `actions`, `time`,
-  `Quantity`, `console`), nicht auf Helfer des Kerns.
+* Nur auf die openhab-js-Globals verlassen (`items`, `things`, `actions`,
+  `time`, `Quantity`, `console`), nicht auf Helfer des Kerns.
 
 Drei Vorlagen:
 

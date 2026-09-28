@@ -14,6 +14,7 @@
 //   IBM_MB_InWRte    Ladelimit in % von WChaMax (roh, negativ = Entladung)
 //   IBM_MB_OutWRte   Entladelimit in % von WChaMax (roh, negativ = Ladung)
 //   IBM_MB_RvrtTms   Revert-Timeout in Sekunden (nur lesend, siehe unten)
+//   IBM_MB_ChaSt     Batteriestatus (nur lesend; 7 = TESTING, Kalibrierung)
 //
 // Fronius-Semantik (Anleitung "Datamanager Modbus TCP & RTU", 42,0410,2049,
 // S. 45-47): InWRte und OutWRte spannen ein Leistungsfenster auf, negative
@@ -192,4 +193,70 @@ function ibmForceDischarge(watts, minutes) {
   ok = __ibmMbSend('IBM_MB_StorCtl', M124_STORCTL_CHARGE_BIT) && ok;
 
   return { ok: ok, appliedW: Math.round(maxW * pct / 100) };
+}
+
+// --- Batteriewartung (optional, nur lesend) ---------------------------------
+// Zwei Quellen: ChaSt aus Model 124 (Wert 7 = TESTING - so meldet der
+// Datamanager die Kalibrierladung: voll laden, halten, mit ~1 kW bis leer
+// entladen; beobachtet an pi-020 am 2026-09-27/28, Kommandos wirkungslos)
+// und als zweite Quelle Battery_Mode der Solar API wie beim GEN24.
+var M124_CHAST_TESTING = 7;
+
+// Battery_Mode aus GetPowerFlowRealtimeData (Solar API V1, ohne Anmeldung)
+// am Host der Fronius-Bridge - den haelt der Watchdog aktuell. Werte laut
+// Fronius: normal, disabled, service, charge boost, nearly depleted,
+// suspended, calibrate, grid support, deplete recovery, non operable
+// (voltage/temperature), preheating, startup. Als Wartung zaehlen nur die
+// Zustaende, in denen der Wechselrichter die Batterie selbst fuehrt.
+var __IBM_BATTERY_MODE_WARTUNG = {
+  'calibrate': 'Kalibrierung',
+  'service': 'Serviceladung',
+  'charge boost': 'Schutzladung',
+  'deplete recovery': 'Schutzladung'
+};
+
+// Basis-URL der Solar API: Host (und Schema) der Fronius-Bridge, sonst null.
+function __ibmSolarApiBase() {
+  try {
+    var all = things.getThings();
+    for (var i = 0; i < all.length; i++) {
+      var raw = all[i].rawThing;
+      if (String(raw.getThingTypeUID()) !== 'fronius:bridge') continue;
+      var cfg = raw.getConfiguration();
+      var host = cfg.get('hostname');
+      if (host === null || host === undefined || String(host).trim() === '') continue;
+      var scheme = cfg.get('scheme');
+      return ((scheme === null || scheme === undefined) ? 'http' : String(scheme)) + '://' + String(host).trim();
+    }
+  } catch (e) {
+    console.log('[IBM][Adapter] Fronius-Bridge nicht lesbar: ' + e);
+  }
+  return null;
+}
+
+// Battery_Mode des ersten Wechselrichters mit Batterie als Wartung - oder null.
+function __ibmSolarApiMaintenance() {
+  var base = __ibmSolarApiBase();
+  if (base === null) return null;
+  try {
+    var raw = actions.HTTP.sendHttpGetRequest(base + '/solar_api/v1/GetPowerFlowRealtimeData.fcgi', 5000);
+    if (raw === null || raw === undefined) return null;
+    var inverters = JSON.parse(String(raw)).Body.Data.Inverters;
+    for (var key in inverters) {
+      var mode = inverters[key] ? inverters[key].Battery_Mode : null;
+      if (typeof mode !== 'string') continue;
+      var modus = __IBM_BATTERY_MODE_WARTUNG[mode.toLowerCase()];
+      if (modus) return { modus: modus, quelle: 'Battery_Mode ' + mode };
+    }
+  } catch (e) {
+    console.log('[IBM][Adapter] Solar API (Battery_Mode) nicht lesbar: ' + e);
+  }
+  return null;
+}
+
+function ibmBatteryMaintenance() {
+  if (__ibmMbNum('IBM_MB_ChaSt') === M124_CHAST_TESTING) {
+    return { modus: 'Kalibrierung', quelle: 'ChaSt ' + M124_CHAST_TESTING };
+  }
+  return __ibmSolarApiMaintenance();
 }

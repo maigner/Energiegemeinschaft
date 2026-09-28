@@ -120,7 +120,7 @@
                         <span class="text-gray-500 dark:text-gray-400">{item.check.label}:</span>
                         <span class="dark:text-gray-200">{item.check.text}</span>
                         {#if item.check.detail && item.check.detail !== item.check.text}
-                            <span class="text-gray-500 dark:text-gray-400">– {item.check.detail}</span>
+                            <span class="text-gray-500 dark:text-gray-400">({item.check.detail})</span>
                         {/if}
                     </li>
                 {/each}
@@ -140,7 +140,7 @@
                 <dd class="dark:text-gray-200">
                     {c.text}
                     {#if c.detail}
-                        <span class="text-gray-500 dark:text-gray-400">– {c.detail}</span>
+                        <span class="text-gray-500 dark:text-gray-400">({c.detail})</span>
                     {/if}
                 </dd>
             {/each}

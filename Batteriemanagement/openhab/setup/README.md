@@ -626,6 +626,16 @@ jeder Stunde Nacht. Ohne belastbare Kapazitaetsschaetzung
 greift der harte Trueb-Stopp als Rueckfall. Der Server liefert kein Budget
 mehr.
 
+**Batteriewartung des Wechselrichters.** Kalibrier-, Service- und
+Schutzladungen fuehrt der Wechselrichter selbst und ignoriert dabei alle
+Kommandos (Fronius Symo Hybrid: voll laden, dann mit ~1 kW bis leer
+entladen, auch unter die Reserve). Profile, deren Adapter das erkennen
+(`ibmBatteryMaintenance()`, derzeit beide Fronius-Profile), melden den
+Zustand in `IBM_BATTERIE_WARTUNG` (`-` = keine) und im Status-Push
+(`batterie_wartung`). Solange er anliegt, setzt die Steuerung nach dem Reset
+aus, die Hauslast-Messung der Nacht wird verworfen, die Ladeleistung wird
+nicht gelernt und der Netzladeschutz warnt nur.
+
 Das Ladesperre-Fenster kommt aus der Tagesprognose
 (`/api/eeginfo/ladefenster/v1`, berechnet aus den Kurven von `/vorhersage`):
 gesperrt wird vom ersten Sonnenschein bis in die Mittagsspitze des

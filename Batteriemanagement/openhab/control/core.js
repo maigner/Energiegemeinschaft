@@ -89,11 +89,20 @@
 //     Funktion nicht, bildet der Kern die Begrenzung per Puls-Weiten-
 //     Modulation ueber ibmPreventCharge nach (Abschnitt "Laderegelung").
 //
+//   ibmBatteryMaintenance()         -> null | { modus: string, quelle: string }
+//     OPTIONAL, nur lesend. Meldet, ob der Wechselrichter gerade selbst
+//     eine Batteriewartung faehrt (Kalibrierladung, Serviceladung,
+//     Schutzladung), waehrend der er IBM-Kommandos ignoriert und die
+//     Batterie auf eigene Rechnung voll laedt oder leer entlaedt. `modus`
+//     ist der Anzeigetext ("Kalibrierung"), `quelle` der Rohwert
+//     ("ChaSt 7", "Battery_Mode calibrate"). null = Normalbetrieb oder
+//     unbekannt. Siehe Abschnitt "Batteriewartung des Wechselrichters".
+//
 // Regeln fuer Adapter: kein rules.JSRule(...), kein Top-Level-return, alle
 // Logausgaben mit '[IBM]' praefixieren, nur @IBM_...@-Platzhalter (keine
 // Thing-UID-Literale), niemals werfen - Fehler fangen und { ok: false }
 // zurueckgeben. Adapter verlassen sich nur auf die openhab-js-Globals
-// (items, actions, time, Quantity, console), nicht auf Helfer des Kerns.
+// (items, things, actions, time, Quantity, console), nicht auf Helfer des Kerns.
 // GRUNDSATZ: Kein Adapter verwendet Kommandos, die die Batterie aus dem
 // Netz laden koennten (Lade-Kommandos, Command-Charging-Modi,
 // TOU-Netzladen-Flags) - Sperren, Begrenzen und Entladen genuegen. Den
@@ -999,7 +1008,10 @@ function currentSunniness(profile) {
 //   basisSoc    Ladestand zu Beginn der laufenden Messstrecke (%)
 //   basisZeit   Beginn der Messstrecke
 //   letztZeit   Zeitpunkt des letzten Messlaufs (Lueckenerkennung)
-// Gemessen wird nur nachts in Zyklen ohne Entladebefehl (sampleHouseLoad).
+//   verworfen   Kennung einer Nacht, die wegen einer Batteriewartung des
+//               Wechselrichters nicht zaehlt (discardHouseLoadNight)
+// Gemessen wird nur nachts in Zyklen ohne Entladebefehl und ohne
+// Batteriewartung (sampleHouseLoad).
 
 function readHouseLoadState() {
   var item = readItem('IBM_HAUSLAST_MESSUNG');
@@ -1064,6 +1076,28 @@ function clearHouseLoadMeasurement() {
   writeHouseLoadState(st);
 }
 
+// Verwirft die Messung der laufenden Nacht: eine Batteriewartung des
+// Wechselrichters (Kalibrier-Entladung mit ~1 kW ohne Entladebefehl) saehe
+// im Ladestand aus wie Hauslast. Die Nacht bleibt bis zu ihrem Ende
+// gesperrt (Feld `verworfen`) - der Wartungsstatus springt zwischendurch
+// kurz zurueck, und was vor der Wartung gemessen wurde, deckt nur einen
+// Teil der Nacht ab. Die gelernte Schaetzung bleibt unveraendert.
+function discardHouseLoadNight(grund) {
+  var st = readHouseLoadState();
+  if (st === null) return;
+  var nightId = houseLoadNightId();
+  if (st.nacht !== nightId) finishHouseLoadNight(st, nightId);
+  if (st.verworfen === nightId) return;
+  st.verworfen = nightId;
+  st.nachtWh = 0;
+  st.nachtMin = 0;
+  delete st.basisSoc;
+  delete st.basisZeit;
+  delete st.letztZeit;
+  console.log('[IBM][Hauslast] Nacht ' + nightId + ' verworfen: ' + grund + ' des Wechselrichters');
+  writeHouseLoadState(st);
+}
+
 // Kennung der laufenden Nacht: das Datum, an dem sie begonnen hat (vor dem
 // Entladestart gehoert der Lauf noch zur Nacht von gestern).
 function houseLoadNightId() {
@@ -1093,6 +1127,7 @@ function finishHouseLoadNight(st, nightId) {
   st.nacht = nightId;
   st.nachtWh = 0;
   st.nachtMin = 0;
+  delete st.verworfen;
 }
 
 // Schreibt die Hauslastmessung fort: ist der Ladestand seit Beginn der
@@ -1120,6 +1155,8 @@ function updateHouseLoadEstimate(soc, capacityKwh) {
     restartMeasurement();
     return;
   }
+  // Nacht wegen einer Batteriewartung verworfen (discardHouseLoadNight)
+  if (st.verworfen === nightId) return;
 
   var prevTime = null;
   var baseTime = null;
@@ -1887,6 +1924,34 @@ function ibmShell(command) {
   }
 }
 
+// ----------------------------------------------------------------------------
+// Batteriewartung des Wechselrichters
+// ----------------------------------------------------------------------------
+// Manche Wechselrichter fahren von sich aus Wartungszyklen: der Fronius
+// Symo Hybrid etwa eine Kalibrierladung (voll laden, halten, mit ~1 kW bis
+// leer entladen - auch ins Netz und unter IBM_MIN_BATTERY_CHARGE), dazu
+// Service- und Schutzladungen aus dem Netz. Kommandos ignoriert er dabei.
+// Der Kern setzt dann mit der regulaeren Steuerung aus und lernt nichts
+// (Hauslast, Ladeleistung), der Netzladeschutz warnt nur. Rein lesend -
+// laeuft deshalb auch bei Hauptschalter AUS, damit Anzeige und Status-Push
+// (IBM_BATTERIE_WARTUNG, '-' = keine Wartung) stimmen.
+var batteryMaintenance = null;
+if (typeof ibmBatteryMaintenance === 'function') {
+  try {
+    var wartung = ibmBatteryMaintenance();
+    if (wartung && typeof wartung.modus === 'string' && wartung.modus.length > 0) batteryMaintenance = wartung;
+  } catch (e) {
+    console.log('[IBM][Wartung] Abfrage fehlgeschlagen: ' + e);
+  }
+}
+publishItem('IBM_BATTERIE_WARTUNG', batteryMaintenance === null ? '-'
+  : batteryMaintenance.modus + (batteryMaintenance.quelle ? ' (' + batteryMaintenance.quelle + ')' : ''));
+if (batteryMaintenance !== null) {
+  console.log('[IBM][Wartung] Wechselrichter faehrt ' + batteryMaintenance.modus
+    + (batteryMaintenance.quelle ? ' (' + batteryMaintenance.quelle + ')' : '')
+    + ' - IBM setzt aus, bis sie beendet ist');
+}
+
 var toggleOn = onOff('Schalte_ISCHLSTROM_Empfehlung_einaus', false);
 
 if (!toggleOn) {
@@ -1960,6 +2025,11 @@ var netzladeBlock = false;
     + zaehler + '. Zyklus in Folge)');
   if (!NETZLADESCHUTZ_ACTIVE) return;
   if (zaehler < NETZLADE_TRIGGER_CYCLES) return;
+  if (batteryMaintenance !== null) {
+    console.log('[IBM][Netzladeschutz] ' + batteryMaintenance.modus
+      + ' des Wechselrichters - Netzladung gehoert dazu, nur Warnung');
+    return;
+  }
   var soc = parseFloat(items.getItem('@IBM_SOC_ITEM@').numericState);
   if (isNaN(soc) || soc < NETZLADE_MIN_SOC) {
     console.log('[IBM][Netzladeschutz] Ladestand ' + soc + '% unter ' + NETZLADE_MIN_SOC
@@ -2102,7 +2172,9 @@ function sampleChargeRate() {
     delete st.alt;
   }
   var nowSec = now.toEpochSecond();
-  var slotFree = !netzladeBlock
+  // Waehrend einer Batteriewartung laedt der Wechselrichter nach eigenen
+  // Regeln (Kalibrier-/Serviceladung, teils aus dem Netz) - kein freier Slot.
+  var slotFree = !netzladeBlock && batteryMaintenance === null
     && !(regulationPlan !== null && (regulationPlan.sperren || regulationPlan.limitW !== null))
     && !(regulationPlan === null && CHARGE_LOCK_ACTIVE && chargeLockReady && inWindow(chargeLockStart, chargeLockEnd));
   var prevFree = st.slot && typeof st.slot === 'object' && st.slot.frei === true
@@ -2160,6 +2232,10 @@ function sampleHouseLoad() {
   if (!inWindow(dischargeStart, dischargeEnd)) return;
   var capacityKwh = estimatedCapacityKwh();
   if (capacityKwh === null) return;
+  if (batteryMaintenance !== null) {
+    discardHouseLoadNight(batteryMaintenance.modus);
+    return;
+  }
   if (dischargeCommanded) {
     clearHouseLoadMeasurement();
     return;
@@ -2358,7 +2434,9 @@ if (CHARGE_LOCK_ACTIVE && !chargeLockReady && regulationPlan === null) {
   console.log('[IBM] Kein gueltiges Ladesperre-Fenster fuer heute - Laden bleibt erlaubt');
 }
 
-if (netzladeBlock) {
+if (batteryMaintenance !== null) {
+  console.log('[IBM] ' + batteryMaintenance.modus + ' des Wechselrichters - regulaere Steuerung ausgesetzt, der Wechselrichter ignoriert Kommandos');
+} else if (netzladeBlock) {
   console.log('[IBM] Netzladeschutz hat das Laden gesperrt - regulaere Steuerung in diesem Zyklus ausgesetzt');
 } else if (CHARGE_LOCK_ACTIVE && regulationPlan !== null) {
   console.log('[IBM] Zeitfenster Tag (' + fmtMinutes(nowMinutes) + ') - Laderegelung aktiv');

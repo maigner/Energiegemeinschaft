@@ -204,6 +204,9 @@ export function plantChecks(plant, stats, ctx) {
         if (pause > 0) parts.push(`pausiert (${pause} Tag${pause === 1 ? '' : 'e'})`);
         if (d.ladesperre_aktiv === 'OFF') parts.push('Ladesperre aus');
         if (d.entladung_aktiv === 'OFF') parts.push('Entladung aus');
+        // Kalibrier-/Service-/Schutzladung: der Wechselrichter fuehrt selbst,
+        // IBM setzt aus (Kern, ibmBatteryMaintenance im Adapter)
+        if (typeof d.batterie_wartung === 'string' && d.batterie_wartung) parts.push(`Wechselrichter-Wartung: ${d.batterie_wartung}`);
         add({ key: 'betrieb', label: 'Betrieb', level: parts.length ? 'info' : 'ok', text: parts.length ? parts.join(', ') : 'ein', detail: parts.length ? parts.join(', ') : 'Hauptschalter, Ladesperre und Entladung ein' });
     }
 
@@ -272,7 +275,13 @@ export function plantChecks(plant, stats, ctx) {
         const parts = [];
         const belowKwh = num(stats?.night_below_min_kwh) ?? 0;
         const below7 = num(stats?.below_min_7d) ?? 0;
-        if (nightMin !== null && minSoc !== null && nightMin < minSoc - 1 && belowKwh >= 0.5) {
+        const nightWartung = num(stats?.night_wartung) ?? 0;
+        if (nightWartung > 0) {
+            // Eine Kalibrierladung entlaedt bis leer, auch unter das Minimum und
+            // ohne Befehl von IBM: Hinweis statt Fehler der Steuerung
+            level = 'info';
+            parts.push(`Batteriewartung des Wechselrichters: ${stats?.night_wartung_modus ?? 'Wartung'}${nightMin !== null ? `, bis ${nightMin}% entladen` : ''}`);
+        } else if (nightMin !== null && minSoc !== null && nightMin < minSoc - 1 && belowKwh >= 0.5) {
             level = 'crit';
             parts.push(`bis ${nightMin}% eingespeist (Minimum ${minSoc}%, ${belowKwh.toLocaleString('de-AT')} kWh darunter)`);
         } else if (below7 >= 6) {
@@ -283,11 +292,12 @@ export function plantChecks(plant, stats, ctx) {
             parts.push(`morgens ${morning}% (Minimum ${minSoc}%)`);
         }
         if (d.hauptschalter === 'OFF' && level === 'ok') level = 'info';
-        const summary = `${evening !== null ? `${evening}%` : '?'} → ${morning !== null ? `${morning}%` : '?'}, ${nightKwh !== null ? nightKwh.toLocaleString('de-AT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '0'} kWh`;
+        const summary = `${evening !== null ? `${evening}%` : '?'} bis ${morning !== null ? `${morning}%` : '?'}, ${nightKwh !== null ? nightKwh.toLocaleString('de-AT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '0'} kWh`;
         add({
             key: 'nacht', label: 'Letzte Nacht', level,
             text: parts.length ? parts[0] : summary,
-            detail: `Ladestand 19:00 → 06:00: ${summary}${nightHours ? ` in ${nightHours.toLocaleString('de-AT')} h` : ''}${parts.length ? ` · ${parts.join(', ')}` : ''}`
+            // Der Befund steht schon im Text, das Detail liefert nur die Nachtzahlen
+            detail: `Ladestand 19:00 bis 06:00: ${summary} eingespeist${nightHours ? ` in ${nightHours.toLocaleString('de-AT')} h` : ''}`
         });
     }
 
