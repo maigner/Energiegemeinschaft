@@ -143,6 +143,13 @@ var FALLBACK_CLOUD_THRESHOLD = 75;
 // am spaeten Nachmittag liegt die freie Ladeleistung (PV minus Hauslast)
 // weit unter Spitze mal Ladefaktor, mit einer Stunde Puffer wurden die
 // Batterien an sonnigen Tagen um 1 bis 3 Stunden zu spaet voll.
+// Die Abend-Deadline selbst (eveningDeadline) kommt tagesaktuell von der
+// Token-API: Abend-Crossover des Prognosetags minus Puffer, mitgeliefert mit
+// den Ladefaktoren. Der Wochen-Crossover ist nur der Rueckfall - als
+// Klimamittel ueber alle Tage der Woche (auch die trueben, an denen die
+// Gemeinschaft frueh oder nie ins Plus kommt) liegt er im Herbst weit vor
+// dem Crossover eines sonnigen Tages (KW 40/2026: 15:27 gegen 17:00), also
+// genau an den Tagen daneben, an denen die Laderegelung arbeitet.
 var FALLBACK_LOCAL_LOCK_ACTIVE = true;
 var LOCAL_FULL_BUFFER_MIN = 120;    // so viele Minuten vor dem Abend-Crossover voll
 var LOCAL_SAFETY_FACTOR = 1.3;      // Aufschlag auf die berechnete Ladezeit
@@ -230,7 +237,8 @@ var CROSSOVER_LOCK_SAFETY_FACTOR = 1.3;
 // Ersetzt das harte Sperrfenster durch einen geschlossenen Regelkreis: In
 // jedem Zyklus wird die Ziel-Ladeleistung neu berechnet - fehlende Energie
 // geteilt durch die verbleibende Zeit bis zur Abend-Deadline (Abend-Crossover
-// minus LOCAL_FULL_BUFFER_MIN). Die Batterie laedt so den ganzen Tag gerade
+// des Prognosetags minus Puffer, siehe eveningDeadline; Rueckfall
+// Wochen-Crossover minus LOCAL_FULL_BUFFER_MIN). Die Batterie laedt so den ganzen Tag gerade
 // schnell genug, um am Abend voll zu sein; der restliche PV-Ueberschuss
 // fliesst laufend ins Netz. Weil auf den Live-Ladestand geregelt wird,
 // korrigieren sich Prognosefehler alle 5 Minuten von selbst - zieht es zu,
@@ -355,7 +363,13 @@ var DYNAMIC_MIN_SAMPLES = 3;     // erst ab so vielen Stichproben verwenden
 var CAPACITY_MIN_KWH = 1;        // Plausibilitaetsfenster einer Stichprobe
 var CAPACITY_MAX_KWH = 100;
 var CAPACITY_SAMPLE_MIN_SOC_DROP = 8;  // Prozentpunkte je Stichprobe
-var CAPACITY_MAX_STEP_GAP_MIN = 12;    // laengere Luecke -> Messung neu aufsetzen
+// Gemessen wird nur ueber LUECKENLOS aufeinanderfolgende Entladelaeufe: der
+// Befehl laeuft nach einem Slot von selbst ab, in einem Zyklus ohne Befehl
+// (Nachtziel erreicht, Hausvorrang, Netzladeschutz) versorgt die Batterie
+// nur das Haus. Bis zum 2026-10-01 durfte ein Zyklus fehlen (12 min); die
+// Pause zaehlte dann als Entladung mit voller Leistung und die Stichprobe
+// fiel um 35 bis 60% zu hoch aus (pi-003: 25,2 statt 18,7 kWh).
+var CAPACITY_MAX_STEP_GAP_MIN = IBM_SLOT_MINUTES + 2; // laengere Luecke -> Messung neu aufsetzen
 var CAPACITY_EMA_WEIGHT = 0.3;   // Gewicht einer neuen Stichprobe
 
 // Wolkenvorschau aelter als so viele Stunden gilt als veraltet (sie wird
@@ -1324,7 +1338,7 @@ function publishNightBudget(soc, zielSoc, capacityKwh) {
 }
 
 // Lokales Ladesperre-Ende in Minuten seit Mitternacht - oder null, wenn es
-// (noch) nicht berechenbar ist. Rueckwaerts vom Abend gerechnet: Die morgens
+// (noch) nicht berechenbar ist (auch ohne Abend-Deadline, siehe eveningDeadline). Rueckwaerts vom Abend gerechnet: Die morgens
 // fehlende Energie, geteilt durch die gelernte Ladeleistung, ergibt die
 // noetige Ladezeit; die wird mit Sicherheitsaufschlag vor den (um
 // LOCAL_FULL_BUFFER_MIN vorgezogenen) Abend-Crossover gelegt. Als fehlende
@@ -1336,7 +1350,8 @@ function publishNightBudget(soc, zielSoc, capacityKwh) {
 var LOCAL_CHARGE_FRACTION = 0.95;
 function localChargeLockEnd() {
   if (!LOCAL_LOCK_ACTIVE) return null;
-  if (EVENING_CROSSOVER_MIN === null) return null;
+  var abend = eveningDeadline();
+  if (abend === null) return null;
   var capacityKwh = estimatedCapacityKwh();
   var rateKw = estimatedChargeKw();
   if (capacityKwh === null || rateKw === null) {
@@ -1347,8 +1362,7 @@ function localChargeLockEnd() {
   if (isNaN(socNow)) socNow = 0;
   var missingKwh = capacityKwh * Math.max(0, LOCAL_CHARGE_FRACTION - socNow / 100);
   var chargeMinutes = Math.round(missingKwh / rateKw * LOCAL_SAFETY_FACTOR * 60);
-  var deadline = EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN;
-  return Math.min(deadline - chargeMinutes, LOCAL_LATEST_END_MIN);
+  return Math.min(abend.min - chargeMinutes, LOCAL_LATEST_END_MIN);
 }
 
 // --- Netzladeschutz: Erkennung und Zustand ----------------------------------
@@ -1479,6 +1493,38 @@ function readHourlyJson(itemName) {
   return parsed;
 }
 
+// Abend-Deadline der Laderegelung in Minuten seit Mitternacht: bis dahin
+// soll die Batterie voll sein. Bevorzugt die Deadline des Prognosetags, die
+// der Server mit den Ladefaktoren liefert (Abend-Crossover der
+// Tagesprognose minus Puffer, IBM_FULL_BUFFER_MIN in forecast.ts) - sie
+// gilt wie die Faktoren nur heute und nur frisch abgerufen (readHourlyJson).
+// Sonst der Wochen-Crossover minus LOCAL_FULL_BUFFER_MIN. null, wenn beides
+// fehlt. Ergebnis { min, quelle }, einmal je Zyklus bestimmt.
+var DEADLINE_MIN_HOUR = 6;   // Plausibilitaetsfenster der Prognose-Deadline
+var DEADLINE_MAX_HOUR = 22;
+var eveningDeadlineCache;
+function eveningDeadline() {
+  if (eveningDeadlineCache !== undefined) return eveningDeadlineCache;
+  eveningDeadlineCache = (function () {
+    var faktoren = readHourlyJson('Ischlstrom_Ladefaktoren');
+    if (faktoren !== null) {
+      var match = String(faktoren.deadline).match(/^(\d{1,2}):(\d{2})$/);
+      if (match !== null) {
+        var h = parseInt(match[1], 10);
+        var m = parseInt(match[2], 10);
+        if (h >= DEADLINE_MIN_HOUR && h < DEADLINE_MAX_HOUR && m <= 59) {
+          return { min: h * 60 + m, quelle: 'Tagesprognose' };
+        }
+      }
+    }
+    if (EVENING_CROSSOVER_MIN !== null) {
+      return { min: EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN, quelle: 'Wochen-Crossover' };
+    }
+    return null;
+  })();
+  return eveningDeadlineCache;
+}
+
 // Ueberlappung der Stunde ab `zeit` ("HH:MM") mit [fromMin, deadline) in Stunden.
 function hourOverlapH(zeit, fromMin, deadlineMin) {
   var match = String(zeit).match(/^(\d{1,2}):(\d{2})/);
@@ -1566,13 +1612,24 @@ function remainingCloudMean(deadlineMin) {
 //   limitW   Ladeleistung direkt auf diesen Wert begrenzen (Adapter-Weg)
 //   sollW    berechnete Ziel-Ladeleistung (Anzeige/Status-Push)
 //   aktiv    false = die Regelung laeuft, begrenzt aber gerade nicht
+// Nebenbei setzt sie regulationOverdue: die Regelung waere zustaendig
+// (Schaetzungen und Fenster vorhanden), ihre Abend-Deadline ist aber vorbei.
+// Dann darf auch das klassische Sperrfenster nicht mehr sperren (siehe
+// Abschnitt "Laderegelung" in der Skript-Logik).
+var regulationOverdue = false;
 function chargeRegulationPlan() {
-  if (!chargeLockDateOk || CHARGE_LOCK_START_MIN === null || EVENING_CROSSOVER_MIN === null) return null;
-  var deadline = EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN;
-  if (nowMinutes < CHARGE_LOCK_START_MIN || nowMinutes >= deadline) return null;
+  var abend = eveningDeadline();
+  if (!chargeLockDateOk || CHARGE_LOCK_START_MIN === null || abend === null) return null;
+  var deadline = abend.min;
+  if (nowMinutes < CHARGE_LOCK_START_MIN) return null;
 
   var capacityKwh = estimatedCapacityKwh();
   var rateKw = estimatedChargeKw();
+  if (nowMinutes >= deadline) {
+    regulationOverdue = capacityKwh !== null && rateKw !== null
+      && (typeof ibmLimitCharge === 'function' || readRegulationState() !== null);
+    return null;
+  }
   if (capacityKwh === null || rateKw === null) {
     console.log('[IBM][Laderegelung] Noch keine belastbare Kapazitaets- oder Ladeleistungsschaetzung - Sperrfenster gilt');
     return null;
@@ -1672,7 +1729,7 @@ function chargeRegulationPlan() {
   var sollW = Math.round(sollKw * 1000);
   console.log('[IBM][Laderegelung] SoC=' + soc + '%, fehlen ~' + (Math.round(missingKwh * 10) / 10)
     + ' kWh, Restladezeit ' + (Math.round(restH * 10) / 10) + ' h (' + restQuelle + ') bis ' + fmtMinutes(deadline)
-    + ', Wolken=' + guardClouds + '% -> Ziel ' + sollW + ' W (Laderate ' + rateKw + ' kW, Sperranteil '
+    + ' (' + abend.quelle + '), Wolken=' + guardClouds + '% -> Ziel ' + sollW + ' W (Laderate ' + rateKw + ' kW, Sperranteil '
     + Math.round(duty * 100) + '%' + (guardNet ? ', Sicherheitsnetz' : '') + ')');
 
   // Direkte Begrenzung, wenn der Adapter sie kann: Ziel-Leistung quantisiert
@@ -2088,8 +2145,23 @@ var netzladeBlock = false;
 // Vorausberechnung. Bei null gilt das bisherige Verhalten unveraendert.
 // Das aktuelle Soll steht in IBM_LADEREGELUNG_SOLL (Anzeige und
 // Status-Push), '-' wenn gerade nicht begrenzt wird.
+//
+// Nach der Abend-Deadline plant die Regelung nichts mehr (null). Das
+// klassische Sperrfenster darf dann aber nicht wieder einspringen: sein
+// Server-Ende wird stuendlich aus dem gemeldeten Ladestand neu gerechnet und
+// kann hinter der Deadline liegen (Rueckfall auf den Wochen-Crossover,
+// 29.09.2026: Anlage bei 75% von 13:30 bis 13:55 hart gesperrt, Minuten
+// nachdem die Regelung "im Rueckstand" gerechnet hatte). War die Regelung
+// heute zustaendig, bleibt das Laden nach ihrer Deadline frei.
 var REGULATION_ACTIVE = onOff('IBM_LADEREGELUNG', FALLBACK_REGULATION_ACTIVE);
 var regulationPlan = (CHARGE_LOCK_ACTIVE && REGULATION_ACTIVE) ? chargeRegulationPlan() : null;
+if (regulationPlan === null && regulationOverdue && chargeLockReady) {
+  if (inWindow(chargeLockStart, chargeLockEnd)) {
+    console.log('[IBM][Laderegelung] Abend-Deadline ' + fmtMinutes(eveningDeadline().min) + ' (' + eveningDeadline().quelle
+      + ') vorbei - Sperrfenster bis ' + fmtMinutes(chargeLockEnd) + ' gilt nicht mehr, Laden bleibt frei');
+  }
+  chargeLockReady = false;
+}
 if (regulationPlan !== null && regulationPlan.aktiv) {
   publishItem('IBM_LADEREGELUNG_SOLL', regulationPlan.sollW + ' W');
 } else {
@@ -2101,8 +2173,8 @@ if (regulationPlan !== null && regulationPlan.aktiv) {
 // berechnet (auch bei abgeschalteter Regelung informativ), '-' ausserhalb
 // des Tages oder ohne Stundendaten.
 var restladezeitText = '-';
-if (EVENING_CROSSOVER_MIN !== null) {
-  var restDeadline = EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN;
+if (eveningDeadline() !== null) {
+  var restDeadline = eveningDeadline().min;
   if (nowMinutes < restDeadline) {
     var restEff = effectiveChargeHours(restDeadline);
     if (restEff !== null) {
@@ -2196,7 +2268,7 @@ function sampleChargeRate() {
     if (plausibel && slotFree && prevFree
         && nowMinutes >= CHARGE_RATE_SAMPLE_FROM_MIN && nowMinutes < CHARGE_RATE_SAMPLE_TO_MIN
         && !isNaN(soc) && soc >= CHARGE_RATE_SAMPLE_MIN_SOC && soc <= CHARGE_RATE_SAMPLE_MAX_SOC) {
-      var restClouds = (EVENING_CROSSOVER_MIN !== null) ? remainingCloudMean(EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN) : null;
+      var restClouds = (eveningDeadline() !== null) ? remainingCloudMean(eveningDeadline().min) : null;
       var clouds = (restClouds !== null) ? restClouds : cloudForecast();
       if (clouds !== null && clouds < CLOUD_THRESHOLD) updateChargeRateSample(st, chargingW);
     }
@@ -2206,8 +2278,8 @@ function sampleChargeRate() {
 
   // Rueckfall: Ladestandsanstieg (kein Batterieleistungs-Item)
   var messen = (LOCAL_LOCK_ACTIVE || REGULATION_ACTIVE)
-    && chargeLockDateOk && CHARGE_LOCK_START_MIN !== null && EVENING_CROSSOVER_MIN !== null
-    && nowMinutes >= CHARGE_LOCK_START_MIN && nowMinutes < EVENING_CROSSOVER_MIN - LOCAL_FULL_BUFFER_MIN
+    && chargeLockDateOk && CHARGE_LOCK_START_MIN !== null && eveningDeadline() !== null
+    && nowMinutes >= CHARGE_LOCK_START_MIN && nowMinutes < eveningDeadline().min
     && slotFree && !isNaN(soc) && soc <= CHARGE_RATE_MAX_SOC;
   if (messen) {
     var capacityKwh = estimatedCapacityKwh();
@@ -2430,7 +2502,7 @@ function handleForcedDischarge() {
 // ----------------------------------------------------------------------------
 // Zeitfenster-Weiche: entscheidet, welcher Teil ausgefuehrt wird
 // ----------------------------------------------------------------------------
-if (CHARGE_LOCK_ACTIVE && !chargeLockReady && regulationPlan === null) {
+if (CHARGE_LOCK_ACTIVE && !chargeLockReady && regulationPlan === null && !regulationOverdue) {
   console.log('[IBM] Kein gueltiges Ladesperre-Fenster fuer heute - Laden bleibt erlaubt');
 }
 

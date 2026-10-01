@@ -13,7 +13,8 @@ SELECT status_id, to_char(time AT TIME ZONE 'Europe/Vienna','YYYY-MM-DD HH24:MI'
        data->>'ladeleistung_kw', data->>'batterie_kapazitaet', data->>'wolkenvorschau',
        data->>'ladesperre_start', data->>'ladesperre_ende', data->>'ladesperre_datum',
        data->>'laderegelung_soll_w', data->>'restladezeit_h',
-       data->>'crossover_start', data->>'crossover_ende', data->>'entladestart', data->>'hauptschalter'
+       data->>'crossover_start', data->>'crossover_ende', data->>'entladestart', data->>'hauptschalter',
+       data->>'ladesperre_individuell'
   FROM members_openhabstatushistory
  WHERE time > now() - interval '${DAYS} days'
  ORDER BY status_id, time" > history.csv

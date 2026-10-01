@@ -6,7 +6,8 @@ simuliert dabei den Ladestand: Was haette die Steuerung an jedem Tag
 gemacht, und waere die Batterie zur Abend-Deadline voll geworden? Damit
 wurden am 2026-09-06 die Spitzen-Ladeleistung, das Sonnenprofil, die
 Sperre bis zum Vormittags-Crossover und die Kalibrierung (Sicherheitsfaktor
-1,5, Deadline zwei Stunden vor dem Abend-Crossover) geprueft.
+1,5, Deadline zwei Stunden vor dem Abend-Crossover) geprueft, am 2026-10-01
+die Abend-Deadline aus der Tagesprognose statt aus dem Wochen-Crossover.
 
 ## Daten holen
 
@@ -34,7 +35,9 @@ Je Anlage und Tag: Uhrzeit, zu der der simulierte Ladestand 95% erreicht
 Vormittags-Crossover in die Batterie und ins Netz, dasselbe fuer den ganzen
 Tag, gesperrte Slots und mittlerer Sperranteil. `--csv datei` schreibt jeden
 Tageszyklus. `--no-crossover` schaltet die neuen Server-Signale
-(Entladeende, Vormittags-Crossover) ab, `--old-rate` setzt die gelernte
+(Entladeende, Vormittags-Crossover) ab, `--no-faktoren` die Ladefaktoren
+(der Kern faellt dann auf den Wochen-Crossover als Abend-Deadline und auf
+die Wolkenstunden zurueck, wie bei einem API-Ausfall), `--old-rate` setzt die gelernte
 Ladeleistung aus der Historie vor (fuer den alten Kern; der neue verwirft
 sie beim ersten Lauf). `--ertrag 30` gibt der Nachtreserve eine
 Ertragsprognose von 30% eines guten Tages vor (die Historie enthaelt
@@ -55,8 +58,13 @@ keine); ohne die Option rechnet sie mit dem Wolkenfaktor.
   verstellt.
 - Ladefaktoren, Entladestart/-ende und Vormittags-Crossover werden aus den
   Prognose-Slots gerechnet wie auf dem Server (`forecast.ts`), die
-  Wolkenstunden aus den Wetterdaten; die Wochen-Crossover und die
+  Wolkenstunden aus den Wetterdaten; die Wochen-Crossover, das Server-Ende
+  des Sperrfensters (samt `ladesperre_individuell`) und die
   Mittags-Wolkenvorschau kommen aus der Historie.
+- Die Abend-Deadline in den Ladefaktoren ist wie am Server der
+  Abend-Crossover des Prognosetags minus zwei Stunden. Die Deadline in der
+  Auswertung (Spalte "95% um", `!` wenn spaeter) ist die Messlatte eine
+  Stunde vor diesem Crossover.
 - `time`, `items` und die Adapterfunktionen sind Attrappen
   (`ibmPreventCharge` und `ibmForceDischarge` werden nur protokolliert).
   Europe/Vienna wird als UTC behandelt, das Replay kennt keine

@@ -463,7 +463,9 @@ Minuten Abstand.
 An sonnigen Tagen wird die Ladeleistung der Batterie dynamisch geregelt.
 In jedem Fünf-Minuten-Zyklus berechnet der Kern die Ziel-Ladeleistung neu:
 fehlende Energie geteilt durch die \emph{effektive Restladezeit} bis zur
-Abend-Deadline $t_D$ (Abend-Crossover minus 120~Minuten),
+Abend-Deadline $t_D$ (Abend-Crossover des Prognosetags minus 120~Minuten,
+vom Server mit den Ladefaktoren geliefert; ohne frische Ladefaktoren der
+Wochen-Crossover minus 120~Minuten),
 \begin{equation}
   P_{\text{Soll}}(t) \;=\;
   \frac{(0{,}95 - \text{SoC}(t)) \cdot C}{T_{\text{eff}}(t)} \cdot 1{,}5,
@@ -546,6 +548,18 @@ Prognosefehler regeln sich so alle fünf Minuten aus, statt einmal am
 Vormittag verwettet zu werden. Die aktuelle effektive Restladezeit zeigt
 das Gateway auf seiner Bedienseite an und meldet sie per Status-Push an
 das Vorstands-Dashboard.
+
+Die Deadline stammt bewusst aus der Tagesprognose und nicht aus dem
+Wochen-Crossover: Der ist ein Klimamittel über alle Tage der Woche, auch die
+trüben, an denen die Gemeinschaft früh oder nie ins Plus kommt, und liegt im
+Herbst weit vor dem Crossover eines sonnigen Tages (KW~40/2026: 15:27 gegen
+17:00). Mit der zu frühen Deadline rechnete die Regelung große Batterien als
+nicht mehr zu schaffen, gab das Laden ab dem ersten Sonnenschein frei, und
+die Sperre bis zum Vormittags-Crossover
+(Abschnitt~\ref{sec:crossoverlock}) griff nicht mehr. Nach der Deadline
+bleibt das Laden frei; das Sperrfenster des Rückfalls
+(Abschnitt~\ref{sec:sperrfenster}) springt dann nicht wieder ein, auch wenn
+sein stündlich neu gerechnetes Server-Ende später liegt.
 
 Geregelt wird nur zwischen dem Fensterbeginn des Servers (erster
 Sonnenschein der Tagesprognose, gültig nur für das mitgelieferte Datum) und
@@ -777,7 +791,12 @@ ergibt sich eine Stichprobe
   C_{\text{Stichprobe}} \;=\;
   \frac{E_{\text{entnommen}}\,[\text{kWh}]}{\Delta\text{SoC}\,[\%]}\cdot 100,
 \end{equation}
-die mit Gewicht 0,3 gleitend in die Schätzung einfließt. Stichproben unter
+die mit Gewicht 0,3 gleitend in die Schätzung einfließt. Gemessen wird nur
+über lückenlos aufeinanderfolgende Entladeläufe: Schon ein einzelner Zyklus
+ohne Entladebefehl (Nachtziel erreicht, Hausvorrang) setzt die Messstrecke
+neu auf, denn in der Pause versorgt die Batterie nur das Haus; als
+Entladung mitgezählt, fiele die Stichprobe um 35 bis 60\,\% zu hoch aus.
+Stichproben unter
 1 oder über 100\,kWh werden verworfen; verwendet wird die Schätzung ab drei
 akzeptierten Stichproben. Eine typische Nacht liefert mehrere Stichproben,
 die Schätzung ist also meist nach der ersten Nacht belastbar. Zieht der

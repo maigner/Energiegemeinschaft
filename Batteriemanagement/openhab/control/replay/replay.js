@@ -1,6 +1,6 @@
 // Replay-Harness fuer control/core.js gegen die 30-Tage-Status-Historie.
 // Aufruf: node replay.js <core.js> [--plant N] [--from YYYY-MM-DD] [--to YYYY-MM-DD]
-//         [--verbose YYYY-MM-DD] [--no-crossover] [--old-rate] [--csv out.csv]
+//         [--verbose YYYY-MM-DD] [--no-crossover] [--no-faktoren] [--old-rate] [--csv out.csv]
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -14,6 +14,7 @@ const fromDay = opt('--from', '2026-08-24');
 const toDay = opt('--to', '2026-09-06');
 const verboseDay = opt('--verbose', null);
 const noCrossover = flag('--no-crossover');
+const noFaktoren = flag('--no-faktoren'); // ohne Ladefaktoren: Rueckfall auf Wochen-Crossover und Wolkenstunden
 const ertragPct = opt('--ertrag', null); // Ertragsprognose in Prozent eines guten Tages (Nachtreserve), sonst NULL = Wolkenfaktor
 const oldRate = flag('--old-rate');
 const csvOut = opt('--csv', null);
@@ -76,7 +77,8 @@ for (const line of fs.readFileSync(path.join(dir, 'history.csv'), 'utf8').trim()
   const pid = c[0];
   (hist[pid] = hist[pid] || []).push({
     t: c[1], soc: +c[2], pv: c[3] === '' ? null : +c[3], bat: c[4] === '' ? null : +c[4], grid: c[5] === '' ? null : +c[5],
-    rate: c[7], cap: c[8], wolken: c[9], ls: c[10], le: c[11], ld: c[12], cs: c[15], ce: c[16], es: c[17], hs: c[18]
+    rate: c[7], cap: c[8], wolken: c[9], ls: c[10], le: c[11], ld: c[12], cs: c[15], ce: c[16], es: c[17], hs: c[18],
+    ind: c[19] === 'ON' ? 'ON' : 'OFF'
   });
 }
 // Prognose je Tag: Slots (t, g, c) + Laufmaximum
@@ -97,7 +99,11 @@ function daySignals(day, fleetKw) {
   let crossEnd = null, crossAm = null;
   for (const s of f.slots) { if (s.g >= s.cons) { crossEnd = toMin(s.t) + 15; if (crossAm === null && toMin(s.t) >= 180) crossAm = toMin(s.t); } }
   if (crossEnd === null) return null;
+  // deadline: Messlatte der Auswertung (eine Stunde vor dem Abend-Crossover des
+  // Prognosetags); faktorDeadline: was der Server mit den Ladefaktoren liefert
+  // (IBM_FULL_BUFFER_MIN = 120 in forecast.ts) und der Kern als Abend-Deadline nimmt
   const deadline = crossEnd - 60;
+  const faktorDeadline = crossEnd - 120;
   // Entladestart (wie getTodayDischargeStart) und Entladeende (Spiegel)
   let pmCross = null; for (const s of f.slots) if (toMin(s.t) >= 720 && s.g >= s.cons) pmCross = toMin(s.t) + 15;
   let start = null, ende = null, seen = false;
@@ -106,7 +112,7 @@ function daySignals(day, fleetKw) {
     if (pmCross !== null && m >= pmCross && start === null && deficit >= need) start = m;
     if (m >= 300 && m < 720) { if (deficit >= need) seen = true; else if (seen && ende === null) ende = m; }
   }
-  return { f, crossAm, deadline, start, ende };
+  return { f, crossAm, deadline, faktorDeadline, start, ende };
 }
 
 function ladefaktoren(sig, nowMin, day) {
@@ -114,12 +120,12 @@ function ladefaktoren(sig, nowMin, day) {
   for (const s of sig.f.slots) {
     const m = toMin(s.t); const h = Math.floor(m / 60);
     if ((h + 1) * 60 <= Math.floor(nowMin / 60) * 60) continue;
-    if (h * 60 >= sig.deadline) continue;
+    if (h * 60 >= sig.faktorDeadline) continue;
     (per[h] = per[h] || { sum: 0, n: 0 }); per[h].sum += Math.min(1, Math.max(0, s.g / sig.f.mg)); per[h].n++;
   }
   const stunden = Object.keys(per).map(Number).sort((a, b) => a - b).map(h => ({ zeit: fmtMin(h * 60), faktor: Math.round(per[h].sum / per[h].n * 1000) / 1000 }));
   if (!stunden.length) return '-';
-  return JSON.stringify({ datum: day, zeit: new ZDT(NOW_MS).toString(), deadline: fmtMin(sig.deadline), stunden });
+  return JSON.stringify({ datum: day, zeit: new ZDT(NOW_MS).toString(), deadline: fmtMin(sig.faktorDeadline), stunden });
 }
 function wolkenStunden(day, nowMin) {
   const st = [];
@@ -178,10 +184,11 @@ for (const pid of Object.keys(hist).sort((a, b) => a - b)) {
     setItem('Ischlstrom_Wolkenvorschau', r.wolken); setItem('Ischlstrom_Wolkenvorschau_Zeit', new ZDT(NOW_MS).toString());
     setItem('Ischlstrom_Crossover_Start', r.cs || '-'); setItem('Ischlstrom_Crossover_Ende', r.ce || '-');
     setItem('Ischlstrom_Ladesperre_Start', r.ls || '-'); setItem('Ischlstrom_Ladesperre_Ende', r.le || '-'); setItem('Ischlstrom_Ladesperre_Datum', r.ld || '-');
+    setItem('Ischlstrom_Ladesperre_Individuell', r.ind);
     setItem('Ischlstrom_Entladestart', sig && sig.start !== null ? fmtMin(sig.start) : '-');
     setItem('Ischlstrom_Entladeende', !noCrossover && sig && sig.ende !== null ? fmtMin(sig.ende) : '-');
     setItem('Ischlstrom_Crossover_Vormittag', !noCrossover && sig && sig.crossAm !== null ? fmtMin(sig.crossAm) : '-');
-    setItem('Ischlstrom_Ladefaktoren', sig ? ladefaktoren(sig, nowMin, day) : '-');
+    setItem('Ischlstrom_Ladefaktoren', sig && !noFaktoren ? ladefaktoren(sig, nowMin, day) : '-');
     setItem('Ischlstrom_Wolken_Stunden', wolkenStunden(day, nowMin));
 
     calls.length = 0; logs.length = 0;

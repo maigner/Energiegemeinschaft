@@ -670,7 +670,17 @@ Ladestand) geteilt durch die **effektive Restladezeit** bis zwei Stunden
 vor dem abendlichen Crossover, mal Sicherheitsfaktor 1,5 (beides im Replay
 der Betriebsdaten kalibriert: am spaeten Nachmittag bleibt von der
 Spitzen-Ladeleistung nach Hauslast wenig uebrig, mit einer Stunde Puffer
-wurden die Batterien 1 bis 3 Stunden zu spaet voll). Die Restzeit ist sonnengewichtet: jede
+wurden die Batterien 1 bis 3 Stunden zu spaet voll). Diese **Abend-Deadline**
+kommt tagesaktuell von der Token-API (Abend-Crossover des Prognosetags minus
+zwei Stunden, mitgeliefert in `Ischlstrom_Ladefaktoren`); der Wochen-Crossover
+ist nur der Rueckfall ohne frische Ladefaktoren. Als Klimamittel ueber alle
+Tage der Woche liegt er im Herbst weit vor dem Crossover eines sonnigen Tages
+(KW 40/2026: 15:27 gegen 17:00) - damit rechnete die Regelung grosse
+Batterien als "nicht mehr zu schaffen", gab das Laden ab dem ersten
+Sonnenschein frei und die Sperre bis zum Vormittags-Crossover griff nicht
+mehr. Nach der Deadline bleibt das Laden frei; das klassische Sperrfenster
+springt dann nicht wieder ein, auch wenn sein Server-Ende spaeter liegt.
+Die Restzeit ist sonnengewichtet: jede
 verbleibende Stunde zaehlt nur mit ihrem erwarteten Ertrag, bevorzugt aus
 den stuendlichen Ladefaktoren des Erzeugungsprofils (Token-API, exakt
 inklusive Sonnenstand), sonst aus den stuendlichen Bewoelkungswerten der
@@ -750,7 +760,11 @@ die Stichproben fliessen gleitend in die Schaetzung ein
 (`IBM_BATTERIE_KAPAZITAET`, interner Zustand in `IBM_KAPAZITAET_MESSUNG`).
 Unplausible Stichproben (unter 1 oder ueber 100 kWh) werden verworfen, und
 nach Luecken, nicht angewendeten Schedules oder steigendem Ladestand setzt die
-Messung neu auf. Eine typische Nacht liefert mehrere Stichproben: die
+Messung neu auf. Gemessen wird nur ueber lueckenlos aufeinanderfolgende
+Entladelaeufe: schon ein einzelner Zyklus ohne Entladebefehl (Nachtziel
+erreicht, Hausvorrang) setzt die Messung neu auf, denn in der Pause versorgt
+die Batterie nur das Haus - als Entladung mitgezaehlt, fiele die Stichprobe
+um 35 bis 60% zu hoch aus. Eine typische Nacht liefert mehrere Stichproben: die
 Schaetzung ist also meist schon nach der ersten Nacht belastbar.
 
 Ab drei akzeptierten Stichproben leitet die Steuerung die Entladeleistung als
