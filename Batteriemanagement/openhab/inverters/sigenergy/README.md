@@ -297,8 +297,10 @@ Alle Werte per FC04 an Slave 247, literal adressiert, U32 Big Endian
 | Register | Adresse | Typ | Gain | Gelesen/verifiziert |
 | --- | --- | --- | --- | --- |
 | EMS work mode | 30003 | uint16 | - | 0 in Ruhe, **7** bei Remote EMS (toggle: 40029=1 -> 7, =0 -> 0) |
+| Grid sensor active power | 30005 | int32 | 1000 (kW -> W) | **-422 W** am 2026-10-02 22:42 bei 422 W Ueberschuss ins Netz (Batterie -1002 W, Anlage 854 W AC, Haus ~432 W) -> **< 0 = Einspeisung, > 0 = Bezug** = IBM-Konvention, Gain 1. 30004 = Sensorstatus (1) |
 | Max active power | 30010 | uint32 | 1000 (kW -> W) | 11000 W |
 | Plant ESS SoC | 30014 | uint16 | 10 (-> % * 10) | raw 1000 = 100,0 % (Gain 10 bestaetigt, App/openHAB zeigten 99,6-100 %) |
+| Plant PV power | 30035 | int32 (nie negativ) | 1000 (kW -> W) | 0 W (22:42, Nacht); Lage zwischen Anlagen-Blindleistung 30033 und ESS power 30037 wie im Protokoll - Tageswert nach dem Deploy am Dashboard pruefen |
 | ESS power | 30037 | int32 | 1000 (kW -> W) | 0 W in Ruhe; **-2000 W** bei 2000-W-Entladung (< 0 = entladen, wie im Protokoll) |
 | Rated ESS charging power | 30068 | uint32 | 1000 | 5800 W |
 | Rated ESS discharging power | 30070 | uint32 | 1000 | 6400 W (Plausibilitaetsfenster 100..1000000 OK) |
@@ -364,11 +366,13 @@ Protokolls beschreibt nur Request-Timing, kein Steuerungs-Fallback.
   forcierten Entladung mehr als die kommandierte Leistung, kaeme die
   Differenz aus dem Netz - der Adapter-Kontrakt verlangt aber eine
   Untergrenze (`core.js`, Adapter-Kontrakt und Abschnitt "Hausvorrang").
-  Der Hausvorrang des Kerns faengt das ab, braucht dafuer aber ein
-  Netzleistungs-Item (`GRID_POWER_ITEM`), das dieses Profil noch nicht
-  anlegt. Im Spike bei Punkt 8 pruefen: Verbraucher groesser als das Limit
-  zuschalten, Netzbezug beobachten; Netzleistungs-Register ins Profil
-  aufnehmen.
+  Der Hausvorrang des Kerns faengt das ab; das dafuer noetige
+  Netzleistungs-Item (`GRID_POWER_ITEM` -> `IBM_SG_GridPower`, Register
+  30005) legt das Profil seit 2026-10-02 an - zusammen mit `IBM_SG_PvPower`
+  (30035). Damit greifen Hausvorrang und Netzladeschutz auch bei Sigenergy,
+  und Dashboard/Status-Push zeigen Netz, PV-Leistung und "Einspeisung aus
+  Batterie" (vorher leer). Offen aus dem Spike (Punkt 8): Verbraucher
+  groesser als das Limit zuschalten und den Netzbezug beobachten.
 
 ## Simulator (Tests ohne Anlage)
 

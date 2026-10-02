@@ -29,9 +29,14 @@ import struct
 # Registername je Adresse (U32-Werte belegen Adresse und Adresse+1)
 POINTS = {
     30003: ("EMS work mode", 0),
+    30004: ("Grid sensor status", 1),
+    30005: ("Grid sensor active power (hi)", 0),
+    30006: ("Grid sensor active power (lo)", 0),
     30010: ("Max active power (hi)", 0),
     30011: ("Max active power (lo)", 25000),
     30014: ("Plant ESS SoC", 550),
+    30035: ("Plant PV power (hi)", 0),
+    30036: ("Plant PV power (lo)", 0),
     30037: ("ESS power (hi)", 0),
     30038: ("ESS power (lo)", 0),
     30068: ("Rated ESS charging power (hi)", 0),

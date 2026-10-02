@@ -50,6 +50,17 @@ INVERTER_SOC_PLACEHOLDER="IBM_SG_SoC"
 # auf die IBM-Konvention gedreht (+ entladen, - laden).
 INVERTER_BATTERY_POWER_PLACEHOLDER="IBM_SG_BatteryPower"
 
+# Netz- und PV-Leistung der Anlage (Grid sensor active power 30005, Plant PV
+# power 30035, beide im sgplant-Poller). Das Vorzeichen des Netzsensors
+# entspricht bereits der IBM-/Dashboard-Konvention (+ = Bezug, - =
+# Einspeisung; am Geraet 2026-10-02 22:42: -422 W bei 422 W Ueberschuss ins
+# Netz), PV ist nie negativ - beide Rohwerte sind Watt, kein gainOffset
+# noetig. Sie speisen das Dashboard ("Netz", "PV-Leistung"), den
+# Netzladeschutz, den Hausvorrang und die "Einspeisung aus Batterie" des
+# Kerns. Ohne sie blieben diese Werte leer (Anlage 223 bis 2026-10-02).
+INVERTER_GRID_POWER_PLACEHOLDER="IBM_SG_GridPower"
+INVERTER_PV_POWER_PLACEHOLDER="IBM_SG_PvPower"
+
 # Thing mit der Netzwerkadresse (die Modbus-TCP-Bridge) und deren
 # Adress-Parameter
 INVERTER_HOST_THING_PREFIX="modbus:tcp"
@@ -71,8 +82,11 @@ INVERTER_NOTES="In der mySigen-App muessen 'ModBus TCP Server Enable' und 'Remot
 # beschreibbaren Halteregister. IM SPIKE VERIFIZIEREN - siehe README.md.
 #
 #   30003  EMS work mode        U16   (7 = Remote EMS aktiv)
+#   30005  Grid sensor active power  S32  Gain 1000, kW -> Rohwert = W
+#                                     (> 0 Bezug, < 0 Einspeisung)
 #   30010  Max active power     U32   Gain 1000, kW -> Rohwert = W
 #   30014  Anlagen-SoC          U16   Gain 10 -> Rohwert = % * 10
+#   30035  Plant PV power       S32   Gain 1000, kW -> Rohwert = W (>= 0)
 #   30037  ESS power            S32   Gain 1000, kW -> Rohwert = W
 #                                     (> 0 laden, < 0 entladen)
 #   30068  Rated ESS charging power     U32  Rohwert = W
@@ -143,8 +157,10 @@ for poller_id, start, length, refresh in pollers:
 # id, Poller, Adresse, Wertetyp, beschreibbar?
 registers = [
     ("emsmode",  "sgplant", 30003, "uint16", False),  # 7 = Remote EMS
+    ("gridpower","sgplant", 30005, "int32",  False),  # Netzleistung W (+ Bezug, - Einspeisung)
     ("maxactw",  "sgplant", 30010, "uint32", False),  # Anlagenmaximum in W
     ("soc",      "sgplant", 30014, "uint16", False),  # Ladestand (% * 10)
+    ("pvpower",  "sgplant", 30035, "int32",  False),  # PV-Leistung W (>= 0)
     ("esspower", "sgplant", 30037, "int32",  False),  # Batterieleistung in W
     ("ratedchg", "sgrated", 30068, "uint32", False),  # Nennladeleistung W
     ("rateddis", "sgrated", 30070, "uint32", False),  # Nennentladeleistung W
@@ -180,12 +196,15 @@ PY
 }
 
 # Items der automatischen Einrichtung. SoC und Batterieleistung werden ueber
-# das gainOffset-Profil des Modbus-Bindings skaliert; die Registeritems
+# das gainOffset-Profil des Modbus-Bindings skaliert; Netz- und PV-Leistung
+# kommen bereits in Watt und mit passendem Vorzeichen; die Registeritems
 # bleiben roh - der Adapter rechnet selbst (und schreibt Rohwerte zurueck).
 inverter_battery_items() {
   cat <<EOF
 Number ${SOC_ITEM} "Ladestand Batterie [%.0f %%]" <batterylevel> (IBM) { channel="modbus:data:ibm:sg:soc:number" [profile="modbus:gainOffset", gain="${MODBUS_SOC_GAIN}", pre-gain-offset="0"] }
 Number ${BATTERY_POWER_ITEM:-IBM_SG_BatteryPower} "Einspeiseleistung Batterie [%.0f W]" <energy> (IBM) { channel="modbus:data:ibm:sg:esspower:number" [profile="modbus:gainOffset", gain="${MODBUS_ESS_POWER_GAIN}", pre-gain-offset="0"] }
+Number ${GRID_POWER_ITEM:-IBM_SG_GridPower} "Netzleistung [%.0f W]" <energy> (IBM) { channel="modbus:data:ibm:sg:gridpower:number" }
+Number ${PV_POWER_ITEM:-IBM_SG_PvPower} "PV-Leistung [%.0f W]" <solarplant> (IBM) { channel="modbus:data:ibm:sg:pvpower:number" }
 
 // Modbus-Register (roh) - vom Adapter gelesen bzw. beschrieben
 Number IBM_SG_EmsMode         "EMS-Modus [%.0f]"             <settings> (IBM) { channel="modbus:data:ibm:sg:emsmode:number" }
