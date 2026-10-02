@@ -63,6 +63,16 @@ Regeln fuer Adapter:
 * Nur `@IBM_...@`-Platzhalter verwenden (ersetzt von
   `setup/04-install-rules.sh`), keine Thing-UID-Literale.
 * Niemals werfen: Fehler fangen, loggen und `{ ok: false }` zurueckgeben.
+* `ok: true` NUR, wenn das Kommando die Anlage erreichen konnte. openHABs
+  `sendCommand` wirft bei deaktivierter oder abgerissener Bridge keine
+  Exception - der Befehl verpufft nur. Der Kern beruehrt den Fail-Safe-
+  Heartbeat ausschliesslich bei `ok: true`; ein falsches `ok` schaltet den
+  root-Timer `ibm-failsafe` stumm, waehrend auf der Anlage ein Kommando
+  stehen kann. Modbus-Profile pruefen deshalb vor jedem Write per
+  Thing-Status, dass das Wechselrichter-Thing `@IBM_THING_UID@` ONLINE
+  ist (Platzhalter, keine UID-Literale), sonst `{ ok: false }` - fail-closed
+  (Befund Testplan Zeile 13, Anlage 223, 2026-10-02; `failsafe-modbus.md`
+  Abschnitt 8b).
 * Alle Logausgaben mit `[IBM]` praefixieren.
 * Nur auf die openhab-js-Globals verlassen (`items`, `things`, `actions`,
   `time`, `Quantity`, `console`), nicht auf Helfer des Kerns.

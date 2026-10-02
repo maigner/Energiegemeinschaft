@@ -7,6 +7,19 @@ der Testanlage **Mitglied 020 (pi-020, Fronius Symo Hybrid 5.0-3-S mit
 Datamanager 2.0, Anlage Pfandl)**, die geraeteseitigen Hebel aus
 Abschnitt 5 und die Reset-Skripte der anderen Modbus-Profile.
 
+**Nachtrag 2026-10-02.** Erster Geraetetest der Kette an **Anlage 223
+(pi-223, Sigenergy SigenStor EC 10.0)**, Ergebnisse in Abschnitt 8b:
+Reset-Skript `sigenergy/tools/failsafe_reset.py` neu, Timer per
+Paket-Update installiert; Spike-Punkt 9 (kein Auto-Revert) bestaetigt,
+Zeile 11 (openHAB-Stop) und 12 (Boot) bestanden. Zeile 13 (Bridge
+deaktiviert, openHAB laeuft) deckte eine Luecke auf: alle vier
+Modbus-Adapter meldeten `ok: true`, sobald `sendCommand` nicht warf - auch
+bei toter Bridge -, der Kern beruehrte den Heartbeat, der Timer schlief.
+Seit 2026-10-02 pruefen die Adapter vor jedem Write die Zustellbarkeit
+(Wechselrichter-Thing `@IBM_THING_UID@` ONLINE); der Nachweis am Geraet
+steht aus. Anlage 020
+(Fronius) weiter offen.
+
 Ausgangsfrage: Der Adapter-Kontrakt verlangt, dass jede Aktion nach
 `minutes` Minuten **von selbst** ablaeuft (siehe `README.md`, "Fail-Safe-
 Pflicht"). Genau ein Profil erfuellt das. Alle anderen haengen daran, dass
@@ -21,7 +34,7 @@ moeglich waere und was am Testtag gemessen werden muss.
 | --- | --- | --- | --- |
 | `fronius` (GEN24) | Config-API, Schedules | **ja** - der Schedule laeuft nach `minutes` ab | entfaellt |
 | `fronius-snapinverter` | SunSpec Model 124, Modbus | **nein** - `InOutWRte_RvrtTms` "Not supported", am Geraet belegt (Spike 2026-09-10: Write angenommen, Read-back bleibt 65535) | `MinRsvPct` liest **0**; Web-UI-"Min SoC" ungeprueft (Abschnitt 5) |
-| `sigenergy` | Remote EMS, Modbus | **nein** (Protokoll V1.7; "Interaction timeout" ist nur Request-Timing) - Spike-Punkt 9 offen | Entladeuntergrenze der Anlage, Wert unbekannt |
+| `sigenergy` | Remote EMS, Modbus | **nein** - am Geraet bestaetigt (Spike-Punkt 9, Anlage 223, 2026-10-02: Entladung stand ~85 s, kein Revert; "Interaction timeout" ist nur Request-Timing) | Entladeuntergrenze der Anlage, Wert unbekannt |
 | `deye` | TOU-Register | **nein** | `DEYE_SOC_FLOOR` 10 % je Slot plus BMS-Untergrenze |
 | `victron` | ESS-Settings-Register | **nein** - ESS Mode 3 haette einen 60-s-Watchdog, wurde aber bewusst verworfen (schaltet den Multi bei Kommunikationsverlust dauerhaft in Passthru) | **ESS Minimum SoC = harter Boden** (Spike offen) |
 
@@ -256,6 +269,55 @@ Energiesparmodus bis zu 10 Minuten brauchen.
 Ausgangswerte von Min SoC und `ChaGriSet` **vor** der Aenderung notieren -
 beides sind persistente Geraeteeinstellungen, keine Kommandos.
 
+## 8b. Ergebnisse Anlage 223 (sigenergy, 2026-10-02)
+
+Erster Geraetetest der Fail-Safe-Kette ueberhaupt, von zuhause ueber den
+Pi gefahren (`sigenergy/tools/spike_sigenstor.py` fuer die stehende
+Entladung; den Reset liefert jeweils die getestete Schicht). Hauptschalter
+ON, damit der Timer scharf statt im Standby ist; `FAILSAFE_STALE_MIN=12`,
+`FAILSAFE_REPEAT_MIN=10`, Timer jede Minute.
+
+| # | Test | Ergebnis |
+| --- | --- | --- |
+| 9 (Spike) | `failsafe --watts 2000`, nichts rueckt zurueck | **kein Auto-Revert**: ~85 s Modus 7 / -2000 W, bis `reset` raeumte |
+| 11 | stehende Entladung, `systemctl stop openhab` | **bestanden**: Reset 20:12:31, ~47 s nach dem Stop; Log "Reset geschrieben (openhab.service nicht aktiv) ... vorher EMS-Modus 7 -> enable 0 -> EMS-Modus 0 (bestaetigt)"; nach `start` "Heartbeat zurueck" |
+| 12 | stehende Entladung, `sudo reboot` | **bestanden**: `ibm-failsafe-boot` 20:28:59 vor openHAB, "Reset geschrieben (Boot) ... vorher EMS-Modus 7" |
+| 13 | Bridge per REST deaktiviert (`PUT /rest/things/modbus:tcp:ibm/enable` = false), openHAB laeuft, stehende Entladung | **Luecke**: Heartbeat lief weiter (20:40 -> 20:45 bei toter Bridge), Timer schlief, Entladung musste von Hand geraeumt werden |
+
+**Ursache Zeile 13:** `ibmReset()` aller vier Modbus-Adapter gab `ok: true`
+zurueck, sobald `item.sendCommand()` keine Exception warf. Bei
+deaktivierter oder abgerissener Bridge wirft es nicht - der Befehl
+verpufft. `core.js` beruehrt den Heartbeat bei `ok: true` (Z. ~2034); die
+Design-Absicht "oder der Reset ueber das Binding scheitert -> kein
+Heartbeat" war damit nicht erfuellt. Dieselbe falsche Bestaetigung setzt
+im Hauptschalter-OFF-Pfad den Standby-Marker und stellt den Timer ruhig,
+waehrend auf der Anlage ein Kommando stehen kann. Praxisfall: WLAN/DHCP
+reisst waehrend eines Fensters ab - weder Kern (kommt nicht ran) noch
+Timer (Heartbeat frisch) raeumen, bis die Bridge wiederkommt.
+
+**Fix (2026-10-02, alle vier Modbus-Adapter):** Vor jedem Write prueft der
+Adapter die Zustellbarkeit - das Wechselrichter-Thing `@IBM_THING_UID@`
+(= `INVERTER_THING_UID`, im Auto-Setup das SoC-Data-Thing, z. B.
+`modbus:data:ibm:sg:soc`) muss ONLINE sein; es ist dasselbe Thing, auf
+dessen ONLINE 02b wartet und das der Watchdog ueberwacht, und als
+Data-Thing nur ONLINE, wenn Bridge, Poller und Data-Thing arbeiten. Fehlt
+es, ist nichts zustellbar. Keine UID-Literale im Adapter (Kontrakt).
+Jedes `false`
+heisst `ok: false` -> kein Heartbeat -> der Timer uebernimmt mit eigener
+Verbindung (in Zeile 11/12 bewiesen). Die Pruefung sitzt am Anfang von
+`ibmReset()` und am Anfang der Plausibilitaets-Guards (`__ibmXxGuard`),
+sodass auch Kommandos bei totem Pfad ehrlich scheitern. Bewusst
+fail-closed: ein unerwarteter API-Fehler liefert ebenfalls `false` - die
+Folge ist ein Werks-Reset durch den Timer, nie ein stehendes Kommando.
+Offen: Zeile 13 mit dem Fix am Geraet wiederholen (Erwartung: Log "Reset
+nicht bestaetigt - kein Heartbeat, der Fail-Safe-Timer uebernimmt", Timer
+nach 12 min "Heartbeat 12 min alt").
+
+Nebenbefunde: die Anlage erlaubt gleichzeitige Modbus-Verbindungen (Timer
+und openHAB stoeren sich nicht); beim Fernfahren muss ein Reset
+serverseitig garantiert sein - ein zu kurzer Treiber-Timeout liess die
+Entladung einmal ~85 s laenger stehen als geplant.
+
 ## 9. Offene Punkte
 
 * [x] L1 (Deadman) mit `inverter_failsafe_reset` und Heartbeat in `core.js` (2026-09-17)
@@ -264,8 +326,12 @@ beides sind persistente Geraeteeinstellungen, keine Kommandos.
 * [x] Offline-Alarm im Website-Cron mit Entwarnung (2026-09-17) - Migration 0035 vor dem Deploy
 * [ ] Paket bauen (`build-dist.sh`), an Anlage 020 einspielen, Testplan Abschnitt 8 abarbeiten, Ergebnisse hier eintragen
 * [ ] Danach entscheiden: reicht der geraeteseitige SoC-Boden als Absicherung des toten Pi? Und L3 (`INSTALL_HW_WATCHDOG=1`) einschalten?
-* [ ] Reset-Skripte ohne openHAB fuer `sigenergy`, `deye`, `victron` (Kontrakt `inverter_failsafe_reset`)
+* [x] Reset-Skript ohne openHAB fuer `sigenergy` (`tools/failsafe_reset.py`, 2026-10-02, am Geraet bewiesen)
+* [ ] Reset-Skripte ohne openHAB fuer `deye`, `victron` (Kontrakt `inverter_failsafe_reset`; Vorlagen `fronius-snapinverter/` und `sigenergy/tools/failsafe_reset.py`)
+* [x] ok-Semantik der Modbus-Adapter: Zustellbarkeit (Wechselrichter-Thing `@IBM_THING_UID@` ONLINE) vor jedem Write, sonst `ok: false` -> kein Heartbeat (2026-10-02, Befund Zeile 13 an 223, Abschnitt 8b)
+* [ ] Zeile 13 mit dem Zustellbarkeits-Fix am Geraet wiederholen (223), danach dieselbe Zeile an 020
 * [ ] Dashboard: Feld `failsafe` aus dem Status-Push anzeigen (Badge "Fail-Safe hat eingegriffen")
 * [ ] Mitglieder-Kurzanleitung "Speichermanagement-Pi tot: was tun" nach `docs/setup/`, erst nach Test 6 und 7
 * [ ] Austausch-Checkliste Ersatz-Pi: Modbus wieder auf tcp, "Steuerung einschraenken" auf neue IP
-* [ ] Spike-Punkt 9 bei `sigenergy` und Minimum-SoC-Spike bei `victron` nachziehen - dieselbe Frage, anderes Geraet
+* [x] Spike-Punkt 9 bei `sigenergy`: kein Auto-Revert (Anlage 223, 2026-10-02)
+* [ ] Minimum-SoC-Spike bei `victron` nachziehen - dieselbe Frage, anderes Geraet

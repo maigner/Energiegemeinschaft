@@ -104,10 +104,48 @@ function __ibmMbNum(name) {
   return isNaN(value) ? null : value;
 }
 
-// Maximale Lade-/Entladeleistung in Watt - oder null, wenn an der
-// Basisadresse kein Storage-Model liegt oder WChaMax unplausibel ist.
-// Solange null, wird NIE geschrieben.
+// Zustellbarkeit: der Modbus-Pfad zur Anlage muss ONLINE sein. openHABs
+// sendCommand wirft bei deaktivierter oder abgerissener Bridge KEINE
+// Exception - der Befehl verpufft nur. Ohne diese Pruefung meldete
+// ibmReset() ok=true, der Kern beruehrte den Fail-Safe-Heartbeat, und der
+// Timer schlief weiter, obwohl die Anlage nie erreicht wurde (Testplan
+// Zeile 13 an Anlage 223, 2026-10-02, siehe ../failsafe-modbus.md 8b).
+// Geprueft wird das Wechselrichter-Thing @IBM_THING_UID@ (Platzhalter,
+// setup/04-install-rules.sh) - im Modbus-Baum ein Data-Thing, das nur
+// ONLINE ist, wenn Bridge, Poller und Data-Thing arbeiten; dasselbe
+// Thing, auf dessen ONLINE 02b wartet und das der Watchdog ueberwacht.
+// Fehlt es, ist nichts zustellbar. Bewusst fail-closed: jedes false
+// heisst ok=false -> kein Heartbeat -> der Timer uebernimmt.
+function __ibmMbThingStatus(uid) {
+  try {
+    var thing = things.getThing(uid);
+    if (thing === null || thing === undefined) return null;
+    if (thing.status !== undefined && thing.status !== null) return String(thing.status);
+    if (thing.rawThing) return String(thing.rawThing.getStatus());
+  } catch (e) {
+    // nicht vorhanden oder API-Fehler -> wie "fehlt" behandeln
+  }
+  return null;
+}
+
+function __ibmMbDeliverable() {
+  var status = __ibmMbThingStatus('@IBM_THING_UID@');
+  if (status === null) {
+    console.log('[IBM][Adapter] Wechselrichter-Thing @IBM_THING_UID@ fehlt - nichts zustellbar, der Fail-Safe-Timer uebernimmt.');
+    return false;
+  }
+  if (status !== 'ONLINE') {
+    console.log('[IBM][Adapter] Wechselrichter-Thing nicht ONLINE (' + status + ') - Kommando nicht zustellbar, der Fail-Safe-Timer uebernimmt.');
+    return false;
+  }
+  return true;
+}
+
+// Maximale Lade-/Entladeleistung in Watt - oder null, wenn der Modbus-Pfad
+// nicht ONLINE ist, an der Basisadresse kein Storage-Model liegt oder
+// WChaMax unplausibel ist. Solange null, wird NIE geschrieben.
 function __ibmMbGuard() {
+  if (!__ibmMbDeliverable()) return null;
   var modelId = __ibmMbNum('IBM_MB_ModelId');
   if (modelId !== 124) {
     console.log('[IBM][Adapter] Kein SunSpec Model 124 an der Basisadresse (gelesen: ' + modelId + ') - keine Steuerung. Registerkarte/Unit-ID pruefen.');
@@ -132,6 +170,9 @@ function __ibmMbArmRevert(minutes) {
 
 function ibmReset() {
   // Werksverhalten: keine aktive Steuerung, beide Limits auf 100 %.
+  // ok=true NUR, wenn der Befehl die Anlage erreichen konnte - der Kern
+  // beruehrt den Fail-Safe-Heartbeat nur bei ok=true (core.js).
+  if (!__ibmMbDeliverable()) return { ok: false };
   var ok = __ibmMbSend('IBM_MB_InWRte', 100 * M124_WRTE_RAW_PER_PCT);
   ok = __ibmMbSend('IBM_MB_OutWRte', 100 * M124_WRTE_RAW_PER_PCT) && ok;
   ok = __ibmMbSend('IBM_MB_StorCtl', 0) && ok;

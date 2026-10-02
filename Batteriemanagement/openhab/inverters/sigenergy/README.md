@@ -11,7 +11,7 @@ Registerkarte auf Anlagenebene (Slave-Adresse 247), kein SunSpec:
 | Ladesperre | Modus 5 (Entladung, PV zuerst) + `ESS max discharging limit (40034) = 0` |
 | Laderegelung | KEIN `ibmLimitCharge` - die Command-Charging-Modi koennten aus dem Netz laden und das Ladelimit-Register ist nicht verifiziert (Spike-Punkt); der Kern nutzt die PWM ueber die Ladesperre |
 | Forcierte Entladung | Modus 6 (Entladung, Batterie zuerst) + Entladelimit in Watt |
-| Fail-Safe | KEIN geraeteseitiges Auto-Revert bekannt - siehe Fail-Safe-Analyse |
+| Fail-Safe | KEIN geraeteseitiges Auto-Revert (Spike-Punkt 9 am 2026-10-02 bestaetigt); root-Timer `ibm-failsafe` und Boot-Reset ueber `inverter_failsafe_reset` -> `tools/failsafe_reset.py`, am Geraet getestet - siehe Fail-Safe-Analyse |
 
 Besonderheiten gegenueber den SunSpec-Profilen:
 
@@ -211,6 +211,54 @@ gibt Berichte in beide Richtungen, LAN-Kabel ist also keine Garantie.
    sobald 502 offen ist, `tools/spike_sigenstor.py <ip> reads` und dann
    den Ablauf oben (Hauptschalter bleibt bis nach dem Spike OFF).
 
+### Spike-Protokoll 2026-10-02 (Mitglied 223, EC 10.0, bestanden)
+
+Dritter Anlauf, erst vor Ort, dann von zuhause ueber den Pi (`ssh pi-223`
+per s1-Jump, Pi-Hop mit Passwort). Ergebnis: **Registerkarte verifiziert,
+Steuerung verifiziert, Fail-Safe-Kette am Geraet bewiesen**, eine Luecke
+gefunden und geschlossen.
+
+**Warum die Anlage wochenlang "unsichtbar" war:** nicht das Netz. Auf dem
+Pi existierte der Modbus-Thing-Baum gar nicht - Installer-Schritt 02b war
+im August nie durchgelaufen (die Items aus 03 schon). openHAB hat die
+Anlage also nie gepollt, und `ibm_rediscover.sh` meldete folgerichtig
+"Thing nicht gefunden: modbus:tcp:ibm" - es gab nichts zu aktualisieren.
+`sudo /opt/ischlstrom/openhab/setup/02b-install-things.sh` legte den Baum
+an, `modbus:data:ibm:sg:soc` ging sofort ONLINE. Nebenbefund Netz: das
+WLAN des Wechselrichters (`HH72VM_4DDE_2.4G`) und der Alcatel-LTE-Router
+nutzen beide 192.168.1.0/24 mit Gateway .1 - zwei Netze, gleiche Nummern;
+der Pi erreichte .107:502 ueber wlan0 die ganze Zeit, AP-Isolation war
+nie das Problem. Lehre: bei "Thing nicht gefunden" zuerst pruefen, ob die
+Things existieren, bevor man Konnektivitaet jagt.
+
+**Ablauf und Befunde** (Hauptschalter OFF, `tools/spike_sigenstor.py
+192.168.1.107 --yes <schritt>`, openHAB lief und pollte mit):
+
+| Schritt | Befund |
+| --- | --- |
+| `reads` | alle Register plausibel (Registertabelle oben); die Anlage erlaubt **gleichzeitige** Modbus-Verbindungen |
+| `toggle` | 40029=1 -> EMS-Modus 7, 40029=0 -> Modus 0; Schreibpfad OK. Voraussetzung: "Remote EMS Scheduling Enable" in der App EIN (vorher las 40029 dauerhaft 0) |
+| `prevent` | Modus 5 + Entladelimit 0: ESS 0 W ueber 30 s, dann Reset OK |
+| `discharge --watts 2000` | Modus 6: ESS -2000 W (Vorzeichen und Betrag korrekt), dann Reset OK |
+| `failsafe` (Punkt 9) | **kein Auto-Revert**: Entladung stand ~85 s unveraendert (Modus 7, -2000 W), bis `reset` sie raeumte -> `SIGEN_HAS_AUTO_REVERT = false` bestaetigt, der Timer ist Pflicht |
+
+**Fail-Safe am Geraet** (Details in `../failsafe-modbus.md`, Abschnitt 8b):
+Das Profil hatte noch kein `inverter_failsafe_reset` - Schritt 10 haette
+den Timer deshalb entfernt statt installiert. `tools/failsafe_reset.py`
+(schreibt 40029=0 mit Read-back, Guard gegen das falsche Geraet) plus die
+Profilfunktion schliessen das; nach dem Paket-Update installierte
+`install-ibm.sh` den Timer von selbst. Zeile 11 (openHAB-Stop): Reset nach
+~47 s. Zeile 12 (Reboot): Boot-Reset vor openHAB. Zeile 13 (Bridge
+deaktiviert, openHAB laeuft): **Luecke** - der Heartbeat lief weiter, weil
+`ibmReset()` bei toter Bridge trotzdem ok=true meldete (`sendCommand`
+wirft nicht). Seit 2026-10-02 prueft der Adapter vor jedem Write die
+Zustellbarkeit (`__ibmSgDeliverable`: das Wechselrichter-Thing
+`@IBM_THING_UID@`, hier `modbus:data:ibm:sg:soc`, muss ONLINE sein); der
+Nachweis dieses Fixes am Geraet steht noch aus.
+
+Firmwarestand in der App noch nicht abgelesen (TODO). Hauptschalter steht
+seit dem Test auf ON, die Anlage laeuft unter IBM.
+
 ### Handbuecher (`docs/`)
 
 Alle drei PDFs stammen von sigenergy.com (Stand 2026-09-08; die
@@ -239,24 +287,29 @@ Der Endkunde sieht in der User-App v05 nur die Betriebsart (Kap. 3.1.4.5,
 S. 28) und den Connectivity-Status (S. 35); die ModBus-Parameter und die
 Slave-Adresse sind im User-Manual nicht beschrieben, also Installateur-Sache.
 
-### Registertabelle (im Spike ausfuellen)
+### Registertabelle (verifiziert 2026-10-02, Mitglied 223, EC 10.0)
+
+Alle Werte per FC04 an Slave 247, literal adressiert, U32 Big Endian
+(beide Wortreihenfolgen geprueft, Swap unplausibel).
 
 | Register | Adresse | Typ | Gain | Gelesen/verifiziert |
 | --- | --- | --- | --- | --- |
-| EMS work mode | 30003 | uint16 | - | AUSSTEHEND |
-| Max active power | 30010 | uint32 | 1000 (kW -> W) | AUSSTEHEND |
-| Plant ESS SoC | 30014 | uint16 | 10 (-> % * 10) | AUSSTEHEND |
-| ESS power | 30037 | int32 | 1000 (kW -> W) | AUSSTEHEND |
-| Rated ESS charging power | 30068 | uint32 | 1000 | AUSSTEHEND |
-| Rated ESS discharging power | 30070 | uint32 | 1000 | AUSSTEHEND |
-| Remote EMS enable | 40029 | uint16 | - | AUSSTEHEND |
-| Remote EMS control mode | 40031 | uint16 | - | AUSSTEHEND |
-| ESS max charging limit | 40032 | uint32 | 1000 | AUSSTEHEND |
-| ESS max discharging limit | 40034 | uint32 | 1000 | AUSSTEHEND |
-| PV max power limit | 40036 | uint32 | 1000 | AUSSTEHEND |
+| EMS work mode | 30003 | uint16 | - | 0 in Ruhe, **7** bei Remote EMS (toggle: 40029=1 -> 7, =0 -> 0) |
+| Max active power | 30010 | uint32 | 1000 (kW -> W) | 11000 W |
+| Plant ESS SoC | 30014 | uint16 | 10 (-> % * 10) | raw 1000 = 100,0 % (Gain 10 bestaetigt, App/openHAB zeigten 99,6-100 %) |
+| ESS power | 30037 | int32 | 1000 (kW -> W) | 0 W in Ruhe; **-2000 W** bei 2000-W-Entladung (< 0 = entladen, wie im Protokoll) |
+| Rated ESS charging power | 30068 | uint32 | 1000 | 5800 W |
+| Rated ESS discharging power | 30070 | uint32 | 1000 | 6400 W (Plausibilitaetsfenster 100..1000000 OK) |
+| Remote EMS enable | 40029 | uint16 | - | 0; schreibbar per FC06, Wirkung sofort (Modus 7); liest dauerhaft 0, solange "Remote EMS Scheduling Enable" in der App AUS ist |
+| Remote EMS control mode | 40031 | uint16 | - | 0; Modus 5 (Ladesperre) und 6 (Entladung) verifiziert |
+| ESS max charging limit | 40032 | uint32 | 1000 | Default 0xFFFFFFFF (gelesen, nicht geschrieben) |
+| ESS max discharging limit | 40034 | uint32 | 1000 | Default 0xFFFFFFFF; 0 (Sperre) und 2000 (Entladung) verifiziert, Registerwert = W |
+| PV max power limit | 40036 | uint32 | 1000 | Default 0xFFFFFFFF = kein Limit; Freigabe auf 11000 verifiziert |
 
-Firmwarestand: AUSSTEHEND | Protokollversion: AUSSTEHEND |
-Auto-Revert bei Kommunikationsverlust: AUSSTEHEND
+Firmwarestand: in der App noch nicht abgelesen (TODO) | Protokollversion:
+V2.5, Registerkarte gegenueber V1.7 unveraendert |
+Auto-Revert bei Kommunikationsverlust: **NEIN** (Spike-Punkt 9, 2026-10-02:
+Entladung stand ~85 s unveraendert, bis `reset` sie raeumte)
 
 ## Fail-Safe-Analyse
 
@@ -276,13 +329,23 @@ Protokolls beschreibt nur Request-Timing, kein Steuerungs-Fallback.
   kommandierten Zustand stehen. Bei aktiver Ladesperre laedt die Batterie
   nicht mehr (Komfortverlust); bei aktiver forcierter Entladung entlaedt
   sie mit dem zuletzt kommandierten Limit weiter, bis die Anlage an ihrer
-  eigenen Entladeuntergrenze stoppt. Das MUSS dem Mitglied kommuniziert
-  werden, solange Spike-Punkt 9 kein Auto-Revert nachweist.
+  eigenen Entladeuntergrenze stoppt. Spike-Punkt 9 (2026-10-02) hat KEIN
+  Auto-Revert nachgewiesen - genau dieses Restrisiko faengt der Timer
+  unten ab.
 - Der root-Timer `ibm-failsafe` (`setup/10-install-failsafe.sh`) uebernimmt
-  das, sobald dieses Profil `inverter_failsafe_reset` definiert: ein
+  das ueber `inverter_failsafe_reset` -> `tools/failsafe_reset.py`: ein
   Skript ohne openHAB, das `Remote EMS enable = 0` schreibt und per
-  Read-back prueft (Vorlage `fronius-snapinverter/tools/failsafe_reset.py`).
-  **Noch offen fuer dieses Profil.**
+  Read-back prueft. **Seit 2026-10-02 vorhanden und am Geraet bewiesen**
+  (openHAB-Stop: Reset nach ~47 s; Reboot: Boot-Reset vor openHAB).
+- Damit der Timer auch greift, wenn openHAB LAEUFT, aber die Bridge tot
+  ist, muss `ibmReset()` ehrlich sein: openHABs `sendCommand` wirft bei
+  deaktivierter oder abgerissener Bridge keine Exception, der Befehl
+  verpufft nur. Der Adapter prueft deshalb vor jedem Write, dass das
+  Wechselrichter-Thing `@IBM_THING_UID@` (hier `modbus:data:ibm:sg:soc`,
+  dasselbe Thing, auf das 02b wartet) ONLINE ist, sonst `ok: false` ->
+  kein Heartbeat -> der Timer uebernimmt. Ohne
+  diese Pruefung schlief der Timer bei deaktivierter Bridge weiter
+  (Testplan Zeile 13, 2026-10-02).
 
 ## Bekannte Grenzen
 

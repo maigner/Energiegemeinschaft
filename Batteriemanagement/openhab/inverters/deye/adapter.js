@@ -126,9 +126,48 @@ function __ibmDyWrite(name, value) {
   return __ibmDySend(name, value);
 }
 
-// Plausibilitaetspruefung - solange sie nicht besteht, wird NIE geschrieben.
+// Zustellbarkeit: der Modbus-Pfad zur Anlage muss ONLINE sein. openHABs
+// sendCommand wirft bei deaktivierter oder abgerissener Bridge KEINE
+// Exception - der Befehl verpufft nur. Ohne diese Pruefung meldete
+// ibmReset() ok=true, der Kern beruehrte den Fail-Safe-Heartbeat, und der
+// Timer schlief weiter, obwohl die Anlage nie erreicht wurde (Testplan
+// Zeile 13 an Anlage 223, 2026-10-02, siehe ../failsafe-modbus.md 8b).
+// Geprueft wird das Wechselrichter-Thing @IBM_THING_UID@ (Platzhalter,
+// setup/04-install-rules.sh) - im Modbus-Baum ein Data-Thing, das nur
+// ONLINE ist, wenn Bridge, Poller und Data-Thing arbeiten; dasselbe
+// Thing, auf dessen ONLINE 02b wartet und das der Watchdog ueberwacht.
+// Fehlt es, ist nichts zustellbar. Bewusst fail-closed: jedes false
+// heisst ok=false -> kein Heartbeat -> der Timer uebernimmt.
+function __ibmDyThingStatus(uid) {
+  try {
+    var thing = things.getThing(uid);
+    if (thing === null || thing === undefined) return null;
+    if (thing.status !== undefined && thing.status !== null) return String(thing.status);
+    if (thing.rawThing) return String(thing.rawThing.getStatus());
+  } catch (e) {
+    // nicht vorhanden oder API-Fehler -> wie "fehlt" behandeln
+  }
+  return null;
+}
+
+function __ibmDyDeliverable() {
+  var status = __ibmDyThingStatus('@IBM_THING_UID@');
+  if (status === null) {
+    console.log('[IBM][Adapter] Wechselrichter-Thing @IBM_THING_UID@ fehlt - nichts zustellbar, der Fail-Safe-Timer uebernimmt.');
+    return false;
+  }
+  if (status !== 'ONLINE') {
+    console.log('[IBM][Adapter] Wechselrichter-Thing nicht ONLINE (' + status + ') - Kommando nicht zustellbar, der Fail-Safe-Timer uebernimmt.');
+    return false;
+  }
+  return true;
+}
+
+// Plausibilitaetspruefung - solange sie nicht besteht, wird NIE geschrieben
+// (auch nicht, wenn der Modbus-Pfad nicht ONLINE ist).
 // Liefert den Work Mode (fuer die Einspeise-Warnung) oder null.
 function __ibmDyGuard() {
+  if (!__ibmDyDeliverable()) return null;
   var mode = __ibmDyNum('IBM_DY_WorkMode');
   if (mode === null || mode < 0 || mode > 2) {
     console.log('[IBM][Adapter] Work Mode unlesbar oder unplausibel (gelesen: ' + mode + ') - keine Steuerung. Registerkarte/Slave-Adresse pruefen.');
@@ -163,6 +202,11 @@ function ibmReset() {
   // Werksverhalten: TOU-Zeitplan aus, die Anlage folgt wieder ihrem
   // Grundmodus (Eigenverbrauch). Ein einzelnes Register; __ibmDyWrite
   // schreibt nur, wenn der Zeitplan tatsaechlich aktiv ist.
+  // ok=true NUR, wenn der Befehl die Anlage erreichen konnte - der Kern
+  // beruehrt den Fail-Safe-Heartbeat nur bei ok=true (core.js).
+  if (!__ibmDyDeliverable()) return { ok: false };
+  // (__ibmDyWrite meldet bei bereits passendem Item-Wert true, ohne zu
+  // senden - bei toter Bridge waere der Item-Wert nur ein Altwert.)
   var ok = __ibmDyWrite('IBM_DY_TouEnable', DEYE_TOU_OFF);
   return { ok: ok };
 }
