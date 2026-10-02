@@ -1,0 +1,18 @@
+[15:56:41] === Spike 192.168.1.107:502 Slave 247 Schritte: reads ===
+[15:56:41] Verbunden mit 192.168.1.107:502.
+[15:56:41] == READS: Punkt 2/3/7 - Register lesen und dekodieren ==
+[15:56:41]   EMS work mode (30003): 0
+[15:56:42]   Max active power (30010): raw=0x0000,0x2af8  BE=11000 W  Swap=720896000 W  -> Big Endian (wie erwartet)
+[15:56:43]   Plant ESS SoC (30014): raw=1000 -> 100.0 % (mit App-Anzeige vergleichen! Gain-Erwartung: 10)
+[15:56:44]   ESS power (30037): 0 W (Protokoll: > 0 = laden, < 0 = entladen - gegen App pruefen)
+[15:56:46]   Rated ESS charging power (30068): raw=0x0000,0x16a8  BE=5800 W  Swap=380108800 W  -> Big Endian (wie erwartet)
+[15:56:47]   Rated ESS discharging power (30070): raw=0x0000,0x1900  BE=6400 W  Swap=419430400 W  -> Big Endian (wie erwartet)
+[15:56:47]   -- Steuerregister (Punkt 7: PV-Limit-Defaultwert!) --
+[15:56:48]   Remote EMS enable (40029): 0
+[15:56:48]   Remote EMS mode   (40031): 0 (PCS remote control)
+[15:56:48]   ESS max charging limit  (40032): 4294967295 W
+[15:56:48]   ESS max discharging limit (40034): 4294967295 W
+[15:56:48]   PV max power limit (40036): 4294967295 W  <- DEFAULTWERT fuer Punkt 7 notieren!
+[15:56:48]   Plausibilitaet: Nennentladeleistung 6400 W OK
+
+[15:56:48] Fertig. Befunde in die Registertabelle im README eintragen.

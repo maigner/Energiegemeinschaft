@@ -84,6 +84,9 @@ INVERTER_NOTES="In der mySigen-App muessen 'ModBus TCP Server Enable' und 'Remot
 #   40036  PV max power limit         U32  W (wirkt bei Modus 3-6!)
 MODBUS_UNIT_ID="${MODBUS_UNIT_ID:-247}"
 
+# Modbus-TCP-Port der Anlage (Fail-Safe-Reset nutzt denselben wie die Bridge)
+MODBUS_PORT="${MODBUS_PORT:-502}"
+
 # Skalierung des Ladestands: Registerwert 550 = 55,0 % -> Gain 0.1
 MODBUS_SOC_GAIN="${MODBUS_SOC_GAIN:-0.1}"
 
@@ -276,4 +279,17 @@ for t in json.load(sys.stdin): print(t["UID"])')
       fi ;;
   esac
   return $ok
+}
+
+# Fail-Safe-Reset OHNE openHAB (Pflicht fuer Modbus-Profile ohne
+# geraeteseitiges Auto-Revert - SIGEN_HAS_AUTO_REVERT=false im Adapter;
+# siehe setup/10-install-failsafe.sh): Sigenergy kennt kein Revert-Timeout,
+# ein kommandierter Remote-EMS-Zustand bleibt stehen, wenn openHAB ausfaellt.
+# Schreibt das Werksverhalten (Remote EMS enable 40029 = 0, derselbe Write
+# wie ibmReset() im Adapter) und prueft per Read-back. $1 = Adresse der
+# Anlage (aus dem Bridge-Thing, ersatzweise INVERTER_HOST).
+# Exit 0 nur bei bestaetigtem Reset - der Timer wiederholt sonst.
+inverter_failsafe_reset() {
+  python3 "$IBM_INVERTER_DIR/sigenergy/tools/failsafe_reset.py" \
+    --host "$1" --port "$MODBUS_PORT" --unit "$MODBUS_UNIT_ID"
 }
