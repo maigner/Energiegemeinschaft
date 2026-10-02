@@ -16,8 +16,9 @@ deaktiviert, openHAB laeuft) deckte eine Luecke auf: alle vier
 Modbus-Adapter meldeten `ok: true`, sobald `sendCommand` nicht warf - auch
 bei toter Bridge -, der Kern beruehrte den Heartbeat, der Timer schlief.
 Seit 2026-10-02 pruefen die Adapter vor jedem Write die Zustellbarkeit
-(Wechselrichter-Thing `@IBM_THING_UID@` ONLINE); der Nachweis am Geraet
-steht aus. Anlage 020
+(Wechselrichter-Thing `@IBM_THING_UID@` ONLINE), am Geraet am selben Abend
+bestaetigt (Timer-Reset 22:23:06 bei deaktivierter Bridge, Abschnitt 8b).
+Anlage 020
 (Fronius) weiter offen.
 
 Ausgangsfrage: Der Adapter-Kontrakt verlangt, dass jede Aktion nach
@@ -282,7 +283,7 @@ ON, damit der Timer scharf statt im Standby ist; `FAILSAFE_STALE_MIN=12`,
 | 9 (Spike) | `failsafe --watts 2000`, nichts rueckt zurueck | **kein Auto-Revert**: ~85 s Modus 7 / -2000 W, bis `reset` raeumte |
 | 11 | stehende Entladung, `systemctl stop openhab` | **bestanden**: Reset 20:12:31, ~47 s nach dem Stop; Log "Reset geschrieben (openhab.service nicht aktiv) ... vorher EMS-Modus 7 -> enable 0 -> EMS-Modus 0 (bestaetigt)"; nach `start` "Heartbeat zurueck" |
 | 12 | stehende Entladung, `sudo reboot` | **bestanden**: `ibm-failsafe-boot` 20:28:59 vor openHAB, "Reset geschrieben (Boot) ... vorher EMS-Modus 7" |
-| 13 | Bridge per REST deaktiviert (`PUT /rest/things/modbus:tcp:ibm/enable` = false), openHAB laeuft, stehende Entladung | **Luecke**: Heartbeat lief weiter (20:40 -> 20:45 bei toter Bridge), Timer schlief, Entladung musste von Hand geraeumt werden |
+| 13 | Bridge per REST deaktiviert (`PUT /rest/things/modbus:tcp:ibm/enable` = false), openHAB laeuft, stehende Entladung | **Luecke vor dem Fix**: Heartbeat lief weiter (20:40 -> 20:45 bei toter Bridge), Timer schlief, Entladung musste von Hand geraeumt werden. **Mit dem Fix bestanden** (zweiter Lauf 22:10-22:23, s. u.) |
 
 **Ursache Zeile 13:** `ibmReset()` aller vier Modbus-Adapter gab `ok: true`
 zurueck, sobald `item.sendCommand()` keine Exception warf. Bei
@@ -309,9 +310,18 @@ Verbindung (in Zeile 11/12 bewiesen). Die Pruefung sitzt am Anfang von
 sodass auch Kommandos bei totem Pfad ehrlich scheitern. Bewusst
 fail-closed: ein unerwarteter API-Fehler liefert ebenfalls `false` - die
 Folge ist ein Werks-Reset durch den Timer, nie ein stehendes Kommando.
-Offen: Zeile 13 mit dem Fix am Geraet wiederholen (Erwartung: Log "Reset
-nicht bestaetigt - kein Heartbeat, der Fail-Safe-Timer uebernimmt", Timer
-nach 12 min "Heartbeat 12 min alt").
+**Am Geraet bestaetigt (223, 2026-10-02, 22:10-22:23):** Bridge per REST
+deaktiviert, 1000 W Entladung stehend. Kern-Zyklen 22:15 und 22:20:
+"Toggle=ON - Reset (ok=false)", "Reset nicht bestaetigt - kein Heartbeat,
+der Fail-Safe-Timer uebernimmt", Adapter "Wechselrichter-Thing nicht
+ONLINE (UNINITIALIZED)"; der Heartbeat blieb bei 22:10 stehen (vor dem
+Fix lief er weiter). Timer 22:23:06: "Reset geschrieben (Heartbeat 13 min
+alt) ... vorher EMS-Modus 7 -> enable 0 -> EMS-Modus 0 (bestaetigt)";
+Anlage danach Modus 0, enable 0, ESS -290 W (Eigenverbrauch). 13 statt
+12 min ist der Minutentakt des Timers (AccuracySec 15 s). Damit ist
+Zeile 13 fuer `sigenergy` geschlossen; `deye`, `victron` und
+`fronius-snapinverter` tragen denselben Fix, sind aber noch nicht am
+Geraet gezeigt.
 
 Nebenbefunde: die Anlage erlaubt gleichzeitige Modbus-Verbindungen (Timer
 und openHAB stoeren sich nicht); beim Fernfahren muss ein Reset
@@ -329,7 +339,8 @@ Entladung einmal ~85 s laenger stehen als geplant.
 * [x] Reset-Skript ohne openHAB fuer `sigenergy` (`tools/failsafe_reset.py`, 2026-10-02, am Geraet bewiesen)
 * [ ] Reset-Skripte ohne openHAB fuer `deye`, `victron` (Kontrakt `inverter_failsafe_reset`; Vorlagen `fronius-snapinverter/` und `sigenergy/tools/failsafe_reset.py`)
 * [x] ok-Semantik der Modbus-Adapter: Zustellbarkeit (Wechselrichter-Thing `@IBM_THING_UID@` ONLINE) vor jedem Write, sonst `ok: false` -> kein Heartbeat (2026-10-02, Befund Zeile 13 an 223, Abschnitt 8b)
-* [ ] Zeile 13 mit dem Zustellbarkeits-Fix am Geraet wiederholen (223), danach dieselbe Zeile an 020
+* [x] Zeile 13 mit dem Zustellbarkeits-Fix am Geraet wiederholen - 223 bestanden 2026-10-02 22:23 (Abschnitt 8b)
+* [ ] Zeile 13 an 020 (`fronius-snapinverter`), spaeter `deye`/`victron`
 * [ ] Dashboard: Feld `failsafe` aus dem Status-Push anzeigen (Badge "Fail-Safe hat eingegriffen")
 * [ ] Mitglieder-Kurzanleitung "Speichermanagement-Pi tot: was tun" nach `docs/setup/`, erst nach Test 6 und 7
 * [ ] Austausch-Checkliste Ersatz-Pi: Modbus wieder auf tcp, "Steuerung einschraenken" auf neue IP

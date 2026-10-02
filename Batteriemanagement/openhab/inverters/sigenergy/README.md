@@ -253,8 +253,10 @@ deaktiviert, openHAB laeuft): **Luecke** - der Heartbeat lief weiter, weil
 `ibmReset()` bei toter Bridge trotzdem ok=true meldete (`sendCommand`
 wirft nicht). Seit 2026-10-02 prueft der Adapter vor jedem Write die
 Zustellbarkeit (`__ibmSgDeliverable`: das Wechselrichter-Thing
-`@IBM_THING_UID@`, hier `modbus:data:ibm:sg:soc`, muss ONLINE sein); der
-Nachweis dieses Fixes am Geraet steht noch aus.
+`@IBM_THING_UID@`, hier `modbus:data:ibm:sg:soc`, muss ONLINE sein) - am
+selben Abend am Geraet bestaetigt: Kern "Reset (ok=false)" / "kein
+Heartbeat", Heartbeat eingefroren, Timer-Reset 22:23:06 "Heartbeat 13 min
+alt" bei deaktivierter Bridge.
 
 Firmwarestand in der App noch nicht abgelesen (TODO). Hauptschalter steht
 seit dem Test auf ON, die Anlage laeuft unter IBM.
@@ -344,8 +346,8 @@ Protokolls beschreibt nur Request-Timing, kein Steuerungs-Fallback.
   Wechselrichter-Thing `@IBM_THING_UID@` (hier `modbus:data:ibm:sg:soc`,
   dasselbe Thing, auf das 02b wartet) ONLINE ist, sonst `ok: false` ->
   kein Heartbeat -> der Timer uebernimmt. Ohne
-  diese Pruefung schlief der Timer bei deaktivierter Bridge weiter
-  (Testplan Zeile 13, 2026-10-02).
+  diese Pruefung schlief der Timer bei deaktivierter Bridge weiter; mit
+  ihr griff er nach 13 min (Testplan Zeile 13, beide Laeufe 2026-10-02).
 
 ## Bekannte Grenzen
 
