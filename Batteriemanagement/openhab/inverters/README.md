@@ -172,6 +172,10 @@ Drei Vorlagen:
    Den Verbindungsstatus **immer** am `@IBM_WATCH_THING_UID@` ablesen, nie
    an der Bridge: die Modbus-tcp-Bridge bleibt ONLINE, auch wenn niemand
    antwortet (pi-020 2026-09-11, pi-223 2026-10-03).
+   Die Suche muss **alle** direkt angeschlossenen IPv4-Netze des Pi
+   abdecken, nicht nur das der ersten Schnittstelle: pi-223 haengt per eth0
+   im Mesh und per wlan0 im Netz des Wechselrichters (2026-10-03). Die vier
+   vorhandenen Skripte teilen sich dafuer denselben `scan_bases`-Block.
 
 Diese Items stellt das Setup bereit; Kern und Adapter koennen sie
 voraussetzen:

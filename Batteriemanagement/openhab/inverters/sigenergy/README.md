@@ -291,11 +291,20 @@ Fronius-Skript behoben). Der Watchdog wurde zwar ausgeloest (Trigger auf
 (`@IBM_WATCH_THING_UID@`), Adresse weiterhin aus der Bridge, Pruefung nach
 dem Update ebenfalls am Daten-Thing. Gegen eine REST-Attrappe getestet
 (Bridge ONLINE + Daten-Thing OFFLINE -> Suche; beide ONLINE -> still;
-Token abgelehnt / REST weg -> Meldung, Exit 1). Sofortmassnahme am Geraet:
-`sudo -u openhab /etc/openhab/scripts/ibm_rediscover.sh --force` (--force
-ueberspringt die Statuspruefung, findet .101 als einzigen Kandidaten und
-schreibt sie in die Bridge; `ibm-failsafe` liest die Adresse bei jedem Lauf
-aus der Bridge und folgt automatisch).
+Token abgelehnt / REST weg -> Meldung, Exit 1).
+
+Zweiter Befund beim Einspielen dieses Fixes (21:07): die Suche lief jetzt
+an, durchsuchte aber nur **192.168.7.0/24** - das Netz der ersten
+Schnittstelle (eth0, Mesh). Der Pi haengt mit wlan0 zusaetzlich im
+192.168.1.0/24 des Wechselrichters, und genau dort stand die Anlage. Alle
+vier `rediscover.sh` nehmen seither jedes direkt angeschlossene IPv4-Netz
+des Pi (je ein /24; Tunnel wg*/tun*/tailscale* und Host-Adressen
+ausgenommen) und suchen in allen; aus demselben Grund half auch
+`ibm_rediscover.sh --force` mit dem alten Skript nicht. `ibm-failsafe`
+liest die Adresse bei jedem Lauf aus der Bridge und folgt einer Korrektur
+automatisch. Manuelle Korrektur, falls noetig (als openhab, Token liegt in
+`/var/lib/openhab/ibm/api_token`): `PUT /rest/things/modbus:tcp:ibm/config`
+mit `{"host": "192.168.1.101"}`, oder in der openHAB-UI am Bridge-Thing.
 
 ### Handbuecher (`docs/`)
 

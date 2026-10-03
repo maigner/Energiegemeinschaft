@@ -148,17 +148,30 @@ fi
 echo "$now" > "$STATE_DIR/last_scan"
 
 # --- Netz absuchen ----------------------------------------------------------
-own_cidr="$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4; exit}')"
-[ -n "$own_cidr" ] || { log "FEHLER: Keine eigene IPv4-Adresse gefunden."; exit 1; }
-base="${own_cidr%/*}"; base="${base%.*}"
-prefix="${own_cidr#*/}"
-[ "$prefix" -lt 24 ] 2>/dev/null && log "Hinweis: Eigenes Netz ist /$prefix - durchsucht wird nur ${base}.0/24."
+# Alle direkt angeschlossenen IPv4-Netze des Pi, je Netz ein /24 (pi-223
+# 2026-10-03: eth0 im Mesh 192.168.7.x, wlan0 im WLAN des Wechselrichters
+# 192.168.1.x - gesucht wurde nur im ersten, die Anlage lag im zweiten).
+# Tunnel (wg*, tun*, tailscale*) und Host-Adressen (/29 und kleiner)
+# bleiben aussen vor.
+scan_bases=""
+while read -r _ dev _ cidr _; do
+  [ -n "$cidr" ] || continue
+  case "$dev" in wg*|tun*|tailscale*|docker*|veth*|br-*) continue ;; esac
+  prefix="${cidr#*/}"
+  [ "$prefix" -le 28 ] 2>/dev/null || continue
+  b="${cidr%/*}"; b="${b%.*}"
+  case " $scan_bases " in *" $b "*) continue ;; esac
+  [ "$prefix" -lt 24 ] && log "Hinweis: Netz an $dev ist /$prefix - durchsucht wird nur ${b}.0/24."
+  scan_bases="${scan_bases:+$scan_bases }$b"
+done <<< "$(ip -4 -o addr show scope global 2>/dev/null)"
+[ -n "$scan_bases" ] || { log "FEHLER: Keine eigene IPv4-Adresse gefunden."; exit 1; }
+scan_nets="$(for b in $scan_bases; do printf '%s.0/24 ' "$b"; done)"
 
-log "Suche Deye-Gateway (Modbus, Slave $MODBUS_UNIT_ID) in ${base}.0/24 ..."
-candidates="$(IBM_SCAN_BASE="$base" IBM_SCAN_UNIT="$MODBUS_UNIT_ID" python3 - <<'PY'
+log "Suche Deye-Gateway (Modbus, Slave $MODBUS_UNIT_ID) in ${scan_nets}..."
+candidates="$(IBM_SCAN_BASES="$scan_bases" IBM_SCAN_UNIT="$MODBUS_UNIT_ID" python3 - <<'PY'
 import concurrent.futures, os, socket, struct
 
-base = os.environ["IBM_SCAN_BASE"]
+bases = os.environ["IBM_SCAN_BASES"].split()
 unit = int(os.environ["IBM_SCAN_UNIT"])
 
 def probe(ip):
@@ -176,7 +189,7 @@ def probe(ip):
         pass
     return None
 
-ips = [base + "." + str(i) for i in range(1, 255)]
+ips = [b + "." + str(i) for b in bases for i in range(1, 255)]
 with concurrent.futures.ThreadPoolExecutor(max_workers=64) as pool:
     for ip in pool.map(probe, ips):
         if ip:

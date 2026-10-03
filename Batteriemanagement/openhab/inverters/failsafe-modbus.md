@@ -341,7 +341,7 @@ Entladung einmal ~85 s laenger stehen als geplant.
 * [x] ok-Semantik der Modbus-Adapter: Zustellbarkeit (Wechselrichter-Thing `@IBM_THING_UID@` ONLINE) vor jedem Write, sonst `ok: false` -> kein Heartbeat (2026-10-02, Befund Zeile 13 an 223, Abschnitt 8b)
 * [x] Zeile 13 mit dem Zustellbarkeits-Fix am Geraet wiederholen - 223 bestanden 2026-10-02 22:23 (Abschnitt 8b)
 * [ ] Zeile 13 an 020 (`fronius-snapinverter`), spaeter `deye`/`victron`
-* [x] Netzwerksuche `sigenergy`/`deye`/`victron` las den Status an der Modbus-tcp-Bridge ab (bleibt ONLINE) - 223 am 2026-10-03 nach IP-Wechsel .107 -> .101 3,5 h offline, Timer-Resets liefen an die alte Adresse ins Leere; Status jetzt am Wechselrichter-Thing wie bei `fronius` (sigenergy/README.md, "Ausfall 2026-10-03")
+* [x] Netzwerksuche `sigenergy`/`deye`/`victron` las den Status an der Modbus-tcp-Bridge ab (bleibt ONLINE) - 223 am 2026-10-03 nach IP-Wechsel .107 -> .101 3,5 h offline, Timer-Resets liefen an die alte Adresse ins Leere; Status jetzt am Wechselrichter-Thing wie bei `fronius`; zweiter Fehler im selben Lauf: gesucht wurde nur im Netz der ersten Schnittstelle (eth0/Mesh), die Anlage lag an wlan0 - alle vier Skripte durchsuchen jetzt jedes lokale Netz (sigenergy/README.md, "Ausfall 2026-10-03")
 * [ ] 223: statische IP in der mySigen-App setzen; nach dem Paket-Update pruefen, dass der Watchdog den naechsten Wechsel selbst abfaengt
 * [ ] Dashboard: Feld `failsafe` aus dem Status-Push anzeigen (Badge "Fail-Safe hat eingegriffen")
 * [ ] Mitglieder-Kurzanleitung "Speichermanagement-Pi tot: was tun" nach `docs/setup/`, erst nach Test 6 und 7

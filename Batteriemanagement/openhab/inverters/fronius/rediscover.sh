@@ -169,17 +169,30 @@ fi
 echo "$now" > "$STATE_DIR/last_scan"
 
 # --- Netz absuchen ----------------------------------------------------------
-own_cidr="$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4; exit}')"
-[ -n "$own_cidr" ] || { log "FEHLER: Keine eigene IPv4-Adresse gefunden."; exit 1; }
-base="${own_cidr%/*}"; base="${base%.*}"
-prefix="${own_cidr#*/}"
-[ "$prefix" -lt 24 ] 2>/dev/null && log "Hinweis: Eigenes Netz ist /$prefix - durchsucht wird nur ${base}.0/24."
+# Alle direkt angeschlossenen IPv4-Netze des Pi, je Netz ein /24 (pi-223
+# 2026-10-03: eth0 im Mesh 192.168.7.x, wlan0 im WLAN des Wechselrichters
+# 192.168.1.x - gesucht wurde nur im ersten, die Anlage lag im zweiten).
+# Tunnel (wg*, tun*, tailscale*) und Host-Adressen (/29 und kleiner)
+# bleiben aussen vor.
+scan_bases=""
+while read -r _ dev _ cidr _; do
+  [ -n "$cidr" ] || continue
+  case "$dev" in wg*|tun*|tailscale*|docker*|veth*|br-*) continue ;; esac
+  prefix="${cidr#*/}"
+  [ "$prefix" -le 28 ] 2>/dev/null || continue
+  b="${cidr%/*}"; b="${b%.*}"
+  case " $scan_bases " in *" $b "*) continue ;; esac
+  [ "$prefix" -lt 24 ] && log "Hinweis: Netz an $dev ist /$prefix - durchsucht wird nur ${b}.0/24."
+  scan_bases="${scan_bases:+$scan_bases }$b"
+done <<< "$(ip -4 -o addr show scope global 2>/dev/null)"
+[ -n "$scan_bases" ] || { log "FEHLER: Keine eigene IPv4-Adresse gefunden."; exit 1; }
+scan_nets="$(for b in $scan_bases; do printf '%s.0/24 ' "$b"; done)"
 
-log "Suche Fronius Solar API in ${base}.0/24 ..."
-candidates="$(seq 1 254 | xargs -P 32 -I'{}' sh -c '
+log "Suche Fronius Solar API in ${scan_nets}..."
+candidates="$(for b in $scan_bases; do seq 1 254 | sed "s/^/$b./"; done | xargs -P 32 -I'{}' sh -c '
   if curl -sf -m 2 --connect-timeout 1 "http://$1/solar_api/GetAPIVersion.cgi" 2>/dev/null | grep -q "\"APIVersion\""; then
     echo "$1"
-  fi' _ "${base}.{}")"
+  fi' _ "{}")"
 
 if [ -z "$candidates" ]; then
   log "Kein Fronius im Netz gefunden - Wechselrichter aus oder Datamanager im Nachtmodus?"
