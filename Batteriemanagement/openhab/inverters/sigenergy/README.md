@@ -261,6 +261,42 @@ alt" bei deaktivierter Bridge.
 Firmwarestand in der App noch nicht abgelesen (TODO). Hauptschalter steht
 seit dem Test auf ON, die Anlage laeuft unter IBM.
 
+### Ausfall 2026-10-03 (Mitglied 223: IP-Wechsel, Watchdog blind)
+
+Um 17:01 gingen Poller und alle Daten-Things auf OFFLINE ("No route to
+host" an 192.168.1.107), das Dashboard zeigte die Anlage als offline, der
+Kern lieferte keinen Heartbeat mehr, und `ibm-failsafe` versuchte ab 17:12
+minuetlich vergeblich einen Reset an die alte Adresse (Anlage lief dabei
+unbeeinflusst im Eigenverbrauch: 40029 = 0, EMS-Modus 0, SoC 89 %).
+
+Befund vom Pi aus (`ip neigh`, Scan der 192.168.1.0/24 auf Port 502): die
+Anlage antwortet jetzt unter **192.168.1.101** (`spike_sigenstor.py
+192.168.1.101 reads` bestanden). Dieselbe WLAN-MAC 3e:64:cf:0a:4e:85
+beantwortet ARP auch fuer .108 und .112 (dort Port 502 abgewiesen) - der
+SigenStor-Gateway haengt offenbar mehrere interne Geraete hinter einer
+WLAN-MAC, der Alcatel-Router vergibt per DHCP mehrere Adressen, und der
+Modbus-Server ist beim Lease-Wechsel von .107 auf .101 gewandert. Eine
+DHCP-Reservierung nach MAC hilft darum nicht; **statische IP in der
+mySigen-App** (Netzwerkeinstellungen des Wechselrichters) ist der saubere
+Weg, bis dahin faengt die Netzwerksuche den Wechsel ab.
+
+Warum die Netzwerksuche 3,5 Stunden nicht ansprang: `rediscover.sh` las
+den Status an der Modbus-tcp-Bridge `modbus:tcp:ibm` ab - und die bleibt
+ONLINE, solange sie konfiguriert ist, nur Poller und Daten-Things gehen
+OFFLINE (dasselbe Bild wie pi-020 am 2026-09-11, dort aber nur im
+Fronius-Skript behoben). Der Watchdog wurde zwar ausgeloest (Trigger auf
+`modbus:data:ibm:sg:soc` OFFLINE plus alle 15 Minuten), das Skript sah aber
+"ONLINE" und beendete sich still. Behoben am 2026-10-03 fuer `sigenergy`,
+`deye` und `victron`: Status am Wechselrichter-Thing
+(`@IBM_WATCH_THING_UID@`), Adresse weiterhin aus der Bridge, Pruefung nach
+dem Update ebenfalls am Daten-Thing. Gegen eine REST-Attrappe getestet
+(Bridge ONLINE + Daten-Thing OFFLINE -> Suche; beide ONLINE -> still;
+Token abgelehnt / REST weg -> Meldung, Exit 1). Sofortmassnahme am Geraet:
+`sudo -u openhab /etc/openhab/scripts/ibm_rediscover.sh --force` (--force
+ueberspringt die Statuspruefung, findet .101 als einzigen Kandidaten und
+schreibt sie in die Bridge; `ibm-failsafe` liest die Adresse bei jedem Lauf
+aus der Bridge und folgt automatisch).
+
 ### Handbuecher (`docs/`)
 
 Alle drei PDFs stammen von sigenergy.com (Stand 2026-09-08; die
@@ -357,6 +393,11 @@ Protokolls beschreibt nur Request-Timing, kein Steuerungs-Fallback.
   nur an einer Modbus-Antwort auf Slave 247 - eine Seriennummer ist auf
   Anlagenebene nicht lesbar. Stehen mehrere Modbus-TCP-Geraete mit Slave
   247 im selben Netz, muss die IP von Hand gepflegt werden.
+- Der SigenStor-Gateway kann hinter einer WLAN-MAC mehrere IPs fuehren,
+  und der Modbus-Server wechselt beim DHCP-Lease die Adresse (223,
+  2026-10-03: .107 -> .101). DHCP-Reservierung nach MAC greift nicht -
+  statische IP in der mySigen-App setzen; die Netzwerksuche ist das Netz
+  darunter.
 - Gesteuert wird der gesamte Anlagenverbund (Slave 247), nicht einzelne
   Wechselrichter oder Batterietuerme.
 - Die Registerkarte gilt fuer Protokoll V1.7; neuere Firmwarestaende im

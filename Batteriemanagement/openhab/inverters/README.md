@@ -169,6 +169,9 @@ Drei Vorlagen:
    15 Minuten aufgerufen, prueft Status, Abkuehlzeit und Geraeteidentitaet
    selbst, ist bei `ONLINE` still und traegt eine gefundene neue Adresse per
    REST API in das Thing ein. Logausgaben mit `[IBM][Watchdog]` praefixieren.
+   Den Verbindungsstatus **immer** am `@IBM_WATCH_THING_UID@` ablesen, nie
+   an der Bridge: die Modbus-tcp-Bridge bleibt ONLINE, auch wenn niemand
+   antwortet (pi-020 2026-09-11, pi-223 2026-10-03).
 
 Diese Items stellt das Setup bereit; Kern und Adapter koennen sie
 voraussetzen:
