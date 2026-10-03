@@ -308,7 +308,10 @@ for t in json.load(sys.stdin): print(t["UID"])')
 # wie ibmReset() im Adapter) und prueft per Read-back. $1 = Adresse der
 # Anlage (aus dem Bridge-Thing, ersatzweise INVERTER_HOST).
 # Exit 0 nur bei bestaetigtem Reset - der Timer wiederholt sonst.
+# --scan: antwortet die Adresse aus dem Bridge-Thing nicht (DHCP hat die
+# Anlage verschoben, pi-223 2026-10-03), sucht das Skript die Anlage selbst
+# in allen lokalen Netzen - der Timer muss nicht auf den Watchdog warten.
 inverter_failsafe_reset() {
   python3 "$IBM_INVERTER_DIR/sigenergy/tools/failsafe_reset.py" \
-    --host "$1" --port "$MODBUS_PORT" --unit "$MODBUS_UNIT_ID"
+    --host "$1" --port "$MODBUS_PORT" --unit "$MODBUS_UNIT_ID" --scan
 }

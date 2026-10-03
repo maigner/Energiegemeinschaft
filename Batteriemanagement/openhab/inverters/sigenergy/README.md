@@ -421,7 +421,14 @@ Protokolls beschreibt nur Request-Timing, kein Steuerungs-Fallback.
   das ueber `inverter_failsafe_reset` -> `tools/failsafe_reset.py`: ein
   Skript ohne openHAB, das `Remote EMS enable = 0` schreibt und per
   Read-back prueft. **Seit 2026-10-02 vorhanden und am Geraet bewiesen**
-  (openHAB-Stop: Reset nach ~47 s; Reboot: Boot-Reset vor openHAB).
+  (openHAB-Stop: Reset nach ~47 s; Reboot: Boot-Reset vor openHAB). Seit
+  2026-10-03 mit `--scan`: antwortet die Adresse aus dem Bridge-Thing
+  nicht, sucht das Skript die Anlage in allen lokalen /24-Netzen (Probe wie
+  `rediscover.sh`, genau ein Treffer) und schreibt dorthin - der Timer
+  haengt damit nicht mehr am Watchdog, wenn DHCP die Anlage bei totem
+  openHAB verschiebt. Am Simulator getestet (falsche Adresse -> gefunden
+  und zurueckgesetzt; Simulator aus -> "0 gefunden", Exit 1), am Geraet
+  noch offen.
 - Damit der Timer auch greift, wenn openHAB LAEUFT, aber die Bridge tot
   ist, muss `ibmReset()` ehrlich sein: openHABs `sendCommand` wirft bei
   deaktivierter oder abgerissener Bridge keine Exception, der Befehl

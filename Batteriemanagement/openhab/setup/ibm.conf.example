@@ -236,11 +236,13 @@ INSTALL_WATCHDOG=1
 # Main UI -> Settings -> Things -> Fronius Bridge
 INVERTER_HOST_THING_UID="fronius:bridge:0cb68e8e38"
 
-# Fallback-Pruefung, falls das OFFLINE-Ereignis verpasst wurde (Quartz-Cron).
-CRON_WATCHDOG="0 7/15 * * * ?"
+# Fallback-Pruefung, falls das OFFLINE-Ereignis verpasst wurde oder die
+# Anlage beim ersten Suchlauf noch nicht wieder antwortete (Quartz-Cron).
+# Im Normalbetrieb (Thing ONLINE) kostet der Lauf nichts.
+CRON_WATCHDOG="0 2/5 * * * ?"
 
 # Fruehestens alle so viele Minuten wird das Netz erneut abgesucht.
-WATCHDOG_COOLDOWN_MIN=10
+WATCHDOG_COOLDOWN_MIN=5
 
 # --- Selbst-Update ------------------------------------------------------------
 # root-Timer ibm-update (alle 10 min): spielt das IBM-Paket neu ein, wenn der

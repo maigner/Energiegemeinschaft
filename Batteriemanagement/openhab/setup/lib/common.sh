@@ -300,8 +300,8 @@ load_config() {
   FAILSAFE_REPEAT_MIN="${FAILSAFE_REPEAT_MIN:-10}"
   INVERTER_HOST_THING_UID="${INVERTER_HOST_THING_UID:-}"
   OH_API_TOKEN="${OH_API_TOKEN:-}"
-  CRON_WATCHDOG="${CRON_WATCHDOG:-0 7/15 * * * ?}"
-  WATCHDOG_COOLDOWN_MIN="${WATCHDOG_COOLDOWN_MIN:-10}"
+  CRON_WATCHDOG="${CRON_WATCHDOG:-0 2/5 * * * ?}"
+  WATCHDOG_COOLDOWN_MIN="${WATCHDOG_COOLDOWN_MIN:-5}"
 
   # WireGuard-Fernwartung (aeltere ibm.conf kennt die Optionen noch nicht)
   INSTALL_WIREGUARD="${INSTALL_WIREGUARD:-0}"
@@ -408,6 +408,10 @@ migrate_config() {
   # Status-Push seit 2026-08 minuetlich (voller Zustand weiterhin alle
   # 5 Minuten); aeltere Installationen tragen noch den 5-Minuten-Cron.
   migrate_config_default CRON_STATUS "0 2/5 * * * ?" "0 * * * * ?"
+  # Netzwerk-Watchdog alle 5 statt 15 Minuten (pi-223 2026-10-03: nach einem
+  # DHCP-Wechsel bestimmt die Fallback-Pruefung, wie lange die Anlage weg ist)
+  migrate_config_default CRON_WATCHDOG "0 7/15 * * * ?" "0 2/5 * * * ?"
+  migrate_config_default WATCHDOG_COOLDOWN_MIN "10" "5"
 
   if [ -n "$migrated_keys" ]; then
     log "ibm.conf um neue Schluessel ergaenzt (Paket-Update):${migrated_keys}"

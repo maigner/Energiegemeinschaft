@@ -558,8 +558,8 @@ OH_API_TOKEN="${OH_API_TOKEN}"
 # neue Adresse in das Bridge-Thing ein. Braucht das openHAB-API-Token.
 INSTALL_WATCHDOG=${INSTALL_WATCHDOG}
 INVERTER_HOST_THING_UID="${INVERTER_HOST_THING_UID}"
-CRON_WATCHDOG="0 7/15 * * * ?"
-WATCHDOG_COOLDOWN_MIN=10
+CRON_WATCHDOG="0 2/5 * * * ?"
+WATCHDOG_COOLDOWN_MIN=5
 
 # --- WireGuard-Fernwartung --------------------------------------------------
 # Ausgehender Tunnel zum Wartungsserver fuer Updates und Fehlersuche.

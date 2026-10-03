@@ -116,7 +116,11 @@ keine.
 Umgesetzte Feinheiten: der Heartbeat entsteht nur nach `ok=true` des
 Resets (schlaegt das Binding fehl, uebernimmt der Timer mit eigener
 Verbindung); die Adresse kommt aus dem Bridge-Thing der JSONDB
-(`thing_config_param` in `lib/common.sh`, Rueckfall `INVERTER_HOST`);
+(`thing_config_param` in `lib/common.sh`, Rueckfall `INVERTER_HOST`) -
+antwortet sie nicht, darf das Profil-Skript die Anlage selbst suchen
+(`sigenergy` seit 2026-10-03: `failsafe_reset.py --scan`, alle lokalen
+/24-Netze, genau ein Treffer noetig, sonst nichts geschrieben), damit ein
+DHCP-Wechsel bei totem openHAB den Timer nicht aushebelt;
 waehrend eines Ausfalls wird alle `FAILSAFE_REPEAT_MIN` Minuten erneut
 geschrieben, ein fehlgeschlagener Reset jede Minute wiederholt; ohne
 Heartbeat-Datei (frische Installation) tut der Timer nichts. Der letzte
@@ -343,7 +347,8 @@ Entladung einmal ~85 s laenger stehen als geplant.
 * [ ] Zeile 13 an 020 (`fronius-snapinverter`), spaeter `deye`/`victron`
 * [x] Netzwerksuche `sigenergy`/`deye`/`victron` las den Status an der Modbus-tcp-Bridge ab (bleibt ONLINE) - 223 am 2026-10-03 nach IP-Wechsel .107 -> .101 3,5 h offline, Timer-Resets liefen an die alte Adresse ins Leere; Status jetzt am Wechselrichter-Thing wie bei `fronius`; zweiter Fehler im selben Lauf: gesucht wurde nur im Netz der ersten Schnittstelle (eth0/Mesh), die Anlage lag an wlan0 - alle vier Skripte durchsuchen jetzt jedes lokale Netz (sigenergy/README.md, "Ausfall 2026-10-03")
 * [x] 223: Watchdog hat den IP-Wechsel nach dem Paket-Update 21:37 selbst abgefangen (Suche in beiden Netzen, Bridge aktualisiert, Heartbeat 21:40 zurueck, Timer 21:41 in Bereitschaft)
-* [ ] 223: statische IP in der mySigen-App setzen
+* [ ] 223: statische IP in der mySigen-App setzen, falls die App das anbietet; unabhaengig davon sind die Skripte seit 2026-10-03 auf wechselnde IPs ausgelegt (Watchdog: Status am Daten-Thing, alle lokalen Netze, alle 5 min; Timer: `--scan`)
+* [ ] `--scan`-Fallback des Timers am Geraet pruefen (Bridge-Adresse absichtlich verstellen, openHAB stoppen, Timer muss die Anlage finden und zuruecksetzen); `deye`/`victron` beim Schreiben ihrer Reset-Skripte gleich mit Suche ausstatten
 * [ ] `sigenergy`: Reset neutralisiert Modus/Limits nicht (nur 40029 = 0). Am 2026-10-03 setzte ein fremder Schreiber (App/Cloud?) 40029 zweimal wieder auf 1 -> Anlage lief mit dem alten Modus 5 / 1000 W weiter. Reset um 40031 = 2 (oder 0) und 40032/40034 = 0xFFFFFFFF erweitern, in `failsafe_reset.py` UND `ibmReset()`, am Geraet testen (sigenergy/README.md "Ausfall 2026-10-03", Nebenbefund 1)
 * [ ] Dashboard: Feld `failsafe` aus dem Status-Push anzeigen (Badge "Fail-Safe hat eingegriffen")
 * [ ] Mitglieder-Kurzanleitung "Speichermanagement-Pi tot: was tun" nach `docs/setup/`, erst nach Test 6 und 7

@@ -933,15 +933,21 @@ Teilt der Router dem Wechselrichter per DHCP eine neue IP zu, verliert das
 Binding die Verbindung und die Steuerung faellt aus. Der Watchdog behebt das
 automatisch, ohne dass am Router des Mitglieds etwas umgestellt werden muss:
 
-1. Geht das Bridge-Thing auf `OFFLINE` (zusaetzlich Fallback-Pruefung alle
-   15 Minuten), ruft die Regel `ibm_watchdog.js` das Skript
-   `/etc/openhab/scripts/ibm_rediscover.sh` auf.
+1. Geht das Wechselrichter-Thing auf `OFFLINE` (zusaetzlich Fallback-
+   Pruefung alle 5 Minuten, `CRON_WATCHDOG`), ruft die Regel
+   `ibm_watchdog.js` das Skript `/etc/openhab/scripts/ibm_rediscover.sh`
+   auf. Abgelesen wird der Status immer am Wechselrichter-Thing
+   (`INVERTER_THING_UID`), nie an der Modbus-tcp-Bridge - die bleibt
+   `ONLINE`, auch wenn niemand antwortet.
 2. Antwortet die konfigurierte Adresse noch (z. B. Datamanager im
    Nachtmodus, falsche Credentials), passiert nichts - das Problem liegt
    dann nicht an der IP.
-3. Sonst wird das eigene /24-Netz nach der Fronius Solar API abgesucht
+3. Sonst werden alle direkt angeschlossenen IPv4-Netze des Pi (je ein /24,
+   z. B. eth0 im Mesh und wlan0 im WLAN des Wechselrichters; Tunnel
+   ausgenommen) nach der Fronius Solar API abgesucht
    (`/solar_api/GetAPIVersion.cgi`, parallele `curl`-Aufrufe, wenige
-   Sekunden) - fruehestens alle `WATCHDOG_COOLDOWN_MIN` Minuten.
+   Sekunden; die Modbus-Profile fragen stattdessen ein Kennregister ab) -
+   fruehestens alle `WATCHDOG_COOLDOWN_MIN` Minuten.
 4. Gefundene Geraete werden ueber ihre Seriennummer (`UniqueID` aus
    `GetInverterInfo.cgi`) mit der gemerkten Seriennummer der Anlage
    abgeglichen, damit nie ein fremdes Geraet uebernommen wird. Die

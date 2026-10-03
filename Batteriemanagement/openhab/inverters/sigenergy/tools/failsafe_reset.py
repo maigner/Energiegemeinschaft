@@ -15,7 +15,16 @@ openHAB-Start. Nur Standardbibliothek; der Modbus-Client entspricht dem in
 spike_sigenstor.py (am Geraet erprobt 2026-10-02), bewusst ohne Import
 daraus, damit der Produktionspfad nicht an einem Diagnosewerkzeug haengt.
 
-    failsafe_reset.py --host 192.168.1.107 [--port 502] [--unit 247]
+    failsafe_reset.py --host 192.168.1.107 [--port 502] [--unit 247] [--scan]
+
+--scan: antwortet die Adresse nicht (keine Verbindung), werden alle direkt
+angeschlossenen IPv4-Netze des Pi (je ein /24, ohne Tunnel) nach GENAU
+EINER SigenStor abgesucht (FC04 auf 30003, Slave 247 - dieselbe Probe wie
+rediscover.sh) und der Reset dorthin geschrieben. Hintergrund pi-223
+2026-10-03: DHCP verschob die Anlage von .107 auf .101, waehrend openHAB
+weg war, waere der Timer 3,5 h ins Leere gelaufen. Die Bridge in openHAB
+korrigiert spaeter der Netzwerk-Watchdog; der Timer meldet die gefundene
+Adresse im Log.
 
 Sicherung gegen das falsche Geraet / die falsche Registerkarte (wie
 __ibmSgGuard() im Adapter): geschrieben wird nur, wenn der EMS-Modus
@@ -24,14 +33,17 @@ plausiblen Fenster liegt. Reads laufen - wie das ganze Profil - ueber FC04,
 Writes ueber FC06, literal adressiert, Anlagenebene Slave 247.
 
 Exit 0  Reset geschrieben und per Read-back bestaetigt (40029 == 0)
-Exit 1  Geraet nicht erreichbar oder Modbus-Fehler
+Exit 1  Geraet nicht erreichbar oder Modbus-Fehler (mit --scan: auch keine
+        oder mehrere SigenStor im Netz gefunden)
 Exit 2  antwortet nicht wie eine SigenStor (Guard) - nichts geschrieben
 Exit 3  Write angenommen, Read-back weicht ab (40029 != 0)
 """
 
 import argparse
+import concurrent.futures
 import socket
 import struct
+import subprocess
 import sys
 import time
 
@@ -128,6 +140,62 @@ def u32_be(words):
     return (words[0] << 16) | words[1]
 
 
+# Schnittstellen, die nie zum Netz des Wechselrichters fuehren (wie in
+# rediscover.sh): Tunnel und Container-Bruecken.
+SKIP_DEV_PREFIXES = ("wg", "tun", "tailscale", "docker", "veth", "br-")
+
+
+def local_bases():
+    """Alle direkt angeschlossenen IPv4-Netze des Pi als /24-Basis
+    ("192.168.1"), ohne Tunnel und ohne Host-Adressen (/29 und kleiner)."""
+    try:
+        out = subprocess.run(["ip", "-4", "-o", "addr", "show", "scope", "global"],
+                             capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    bases = []
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) < 4 or "/" not in parts[3]:
+            continue
+        dev, cidr = parts[1], parts[3]
+        if dev.startswith(SKIP_DEV_PREFIXES):
+            continue
+        addr, _, prefix = cidr.partition("/")
+        if not prefix.isdigit() or int(prefix) > 28:
+            continue
+        base = addr.rsplit(".", 1)[0]
+        if base not in bases:
+            bases.append(base)
+    return bases
+
+
+def probe(ip, port, unit):
+    """Antwortet unter ip eine SigenStor? FC04 auf 30003, Slave unit."""
+    try:
+        s = socket.create_connection((ip, port), timeout=1)
+        s.settimeout(1.5)
+        s.sendall(struct.pack(">HHHB", 1, 0, 6, unit)
+                  + struct.pack(">BHH", 4, REG_EMS_MODE, 1))
+        resp = s.recv(256)
+        s.close()
+        return len(resp) >= 9 and resp[6] == unit and resp[7] == 4
+    except OSError:
+        return False
+
+
+def scan(port, unit):
+    """Alle lokalen /24-Netze absuchen; Liste der antwortenden Adressen."""
+    bases = local_bases()
+    ips = [f"{b}.{i}" for b in bases for i in range(1, 255)]
+    found = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=64) as pool:
+        for ip, ok in zip(ips, pool.map(lambda ip: probe(ip, port, unit), ips)):
+            if ok:
+                found.append(ip)
+    return bases, found
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -136,15 +204,39 @@ def main():
     parser.add_argument("--port", type=int, default=502)
     parser.add_argument("--unit", type=int, default=247,
                         help="Anlagenebene = Slave-Adresse (Vorgabe 247)")
+    parser.add_argument("--scan", action="store_true",
+                        help="bei unerreichbarer Adresse das Netz nach der "
+                             "Anlage absuchen (genau ein Treffer noetig)")
     args = parser.parse_args()
 
-    dev = SigenStor(args.host, args.port, args.unit)
+    host = args.host
+    dev = SigenStor(host, args.port, args.unit)
     try:
+        # --- Erreichbarkeit; mit --scan ersatzweise die Anlage suchen -------
+        try:
+            dev.connect()
+        except OSError as e:
+            if not args.scan:
+                raise
+            bases, found = scan(args.port, args.unit)
+            nets = " ".join(f"{b}.0/24" for b in bases) or "-"
+            if len(found) != 1:
+                print(f"{host}:{args.port}: {e}; Netzsuche in {nets}: "
+                      f"{len(found)} SigenStor gefunden"
+                      f"{' (' + ', '.join(found) + ')' if found else ''} - "
+                      f"nichts geschrieben")
+                return 1
+            host = found[0]
+            print(f"{args.host}:{args.port} antwortet nicht ({e}) - Anlage per "
+                  f"Netzsuche unter {host} gefunden")
+            dev.close()
+            dev = SigenStor(host, args.port, args.unit)
+
         # --- Guard: antwortet das wirklich wie eine SigenStor? --------------
         mode_before = dev.read(REG_EMS_MODE, 1)[0]
         if mode_before < 0 or mode_before > 10:
             print(f"EMS-Modus unplausibel (gelesen: {mode_before}) - "
-                  f"keine SigenStor an {args.host}:{args.port}/{args.unit}, "
+                  f"keine SigenStor an {host}:{args.port}/{args.unit}, "
                   f"nichts geschrieben")
             return 2
         rated = u32_be(dev.read(REG_RATED_DISCHARGE, 2))
@@ -164,7 +256,7 @@ def main():
         enable_after = dev.read(REG_RMT_ENABLE, 1)[0]
         mode_after = dev.read(REG_EMS_MODE, 1)[0]
     except (OSError, ModbusError, ConnectionError) as e:
-        print(f"{args.host}:{args.port} Slave {args.unit}: {e}")
+        print(f"{host}:{args.port} Slave {args.unit}: {e}")
         return 1
     finally:
         dev.close()
