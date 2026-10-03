@@ -354,7 +354,9 @@ Entladefenster -> kein Entladebefehl) - der neue Netz-Wert wirkt also.
    02b zieht die geaenderte Konfiguration beim Update per PUT an den
    bestehenden Things nach. Danach pruefen: die drei Things ONLINE, Items
    nicht mehr NULL, 40034 folgt dem Kommando (2970 statt 1000), ESS power
-   entsprechend. Offen: Verify-Warnungen muessen aufs Dashboard.
+   entsprechend. **Bestaetigt 22:46-22:54:** Things ONLINE, 40034
+   1000 -> 2970, ESS -2972 W, Netz -2632 W. Offen: Verify-Warnungen
+   muessen aufs Dashboard.
 
 ### Handbuecher (`docs/`)
 
