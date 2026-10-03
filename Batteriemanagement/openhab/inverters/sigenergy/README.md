@@ -333,14 +333,28 @@ Entladefenster -> kein Entladebefehl) - der neue Netz-Wert wirkt also.
    Limits neutral stellen (40031 = 2 Maximum self-consumption oder 0,
    40032/40034 = 0xFFFFFFFF), damit ein fremdes Enable harmlos bleibt -
    Entscheidung + Geraetetest noetig.
-2. **Konstante Entladung ~1000 W unabhaengig vom Remote EMS.** Mit
-   40029 = 0 / EMS-Modus 0 entlaedt der Speicher 1002 W, waehrend das Haus
-   3,9 kW aus dem Netz bezieht (21:45-21:48); am 2026-10-02 22:42 ebenso
-   1002 W bei 422 W Ueberschuss ins Netz. Das ist kein Eigenverbrauchs-
-   verhalten (da waere die Entladung = Hauslast). Vermutlich eine
-   anlagenseitige Einstellung (App: TOU/Entladeleistung) - mit dem
-   Mitglied klaeren. Die 3,9 kW Nachtlast selbst (E-Auto?) sind
-   Hausvorrang-relevant, nicht unser Problem.
+2. **Konstante Entladung ~1000 W - Ursache gefunden (22:30):** Die drei
+   Schreib-Things fuer die 32-bit-Register (`chglimit` 40032, `dislimit`
+   40034, `pvlimit` 40036) standen seit ihrer Anlage am 2026-10-02 auf
+   UNINITIALIZED (HANDLER_CONFIGURATION_PENDING): das Modbus-Binding lehnt
+   `writeValueType = uint32` ab (erlaubt ist `int32`, "int32 (int32,
+   uint32)"), `profile.sh` bildete aber nur `uint16 -> int16` ab. Folge:
+   kein einziges Limit, das der Kern seit gestern kommandierte (Entladung
+   2710/2718/2970 W, Ladesperre-Entladelimit 0, PV-Freigabe 11000), kam an
+   der Anlage an - `events.log` zeigt die Kommandos, `openhab.log` keinen
+   Write-Fehler, die Items `IBM_SG_DischargeLimitW`/`IBM_SG_PvLimitW`
+   blieben NULL. In 40034 stand noch das letzte 1000 W aus dem Spike, in
+   40036 die dort gesetzten 11000. Die Entladung lief darum mit Modus 6
+   (kam an: uint16) und dem alten Deckel 1000 W; die 1002 W bei
+   `enable = 0` (21:45-21:48) bleiben dagegen ungeklaert (Anlagenverhalten
+   oder Nachlauf). `06-verify.sh` hatte die drei Things bei jedem Update
+   als "nicht ONLINE (UNINITIALIZED)" gemeldet - im Installer-Log, das
+   niemand liest. **Fix 2026-10-03:** alle vier Modbus-Profile bilden jetzt
+   jeden unsigned-Typ auf den signed-Typ ab (`uint16/32/64 -> int16/32/64`);
+   02b zieht die geaenderte Konfiguration beim Update per PUT an den
+   bestehenden Things nach. Danach pruefen: die drei Things ONLINE, Items
+   nicht mehr NULL, 40034 folgt dem Kommando (2970 statt 1000), ESS power
+   entsprechend. Offen: Verify-Warnungen muessen aufs Dashboard.
 
 ### Handbuecher (`docs/`)
 

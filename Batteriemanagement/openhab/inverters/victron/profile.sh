@@ -178,11 +178,13 @@ for reg_id, poller_id, address, valuetype, writable in registers:
     }
     if writable:
         cfg["writeStart"] = str(address)
-        # Das Modbus-Binding kennt fuer Schreibzugriffe kein "uint16" - int16
-        # deckt beide ab (openHAB 5.2: "int16 (int16, uint16)"). Mit "uint16"
-        # bleibt das Thing UNINITIALIZED und jeder Write laeuft ins Leere
-        # (pi-020, 2026-09-11).
-        cfg["writeValueType"] = "int16" if valuetype == "uint16" else valuetype
+        # Das Modbus-Binding kennt fuer Schreibzugriffe keine unsigned-Typen -
+        # int16/int32/int64 decken beide Vorzeichen ab (openHAB 5.2: "int16
+        # (int16, uint16)", "int32 (int32, uint32)"). Mit "uint16"/"uint32"
+        # bleibt das Thing UNINITIALIZED (HANDLER_CONFIGURATION_PENDING) und
+        # jeder Write laeuft ins Leere (pi-020 2026-09-11: uint16; pi-223
+        # 2026-10-02..03: uint32 - Lade-/Entlade-/PV-Limit nie geschrieben).
+        cfg["writeValueType"] = valuetype[1:] if valuetype.startswith("uint") else valuetype
         cfg["writeType"] = "holding"
     things.append({
         "UID": "modbus:data:ibm:vic:" + reg_id,
