@@ -306,6 +306,42 @@ automatisch. Manuelle Korrektur, falls noetig (als openhab, Token liegt in
 `/var/lib/openhab/ibm/api_token`): `PUT /rest/things/modbus:tcp:ibm/config`
 mit `{"host": "192.168.1.101"}`, oder in der openHAB-UI am Bridge-Thing.
 
+**Verlauf der Wiederherstellung (ohne Handeingriff):** Paket mit beiden
+Fixes 21:29 installiert; der erste Lauf im Installer traf noch die
+10-min-Abkuehlzeit der Suche von 21:22. Cron-Lauf 21:37: "Suche SigenStor in
+192.168.7.0/24 192.168.1.0/24", "Neue Adresse gefunden: 192.168.1.107 ->
+192.168.1.101", Bridge aktualisiert, alle Daten-Things 21:37:09 ONLINE,
+Werte wieder live (SoC 83,9 %, Netz +3,8 kW, PV 0). Kern 21:40 "Reset
+(ok=true)" -> Heartbeat frisch -> `ibm-failsafe` 21:41 "Heartbeat zurueck -
+wieder in Bereitschaft". Hausvorrang griff sofort (Netzbezug 3,9 kW im
+Entladefenster -> kein Entladebefehl) - der neue Netz-Wert wirkt also.
+
+**Zwei Nebenbefunde beim Wiederanlauf, beide offen:**
+
+1. **Fremder Schreiber auf 40029.** Um 21:37:40 und 21:40:52 sprang Remote
+   EMS enable jeweils ~40-50 s nach einem Reset (Timer bzw. Kern) von 0 auf
+   1, EMS-Modus auf 7 - ohne openHAB-Kommando (`events.log`: kein
+   ItemCommandEvent; keine Regel am Pi schreibt am Item vorbei). Nach dem
+   Kern-Reset 21:45 blieb es bei 0, nachmittags (14:55-17:00, Reset alle
+   5 min) und waehrend des Ausfalls (20:44 gelesen) ebenfalls - also
+   sporadisch, nicht periodisch. Verdacht: die mySigen-App/Cloud setzt den
+   Schalter "Remote EMS Scheduling Enable" bei Sync erneut, oder jemand war
+   in der App. Folge fuer uns: ein Re-Enable laesst die Anlage mit dem
+   **zuletzt geschriebenen** Modus/Limit (hier 40031 = 5, 40034 = 1000 W)
+   weiterlaufen, ohne dass der Kern etwas davon will. Der Reset (Timer und
+   `ibmReset`) schreibt nur 40029 = 0; er sollte zusaetzlich Modus und
+   Limits neutral stellen (40031 = 2 Maximum self-consumption oder 0,
+   40032/40034 = 0xFFFFFFFF), damit ein fremdes Enable harmlos bleibt -
+   Entscheidung + Geraetetest noetig.
+2. **Konstante Entladung ~1000 W unabhaengig vom Remote EMS.** Mit
+   40029 = 0 / EMS-Modus 0 entlaedt der Speicher 1002 W, waehrend das Haus
+   3,9 kW aus dem Netz bezieht (21:45-21:48); am 2026-10-02 22:42 ebenso
+   1002 W bei 422 W Ueberschuss ins Netz. Das ist kein Eigenverbrauchs-
+   verhalten (da waere die Entladung = Hauslast). Vermutlich eine
+   anlagenseitige Einstellung (App: TOU/Entladeleistung) - mit dem
+   Mitglied klaeren. Die 3,9 kW Nachtlast selbst (E-Auto?) sind
+   Hausvorrang-relevant, nicht unser Problem.
+
 ### Handbuecher (`docs/`)
 
 Alle drei PDFs stammen von sigenergy.com (Stand 2026-09-08; die
