@@ -62,15 +62,42 @@ excludes=(
 )
 
 # Pruefsumme des Paketinhalts: dieselben Quellen und Ausschluesse wie der
-# tar-Aufruf unten, ohne die erzeugten Dateien (BUILD-INFO, page-*.json) und
-# mit neutralisierten Zeitstempeln/Eigentuemern, damit nur der Inhalt zaehlt.
-source_hash="$(tar -cf - \
-    -C "$(dirname "$openhab_dir")" \
-    --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
-    "${excludes[@]}" \
-    --exclude='BUILD-INFO' \
-    --exclude='page-*.json' \
-    "$(basename "$openhab_dir")" | sha256sum | cut -d' ' -f1)"
+# tar-Aufruf unten, ohne die erzeugten Dateien (BUILD-INFO, page-*.json).
+# Bewusst nicht ueber tar: GNU tar (--sort, --mtime, --owner) und bsdtar
+# (macOS) erzeugen verschiedene Archive und bsdtar kennt --sort nicht
+# (Deploy vom Mac, 2026-10-04). Gehasht werden sortierte relative Pfade plus
+# Dateiinhalte - auf jedem System gleich. Die Ausschlussmuster gelten wie
+# bei tar unverankert (passen auf jedes Pfadende).
+hash_excludes="$(printf '%s\n' "${excludes[@]#--exclude=}" | tr -d "'")
+BUILD-INFO
+page-*.json"
+source_hash="$(IBM_HASH_ROOT="$openhab_dir" IBM_HASH_EXCLUDES="$hash_excludes" python3 - <<'HASHPY'
+import fnmatch, hashlib, os
+root = os.environ["IBM_HASH_ROOT"]
+patterns = [p for p in os.environ["IBM_HASH_EXCLUDES"].splitlines() if p]
+def excluded(rel):
+    parts = rel.split("/")
+    tails = ["/".join(parts[i:]) for i in range(len(parts))]
+    return any(fnmatch.fnmatchcase(t, pat) for pat in patterns for t in tails)
+h = hashlib.sha256()
+for dirpath, dirnames, filenames in os.walk(root):
+    dirnames.sort()
+    for name in sorted(filenames):
+        full = os.path.join(dirpath, name)
+        rel = os.path.relpath(full, root)
+        if excluded(rel):
+            continue
+        h.update(rel.encode() + b"\0")
+        if os.path.islink(full):
+            h.update(os.readlink(full).encode())
+        else:
+            with open(full, "rb") as f:
+                for chunk in iter(lambda: f.read(1 << 16), b""):
+                    h.update(chunk)
+        h.update(b"\0")
+print(h.hexdigest())
+HASHPY
+)"
 
 if [ "$force" -eq 0 ] && [ -f "$tarball" ] && [ -f "$checksum" ] && [ -f "$dist_dir/VERSION" ] \
    && [ "$(cat "$source_stamp" 2>/dev/null)" = "$source_hash" ]; then
