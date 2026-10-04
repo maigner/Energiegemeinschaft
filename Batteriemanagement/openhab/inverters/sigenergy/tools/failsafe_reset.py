@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Fail-Safe-Reset fuer die Sigenergy SigenStor (Remote EMS), ohne openHAB.
 
-Schreibt das Werksverhalten der Anlage - Remote EMS enable (40029) = 0,
-genau der eine Write aus ibmReset() in adapter.js - und prueft per
-Read-back, dass das Register wirklich steht und der EMS-Modus nicht mehr
-auf 7 (Remote EMS) haengt.
+Schreibt das Werksverhalten der Anlage wie ibmReset() in adapter.js:
+Entladelimit (40034) = Nennentladeleistung, Remote-EMS-Modus (40031) = 2
+(Maximum self-consumption), Remote EMS enable (40029) = 0 - und prueft per
+Read-back, dass Enable und Limit stehen und der EMS-Modus nicht mehr auf 7
+(Remote EMS) haengt. Limit und Modus gehoeren dazu, weil das Entladelimit
+auch bei enable = 0 als Deckel wirkt (223, 2026-10-04: Limit 0 aus der
+Ladesperre, volle Batterie stand den Abend still, Haus bezog aus dem Netz).
 
 Hintergrund: Sigenergy kennt (Stand Protokoll V1.7) KEIN geraeteseitiges
 Auto-Revert - ein kommandierter Remote-EMS-Zustand bleibt stehen, wenn
@@ -36,7 +39,7 @@ Exit 0  Reset geschrieben und per Read-back bestaetigt (40029 == 0)
 Exit 1  Geraet nicht erreichbar oder Modbus-Fehler (mit --scan: auch keine
         oder mehrere SigenStor im Netz gefunden)
 Exit 2  antwortet nicht wie eine SigenStor (Guard) - nichts geschrieben
-Exit 3  Write angenommen, Read-back weicht ab (40029 != 0)
+Exit 3  Write angenommen, Read-back weicht ab (40029 != 0 oder 40034 != Nennleistung)
 """
 
 import argparse
@@ -51,7 +54,10 @@ import time
 # entsprechen. Literal adressiert.
 REG_EMS_MODE = 30003         # U16, 7 = Remote EMS aktiv
 REG_RATED_DISCHARGE = 30070  # U32, W
-REG_RMT_ENABLE = 40029       # U16, 0/1 - der eine Reset-Write
+REG_RMT_ENABLE = 40029       # U16, 0/1
+REG_RMT_MODE = 40031         # U16, Appendix 6; 2 = Maximum self-consumption
+REG_DISCHARGE_LIMIT = 40034  # U32, W - wirkt auch bei enable = 0 als Deckel
+MODE_SELF_CONSUMPTION = 2
 
 EMS_WORK_MODE_REMOTE = 7
 
@@ -134,6 +140,11 @@ class SigenStor:
 
     def write_u16(self, address, value):
         self._request(struct.pack(">BHH", 6, address, value & 0xFFFF))
+
+    def write_u32(self, address, value):
+        """FC16, zwei Register, Big Endian (wie das Binding mit int32)."""
+        self._request(struct.pack(">BHHB", 16, address, 2, 4)
+                      + struct.pack(">HH", (value >> 16) & 0xFFFF, value & 0xFFFF))
 
 
 def u32_be(words):
@@ -245,15 +256,18 @@ def main():
                   f"nichts geschrieben")
             return 2
 
-        # --- Reset: der eine Write aus ibmReset() ---------------------------
+        # --- Reset: Limit und Modus neutral, dann Enable aus (wie ibmReset) -
+        dev.write_u32(REG_DISCHARGE_LIMIT, rated)
+        dev.write_u16(REG_RMT_MODE, MODE_SELF_CONSUMPTION)
         dev.write_u16(REG_RMT_ENABLE, 0)
 
         # Der EMS-Modus folgt dem Enable nicht sofort - dem Geraet kurz Zeit
         # geben, bevor der Read-back prueft (Spike-Reset: 2 s, dann Modus 0).
         time.sleep(2)
 
-        # --- Read-back: FC04, Register muss stehen --------------------------
+        # --- Read-back: FC04, Register muessen stehen -----------------------
         enable_after = dev.read(REG_RMT_ENABLE, 1)[0]
+        limit_after = u32_be(dev.read(REG_DISCHARGE_LIMIT, 2))
         mode_after = dev.read(REG_EMS_MODE, 1)[0]
     except (OSError, ModbusError, ConnectionError) as e:
         print(f"{host}:{args.port} Slave {args.unit}: {e}")
@@ -261,9 +275,11 @@ def main():
     finally:
         dev.close()
 
-    ok = (enable_after == 0 and mode_after != EMS_WORK_MODE_REMOTE)
-    print(f"vorher EMS-Modus {mode_before} -> Remote EMS enable 0 geschrieben "
-          f"-> nachher enable {enable_after}, EMS-Modus {mode_after} "
+    ok = (enable_after == 0 and limit_after == rated
+          and mode_after != EMS_WORK_MODE_REMOTE)
+    print(f"vorher EMS-Modus {mode_before} -> Limit {rated} W, Modus "
+          f"{MODE_SELF_CONSUMPTION}, Remote EMS enable 0 geschrieben -> nachher "
+          f"enable {enable_after}, Limit {limit_after} W, EMS-Modus {mode_after} "
           f"({'bestaetigt' if ok else 'ABWEICHUNG'})")
     return 0 if ok else 3
 

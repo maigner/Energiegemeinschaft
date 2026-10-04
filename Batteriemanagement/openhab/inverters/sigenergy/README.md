@@ -358,6 +358,24 @@ Entladefenster -> kein Entladebefehl) - der neue Netz-Wert wirkt also.
    1000 -> 2970, ESS -2972 W, Netz -2632 W. Offen: Verify-Warnungen
    muessen aufs Dashboard.
 
+3. **Entladelimit wirkt auch ohne Remote EMS - Reset war unvollstaendig
+   (2026-10-04, 20:48):** Seit die Limit-Writes ankommen, schrieb die
+   Ladesperre tagsueber 40034 = 0 (Modus 5, enable 1). Nach ihrem Ende
+   setzte der Kern nur `enable = 0`; die Anlage lief wieder im eigenen
+   Eigenverbrauchsmodus (30003 = 0), hielt aber den Deckel 0 W: SoC 100 %,
+   Nacht, ESS -1 W, Netzbezug 544 W seit ~18:00. Der Kern meldete dazu
+   "Hausvorrang: ... die Batterie versorgt das Haus" - stimmte nicht. Das
+   erklaert rueckwirkend auch die 1002 W bei `enable = 0` am Vorabend
+   (Deckel 1000 W aus dem Spike bei 4,9 kW Hauslast). **Fix:** `ibmReset()`
+   und `failsafe_reset.py` schreiben vor dem Enable-Loeschen 40034 =
+   Nennentladeleistung und 40031 = 2 (Maximum self-consumption; damit auch
+   ein fremdes Wieder-Einschalten harmlos bleibt); Read-back prueft Enable
+   und Limit. Am Simulator bestaetigt (Modus 5 / Limit 0 -> 2 / 8000),
+   Geraetetest offen: nach dem Deploy muss die Batterie abends das Haus
+   versorgen (ESS ~ Hauslast, Netz ~ 0) und 40034 = 6400 lesen.
+   Sofortmassnahme bis dahin: `IBM_SG_DischargeLimitW` einmal auf 6400
+   setzen (openHAB-UI oder REST-POST am Pi).
+
 ### Handbuecher (`docs/`)
 
 Alle drei PDFs stammen von sigenergy.com (Stand 2026-09-08; die
@@ -402,9 +420,9 @@ Alle Werte per FC04 an Slave 247, literal adressiert, U32 Big Endian
 | Rated ESS charging power | 30068 | uint32 | 1000 | 5800 W |
 | Rated ESS discharging power | 30070 | uint32 | 1000 | 6400 W (Plausibilitaetsfenster 100..1000000 OK) |
 | Remote EMS enable | 40029 | uint16 | - | 0; schreibbar per FC06, Wirkung sofort (Modus 7); liest dauerhaft 0, solange "Remote EMS Scheduling Enable" in der App AUS ist |
-| Remote EMS control mode | 40031 | uint16 | - | 0; Modus 5 (Ladesperre) und 6 (Entladung) verifiziert |
+| Remote EMS control mode | 40031 | uint16 | - | 0; Modus 5 (Ladesperre) und 6 (Entladung) verifiziert; Modus 2 (Maximum self-consumption) ist seit 2026-10-04 der Reset-Wert - am Geraet noch zu bestaetigen |
 | ESS max charging limit | 40032 | uint32 | 1000 | Default 0xFFFFFFFF (gelesen, nicht geschrieben) |
-| ESS max discharging limit | 40034 | uint32 | 1000 | Default 0xFFFFFFFF; 0 (Sperre) und 2000 (Entladung) verifiziert, Registerwert = W |
+| ESS max discharging limit | 40034 | uint32 | 1000 | Default 0xFFFFFFFF; 0 (Sperre) und 2000 (Entladung) verifiziert, Registerwert = W. **Wirkt auch bei Remote EMS enable = 0 als Deckel** (2026-10-03: Limit 1000 -> Eigenverbrauch max. 1000 W bei 4,9 kW Hauslast; 2026-10-04: Limit 0 aus der Ladesperre -> volle Batterie liefert 0 W, Haus bezieht 544 W aus dem Netz). Darum stellt der Reset das Limit auf die Nennentladeleistung |
 | PV max power limit | 40036 | uint32 | 1000 | Default 0xFFFFFFFF = kein Limit; Freigabe auf 11000 verifiziert |
 
 Firmwarestand: in der App noch nicht abgelesen (TODO) | Protokollversion:
@@ -435,8 +453,8 @@ Protokolls beschreibt nur Request-Timing, kein Steuerungs-Fallback.
   unten ab.
 - Der root-Timer `ibm-failsafe` (`setup/10-install-failsafe.sh`) uebernimmt
   das ueber `inverter_failsafe_reset` -> `tools/failsafe_reset.py`: ein
-  Skript ohne openHAB, das `Remote EMS enable = 0` schreibt und per
-  Read-back prueft. **Seit 2026-10-02 vorhanden und am Geraet bewiesen**
+  Skript ohne openHAB, das Entladelimit = Nennleistung, Modus 2 und
+  `Remote EMS enable = 0` schreibt und per Read-back prueft. **Seit 2026-10-02 vorhanden und am Geraet bewiesen**
   (openHAB-Stop: Reset nach ~47 s; Reboot: Boot-Reset vor openHAB). Seit
   2026-10-03 mit `--scan`: antwortet die Adresse aus dem Bridge-Thing
   nicht, sucht das Skript die Anlage in allen lokalen /24-Netzen (Probe wie
