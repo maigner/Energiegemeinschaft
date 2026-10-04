@@ -371,10 +371,11 @@ Entladefenster -> kein Entladebefehl) - der neue Netz-Wert wirkt also.
    Nennentladeleistung und 40031 = 2 (Maximum self-consumption; damit auch
    ein fremdes Wieder-Einschalten harmlos bleibt); Read-back prueft Enable
    und Limit. Am Simulator bestaetigt (Modus 5 / Limit 0 -> 2 / 8000),
-   Geraetetest offen: nach dem Deploy muss die Batterie abends das Haus
-   versorgen (ESS ~ Hauslast, Netz ~ 0) und 40034 = 6400 lesen.
-   Sofortmassnahme bis dahin: `IBM_SG_DischargeLimitW` einmal auf 6400
-   setzen (openHAB-UI oder REST-POST am Pi).
+   **Am Geraet bestaetigt 2026-10-04 21:30** (Paket ab52d08): Reset schrieb
+   6400 / 2 / 0, Read-back identisch, EMS work mode 0, ESS -194 W binnen
+   10 s nach dem Reset = Hauslast statt 0 W. Zuvor 21:25 regulaere
+   Entladung 2012 W (ok=true), 21:30 Nachtziel erreicht -> Reset ->
+   Eigenverbrauch. Damit ist 223 vollstaendig im Regelbetrieb.
 
 ### Handbuecher (`docs/`)
 
@@ -420,7 +421,7 @@ Alle Werte per FC04 an Slave 247, literal adressiert, U32 Big Endian
 | Rated ESS charging power | 30068 | uint32 | 1000 | 5800 W |
 | Rated ESS discharging power | 30070 | uint32 | 1000 | 6400 W (Plausibilitaetsfenster 100..1000000 OK) |
 | Remote EMS enable | 40029 | uint16 | - | 0; schreibbar per FC06, Wirkung sofort (Modus 7); liest dauerhaft 0, solange "Remote EMS Scheduling Enable" in der App AUS ist |
-| Remote EMS control mode | 40031 | uint16 | - | 0; Modus 5 (Ladesperre) und 6 (Entladung) verifiziert; Modus 2 (Maximum self-consumption) ist seit 2026-10-04 der Reset-Wert - am Geraet noch zu bestaetigen |
+| Remote EMS control mode | 40031 | uint16 | - | 0; Modus 5 (Ladesperre) und 6 (Entladung) verifiziert; Modus 2 (Maximum self-consumption) ist seit 2026-10-04 der Reset-Wert - am Geraet bestaetigt (21:30: Read-back 2, EMS work mode 0, ESS folgt der Hauslast) |
 | ESS max charging limit | 40032 | uint32 | 1000 | Default 0xFFFFFFFF (gelesen, nicht geschrieben) |
 | ESS max discharging limit | 40034 | uint32 | 1000 | Default 0xFFFFFFFF; 0 (Sperre) und 2000 (Entladung) verifiziert, Registerwert = W. **Wirkt auch bei Remote EMS enable = 0 als Deckel** (2026-10-03: Limit 1000 -> Eigenverbrauch max. 1000 W bei 4,9 kW Hauslast; 2026-10-04: Limit 0 aus der Ladesperre -> volle Batterie liefert 0 W, Haus bezieht 544 W aus dem Netz). Darum stellt der Reset das Limit auf die Nennentladeleistung |
 | PV max power limit | 40036 | uint32 | 1000 | Default 0xFFFFFFFF = kein Limit; Freigabe auf 11000 verifiziert |

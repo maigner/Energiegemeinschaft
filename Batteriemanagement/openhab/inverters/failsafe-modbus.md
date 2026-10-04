@@ -352,7 +352,8 @@ Entladung einmal ~85 s laenger stehen als geplant.
 * [ ] Verify-Warnungen des Installers (Things nicht ONLINE) auf das Dashboard bringen - der Befund stand seit zwei Tagen nur im Update-Log
 * [ ] `--scan`-Fallback des Timers am Geraet pruefen (Bridge-Adresse absichtlich verstellen, openHAB stoppen, Timer muss die Anlage finden und zuruecksetzen); `deye`/`victron` beim Schreiben ihrer Reset-Skripte gleich mit Suche ausstatten
 * [x] `sigenergy`: Reset neutralisiert jetzt Limit und Modus (40034 = Nennentladeleistung, 40031 = 2, dann 40029 = 0) in `ibmReset()` UND `failsafe_reset.py` (2026-10-04). Grund: das Entladelimit deckelt die Anlage auch bei enable = 0 - nach der Ladesperre (Limit 0) stand die volle Batterie den Abend still (223, 2026-10-04); ausserdem trifft ein fremdes Wieder-Einschalten (2026-10-03 zweimal) so auf Eigenverbrauch statt auf den letzten Kommando-Modus. Simulator bestaetigt (sigenergy/README.md Nebenbefund 3)
-* [ ] 223 nach dem Deploy: abends ESS ~ Hauslast, Netz ~ 0, 40034 = 6400; Modus 2 am Geraet bestaetigen (Read-back 40031 nach dem Reset); Testplan Zeile 11/12 einmal wiederholen, weil der Reset jetzt drei Writes umfasst
+* [x] 223 mit Paket ab52d08 (2026-10-04 21:30): Reset 6400 / 2 / 0 per Read-back bestaetigt, EMS work mode 0, ESS folgt der Hauslast - Modus 2 = Maximum self-consumption am Geraet bestaetigt
+* [ ] Testplan Zeile 11/12 (openHAB-Stop, Boot) einmal wiederholen, weil `failsafe_reset.py` jetzt drei Writes umfasst; dabei `--scan` mitpruefen (Bridge-Adresse verstellen)
 * [ ] Dashboard: Feld `failsafe` aus dem Status-Push anzeigen (Badge "Fail-Safe hat eingegriffen")
 * [ ] Mitglieder-Kurzanleitung "Speichermanagement-Pi tot: was tun" nach `docs/setup/`, erst nach Test 6 und 7
 * [ ] Austausch-Checkliste Ersatz-Pi: Modbus wieder auf tcp, "Steuerung einschraenken" auf neue IP
