@@ -16,8 +16,10 @@ s1-Backups aufgefrischt.
 ## Produktion: s1.ischlstrom.org
 
 PostgreSQL 16 direkt am Host (kein Container), Zugriff nur per `hostssl`;
-Rollen heissen wie die Datenbanken. Details zu Diensten, pg_hba und
-Deployment: [server-setup.md](server-setup.md).
+Rollen heissen wie die Datenbanken. Port 5432 ist per ufw nur fuer die
+Workstation-IP und die Docker-Container auf s1 offen, fuer das restliche
+Internet seit 8. Oktober 2026 zu. Details zu Diensten, pg_hba, Firewall
+und Deployment: [server-setup.md](server-setup.md).
 
 **Achtung fail2ban:** s1 sperrt die Quell-IP schon nach **einem**
 fehlgeschlagenen PostgreSQL-Login. Keine Zugangsdaten "einfach probieren";
@@ -27,10 +29,12 @@ im Zweifel per SSH auf s1 arbeiten.
 
 Der Heimserver (LAN, `server.fritz.box` / 192.168.178.38, PostgreSQL 14)
 war bis zur Migration am 1. August 2026 die Produktion und ist seither die
-**Dev-Datenbank**: `website/.env` auf der Workstation zeigt mit
-`MIDDLEWARE_DB_HOST`/`AUTHJS_DB_HOST` auf `server`, `npm run dev` arbeitet
-also immer gegen diese Kopie. Passwoerter liegen in `notebooks/.pgpass`
-(Host `server`, gitignored).
+**Dev-Datenbank** (anonymisierte Kopie). Seit 11. September 2026 zeigt
+`website/.env` auf der Workstation mit `MIDDLEWARE_DB_HOST`/`AUTHJS_DB_HOST`
+allerdings auf `s1.ischlstrom.org`: `npm run dev` arbeitet gegen
+**Produktion** (Board-Seiten in dev wie Produktion behandeln), die Kopie
+auf `server` dient nur noch als Restore-Test und Notfall-Reserve.
+Passwoerter liegen in `notebooks/.pgpass` (beide Hosts, gitignored).
 
 Was daraus folgt:
 

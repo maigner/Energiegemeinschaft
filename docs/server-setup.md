@@ -45,9 +45,34 @@ PostgreSQL 16 direkt auf s1 (kein Container). Beide Website-DBs
 (`ischlstrom_middleware`, `ischlstrom_authjs_website`) gehoeren dem
 jeweils gleichnamigen Benutzer. Zugriff nur per `hostssl` (pg_hba):
 
-- `172.16.0.0/12` - Docker-Container auf s1 (Website)
-- `85.127.127.139/32` - Heimnetz/Workstation (Django, Notebooks, psql);
-  aendert sich diese IP, muss die pg_hba auf s1 nachgezogen werden
+- `172.16.0.0/12` - Docker-Container auf s1 (Website, Keila)
+- `85.127.8.140/32` - Heimnetz/Workstation (Django, Notebooks, psql und
+  seit 11. September 2026 auch `npm run dev`); aendert sich diese IP,
+  muessen pg_hba **und** die ufw-Regel (siehe unten) auf s1 nachgezogen
+  werden
+
+**Firewall (ufw):** Port 5432 ist nur fuer dieselben beiden Quellen offen
+(`ufw allow from 85.127.8.140 to any port 5432 proto tcp` und
+`ufw allow from 172.16.0.0/12 to any port 5432 proto tcp`), alles andere
+wird verworfen. Bis 8. Oktober 2026 war der Port fuer das ganze Internet
+erreichbar (`listen_addresses = '*'`, keine ufw-Regel), geschuetzt nur
+durch pg_hba und fail2ban; die Einschraenkung wurde moeglich, nachdem die
+letzten externen Clients weggefallen sind: die openHAB-Installationen der
+Mitglieder 003 und 007 persistierten frueher per JDBC in die Host-DBs
+`openhabian003`/`openhabian007`, laufen aber laengst mit mapdb/rrd4j
+lokal. Die beiden DBs samt Rollen sind geloescht (letzte Dumps liegen bis
+zur Rotation in `/var/backups/s1/postgres/`). Pruefung von aussen:
+`bash -c '</dev/tcp/94.130.9.254/5432'` von einem fremden Anschluss
+(z. B. ueber einen Pi) muss fehlschlagen, `psql service=eeg-middleware`
+von der Workstation weiter funktionieren.
+
+**fail2ban:** Jail `postgresql` (`/etc/fail2ban/jail.d/postgresql.conf`)
+sperrt die Quell-IP nach **einem** Fehlversuch dauerhaft (`maxretry = 1`,
+`bantime = -1`); Treffer sind "password authentication failed", "no
+pg_hba.conf entry" und "role does not exist". Entsperren:
+`sudo fail2ban-client set postgresql unbanip <IP>`. Das `ignoreip` in
+`jail.local` enthaelt noch den Platzhalter `YOUR.IP.HERE` - dort gehoert
+die Workstation-IP hin.
 
 Workstation-Clients verbinden ueber den Service `eeg-middleware`
 (`notebooks/.pg_service.conf`, `middleware/eeg/.pg_service.conf`,
@@ -65,7 +90,8 @@ Skripte in `scripts/backup-s1/`:
 
 - **s1, taeglich 03:14** (`s1-backup.timer` -> `/usr/local/bin/s1-backup.sh`):
   `pg_dump -Fc` aller Datenbanken + Globals (das Host-PostgreSQL traegt
-  neben der Website auch die OpenHAB-DBs der Mitglieder, keila und KEM),
+  neben der Website auch keila und KEM; die alten OpenHAB-DBs der
+  Mitglieder 003/007 sind seit Oktober 2026 weg),
   `mongodump` der openHAB-Cloud-MongoDB (Konten und UUID/Secret der
   Anlagen, seit 23. September 2026; Restore: `docker exec -i
   openhab-cloud-ischlstrom-mongodb-1 mongorestore --archive --gzip --drop
