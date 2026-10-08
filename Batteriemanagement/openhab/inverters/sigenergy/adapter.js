@@ -55,6 +55,15 @@
 // from PV first), 6 = Command discharging (output from ESS first)
 var SIGEN_MODE_PREVENT_CHARGE = 5;
 var SIGEN_MODE_FORCE_DISCHARGE = 6;
+// Neutraler Modus fuer den Reset: 2 = Maximum self-consumption (Appendix 6).
+// Hintergrund 223, 2026-10-04: das Entladelimit (40034) wirkt als Deckel
+// AUCH bei Remote EMS enable = 0 - nach der Ladesperre (Limit 0) stand die
+// volle Batterie den ganzen Abend still, das Haus bezog aus dem Netz. Der
+// Reset stellt deshalb Limit (= Nennentladeleistung) und Modus neutral,
+// bevor er das Enable loescht; ein fremdes Wieder-Einschalten (App/Cloud,
+// 2026-10-03 zweimal beobachtet) trifft dann auf Eigenverbrauch statt auf
+// den letzten Kommando-Modus. Modus 2 am Geraet noch zu bestaetigen.
+var SIGEN_MODE_SELF_CONSUMPTION = 2;
 
 // Kennt die Firmware ein automatisches Zuruecksetzen bei Kommunikations-
 // verlust? Stand Protokoll V1.7: nein - und am Geraet bestaetigt: Spike-
@@ -171,11 +180,22 @@ function __ibmSgReleasePvLimit() {
 
 function ibmReset() {
   // Werksverhalten: Remote EMS aus, die Anlage folgt wieder ihrem
-  // konfigurierten EMS-Modus (Eigenverbrauch, TOU, ...).
+  // konfigurierten EMS-Modus (Eigenverbrauch, TOU, ...). Vorher Limit und
+  // Modus neutral stellen - siehe SIGEN_MODE_SELF_CONSUMPTION: das
+  // Entladelimit deckelt die Anlage auch bei enable = 0.
   // ok=true NUR, wenn der Befehl die Anlage erreichen konnte - der Kern
   // beruehrt den Fail-Safe-Heartbeat nur bei ok=true (core.js).
   if (!__ibmSgDeliverable()) return { ok: false };
-  var ok = __ibmSgSend('IBM_SG_RemoteEnable', 0);
+  var ok = true;
+  var ratedW = __ibmSgGuard();
+  if (ratedW === null) {
+    // Anlage antwortet nicht wie erwartet - wenigstens das Enable loeschen.
+    console.log('[IBM][Adapter] Reset ohne Limit-Freigabe (Nennleistung unbekannt) - nur Remote EMS aus.');
+  } else {
+    ok = __ibmSgSend('IBM_SG_DischargeLimitW', Math.round(ratedW)) && ok;
+    ok = __ibmSgSend('IBM_SG_RemoteMode', SIGEN_MODE_SELF_CONSUMPTION) && ok;
+  }
+  ok = __ibmSgSend('IBM_SG_RemoteEnable', 0) && ok;
   return { ok: ok };
 }
 
