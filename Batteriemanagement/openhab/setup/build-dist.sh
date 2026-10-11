@@ -4,7 +4,24 @@
 #
 # Erzeugt in website/static/ibm/:
 #   ibm-openhab.tgz          das Paket
-#   ibm-openhab.tgz.sha256   Pruefsumme (vom Bootstrap verifiziert)
+#   ibm-openhab.tgz.sha256   Pruefsumme (Download-Integritaet, Nachtvergleich)
+#   ibm-openhab.tgz.minisig  Signatur (minisign) - der Updater auf den Pis
+#                            (ibm-update) spielt nur Pakete ein, deren
+#                            Signatur zum installierten setup/ibm-release.pub
+#                            passt; ein kompromittierter Server kann so kein
+#                            Update auf die Flotte schieben.
+#
+# Signieren: braucht minisign (apt install minisign / brew install minisign)
+# und den privaten Release-Schluessel, Vorgabe ~/.minisign/ibm-release.key
+# (IBM_SIGN_KEY=<pfad> fuer einen anderen Ort); minisign fragt sein
+# Passwort ab. Der oeffentliche Schluessel liegt im Repo unter
+# setup/ibm-release.pub und damit im Paket. Erzeugen (einmalig):
+#   minisign -G -p Batteriemanagement/openhab/setup/ibm-release.pub \
+#               -s ~/.minisign/ibm-release.key
+# Den privaten Schluessel sichern (Passwort-Manager): ohne ihn nimmt die
+# Flotte kein Update mehr an, nur noch install.sh von Hand je Pi.
+# Schluesselwechsel: neuen Public-Key ins Repo, das Paket noch einmal mit
+# dem ALTEN Key signieren und ausrollen, erst danach mit dem neuen.
 #
 # Endung .tgz statt .tar.gz: sirv (adapter-node) liefert *.gz-Dateien mit
 # "Content-Encoding: gzip" aus - Clients ohne Accept-Encoding bekommen dann
@@ -36,7 +53,10 @@ dist_dir="$repo_root/website/static/ibm"
 
 tarball="$dist_dir/ibm-openhab.tgz"
 checksum="$tarball.sha256"
+signature="$tarball.minisig"
 source_stamp="$tarball.source"
+pubkey="$openhab_dir/setup/ibm-release.pub"
+sign_key="${IBM_SIGN_KEY:-$HOME/.minisign/ibm-release.key}"
 
 log() { echo "[IBM] $*"; }
 die() { echo "[IBM] FEHLER: $*" >&2; exit 1; }
@@ -46,6 +66,20 @@ die() { echo "[IBM] FEHLER: $*" >&2; exit 1; }
 
 command -v python3 >/dev/null 2>&1 || die "python3 fehlt (wird fuer die Overview-Konvertierung gebraucht)."
 python3 -c 'import yaml' 2>/dev/null || die "PyYAML fehlt: sudo apt install python3-yaml"
+command -v minisign >/dev/null 2>&1 || die "minisign fehlt (apt install minisign / brew install minisign) - das Paket muss signiert werden."
+[ -f "$pubkey" ] || die "Release-Schluessel fehlt: $pubkey - einmalig erzeugen mit: minisign -G -p $pubkey -s $sign_key"
+[ -f "$sign_key" ] || die "Privater Release-Schluessel fehlt: $sign_key (IBM_SIGN_KEY=<pfad> fuer einen anderen Ort)."
+
+sign_package() {
+  rm -f "$signature"
+  minisign -S -s "$sign_key" -m "$tarball" -x "$signature" -t "ibm-openhab.tgz $(cat "$dist_dir/VERSION" 2>/dev/null || echo unbekannt)" \
+    || die "Signieren fehlgeschlagen."
+  # Gegenprobe mit dem Public-Key aus dem Repo: faengt einen falschen
+  # privaten Schluessel ab, bevor die Flotte das Paket ablehnt.
+  minisign -Vq -p "$pubkey" -m "$tarball" -x "$signature" \
+    || die "Signatur passt nicht zu $pubkey - falscher privater Schluessel ($sign_key)?"
+  log "signiert: $signature"
+}
 
 mkdir -p "$dist_dir"
 
@@ -102,6 +136,15 @@ HASHPY
 if [ "$force" -eq 0 ] && [ -f "$tarball" ] && [ -f "$checksum" ] && [ -f "$dist_dir/VERSION" ] \
    && [ "$(cat "$source_stamp" 2>/dev/null)" = "$source_hash" ]; then
   log "Paketinhalt unveraendert seit dem letzten Build - kein Neubau (Stand: $(cat "$dist_dir/VERSION"), --force erzwingt)."
+  # Signatur fehlt oder passt nicht (erster Build nach der Einfuehrung,
+  # Schluesselwechsel): nur neu signieren, das Paket bleibt - ein Neubau
+  # wuerde ein Flotten-Update ausloesen.
+  if [ -f "$signature" ] && minisign -Vq -p "$pubkey" -m "$tarball" -x "$signature" 2>/dev/null; then
+    log "Signatur gueltig: $signature"
+  else
+    log "Signatur fehlt oder passt nicht - signiere das bestehende Paket neu."
+    sign_package
+  fi
   exit 0
 fi
 
@@ -157,6 +200,7 @@ rm -f "$build_info"
 [ "${#generated_pages[@]}" -gt 0 ] && rm -f "${generated_pages[@]}"
 
 ( cd "$dist_dir" && sha256sum "$(basename "$tarball")" > "$(basename "$checksum")" )
+sign_package
 echo "$source_hash" > "$source_stamp"
 
 log "erzeugt: $tarball ($(du -h "$tarball" | cut -f1))"

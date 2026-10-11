@@ -10,9 +10,18 @@
 #   * sonst einmal taeglich zwischen 03:00 und 05:00, wenn die Pruefsumme
 #     des Pakets auf dem Server von der installierten abweicht
 #     (INSTALL_AUTO_UPDATE=1, Vorgabe).
-# Das Update ist der normale Bootstrap (ibm/install.sh): Paket laden,
-# Pruefsumme, ibm.conf uebernehmen, install-ibm.sh. Log: /var/log/ibm-update.log
-# und journalctl -u ibm-update.
+# Das Update laedt Paket und Signatur (ibm-openhab.tgz.minisig), prueft die
+# Signatur mit dem INSTALLIERTEN Release-Schluessel (setup/ibm-release.pub,
+# minisign) und ruft dann setup/install-package.sh aus dem frisch
+# entpackten Paket auf (Pruefsumme, ibm.conf uebernehmen, install-ibm.sh).
+# Der Updater fuehrt damit nie Code aus, dessen Signatur er nicht geprueft
+# hat - anders als der Bootstrap ibm/install.sh, der bei der ersten
+# Installation TLS und ischlstrom.org vertrauen muss. Ein kompromittierter
+# Server kann so kein Update mehr auf die Flotte schieben; dafuer braucht
+# es den privaten Schluessel vom Entwicklungsrechner (build-dist.sh).
+# Fehlt der Schluessel am Pi oder minisign, bleibt das Update aus (fail
+# closed) und das Log sagt warum. Log: /var/log/ibm-update.log und
+# journalctl -u ibm-update.
 #
 # Der Bootstrap fuehrt dieses Skript erneut aus und schreibt dabei
 # /usr/local/sbin/ibm-update neu - waehrend der alte ibm-update noch laeuft.
@@ -44,6 +53,17 @@ if [ "$INSTALL_AUTO_UPDATE" != "1" ]; then
   fi
   exit 0
 fi
+
+# minisign jetzt installieren, nicht erst im Update um 03:00 (dann haelt
+# unattended-upgrades ab 03:40 die apt-Sperre). Ohne minisign spielt der
+# Updater nichts ein.
+if ! command -v minisign >/dev/null 2>&1; then
+  log "Installiere minisign (apt-get) ..."
+  apt-get install -y -qq -o DPkg::Lock::Timeout=120 minisign >/dev/null 2>&1 \
+    || warn "minisign konnte nicht installiert werden - der Updater holt das beim naechsten Lauf nach; bis dahin keine Updates."
+fi
+[ -f "$IBM_SETUP_DIR/ibm-release.pub" ] \
+  || warn "Release-Schluessel $IBM_SETUP_DIR/ibm-release.pub fehlt im Paket - der Updater wird Pakete ablehnen."
 
 # Marker-Verzeichnis: der Status-Push laeuft als openHAB-Benutzer und muss
 # die Anforderung dort ablegen koennen; der Timer laeuft als root.
@@ -105,14 +125,50 @@ fi
 
 rm -f "$FLAG"
 log "Update startet ($reason) ..."
-if ! curl -fsSL -m 60 "$base/ibm/install.sh" -o /run/ibm-install.sh; then
-  log "install.sh nicht erreichbar ($base) - Update abgebrochen."
+
+# Fail closed: ohne Schluessel oder minisign wird nichts eingespielt.
+PUBKEY=@IBM_SETUP_DIR@/ibm-release.pub
+if [ ! -f "$PUBKEY" ]; then
+  log "Release-Schluessel $PUBKEY fehlt - Update abgebrochen (Paket von Hand mit install.sh einspielen)."
   exit 1
 fi
+if ! command -v minisign >/dev/null 2>&1; then
+  log "minisign fehlt - versuche apt-get install ..."
+  apt-get install -y -qq -o DPkg::Lock::Timeout=120 minisign >> "$LOG" 2>&1 \
+    || { log "minisign nicht installierbar - Update abgebrochen."; exit 1; }
+fi
+
+# /run ist tmpfs: nichts bleibt nach einem Neustart liegen; install-package.sh
+# loescht das Verzeichnis nach dem Einspielen (--cleanup).
+tmp="$(mktemp -d /run/ibm-update.XXXXXX)"
+trap 'rm -rf "$tmp"' EXIT
+for f in ibm-openhab.tgz ibm-openhab.tgz.minisig ibm-openhab.tgz.sha256; do
+  if ! curl -fsSL -m 120 "$base/ibm/$f" -o "$tmp/$f"; then
+    log "$f nicht abrufbar ($base) - Update abgebrochen."
+    exit 1
+  fi
+done
+if ! ( cd "$tmp" && sha256sum -c ibm-openhab.tgz.sha256 >/dev/null 2>&1 ); then
+  log "Pruefsumme stimmt nicht (unvollstaendiger Download?) - Update abgebrochen."
+  exit 1
+fi
+if ! minisign -Vq -p "$PUBKEY" -m "$tmp/ibm-openhab.tgz" -x "$tmp/ibm-openhab.tgz.minisig" >> "$LOG" 2>&1; then
+  log "SIGNATUR UNGUELTIG - das Paket auf $base stammt nicht vom Release-Schluessel. Nichts eingespielt."
+  exit 1
+fi
+log "Signatur OK."
+mkdir -p "$tmp/pkg"
+if ! tar -xzf "$tmp/ibm-openhab.tgz" -C "$tmp/pkg" || [ ! -f "$tmp/pkg/openhab/setup/install-package.sh" ]; then
+  log "Paket unerwartet aufgebaut (setup/install-package.sh fehlt) - Update abgebrochen."
+  exit 1
+fi
+
 rc=0
-IBM_ASSUME_YES=1 IBM_BASE_URL="$base" bash /run/ibm-install.sh >> "$LOG" 2>&1 || rc=$?
-rm -f /run/ibm-install.sh
-# Die Sicherungen (openhab.bak-<zeit>) duennt install.sh selbst aus.
+trap - EXIT
+IBM_ASSUME_YES=1 IBM_BASE_URL="$base" bash "$tmp/pkg/openhab/setup/install-package.sh" \
+  --from "$tmp/pkg/openhab" --sha256 "$tmp/ibm-openhab.tgz.sha256" --cleanup "$tmp" >> "$LOG" 2>&1 || rc=$?
+rm -rf "$tmp"
+# Die Sicherungen (openhab.bak-<zeit>) duennt install-package.sh selbst aus.
 if [ "$rc" -eq 0 ]; then
   log "Update abgeschlossen."
 elif [ "$rc" -eq 75 ]; then

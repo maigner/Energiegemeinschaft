@@ -99,10 +99,21 @@ Die Pis aktualisieren sich selbst (`09-install-updater.sh`, root-Timer
   `ibm/ibm-openhab.tgz.sha256` auf dem Server mit `PACKAGE-SHA256` der
   Installation (schreibt `install.sh`) und aktualisiert bei Abweichung.
   `INSTALL_AUTO_UPDATE=0` in `ibm.conf` schaltet das ab.
-* Das Update ist der normale Bootstrap `ibm/install.sh` (Paket laden,
-  Pruefsumme, `ibm.conf` uebernehmen, `install-ibm.sh`); Fortschritt wie bei
-  der Einrichtung ueber die Phasenmeldungen am Dashboard, Log in
-  `/var/log/ibm-update.log`. Von Hand: `sudo ibm-update --now`.
+* **Signatur:** `ibm-update` laedt Paket, Pruefsumme und Signatur
+  (`ibm-openhab.tgz.minisig`, minisign), prueft die Signatur mit dem
+  **installierten** Release-Schluessel `setup/ibm-release.pub` und ruft
+  erst dann `setup/install-package.sh` aus dem frisch entpackten Paket auf
+  (`ibm.conf` uebernehmen, `PACKAGE-SHA256`, `install-ibm.sh`). Der Updater
+  fuehrt also nie Code aus, dessen Signatur er nicht geprueft hat; ein
+  kompromittierter Server kann kein Update auf die Flotte schieben, dafuer
+  braucht es den privaten Schluessel vom Entwicklungsrechner
+  (`build-dist.sh`, siehe "Deploy"). Fehlt Schluessel, minisign oder die
+  Signatur, bleibt das Update aus und `/var/log/ibm-update.log` sagt
+  warum (fail closed). Der Bootstrap `ibm/install.sh` prueft die Signatur
+  ebenfalls, sobald der Pi den Schluessel hat; bei der allerersten
+  Installation vertraut er TLS und ischlstrom.org. Fortschritt wie bei der
+  Einrichtung ueber die Phasenmeldungen am Dashboard. Von Hand:
+  `sudo ibm-update --now`.
 * `build-dist.sh` legt neben dem Paket `ibm/VERSION` ab; das Dashboard
   markiert Anlagen mit aelterem Stand ("IBM-Paket ... veraltet").
 
@@ -421,6 +432,26 @@ bekaemen dann das entpackte Tar und die Pruefsumme schluege fehl.
 Der Bootstrap `website/static/ibm/install.sh` ist dagegen eine gepflegte
 Quelldatei im Repository und wird nicht generiert.
 
+**Signatur:** `build-dist.sh` signiert das Paket mit minisign
+(`ibm-openhab.tgz.minisig`); der Updater auf den Pis nimmt nur Pakete an,
+deren Signatur zum installierten `setup/ibm-release.pub` passt. Einmalig
+auf dem Entwicklungsrechner (`sudo apt install minisign` bzw.
+`brew install minisign`):
+
+```
+minisign -G -p Batteriemanagement/openhab/setup/ibm-release.pub -s ~/.minisign/ibm-release.key
+```
+
+Der Public-Key gehoert ins Repo (und damit ins Paket), der private
+Schluessel nie - ihn samt Passwort im Passwort-Manager sichern: ohne ihn
+nimmt die Flotte kein Update mehr an, dann bleibt nur `install.sh` von
+Hand je Pi. Anderer Ort: `IBM_SIGN_KEY=<pfad>`; minisign fragt beim Deploy
+das Passwort ab. Ist das Paket unveraendert, aber die Signatur fehlt oder
+passt nicht (Einfuehrung, Schluesselwechsel), signiert `build-dist.sh`
+nur neu, ohne Neubau. Schluesselwechsel: neuen Public-Key ins Repo, das
+Paket noch einmal mit dem alten Key signieren und ausrollen, erst danach
+mit dem neuen.
+
 `build-dist.sh` braucht `python3` mit PyYAML (`sudo apt install python3-yaml`),
 um die Overview-Seiten der Profile nach `overview.page.json` zu wandeln.
 
@@ -454,7 +485,9 @@ nur ohne Provisionierung).
 | `purge-ibm.sh` | Entfernt das Batteriemanagement komplett wieder (Things, Regeln, Items, Seiten, Token, WireGuard, `/opt/ischlstrom`) und setzt die Anlage auf "frisches openHABian + Admin-Konto" zurueck - fuer Test-Wiederholungen oder Ausserbetriebnahme. Entfernt auch `/var/lib/ischlstrom` (Firstboot-Marker) und `/run/ibm-provision.env`, sodass die Zero-Touch-Einrichtung wiederholt werden kann. Admin-Konto, Linux-Passwort, Zeitzone und Cloud-Identitaet (UUID/Secret) bleiben. |
 | `prepare-sd.sh` | Nur auf dem Entwicklungsrechner (root): schreibt die SD-Karte fuer eine provisionierte Anlage aus dem Zip des Dashboards. Schreibt das Image und kopiert `openhabian.conf`, `ibm-provision.conf` und `user-data` auf die Boot-Partition; die systemd-Unit `ibm-firstboot` installiert cloud-init aus der `user-data` beim ersten Boot am Pi. |
 | `firstboot/` | `ibm-firstboot.sh` + systemd-Unit: startet nach der openHABian-Erstinstallation das Setup und wiederholt es alle 10 Minuten, bis es vollstaendig ist. |
-| `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut das Auslieferungspaket. |
+| `install-package.sh` | Spielt ein heruntergeladenes, entpacktes und geprueftes Paket ein (Sicherung, `ibm.conf` uebernehmen, `PACKAGE-SHA256`) und startet `install-ibm.sh`; gemeinsamer Schlussteil von `ibm/install.sh` und `ibm-update`. |
+| `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut und signiert das Auslieferungspaket (minisign, privater Schluessel `~/.minisign/ibm-release.key`). |
+| `ibm-release.pub` | Oeffentlicher Release-Schluessel (minisign); der Updater prueft damit jedes Paket. Erzeugt mit `minisign -G`, siehe "Deploy". |
 
 `install-ibm.sh` setzt ausserdem die Regionaleinstellungen - das, was sonst
 der Ersteinrichtungs-Assistent der Main UI erledigt (der kann also samt

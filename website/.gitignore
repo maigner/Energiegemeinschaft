@@ -26,6 +26,7 @@ vite.config.ts.timestamp-*
 static/ibm/ibm-openhab.tgz
 static/ibm/ibm-openhab.tgz.sha256
 static/ibm/ibm-openhab.tgz.source
+static/ibm/ibm-openhab.tgz.minisig
 
 # SD-Karten-Images im Dev-Modus (src/lib/server/ibmImage.js)
 /data/

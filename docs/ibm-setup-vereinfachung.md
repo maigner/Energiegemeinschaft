@@ -369,6 +369,12 @@ Aufwand: 1 bis 2 Tage (ohne Kommandos).
   "Neuer Code".
 - WireGuard-Schluessel entstehen auf dem Pi, nur der Public-Key geht zum
   Server.
+- Das IBM-Paket ist mit minisign signiert (`build-dist.sh`, privater
+  Schluessel nur auf dem Entwicklungsrechner); der Updater auf den Pis
+  prueft jede Signatur mit dem installierten `setup/ibm-release.pub` und
+  spielt sonst nichts ein. Ein kompromittierter Webserver kann damit kein
+  Update auf die Flotte schieben; nur die allererste Installation
+  (Bootstrap `install.sh`, First-Boot) vertraut TLS und ischlstrom.org.
 - Geheimnisse in der DB verschluesselt (Stufe 1), das Wechselrichter-Passwort
   nur bis zur Zustellung; keine Geheimnisse in App-Logs (DSGVO-Regel).
 - Der mailcow-API-Key liegt in `website/.env` und ist in mailcow auf die
