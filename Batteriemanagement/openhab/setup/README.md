@@ -1152,6 +1152,18 @@ Host pi-mueller
     HostName 10.88.0.11
 ```
 
+**Der Tunnel ist eine Einbahnstrasse** (s1 -> Pi): auf s1 sperrt ufw alles,
+was vom Tunnel kommt (`deny in on wg0`), jedes Forwarding zwischen
+Peers (`route deny in on wg0 out on wg0`), und eine Regel in Dockers
+`DOCKER-USER`-Kette (`-i wg0 -j DROP`, Unit `ibm-tunnel-firewall`) auch
+die veroeffentlichten Container-Ports, die an ufw vorbeigehen. Ein Pi
+erreicht durch den Tunnel also weder einen anderen Pi noch Dienste auf s1
+(Postgres, Website-Container, Nextcloud, mailcow);
+alles, was der Pi von s1 braucht, holt er ueber die oeffentliche
+HTTPS-Adresse (`IBM_API_BASE`). Gesetzt und geprueft mit
+`scripts/ibm-provision/harden-tunnel.sh --check | --apply`
+(siehe [docs/server-setup.md](../../../docs/server-setup.md)).
+
 **Nachruesten** bei bestehender Installation: `INSTALL_WIREGUARD=1` und
 `WG_ADDRESS` in `ibm.conf` eintragen, dann
 `sudo /opt/ischlstrom/openhab/setup/08-install-wireguard.sh` ausfuehren.

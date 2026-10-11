@@ -154,6 +154,35 @@ auf s1):
   Dashboard geloescht wurden (`setup_phase = 'geloescht'`); jede andere
   Verkleinerung wird verweigert, ausser
   `sudo touch /etc/wireguard/ibm-allow-fewer-peers` liegt vor (ein Lauf).
+- **Tunnel-Haertung** (vorbereitet 11. Oktober 2026 nach dem
+  Security-Review des Schwesterprojekts Stromkreis, auf s1 gesetzt und von
+  pi-020 aus geprueft am 11. Oktober 2026): der Tunnel wird nur in Richtung s1 -> Pi gebraucht
+  (SSH-Sprungpunkt), die Pis reden mit s1 ausschliesslich ueber HTTPS.
+  Deshalb zwei ufw-Regeln an Position 1, unabhaengig von wg-quick:
+  `ufw route deny in on wg0 out on wg0` (kein Forwarding Pi <-> Pi, auch
+  wenn `ip_forward=1` wegen Docker) und `ufw deny in on wg0` (nichts vom
+  Tunnel zu Host-Diensten, egal welche Portregeln darunter stehen - etwa
+  22 oder 5432). Veroeffentlichte Docker-Ports (3001 Website, 8080 und
+  11000 Nextcloud AIO, 8090/8453 mailcow, Mailports) gehen an ufw vorbei
+  (DNAT, dann FORWARD -> DOCKER-Kette vor den ufw-Ketten); dafuer sperrt
+  `iptables -I DOCKER-USER -i wg0 -j DROP`, nach jedem Start neu gesetzt
+  von `ibm-tunnel-firewall.service` (`/usr/local/sbin/ibm-tunnel-firewall.sh`;
+  Docker leert DOCKER-USER nie). Bestandsaufnahme und Setzen vom
+  Entwicklungsrechner aus:
+  `scripts/ibm-provision/harden-tunnel.sh --check` bzw.
+  `--apply --workstation-ip <IP>` (letzteres ersetzt auch den Platzhalter
+  `YOUR.IP.HERE` in `/etc/fail2ban/jail.local` durch Workstation und
+  `172.16.0.0/12`). Der Check meldet ausserdem Docker-Container, die
+  einen Port auf `0.0.0.0` veroeffentlichen - MongoDB und Redis der
+  openHAB-Cloud duerfen das nicht (sie laufen ohne Authentifizierung;
+  das Mapping gehoert nur in das Compose-Netz). Pruefung auf einem Pi
+  (nicht von der Workstation, die hat keine Route in den Tunnel):
+  `bash -c '</dev/tcp/10.88.0.1/5432'` (Host-Dienst),
+  `bash -c '</dev/tcp/10.88.0.1/3001'` (Docker-Port) und
+  `bash -c '</dev/tcp/10.88.0.11/22'` (anderer Pi) muessen scheitern,
+  `ssh openhabian@10.88.0.<x>` von s1 aus weiter funktionieren. Rueckbau:
+  `ufw status numbered`, `ufw delete <Nr>`, `systemctl disable --now
+  ibm-tunnel-firewall`, `iptables -D DOCKER-USER -i wg0 -j DROP`.
 - **Anlage loeschen** (Dashboard "Anlage loeschen"): die Website markiert
   nur (`setup_phase = 'geloescht'`, Cloud-Konto `delete`, Code und
   Passwoerter sofort weg); der Timer nimmt den Peer aus der `wg0.conf`,
