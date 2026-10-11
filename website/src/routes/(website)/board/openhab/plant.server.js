@@ -13,7 +13,8 @@ import {
     retryMailAlias,
     deletePlant,
     undeletePlant,
-    inverterPasswordState
+    inverterPasswordState,
+    codeConsumable
 } from '$lib/server/db/members/openhabProvision';
 import { getImageStatus, startImageBuild, deleteImage } from '$lib/server/ibmImage';
 import { secretsConfigured } from '$lib/server/secrets';
@@ -51,6 +52,9 @@ export function mapProvisioning(p, data, image) {
         code: p.provision_code,
         expires: p.provision_expires,
         provisionedAt: p.provisioned_at,
+        // false, sobald der Pi seine ibm.conf hat (oder Code abgelaufen):
+        // der Code auf der Karte ist dann wertlos, "Neuer Code" fuer einen Neuaufbau
+        codeUsable: codeConsumable(p),
         inverterType: p.inverter_type,
         inverterUsername: p.inverter_username,
         inverterPasswordSet: p.inverter_password_set,

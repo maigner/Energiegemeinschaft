@@ -13,7 +13,9 @@ Das Mitglied muss nichts am Pi tun; der Vorstand bereitet die SD-Karte vor:
    entstehen automatisch Status-Token, Tunnel-IP (Pool ab 10.88.0.11),
    Linux-/Admin-Passwort, openHAB-Cloud-Identitaet (UUID/Secret),
    Cloud-Konto `<nnn>@ischlstrom.org` samt Mail-Alias auf `info@` und ein
-   Provisionierungs-Code (60 Tage gueltig). Das Cloud-Konto und der
+   Provisionierungs-Code (60 Tage gueltig, verbraucht sobald der Pi seine
+   `ibm.conf` geschrieben hat; `00-provision.sh` nimmt ihn dann auch von
+   der SD-Karte). Das Cloud-Konto und der
    WireGuard-Peer werden vom Timer `ibm-provision-sync` auf s1 angelegt
    (siehe `scripts/ibm-provision/`, [docs/server-setup.md](../../../docs/server-setup.md)).
    Das Wechselrichter-Profil dabei gleich setzen (fuer den Standardablauf
@@ -287,6 +289,15 @@ danach bietet das Dashboard je Anlage:
   bedeutet: das Image passt nicht mehr zum aktuellen Code, vor dem Flashen
   also "Image neu erstellen".
 - **Neuer Code**: neuer Provisionierungs-Code (der alte wird ungueltig).
+  Noetig fuer jeden Neuaufbau: der Server loest einen Code nur ein,
+  solange die Anlage noch keine Phase ab `tunnel` gemeldet hat (bis dahin
+  hat der Pi keine `ibm.conf` und ein Neustart beginnt die Einloesung von
+  vorn); danach zeigt das Dashboard ihn als "verbraucht". Eine zweite
+  Einloesung davor steht im Website-Log als `ibm provision delivered
+  AGAIN` - normal nach einem Neustart waehrend der Wechselrichter-Suche,
+  sonst ein Hinweis auf eine fremde Karte mit diesem Code. Abgelehnte
+  Codes zaehlen in ein globales Budget (30 je Stunde, danach 429 fuer
+  alle, ohne Client-IP), damit niemand Codes durchprobiert.
 - **Neues Cloud-Passwort**: setzt das Passwort des Cloud-Kontos neu.
 - **Cloud-Konto erneut** / **Mail-Alias erneut**: wiederholt das Anlegen
   nach einem Fehler.

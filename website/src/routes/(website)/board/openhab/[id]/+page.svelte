@@ -607,7 +607,7 @@
 
             <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm mb-3">
                 <span class="text-gray-500">Code</span>
-                <span class="font-mono dark:text-white">{p.code ?? "-"} {#if p.expires}<span class="text-xs text-gray-500">(bis {formatDate(p.expires)})</span>{/if}</span>
+                <span class="font-mono dark:text-white">{p.code ?? "-"} {#if p.expires}<span class="text-xs text-gray-500">(bis {formatDate(p.expires)}{#if p.code && !p.codeUsable}, verbraucht{/if})</span>{/if}</span>
                 <span class="text-gray-500">Linux / openHAB-Admin</span>
                 <span class="font-mono dark:text-white">openhabian / {showSecrets ? p.linuxPassword : "••••••••"}</span>
                 <span class="text-gray-500">Cloud-Konto</span>

@@ -24,7 +24,11 @@ Dateinamen wie `makeuser.ts` oder `build-image.sh`) sind teils ueberholt.
 Verbindlich fuer den Ist-Stand: das Setup-README und `server-setup.md`.
 
 Abweichungen vom Plan unten: der Code gilt 60 Tage statt 24 Stunden (die
-Karte kann liegen); statt eines eigenen Images installiert cloud-init (im
+Karte kann liegen), ist aber verbraucht, sobald der Pi seine `ibm.conf`
+geschrieben hat (Phase `tunnel` und spaeter; davor darf ein Neustart ihn
+erneut einloesen, der Pi entfernt ihn dann auch von der Karte, und der
+Endpoint begrenzt abgelehnte Codes global auf 30 je Stunde); statt eines
+eigenen Images installiert cloud-init (im
 Raspberry-Pi-OS-Image enthalten, NoCloud-Datasource liest die
 Boot-Partition) die First-Boot-Unit beim ersten Boot aus einer `user-data`
 im `sd-<nnn>.zip` - die Karte braucht damit nur noch die FAT-Partition,
@@ -355,8 +359,14 @@ Aufwand: 1 bis 2 Tage (ohne Kommandos).
 
 ## Sicherheit
 
-- Der Provisionierungs-Code ist einmalig und kurzlebig; auf der SD-Karte
-  liegt kein Status-Token und kein Passwort, beides holt der Pi per HTTPS.
+- Der Provisionierungs-Code ist 40 Bit stark (8 Zeichen aus 32), gilt
+  60 Tage und nur bis der Pi seine `ibm.conf` hat; der Pi loescht ihn
+  danach von der Karte, abgelehnte Codes sind global auf 30 je Stunde
+  begrenzt (ohne Client-IP im Log), eine zweite Einloesung wird
+  protokolliert. Auf der SD-Karte liegt kein Status-Token und kein
+  Passwort, beides holt der Pi per HTTPS. Verbleibendes Risiko: eine
+  verlorene Karte, bevor der Pi das erste Mal bootet - dann am Dashboard
+  "Neuer Code".
 - WireGuard-Schluessel entstehen auf dem Pi, nur der Public-Key geht zum
   Server.
 - Geheimnisse in der DB verschluesselt (Stufe 1), das Wechselrichter-Passwort

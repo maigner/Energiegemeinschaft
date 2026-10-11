@@ -49,6 +49,28 @@ export const SETUP_PHASES = [
     'fertig'
 ];
 
+/**
+ * Phasen, in denen der Code noch eingeloest werden darf: solange der Pi
+ * seine ibm.conf noch nicht geschrieben hat (00-provision.sh schreibt sie
+ * nach der Wechselrichter-Suche), startet ein Neustart die Einloesung
+ * neu. Ab "tunnel" laeuft die Einrichtung aus der ibm.conf weiter und
+ * der Code wird nicht mehr gebraucht; eine weitere Einloesung waere ein
+ * Fremder mit dem Code (verlorene SD-Karte). Ein Neuaufbau bekommt ueber
+ * "Neuer Code" einen frischen Code.
+ */
+export const CODE_CONSUMABLE_PHASES = ['', 'konfiguration', 'wechselrichter_suche', 'wechselrichter_unklar'];
+
+/**
+ * Ob der Code dieser Anlage noch eingeloest werden kann (fuer die Anzeige;
+ * Ablauf und Loeschung kommen dazu).
+ * @param {{ provision_code?: string | null, provision_expires?: Date | string | null, setup_phase?: string | null }} plant
+ */
+export function codeConsumable(plant) {
+    if (!plant.provision_code) return false;
+    if (plant.provision_expires && new Date(plant.provision_expires).getTime() <= Date.now()) return false;
+    return CODE_CONSUMABLE_PHASES.includes(plant.setup_phase ?? '');
+}
+
 function wgPrefix() {
     return env.IBM_WG_SUBNET_PREFIX || '10.88.0';
 }
@@ -279,9 +301,11 @@ export const getMemberPlants = async (memberIdentifier) => {
 
 /**
  * Provisionierungs-Code einloesen (POST /api/ibm/provision/v1). Der Code
- * bleibt bis zum Abschluss der Einrichtung (Phase "fertig") oder bis zum
- * Ablauf gueltig, damit ein abgebrochener Lauf neu starten kann.
- * Geheimnisse kommen entschluesselt zurueck.
+ * gilt bis zum Ablauf und nur, solange der Pi seine ibm.conf noch nicht
+ * hat (CODE_CONSUMABLE_PHASES), damit ein in dieser Zeit abgebrochener
+ * Lauf neu starten kann. Geheimnisse kommen entschluesselt zurueck;
+ * `previously_provisioned_at` sagt, ob der Code schon einmal eingeloest
+ * wurde (der Aufrufer protokolliert das, siehe Endpoint).
  *
  * @param {string} code
  * @returns {Promise<any | null>}
@@ -290,15 +314,19 @@ export const consumeProvisionCode = async (code) => {
     const db = await middlewareDbConnection();
     try {
         const result = await db.query(
-            `UPDATE members_openhabstatus s
+            `WITH before AS (
+                SELECT id, provisioned_at FROM members_openhabstatus WHERE provision_code = $1
+             )
+             UPDATE members_openhabstatus s
                 SET provisioned_at = COALESCE(s.provisioned_at, now())
-               FROM members_member m
+               FROM members_member m, before b
               WHERE s.member_id = m.id
+                AND s.id = b.id
                 AND s.provision_code = $1
                 AND s.provision_expires > now()
-                AND s.setup_phase <> 'fertig'
-             RETURNING ${PROVISION_COLUMNS}`,
-            [code]
+                AND s.setup_phase = ANY($2::text[])
+             RETURNING ${PROVISION_COLUMNS}, b.provisioned_at AS previously_provisioned_at`,
+            [code, CODE_CONSUMABLE_PHASES]
         );
         const row = await withSecrets(result.rows[0]);
         if (!row) return null;

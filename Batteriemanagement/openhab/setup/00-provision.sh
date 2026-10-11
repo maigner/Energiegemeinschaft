@@ -186,6 +186,20 @@ PY
 chmod 600 "$IBM_CONF"
 log "Konfiguration geschrieben: $IBM_CONF"
 
+# Der Code auf der Boot-Partition ist ab jetzt wertlos (der Server loest
+# ihn ab der naechsten Phasenmeldung nicht mehr ein) - trotzdem von der
+# FAT-Partition nehmen, damit eine verlorene Karte ihn nicht preisgibt.
+# Die Datei bleibt (install-ibm.sh erkennt daran den Zero-Touch-Weg), nur
+# die Code-Zeile wird ersetzt; ein Neuaufbau braucht ohnehin "Neuer Code".
+for f in /boot/firmware/ibm-provision.conf /boot/ibm-provision.conf; do
+  [ -f "$f" ] || continue
+  if sed -i "s/^IBM_PROVISION_CODE=.*/# IBM_PROVISION_CODE eingeloest am $(date +%F)/" "$f" 2>/dev/null; then
+    log "Provisionierungs-Code aus $f entfernt."
+  else
+    warn "Provisionierungs-Code konnte nicht aus $f entfernt werden (Boot-Partition schreibgeschuetzt?)."
+  fi
+done
+
 # Linux-Passwort nur fuer diesen Lauf (10-change-passwords.sh liest IBM_NEW_PASSWORD).
 if [ -n "${IBM_PROV_LINUX_PASSWORD:-}" ]; then
   ( umask 077; printf 'IBM_NEW_PASSWORD=%q\n' "$IBM_PROV_LINUX_PASSWORD" > "${IBM_RUN_DIR:-/run}/ibm-provision.env" )
