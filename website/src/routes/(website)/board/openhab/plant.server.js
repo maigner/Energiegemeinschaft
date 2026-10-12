@@ -2,6 +2,7 @@
 // Detailseite (/board/openhab/[id]): die Form-Actions je Anlage sowie die
 // Aufbereitung der Provisionierungsdaten fuer die Seiten.
 import { fail } from '@sveltejs/kit';
+import { isInverterType } from '$lib/ibmNames';
 import { requestOpenhabUpdate } from '$lib/server/db/members/openhabStatus';
 import {
     getProvisioning,
@@ -52,6 +53,9 @@ export function mapProvisioning(p, data, image) {
         code: p.provision_code,
         expires: p.provision_expires,
         provisionedAt: p.provisioned_at,
+        // wie oft der Code eingeloest wurde (mehr als einmal: Pi-Neustart
+        // waehrend der Einrichtung oder fremde Karte - Signal-Meldung)
+        redemptions: Number(p.provision_redemptions ?? 0),
         // false, sobald der Pi seine ibm.conf hat (oder Code abgelaufen):
         // der Code auf der Karte ist dann wertlos, "Neuer Code" fuer einen Neuaufbau
         codeUsable: codeConsumable(p),
@@ -97,7 +101,7 @@ export const plantActions = {
         const formData = await request.formData();
         const id = idOf(formData);
         const type = String(formData.get('inverterType') ?? '').trim();
-        if (!id || !/^[a-z0-9-]{0,50}$/.test(type)) return fail(400, { message: 'Ungültiges Profil.' });
+        if (!id || !isInverterType(type)) return fail(400, { message: 'Ungültiges Profil.' });
         await setInverterType(id, type);
         return { inverterTypeSet: id };
     },

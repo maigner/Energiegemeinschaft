@@ -1,6 +1,7 @@
 import { SvelteKitAuth } from "@auth/sveltekit"
 import Nodemailer from "@auth/sveltekit/providers/nodemailer"
-import { SMTP_USER, SMTP_PWD, SMTP_ENDPOINT, SMTP_TLS_PORT, AUTH_SECRET, AUTH_EMAIL_FROM } from "$env/static/private";
+import { env } from "$env/dynamic/private";
+const { SMTP_USER, SMTP_PWD, SMTP_ENDPOINT, SMTP_TLS_PORT, AUTH_SECRET, AUTH_EMAIL_FROM } = env;
 import PostgresAdapter from "@auth/pg-adapter";
 import { error, redirect } from '@sveltejs/kit';
 import { authDbPool } from "$lib/server/db/db";

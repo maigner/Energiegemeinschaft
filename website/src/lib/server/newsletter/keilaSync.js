@@ -17,7 +17,9 @@ export async function syncNewsletterContacts() {
     try {
         const wanted = await getNewsletterContacts(middlewareDbPool);
         const result = await syncKeilaContacts(config, wanted, {
-            log: (line) => console.log(`syncNewsletterContacts: ${line}`),
+            // Anwendungslogs ohne E-Mail-Adressen (siehe /datenschutz); die
+            // CLI (scripts/keila-contacts.js) zeigt die vollen Zeilen
+            log: (line) => console.log(`syncNewsletterContacts: ${line.replace(/\S+@\S+/g, '[e-mail]')}`),
         });
         console.log(`syncNewsletterContacts: ${wanted.length} Mitglieder-Kontakte, `
             + `${result.created} angelegt, ${result.updated} aktualisiert, ${result.deleted} geloescht, `

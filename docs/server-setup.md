@@ -39,6 +39,38 @@ s1 als `.env`; darin zeigen die DB-Hosts auf `172.17.0.1` (Docker-Bridge,
 also das PostgreSQL des Hosts). `./deploy-server.sh server` deployt auf
 den Heimserver - nur fuer den Notfall, falls s1 ausfaellt.
 
+Seit dem Security-Audit vom 11. Oktober 2026 (Deploy danach):
+
+- Die `.env` wird **nicht mehr ins Image kopiert**, sondern von
+  `run-docker.sh` zur Laufzeit eingehaengt (`-v .env:/app/.env:ro`); der
+  Code liest alle Variablen ueber `$env/dynamic/private`. Ein
+  `.dockerignore` haelt ausserdem `node_modules`, Exporte (`keila-*.csv`,
+  `*.dmp`) und `.env*` aus dem Image, der rsync im Deploy laesst sie weg.
+- Der Container veroeffentlicht Port 3001 **nur auf 127.0.0.1** (Caddy
+  proxyt auf localhost). Docker-Ports gehen an ufw vorbei; direkt aus dem
+  Internet erreichbar war der Port ein Weg, ueber `X-Forwarded-Host`
+  die Login-Links (Magic Links) auf einen fremden Host umzubiegen.
+  Dazu ist die Basis-URL jetzt fest: `ORIGIN=https://ischlstrom.org` im
+  `start`-Skript (ueberschreibbar per Umgebung) und `AUTH_URL` in der
+  `.env.s1`; `ADDRESS_HEADER=x-forwarded-for` liefert die Client-Adresse
+  fuer die Ratenbegrenzungen (Caddy setzt den Header).
+- Der Node-Prozess laeuft als Benutzer `node` (uid 1000). Das Volume
+  `ischlstrom-images` muss ihm gehoeren - einmalig:
+  `docker run --rm -v ischlstrom-images:/v alpine chown -R 1000:1000 /v`;
+  die eingehaengte `.env` muss fuer uid 1000 lesbar sein (gehoert `martin`).
+- Datenbank-TLS mit Zertifikatspruefung: PostgreSQL auf s1 serviert das
+  Let's-Encrypt-Zertifikat von `s1.ischlstrom.org`
+  (`ssl_cert_file = /etc/postgresql/certs/cert.pem`, Kette dokumentiert
+  in `website/certs/s1-postgres-chain.pem`, veraltet mit jeder
+  Verlaengerung und wird nicht geladen). Geprueft wird gegen die
+  oeffentlichen Wurzeln: `DB_SSL_SERVERNAME=s1.ischlstrom.org` in der
+  `.env` (noetig, weil der DB-Host im Container die IP 172.17.0.1 ist).
+  `DB_SSL_CA=<Pfad>` bleibt fuer eine private CA. Ohne beides warnt die
+  Website beim Start und prueft nicht.
+- Nach dem Deploy pruefen: `curl -m 5 http://s1.ischlstrom.org:3001/`
+  darf keine Verbindung bekommen; `curl -H 'x-forwarded-host: x.example'
+  https://ischlstrom.org/auth/providers` muss ischlstrom.org-URLs liefern.
+
 ## Datenbanken
 
 PostgreSQL 16 direkt auf s1 (kein Container). Beide Website-DBs
@@ -46,13 +78,13 @@ PostgreSQL 16 direkt auf s1 (kein Container). Beide Website-DBs
 jeweils gleichnamigen Benutzer. Zugriff nur per `hostssl` (pg_hba):
 
 - `172.16.0.0/12` - Docker-Container auf s1 (Website, Keila)
-- `85.127.8.140/32` - Heimnetz/Workstation (Django, Notebooks, psql und
+- `85.127.80.137/32` - Heimnetz/Workstation (Django, Notebooks, psql und
   seit 11. September 2026 auch `npm run dev`); aendert sich diese IP,
   muessen pg_hba **und** die ufw-Regel (siehe unten) auf s1 nachgezogen
   werden
 
 **Firewall (ufw):** Port 5432 ist nur fuer dieselben beiden Quellen offen
-(`ufw allow from 85.127.8.140 to any port 5432 proto tcp` und
+(`ufw allow from 85.127.80.137 to any port 5432 proto tcp` und
 `ufw allow from 172.16.0.0/12 to any port 5432 proto tcp`), alles andere
 wird verworfen. Bis 8. Oktober 2026 war der Port fuer das ganze Internet
 erreichbar (`listen_addresses = '*'`, keine ufw-Regel), geschuetzt nur
@@ -162,8 +194,9 @@ auf s1):
   `ufw route deny in on wg0 out on wg0` (kein Forwarding Pi <-> Pi, auch
   wenn `ip_forward=1` wegen Docker) und `ufw deny in on wg0` (nichts vom
   Tunnel zu Host-Diensten, egal welche Portregeln darunter stehen - etwa
-  22 oder 5432). Veroeffentlichte Docker-Ports (3001 Website, 8080 und
-  11000 Nextcloud AIO, 8090/8453 mailcow, Mailports) gehen an ufw vorbei
+  22 oder 5432). Veroeffentlichte Docker-Ports (8080 und
+  11000 Nextcloud AIO, 8090/8453 mailcow, Mailports; die Website seit
+  Oktober 2026 nur noch auf 127.0.0.1:3001) gehen an ufw vorbei
   (DNAT, dann FORWARD -> DOCKER-Kette vor den ufw-Ketten); dafuer sperrt
   `iptables -I DOCKER-USER -i wg0 -j DROP`, nach jedem Start neu gesetzt
   von `ibm-tunnel-firewall.service` (`/usr/local/sbin/ibm-tunnel-firewall.sh`;
@@ -197,7 +230,16 @@ auf s1):
   setzt das Passwort, `verifiedEmail = true`, keine Mail. Die Geheimnisse
   kommen verschluesselt aus der DB (AES-256-GCM); den Schluessel
   `IBM_SECRET_KEY` liest das Skript aus der `.env` der Website
-  (`WEBSITE_ENV`). Ergebnis: `created` bzw. `error` + Text am Dashboard.
+  (`WEBSITE_ENV`) und reicht ihn nur ueber die Umgebung weiter (`-e NAME`
+  ohne Wert), nie als Argument - Argumente stehen in `/proc/*/cmdline`.
+  Ergebnis: `created` bzw. `error` + Text am Dashboard.
+- **wg0.conf-Pruefung**: der Timer uebernimmt nur Zeilen, deren Name,
+  Adresse und Public-Key dem erwarteten Format entsprechen (die Website
+  prueft dieselben Muster an den Pi-Endpoints, `src/lib/ibmNames.js`),
+  laesst `wg-quick strip` ueber die neue Datei laufen und ersetzt die
+  `wg0.conf` erst, wenn auch `wg syncconf` sie angenommen hat. Vorher
+  haette ein Name mit Zeilenumbruch den naechsten Tunnelstart der ganzen
+  Flotte scheitern lassen.
 - **Website-`.env`** braucht dafuer `IBM_SECRET_KEY` (`openssl rand -hex 32`,
   nie wechseln, sonst sind die gespeicherten Geheimnisse verloren),
   `MAILCOW_URL`, `MAILCOW_API_KEY` und `MAILCOW_ALIAS_GOTO`. Optional:
@@ -338,8 +380,12 @@ EEG-Faktura statt aus dem manuell geladenen Excel-Report
 auch fuer Updates der Python-Skripte):
 
 - **`eegfaktura-import.timer`** (taeglich 05:00, bis 5 min Zufallsversatz)
-  -> `/usr/local/sbin/eegfaktura-import.sh` als Benutzer `postgres`
-  (peer-Auth am Socket, darf die Materialized Views auffrischen). Python
+  -> `/usr/local/sbin/eegfaktura-import.sh` als Systembenutzer `eegimport`
+  (seit Oktober 2026; davor `postgres` = Superuser). `setup-on-s1.sh`
+  legt den Benutzer an und bildet ihn per `pg_ident` (`map=eegimport`,
+  eigene `local`-Zeile ganz oben in `pg_hba.conf`) auf die DB-Rolle
+  `ischlstrom_middleware` ab - der gehoeren Tabellen und Materialized
+  Views, mehr Rechte braucht der Import nicht. Python
   im venv `/usr/local/lib/eegfaktura-import/venv`. Log:
   `journalctl -u eegfaktura-import`.
 - **Zugangsdaten** in `/etc/eegfaktura-import.env` (root, 0600): normale
@@ -353,7 +399,7 @@ auch fuer Updates der Python-Skripte):
   `weekly_metering_summary`, `daily_metering_summary`,
   `daily_metering_quality`.
 - **Prognose**: eigener Timer **`eeg-forecast.timer`** (taeglich 05:30,
-  nach dem Import) -> `/usr/local/sbin/eeg-forecast.sh` als `postgres`,
+  nach dem Import) -> `/usr/local/sbin/eeg-forecast.sh` als `eegimport`,
   rechnet `eeg_forecast.py --refresh --days 30 --days-ahead 14 --store`
   (Kopie unter `/var/lib/eegfaktura-import/forecast/`, Cache daneben,
   Pakete numpy/pandas/scikit-learn im selben venv). Laeuft bewusst

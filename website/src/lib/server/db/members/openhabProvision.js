@@ -1,4 +1,5 @@
 import { middlewareDbConnection } from "$lib/server/db/db";
+import { isHostname, isWgPublicKey, isInverterType } from '$lib/ibmNames';
 import { env } from '$env/dynamic/private';
 import {
     encryptSecret,
@@ -45,6 +46,9 @@ export const SETUP_PHASES = [
     'items',
     'regeln',
     'overview',
+    'updater',
+    'failsafe',
+    'systemupdates',
     'unvollstaendig',
     'fertig'
 ];
@@ -103,7 +107,7 @@ async function withSecrets(row) {
 const PROVISION_COLUMNS = `
     s.id, s.member_id, s.token, s.name, s.created_at, s.last_seen,
     EXTRACT(EPOCH FROM (now() - s.last_seen)) AS age_seconds,
-    s.provision_code, s.provision_expires, s.provisioned_at,
+    s.provision_code, s.provision_expires, s.provisioned_at, s.provision_redemptions,
     s.inverter_type, s.inverter_username, s.inverter_password,
     s.wg_address, s.wg_public_key, s.wg_synced_at,
     s.cloud_uuid, s.cloud_secret, s.cloud_username, s.cloud_password,
@@ -318,7 +322,8 @@ export const consumeProvisionCode = async (code) => {
                 SELECT id, provisioned_at FROM members_openhabstatus WHERE provision_code = $1
              )
              UPDATE members_openhabstatus s
-                SET provisioned_at = COALESCE(s.provisioned_at, now())
+                SET provisioned_at = COALESCE(s.provisioned_at, now()),
+                    provision_redemptions = s.provision_redemptions + 1
                FROM members_member m, before b
               WHERE s.member_id = m.id
                 AND s.id = b.id
@@ -348,6 +353,7 @@ export const renewProvisionCode = async (id) => {
         await db.query(
             `UPDATE members_openhabstatus
                 SET provision_code = $2, provision_expires = $3, provisioned_at = NULL,
+                    provision_redemptions = 0,
                     setup_phase = '', setup_message = '', setup_phase_at = NULL
               WHERE id = $1`,
             [id, code, expires]
@@ -455,6 +461,11 @@ export const popInverterCredentials = async (token) => {
  * @param {{ phase?: string, message?: string, wg_public_key?: string, inverter_type?: string, hostname?: string }} report
  */
 export const reportSetup = async (token, report) => {
+    // Zweiter Guertel zum Endpoint (src/lib/ibmNames.js): diese Werte
+    // landen in Pfaden, der openhabian.conf und der wg0.conf auf s1.
+    if (report.hostname && !isHostname(report.hostname)) throw new Error('hostname nicht im Hostname-Format');
+    if (report.wg_public_key && !isWgPublicKey(report.wg_public_key)) throw new Error('wg_public_key kein WireGuard-Public-Key');
+    if (report.inverter_type && !isInverterType(report.inverter_type)) throw new Error('inverter_type kein Profilname');
     const db = await middlewareDbConnection();
     try {
         const result = await db.query(
@@ -558,10 +569,14 @@ export function renderOpenhabianConf(plant) {
     const wifi = plant.wifi_ssid
         ? `wifi_ssid=${q(plant.wifi_ssid)}\nwifi_password=${q(plant.wifi_password ?? '')}\nwifi_country="AT"`
         : `wifi_ssid=""\nwifi_password=""\nwifi_country="AT"`;
-    return `# openHABian-Konfiguration fuer ${plant.name} (ISCHLSTROM Speichermanagement)
+    // Der Name ist an den Endpoints auf Hostname-Format geprueft; hier
+    // trotzdem gequotet und ohne Zeilenumbruch, denn openHABian liest die
+    // Datei beim ersten Start als root ein (source).
+    const name = String(plant.name ?? '').replace(/[\r\n]/g, ' ');
+    return `# openHABian-Konfiguration fuer ${name} (ISCHLSTROM Speichermanagement)
 # Erzeugt von ischlstrom.org/board/openhab - auf die Boot-Partition der
 # SD-Karte kopieren (ersetzt die mitgelieferte openhabian.conf).
-hostname=${plant.name}
+hostname=${q(name)}
 username=openhabian
 userpw=${q(plant.linux_password)}
 adminkeyurl=""
@@ -581,7 +596,7 @@ zraminstall=enable
 zram_reset=done # remove when zram is no longer needed to auto update
 srv_mount_fix=done # remove when the /srv mount order fix (#2060) is no longer needed
 hotspot=enable
-hotspotpw=openhabian
+hotspotpw=${q(plant.linux_password)}
 deconz_install=disable
 storageconfig=openhab-dir
 storagedir=/storage

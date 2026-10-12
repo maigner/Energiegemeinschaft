@@ -3,7 +3,7 @@
 # install-on-s1.sh): kopiert das Skript und startet es dort mit sudo.
 #
 #   ./harden-tunnel.sh --check
-#   ./harden-tunnel.sh --apply --workstation-ip 85.127.8.140
+#   ./harden-tunnel.sh --apply --workstation-ip 85.127.80.137
 #   S1=benutzer@s1.ischlstrom.org ./harden-tunnel.sh --check
 set -euo pipefail
 

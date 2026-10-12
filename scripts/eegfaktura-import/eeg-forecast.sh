@@ -1,5 +1,5 @@
 #!/bin/bash
-# Laeuft auf s1 als postgres (eeg-forecast.service, taeglich 05:30 nach dem
+# Laeuft auf s1 als eegimport (eeg-forecast.service, taeglich 05:30 nach dem
 # EEG-Faktura-Import). Rechnet den Prognoselauf neu und speichert ihn in
 # metering_energyforecastrun / metering_energyforecast; die Website zeigt
 # immer den neuesten Lauf. Laeuft auch, wenn der Import nichts Neues gebracht

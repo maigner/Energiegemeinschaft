@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { isHostname } from '$lib/ibmNames';
 import { createReadStream, createWriteStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -35,12 +36,24 @@ function imageDir() {
     return env.IBM_IMAGE_DIR || (dev ? 'data/ibm-images' : '/var/lib/ischlstrom/images');
 }
 
+/**
+ * Der Anlagenname kommt (ueber Dashboard oder Pi) aus der DB; die Endpoints
+ * pruefen ihn auf Hostname-Format. Hier noch einmal, damit aus einem Namen
+ * nie ein Pfad ausserhalb des Image-Verzeichnisses wird (fs.rm, Download).
+ * @param {string} name
+ */
+function safeName(name) {
+    if (!isHostname(name) || path.basename(name) !== name) {
+        throw new Error(`Ungueltiger Anlagenname fuer Image-Dateien: ${JSON.stringify(String(name)).slice(0, 80)}`);
+    }
+    return name;
+}
 /** @param {string} name */
-const imageFile = (name) => path.join(imageDir(), `${name}.img.gz`);
+const imageFile = (name) => path.join(imageDir(), `${safeName(name)}.img.gz`);
 /** @param {string} name */
-const metaFile = (name) => path.join(imageDir(), `${name}.json`);
+const metaFile = (name) => path.join(imageDir(), `${safeName(name)}.json`);
 /** @param {string} name */
-const errorFile = (name) => path.join(imageDir(), `${name}.error`);
+const errorFile = (name) => path.join(imageDir(), `${safeName(name)}.error`);
 
 /** @param {string} file */
 async function readJson(file) {
@@ -59,6 +72,8 @@ async function readJson(file) {
  * @param {{ name: string, provision_code: string, provision_expires: any }} plant
  */
 export async function getImageStatus(plant) {
+    // Anlagen ohne gueltigen Namen (etwa noch leer) haben kein Image.
+    if (!isHostname(plant.name)) return { building: null, image: null, error: null };
     const building = current && current.name === plant.name
         ? { phase: current.phase, startedAt: current.startedAt }
         : null;
@@ -80,6 +95,7 @@ export async function getImageStatus(plant) {
 
 /** Pfad und Groesse des fertigen Images, oder null. @param {string} name */
 export async function imageDownload(name) {
+    if (!isHostname(name)) return null;
     const file = imageFile(name);
     try {
         const stat = await fs.stat(file);
@@ -91,6 +107,7 @@ export async function imageDownload(name) {
 
 /** Image-Dateien einer Anlage entfernen (beim Loeschen der Anlage). @param {string} name */
 export async function deleteImage(name) {
+    if (!isHostname(name)) return;
     for (const f of [imageFile(name), metaFile(name), errorFile(name)]) {
         await fs.rm(f, { force: true });
     }
@@ -174,6 +191,7 @@ async function ensureBaseImage() {
  * @param {string} baseUrl
  */
 export async function startImageBuild(plant, baseUrl) {
+    safeName(plant.name);
     if (current) {
         throw new Error(
             current.name === plant.name
@@ -194,7 +212,7 @@ export async function startImageBuild(plant, baseUrl) {
 
 /** @param {any} plant @param {string} baseUrl @param {{ phase: string }} state */
 async function build(plant, baseUrl, state) {
-    const name = plant.name;
+    const name = safeName(plant.name);
     const work = path.join(imageDir(), `${name}.work.img`);
     const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'ibm-image-'));
     try {

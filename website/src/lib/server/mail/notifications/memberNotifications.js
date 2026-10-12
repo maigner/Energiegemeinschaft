@@ -2,6 +2,12 @@
 import { setWelcomeMessageSent } from '$lib/server/db/members/member';
 import { relay, relayDebug, relayHtml } from '$lib/server/mail/smtp';
 
+// DB-Werte (Name, Adresse, Zaehlpunkt aus dem EEG-Faktura-Blatt) nie roh in
+// HTML - wie energyReportTemplate.js
+/** @param {unknown} value */
+const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 
 function formatDateToDDMMYYYY(dateString) {
     const [year, month, day] = dateString.split('-');
@@ -26,16 +32,16 @@ export async function sendWelcomeEmails(pendingActiveNotifications) {
             subject: `Zählpunkt aktiviert`,
             html: `
                 <h1>Willkommen bei ISCHL STROM</h1>
-                <p>Hallo ${member.name},</p>
+                <p>Hallo ${escapeHtml(member.name)},</p>
 
                 <p>
-                Sie haben sich mit der E-Mail Adresse ${member.email} bei der
+                Sie haben sich mit der E-Mail Adresse ${escapeHtml(member.email)} bei der
                 Erneuerbaren Energiegemeinschaft ISCHL STROM 
                 angemeldet. 
                 </p>
 
                 <p>Wir dürfen Sie darüber informieren, dass Ihr Zählpunkt mit der Nummer</p>
-                <p>${member.pointIdentifier}</p>
+                <p>${escapeHtml(member.pointIdentifier)}</p>
                 <p>am ${activationDate} erfolgreich vom Netzbetreiber für ISCHL STROM aktiviert wurde.</p>
                 <p>Der Anmeldeprozess ist damit abgeschlossen und Ihr oben genannter Zählpunkt ist nun Teil der Energiegemeinschaft ISCHL STROM.</p>
                 <p>Falls Sie noch weitere Fragen haben, kontaktieren Sie uns jederzeit unter</p>

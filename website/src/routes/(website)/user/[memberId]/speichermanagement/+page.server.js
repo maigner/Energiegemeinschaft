@@ -73,7 +73,8 @@ export async function load({ params, parent }) {
             cloudUsername: p.cloud_username,
             cloudPassword: p.cloud_password,
             cloudAccountState: p.cloud_account_state,
-            linuxPassword: p.linux_password,
+            // linux_password bewusst nicht: die Seite zeigt es nicht, und
+            // openhabian hat sudo auf dem Pi (Security-Audit 2026-10-11)
             provisioned: Boolean(p.provisioned),
             setupPhase: p.setup_phase,
             setupMessage: p.setup_message,

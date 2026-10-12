@@ -88,6 +88,10 @@ FLAG=@IBM_UPDATE_FLAG@
 STAMP=@IBM_REQUEST_DIR@/last-check
 LOG=/var/log/ibm-update.log
 INSTALLED=@IBM_SETUP_DIR@/../PACKAGE-SHA256
+# Trusted Comment der zuletzt eingespielten Signatur ("ibm-openhab.tgz
+# <Datum> (<commit>)", build-dist.sh): gegen Rollback auf ein aelteres,
+# aber gueltig signiertes Paket
+VERSIONFILE=@IBM_SETUP_DIR@/../PACKAGE-VERSION
 LOCK=/run/ibm-update.lock
 
 log() { echo "[ibm-update] $(date '+%F %T') $*" | tee -a "$LOG"; }
@@ -157,6 +161,18 @@ if ! minisign -Vq -p "$PUBKEY" -m "$tmp/ibm-openhab.tgz" -x "$tmp/ibm-openhab.tg
   exit 1
 fi
 log "Signatur OK."
+# Kein Rollback: ein aelteres Paket (Datum im signierten Kommentar) wird
+# nicht eingespielt, auch wenn die Signatur stimmt - sonst koennte, wer den
+# Server oder den Weg dorthin kontrolliert, die Flotte auf einen alten Stand
+# mit bekannten Fehlern zuruecksetzen. Gleiches Datum ist erlaubt (Neubau).
+comment="$(minisign -V -p "$PUBKEY" -m "$tmp/ibm-openhab.tgz" -x "$tmp/ibm-openhab.tgz.minisig" 2>/dev/null \
+           | sed -n 's/^Trusted comment: //p' | head -n1 || true)"
+new_date="$(printf '%s' "$comment" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -n1 || true)"
+old_date="$(grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' "$VERSIONFILE" 2>/dev/null | head -n1 || true)"
+if [ -n "$new_date" ] && [ -n "$old_date" ] && [ "$new_date" \< "$old_date" ]; then
+  log "Paket vom $new_date ist aelter als das installierte vom $old_date - kein Rollback, nichts eingespielt."
+  exit 1
+fi
 mkdir -p "$tmp/pkg"
 if ! tar -xzf "$tmp/ibm-openhab.tgz" -C "$tmp/pkg" || [ ! -f "$tmp/pkg/openhab/setup/install-package.sh" ]; then
   log "Paket unerwartet aufgebaut (setup/install-package.sh fehlt) - Update abgebrochen."
@@ -169,6 +185,9 @@ IBM_ASSUME_YES=1 IBM_BASE_URL="$base" bash "$tmp/pkg/openhab/setup/install-packa
   --from "$tmp/pkg/openhab" --sha256 "$tmp/ibm-openhab.tgz.sha256" --cleanup "$tmp" >> "$LOG" 2>&1 || rc=$?
 rm -rf "$tmp"
 # Die Sicherungen (openhab.bak-<zeit>) duennt install-package.sh selbst aus.
+if [ "$rc" -eq 0 ] || [ "$rc" -eq 75 ]; then
+  [ -z "$comment" ] || printf '%s\n' "$comment" > "$VERSIONFILE"
+fi
 if [ "$rc" -eq 0 ]; then
   log "Update abgeschlossen."
 elif [ "$rc" -eq 75 ]; then

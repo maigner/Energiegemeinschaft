@@ -114,6 +114,11 @@ Die Pis aktualisieren sich selbst (`09-install-updater.sh`, root-Timer
   Installation vertraut er TLS und ischlstrom.org. Fortschritt wie bei der
   Einrichtung ueber die Phasenmeldungen am Dashboard. Von Hand:
   `sudo ibm-update --now`.
+* **Kein Rollback:** der signierte Kommentar der Signatur traegt das
+  Paketdatum (`ibm-openhab.tgz 2026-10-11 (abc1234)`); `ibm-update` merkt
+  sich den Kommentar des eingespielten Pakets in `PACKAGE-VERSION` und
+  lehnt ein gueltig signiertes, aber aelteres Paket ab. Gleiches Datum
+  (Neubau am selben Tag) ist erlaubt.
 * `build-dist.sh` legt neben dem Paket `ibm/VERSION` ab; das Dashboard
   markiert Anlagen mit aelterem Stand ("IBM-Paket ... veraltet").
 

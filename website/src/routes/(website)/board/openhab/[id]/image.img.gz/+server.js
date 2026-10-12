@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import { Readable } from 'node:stream';
 import { getProvisioning } from '$lib/server/db/members/openhabProvision';
 import { imageDownload } from '$lib/server/ibmImage';
+import { sanitizeFilename } from '$lib/server/api';
 
 /**
  * Download des fertigen SD-Karten-Images (<name>.img.gz), gebaut ueber die
@@ -23,7 +24,7 @@ export async function GET({ params }) {
         headers: {
             'Content-Type': 'application/gzip',
             'Content-Length': String(download.size),
-            'Content-Disposition': `attachment; filename="${plant.name}.img.gz"`,
+            'Content-Disposition': `attachment; filename="${sanitizeFilename(plant.name)}.img.gz"`,
             'Cache-Control': 'no-store'
         }
     });

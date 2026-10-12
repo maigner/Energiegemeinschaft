@@ -361,14 +361,29 @@ Aufwand: 1 bis 2 Tage (ohne Kommandos).
 
 - Der Provisionierungs-Code ist 40 Bit stark (8 Zeichen aus 32), gilt
   60 Tage und nur bis der Pi seine `ibm.conf` hat; der Pi loescht ihn
-  danach von der Karte, abgelehnte Codes sind global auf 30 je Stunde
-  begrenzt (ohne Client-IP im Log), eine zweite Einloesung wird
-  protokolliert. Auf der SD-Karte liegt kein Status-Token und kein
+  danach von der Karte. Abgelehnte Codes sind je Absender auf 10 und
+  global auf 300 je Stunde begrenzt (Hash der Client-Adresse nur im
+  Speicher, nichts im Log) - ein einzelner Stoerer sperrt so nicht die
+  echten Pis aus. Jede Einloesung zaehlt (`provision_redemptions`,
+  Migration 0039); ab der zweiten zeigt das Dashboard einen roten Hinweis
+  und der Vorstand bekommt eine Signal-Meldung, denn mit der Antwort gehen
+  Token, Linux-Passwort und Cloud-Geheimnis hinaus. Auf der SD-Karte
+  liegt kein Status-Token und kein
   Passwort, beides holt der Pi per HTTPS. Verbleibendes Risiko: eine
   verlorene Karte, bevor der Pi das erste Mal bootet - dann am Dashboard
   "Neuer Code".
 - WireGuard-Schluessel entstehen auf dem Pi, nur der Public-Key geht zum
   Server.
+- Was der Pi meldet, wird geprueft (`src/lib/ibmNames.js`): Hostname und
+  Anlagenname im Hostname-Format, Public-Key als 44-Zeichen-Base64,
+  Profilname wie am Dashboard. Diese Werte werden Dateinamen der Images,
+  `hostname=` der naechsten SD-Karte (openHABian liest sie als root) und
+  Peers in der `wg0.conf` auf s1 - ohne Pruefung haette ein
+  kompromittierter Pi mit seinem Token Pfade verlassen oder den Tunnel
+  der Flotte lahmlegen koennen. Die Senken pruefen zusaetzlich selbst.
+- Das Mitgliederportal zeigt das Cloud-Passwort, aber nicht mehr das
+  Linux-Passwort (openhabian hat sudo); der Hotspot der SD-Karte nutzt das
+  Linux-Passwort der Anlage statt des oeffentlichen openHABian-Standards.
 - Das IBM-Paket ist mit minisign signiert (`build-dist.sh`, privater
   Schluessel nur auf dem Entwicklungsrechner); der Updater auf den Pis
   prueft jede Signatur mit dem installierten `setup/ibm-release.pub` und

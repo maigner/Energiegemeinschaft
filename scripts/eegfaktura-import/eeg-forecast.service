@@ -5,8 +5,10 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=postgres
-Group=postgres
+User=eegimport
+Group=eegimport
+# DB-Rolle, falls eine DSN ohne user= kommt (libpq naehme sonst den OS-Benutzer)
+Environment=PGUSER=ischlstrom_middleware
 WorkingDirectory=/var/lib/eegfaktura-import/forecast
 ExecStart=/usr/local/sbin/eeg-forecast.sh
 # DB-Abfrage ueber 70 Mio. Zeilen plus Training

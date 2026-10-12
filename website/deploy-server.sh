@@ -37,8 +37,13 @@ echo "Deploy nach $ssh_dest (Umgebung: $(basename "$env_file"))"
 
 # .env-Dateien werden nicht mitsynchronisiert - unten landet genau die
 # passende Datei als .env auf dem Server (--delete loescht Ausgeschlossenes
-# auf der Gegenseite nicht).
-rsync -av --delete --exclude='.env' --exclude='.env.*' "$here/" "$ssh_dest:$remote_dir/"
+# auf der Gegenseite nicht). Ebenso wenig node_modules/build (baut der
+# Docker-Build) und lokale Exporte mit personenbezogenen Daten
+# (keila-*.csv, *.dmp).
+rsync -av --delete --exclude='.env' --exclude='.env.*' \
+  --exclude='node_modules' --exclude='build' --exclude='.svelte-kit' --exclude='data' \
+  --exclude='keila-*.csv' --exclude='*.dmp' \
+  "$here/" "$ssh_dest:$remote_dir/"
 rsync -av "$env_file" "$ssh_dest:$remote_dir/.env"
 
 ssh "$ssh_dest" "cd $remote_dir && HOST_PORT=$host_port ./update-docker-container.sh"

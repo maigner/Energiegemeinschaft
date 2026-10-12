@@ -3,6 +3,7 @@ import { pushOpenhabStatus, MAX_STATUS_DATA_BYTES } from '$lib/server/db/members
 import { getBatteryGridFeedInForPlant } from '$lib/server/db/energy/batteryGridFeedIn';
 import { notifyPlantRecovered } from '$lib/server/mail/notifications/ibmAlerts';
 import { dev } from '$app/environment';
+import { isHostname } from '$lib/ibmNames';
 
 /**
  * Live-Status-Push der openHABian-Anlagen (Regel ibm_status_push.js).
@@ -22,6 +23,16 @@ import { dev } from '$app/environment';
  * Main UI an, denn lokal fehlt ihm die Historie vor dem Paket-Update.
  */
 
+const MAX_ABS_NUMBER = 1e12;
+
+function hasImplausibleNumber(value: unknown, depth = 0): boolean {
+    if (depth > 20) return true;
+    if (typeof value === 'number') return !Number.isFinite(value) || Math.abs(value) > MAX_ABS_NUMBER;
+    if (Array.isArray(value)) return value.some((v) => hasImplausibleNumber(v, depth + 1));
+    if (value && typeof value === 'object') return Object.values(value).some((v) => hasImplausibleNumber(v, depth + 1));
+    return false;
+}
+
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
 
@@ -39,8 +50,10 @@ export async function POST({ request }) {
     if (!token || token.length > 200) {
         return json({ error: "Feld 'token' fehlt oder ist ungültig" }, { status: 400 });
     }
-    if (anlage.length > 200) {
-        return json({ error: "Feld 'anlage' ist zu lang" }, { status: 400 });
+    // Der Name wird zum Dateinamen des SD-Karten-Images und zum hostname=
+    // der naechsten Karte - nur im Hostname-Format (src/lib/ibmNames.js).
+    if (anlage && !isHostname(anlage)) {
+        return json({ error: "Feld 'anlage' ist kein gültiger Hostname" }, { status: 400 });
     }
     if (typeof data !== 'object' || data === null || Array.isArray(data)) {
         return json({ error: "Feld 'data' fehlt oder ist kein Objekt" }, { status: 400 });
@@ -48,11 +61,17 @@ export async function POST({ request }) {
     if (JSON.stringify(data).length > MAX_STATUS_DATA_BYTES) {
         return json({ error: "Feld 'data' ist zu groß" }, { status: 413 });
     }
+    // Zahlen jenseits jeder Plausibilitaet (1e12: Wh, W, Grad, Prozent -
+    // alles weit darunter) wuerden die Aggregationen am Dashboard
+    // (float-Mittel, round()::int) zum Ueberlauf bringen.
+    if (hasImplausibleNumber(data)) {
+        return json({ error: "Feld 'data' enthält unplausible Zahlenwerte" }, { status: 400 });
+    }
 
     const { stored, update, id, recovered } = await pushOpenhabStatus(token, anlage, data);
 
     if (!stored) {
-        console.log(`openhab status push rejected (unknown token): ${anlage || 'ohne Namen'}`);
+        console.log(`openhab status push rejected (unknown token): ${anlage || 'ohne Namen'}`); // anlage ist hier bereits auf Hostname-Format geprueft
         return json({ error: 'Unbekanntes Token. Der Vorstand erzeugt Tokens auf ischlstrom.org unter /board/openhab.' }, { status: 401 });
     }
 

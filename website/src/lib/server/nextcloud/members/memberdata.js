@@ -68,7 +68,8 @@ export const importMemberDataFromNextcloud = async () => {
     const blocked = new Set(conflicts.map((c) => c.number));
     const importable = rows.filter((row) => !blocked.has(Number(row["Mit. Nr."])));
     const conflictMessages = conflicts.map(describeConflict);
-    for (const message of conflictMessages) console.warn(`[KONFLIKT] ${message}`);
+    // nur die Anzahl ins Log (die Meldungen enthalten Namen und E-Mail-Adressen; die Seite zeigt sie)
+    if (conflictMessages.length) console.warn(`[KONFLIKT] ${conflictMessages.length} doppelt vergebene Mitgliedsnummer(n), Details auf /board/members/import`);
 
     // import member data
     const messages = await upsertMembersFromSpreadsheet(importable);

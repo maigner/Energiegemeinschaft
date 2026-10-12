@@ -27,13 +27,17 @@ TIME_ZONE = 'Europe/Vienna'
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-3gvivgyoqjr5=lky=ct(-hb56#of7akh@(@*uc=ezil!rb-ue4'
+# Das Django-Projekt ist ein lokales Werkzeug (Schema-Hoheit, Admin) gegen
+# die Produktivdatenbank auf s1 - runserver nur auf localhost. Werte aus der
+# Umgebung, damit nie ein bekannter Schluessel oder DEBUG an einem von aussen
+# erreichbaren Server haengt (Security-Audit 2026-10-11).
+import os
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY') or 'django-insecure-nur-lokal-' + str(BASE_DIR)
 
-ALLOWED_HOSTS = []
+DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
+
+ALLOWED_HOSTS = [h for h in os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h]
 
 
 # Application definition
@@ -124,7 +128,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# TIME_ZONE steht oben (Europe/Vienna); ein zweites TIME_ZONE = 'UTC' hier
+# hatte es bis Oktober 2026 still ueberschrieben
 
 USE_I18N = True
 

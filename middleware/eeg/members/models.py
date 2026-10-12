@@ -72,6 +72,9 @@ class OpenhabStatus(models.Model):
     provision_code = models.CharField(max_length=40, null=True, blank=True, unique=True)
     provision_expires = models.DateTimeField(null=True, blank=True)
     provisioned_at = models.DateTimeField(null=True, blank=True)
+    # Zaehler der Einloesungen des aktuellen Codes (Neuer Code setzt zurueck);
+    # >1 heisst Pi-Neustart waehrend der Einrichtung oder fremde SD-Karte
+    provision_redemptions = models.IntegerField(default=0)
     # Wechselrichter-Profil (Verzeichnis unter inverters/); leer = der Pi
     # erkennt es selbst und meldet das Ergebnis zurueck.
     inverter_type = models.CharField(max_length=50, blank=True, default="")

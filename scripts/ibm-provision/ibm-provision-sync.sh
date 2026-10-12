@@ -59,14 +59,33 @@ sync_wireguard() {
   local tmp peers
   tmp="$(mktemp)"
   cat "$WG_BASE" > "$tmp"
+  # Name, Adresse und Key kommen vom Pi (Website prueft sie, src/lib/
+  # ibmNames.js) - hier trotzdem nur Zeilen im erwarteten Format: psql -A
+  # gibt Zeilenumbrueche in Werten roh aus, ein Name mit Umbruch wuerde
+  # sonst als eigener Peer mit leerem Key in die wg0.conf wandern und den
+  # naechsten Tunnelstart scheitern lassen (Security-Audit 2026-10-11).
   peers="$(psql_db -c "SELECT s.id, s.name, s.wg_address, s.wg_public_key
                          FROM members_openhabstatus s
-                        WHERE s.wg_public_key <> '' AND s.wg_address <> ''
+                        WHERE s.wg_public_key ~ '^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=\$'
+                          AND s.wg_address ~ '^[0-9]{1,3}(\.[0-9]{1,3}){3}\$'
+                          AND s.name ~ '^[A-Za-z0-9][A-Za-z0-9-]{0,62}\$'
                           AND s.setup_phase <> 'geloescht'
                         ORDER BY s.wg_address")"
+  local skipped
+  skipped="$(psql_db -c "SELECT count(*) FROM members_openhabstatus s
+                          WHERE s.wg_public_key <> '' AND s.wg_address <> ''
+                            AND s.setup_phase <> 'geloescht'
+                            AND NOT (s.wg_public_key ~ '^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=\$'
+                                     AND s.wg_address ~ '^[0-9]{1,3}(\.[0-9]{1,3}){3}\$'
+                                     AND s.name ~ '^[A-Za-z0-9][A-Za-z0-9-]{0,62}\$')")"
+  [ "${skipped:-0}" = "0" ] || log "WireGuard: $skipped Anlage(n) mit unplausiblem Namen/Adresse/Key uebersprungen (SELECT id, name, wg_address, wg_public_key FROM members_openhabstatus)."
   while IFS=$'\t' read -r id name addr pub; do
     [ -n "$id" ] || continue
+    case "$id" in *[!0-9]*) continue ;; esac
+    case "$name" in *[!A-Za-z0-9-]*|'') continue ;; esac
+    case "$addr" in *[!0-9.]*|'') continue ;; esac
     case "$pub" in *[!A-Za-z0-9+/=]*) log "WireGuard: Public-Key von Anlage $id unplausibel - uebersprungen."; continue ;; esac
+    [ "${#pub}" -eq 44 ] || { log "WireGuard: Public-Key von Anlage $id hat nicht 44 Zeichen - uebersprungen."; continue; }
     printf '\n[Peer]\n# %s - %s (Anlage %s, aus der DB)\nPublicKey  = %s\nAllowedIPs = %s/32\n' \
       "$name" "$addr" "$id" "$pub" "$addr" >> "$tmp"
   done <<< "$peers"
@@ -101,12 +120,30 @@ sync_wireguard() {
   if [ -f "$WG_CONF" ] && cmp -s "$tmp" "$WG_CONF"; then
     rm -f "$tmp"
   else
-    install -m 0600 "$tmp" "$WG_CONF"
-    rm -f "$tmp"
+    # Erst pruefen, dann installieren: eine Datei, die wg nicht parst,
+    # darf nie die laufende wg0.conf ersetzen (sonst scheitert der naechste
+    # Tunnelstart fuer die ganze Flotte). wg-quick strip liest nur
+    # /etc/wireguard/<name>.conf, deshalb ein Pruef-Interface-Name.
+    local check="/etc/wireguard/ibm-check-${WG_IF}.conf" stripped
+    install -m 0600 "$tmp" "$check"
+    if ! stripped="$(wg-quick strip "ibm-check-${WG_IF}" 2>&1)"; then
+      log "WireGuard: neue Konfiguration unbrauchbar (wg-quick strip: ${stripped:0:200}) - NICHT geschrieben."
+      rm -f "$tmp" "$check"
+      return 0
+    fi
+    rm -f "$check"
     if wg show "$WG_IF" >/dev/null 2>&1; then
-      wg syncconf "$WG_IF" <(wg-quick strip "$WG_IF")
+      if ! printf '%s\n' "$stripped" | wg syncconf "$WG_IF" /dev/stdin; then
+        log "WireGuard: wg syncconf lehnt die neue Konfiguration ab - NICHT geschrieben."
+        rm -f "$tmp"
+        return 0
+      fi
+      install -m 0600 "$tmp" "$WG_CONF"
+      rm -f "$tmp"
       log "WireGuard: $WG_CONF neu geschrieben und nachgeladen."
     else
+      install -m 0600 "$tmp" "$WG_CONF"
+      rm -f "$tmp"
       systemctl start "wg-quick@${WG_IF}" && log "WireGuard: Tunnel gestartet." \
         || log "WireGuard: wg-quick@${WG_IF} konnte nicht gestartet werden."
     fi
@@ -131,6 +168,10 @@ sync_cloud_accounts() {
     log "Cloud: IBM_SECRET_KEY nicht in $WEBSITE_ENV gefunden - Konten uebersprungen."
     return 0
   fi
+  # Schluessel und verschluesselte Werte nur ueber die Umgebung an docker
+  # exec geben (-e NAME ohne Wert), nie als Argument: Argumente stehen
+  # waehrend des Laufs fuer jeden lokalen Benutzer in /proc/*/cmdline.
+  export IBM_SECRET_KEY="$key"
   if [ ! -f "$MAKEUSER" ]; then
     log "Cloud: $MAKEUSER fehlt - Konten uebersprungen."
     return 0
@@ -146,9 +187,10 @@ sync_cloud_accounts() {
                          FROM members_openhabstatus WHERE id = $id")"
     IFS=$'\t' read -r username pw uuid secret <<< "$row"
 
-    result="$( cd "$CLOUD_COMPOSE_DIR" && docker compose exec -T \
-                 -e IBM_USERNAME="$username" -e IBM_PASSWORD_ENC="$pw" \
-                 -e IBM_UUID="$uuid" -e IBM_SECRET_ENC="$secret" -e IBM_SECRET_KEY="$key" \
+    result="$( cd "$CLOUD_COMPOSE_DIR" && \
+               IBM_USERNAME="$username" IBM_PASSWORD_ENC="$pw" IBM_UUID="$uuid" IBM_SECRET_ENC="$secret" \
+               docker compose exec -T \
+                 -e IBM_USERNAME -e IBM_PASSWORD_ENC -e IBM_UUID -e IBM_SECRET_ENC -e IBM_SECRET_KEY \
                  "$CLOUD_SERVICE" node - < "$MAKEUSER" 2>&1 || true )"
     # Das Skript gibt genau eine JSON-Zeile aus; Mongo/Logger-Zeilen davor
     # und danach werden ignoriert.
@@ -167,6 +209,7 @@ sync_cloud_accounts() {
       log "Cloud: Konto $username FEHLER: $err"
     fi
   done
+  unset IBM_SECRET_KEY
 }
 
 # --- 3. Loeschungen abschliessen ---------------------------------------------

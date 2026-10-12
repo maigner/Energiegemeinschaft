@@ -1,4 +1,5 @@
-import { NEXTCLOUD_PASSWORD, NEXTCLOUD_URL, NEXTCLOUD_USERNAME } from "$env/static/private";
+import { env } from "$env/dynamic/private";
+const { NEXTCLOUD_PASSWORD, NEXTCLOUD_URL, NEXTCLOUD_USERNAME } = env;
 
 import { createClient } from "webdav";
 

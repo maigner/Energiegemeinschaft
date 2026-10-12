@@ -1,6 +1,9 @@
 import { json } from '@sveltejs/kit';
 import { consumeProvisionCode } from '$lib/server/db/members/openhabProvision';
-import { createAttemptBudget } from '$lib/server/attemptBudget';
+import { createAttemptBudget, createClientBudgets } from '$lib/server/attemptBudget';
+import { signalConfigFromEnv, sendSignal } from '$lib/server/signal';
+import { env } from '$env/dynamic/private';
+import { dev } from '$app/environment';
 
 /**
  * Provisionierung einer IBM-Anlage (Zero-Touch-Einrichtung): der Pi loest
@@ -23,25 +26,35 @@ import { createAttemptBudget } from '$lib/server/attemptBudget';
  * dieser Zeit (etwa von einer verlorenen SD-Karte) wird protokolliert und
  * ist am Dashboard an "Code eingeloest" zu sehen.
  *
- * Abgelehnte Codes zaehlen in ein globales Budget (ohne Client-IP): nach
- * MAX_REJECTED_PER_HOUR Fehlversuchen antwortet der Endpoint allen mit 429,
- * bis das Fenster weiterwandert. Berechtigte Pis loesen genau einmal ein;
- * ein Pi mit abgelaufenem Code versucht es alle 10 Minuten, das bleibt
- * unter dem Budget.
+ * Abgelehnte Codes zaehlen je Absender (Hash der Client-Adresse, nicht
+ * gespeichert, siehe attemptBudget.js) und zusaetzlich in ein grosses
+ * globales Budget: ein Absender sperrt sich nach MAX_REJECTED_PER_CLIENT
+ * Fehlversuchen pro Stunde selbst, ohne damit die echten Pis auszusperren;
+ * das globale Budget beendet ein verteiltes Durchprobieren (40-Bit-Codes).
+ * Unlesbare Bodies zaehlen nicht. Ein Pi mit abgelaufenem Code versucht es
+ * alle 10 Minuten, das bleibt unter beiden Budgets.
  */
 
-const MAX_REJECTED_PER_HOUR = 30;
-const rejected = createAttemptBudget({ max: MAX_REJECTED_PER_HOUR, windowMs: 60 * 60 * 1000 });
+const MAX_REJECTED_PER_CLIENT = 10;
+const MAX_REJECTED_PER_HOUR = 300;
+const HOUR = 60 * 60 * 1000;
+const rejected = createAttemptBudget({ max: MAX_REJECTED_PER_HOUR, windowMs: HOUR });
+const rejectedByClient = createClientBudgets({ max: MAX_REJECTED_PER_CLIENT, windowMs: HOUR });
 
 /** @type {import('./$types').RequestHandler} */
-export async function POST({ request, url }) {
+export async function POST({ request, url, getClientAddress }) {
 
-    if (rejected.exhausted()) {
+    let client = '';
+    try { client = getClientAddress(); } catch { client = ''; }
+
+    if (rejected.exhausted() || await rejectedByClient.exhausted(client)) {
+        const retry = Math.max(rejected.retryAfterSeconds(), await rejectedByClient.retryAfterSeconds(client), 60);
         return json(
             { error: 'Zu viele abgelehnte Provisionierungs-Codes. Bitte später erneut versuchen.' },
-            { status: 429, headers: { 'Retry-After': String(rejected.retryAfterSeconds()) } }
+            { status: 429, headers: { 'Retry-After': String(retry) } }
         );
     }
+    const countReject = async () => { rejected.fail(); await rejectedByClient.fail(client); };
 
     let body;
     try {
@@ -52,13 +65,13 @@ export async function POST({ request, url }) {
 
     const code = typeof body?.code === 'string' ? body.code.trim().toUpperCase() : '';
     if (!/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
-        rejected.fail();
+        await countReject();
         return json({ error: "Feld 'code' fehlt oder ist ungültig" }, { status: 400 });
     }
 
     const plant = await consumeProvisionCode(code);
     if (!plant) {
-        rejected.fail();
+        await countReject();
         console.log('ibm provision rejected (unknown, expired or already used code)');
         return json({ error: 'Unbekannter, abgelaufener oder bereits verbrauchter Provisionierungs-Code. Auf ischlstrom.org unter /board/openhab einen neuen Code erzeugen.' }, { status: 401 });
     }
@@ -67,7 +80,14 @@ export async function POST({ request, url }) {
     if (plant.previously_provisioned_at) {
         // Zweite Einloesung vor der ibm.conf: meist ein Neustart des Pi
         // waehrend der Wechselrichter-Suche, sonst ein Fremder mit dem Code.
-        console.warn(`ibm provision delivered AGAIN (anlage ${plant.id}, ${plant.name}, erste Einloesung ${new Date(plant.previously_provisioned_at).toISOString()}, Phase '${plant.setup_phase}')`);
+        console.warn(`ibm provision delivered AGAIN (anlage ${plant.id}, ${plant.name}, erste Einloesung ${new Date(plant.previously_provisioned_at).toISOString()}, Phase '${plant.setup_phase}', ${plant.provision_redemptions}. Einloesung)`);
+        // Der Vorstand soll das sehen: ein Neustart des Pi ist harmlos, ein
+        // Fremder mit dem Code (verlorene Karte) nicht - er bekommt mit der
+        // Antwort Token, Linux-Passwort und Cloud-Geheimnis der Anlage.
+        if (!dev) {
+            const text = `Speichermanagement: Provisionierungs-Code von Anlage ${plant.name} (Mitglied ${plant.member_identifier}) zum ${plant.provision_redemptions}. Mal eingelöst (erstmals ${new Date(plant.previously_provisioned_at).toLocaleString('de-AT', { timeZone: 'Europe/Vienna' })}). Pi-Neustart während der Einrichtung oder fremde SD-Karte? Im Zweifel auf /board/openhab "Neuer Code".`;
+            sendSignal(signalConfigFromEnv(env), text).catch((e) => console.error('signal (code erneut eingeloest) fehlgeschlagen:', e?.message ?? e));
+        }
     } else {
         console.log(`ibm provision delivered (anlage ${plant.id}, ${plant.name})`);
     }

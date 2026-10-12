@@ -1,4 +1,4 @@
-import { CASHIER1, CASHIER2, CHAIR1, CHAIR2, CONTROLLER1, CONTROLLER2 } from "$env/static/private";
+import { env } from "$env/dynamic/private";
 import { getBoardMemberByEmail, getCommunityMembersByEmail } from "$lib/server/db/members/member";
 import { middlewareDbConnection } from "$lib/server/db/db";
 
@@ -78,24 +78,12 @@ export const cashierGuard = async (locals: any): Promise<Response | null> => {
 };
 
 export const cashierSession = async (session: any) => {
-    //console.log({session});
-    if (session?.user?.email === CHAIR1) {
-        return true;
-    }
-    if (session?.user?.email === CHAIR2) {
-        return true;
-    }
-    if (session?.user?.email === CASHIER1) {
-        return true;
-    }
-    if (session?.user?.email === CASHIER2) {
-        return true;
-    }
-    if (session?.user?.email === CONTROLLER1) {
-        return true;
-    }
-    if (session?.user?.email === CONTROLLER2) {
-        return true;
-    }
-    return false;
+    const email = typeof session?.user?.email === "string" ? session.user.email.trim().toLowerCase() : "";
+    if (!email) return false;
+    // Rollen aus der Umgebung; leere oder fehlende Eintraege zaehlen nie
+    // (sonst waere undefined === undefined ein Treffer)
+    const roles = [env.CHAIR1, env.CHAIR2, env.CASHIER1, env.CASHIER2, env.CONTROLLER1, env.CONTROLLER2]
+        .filter((v): v is string => typeof v === "string" && v.trim() !== "")
+        .map((v) => v.trim().toLowerCase());
+    return roles.includes(email);
 }

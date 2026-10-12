@@ -1,0 +1,12 @@
+# Nicht ins Image: Geheimnisse, Exporte mit personenbezogenen Daten,
+# lokale Artefakte (Security-Audit 2026-10-11)
+.env
+.env.*
+node_modules
+build
+.svelte-kit
+data
+keila-*.csv
+*.dmp
+*.log
+.git

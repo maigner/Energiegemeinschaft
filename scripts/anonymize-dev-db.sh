@@ -66,6 +66,34 @@ UPDATE accounting_booking SET
     payment_reference      = CASE WHEN payment_reference IS NOT NULL AND payment_reference <> '' THEN 'REF-' || id ELSE payment_reference END,
     note                   = CASE WHEN note IS NOT NULL AND note <> '' THEN 'Notiz ' || id ELSE note END;
 
+-- Speichermanagement: das Token ist ein gueltiges Zugangsdatum der Anlage
+-- gegen die Produktion (/api/ibm/status/v1, ladefenster), der Code ebenso;
+-- Public-Keys und Chiffrate braucht Dev nicht
+UPDATE members_openhabstatus SET
+    token              = 'dev-' || id,
+    provision_code     = NULL,
+    wg_public_key      = '',
+    cloud_secret       = '',
+    cloud_password     = '',
+    linux_password     = '',
+    inverter_password  = '',
+    wifi_ssid          = '',
+    wifi_password      = '',
+    data               = data - 'log_entries';
+DELETE FROM members_openhabstatushistory;
+
+-- Zaehlpunktnummern, Einwilligungs-/Zugriffs-/Versandprotokolle
+UPDATE members_measurementpoint SET identifier = 'AT0000000000000000000000' || lpad(id::text, 9, '0');
+UPDATE members_consent SET granted_email = 'consent' || id || '@example.org' WHERE granted_email <> '';
+DELETE FROM members_memberdataaccesslog;
+UPDATE members_energyreportlog SET email = 'report' || id || '@example.org';
+
+-- Buchhaltung: restliche Bankkennungen
+UPDATE accounting_booking SET
+    bic_swift   = CASE WHEN bic_swift IS NOT NULL AND bic_swift <> '' THEN 'XXXXATXX' ELSE bic_swift END,
+    bank_code   = CASE WHEN bank_code IS NOT NULL AND bank_code <> '' THEN '00000' ELSE bank_code END,
+    creditor_id = CASE WHEN creditor_id IS NOT NULL AND creditor_id <> '' THEN 'AT00ZZZ00000000000' ELSE creditor_id END;
+
 COMMIT;
 SQL
 

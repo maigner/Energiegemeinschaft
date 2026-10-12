@@ -19,7 +19,17 @@ admin.site.register(Member)
 admin.site.register(MeasurementPoint)
 admin.site.register(BoardApproval)
 admin.site.register(MemberApprovalTask)
-admin.site.register(OpenhabStatus)
+
+
+# Token und Provisionierungs-Code sind Zugangsdaten der Anlage, die
+# verschluesselten Felder nur Chiffrat - im Admin nicht editierbar und die
+# Zugangsdaten nicht lesbar (Security-Audit 2026-10-11).
+@admin.register(OpenhabStatus)
+class OpenhabStatusAdmin(admin.ModelAdmin):
+    list_display = ('id', 'member', 'name', 'setup_phase', 'last_seen')
+    exclude = ('token', 'provision_code')
+    readonly_fields = ('cloud_secret', 'cloud_password', 'linux_password',
+                       'inverter_password', 'wifi_password', 'data')
 admin.site.register(MembershipApplication)
 admin.site.register(MemberTombstone)
 admin.site.register(MemberDataAccessLog)

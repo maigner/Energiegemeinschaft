@@ -2,6 +2,12 @@
 import { getMembersWithPendingMeasurementPointsForFirstReminder, getMembersWithPendingMeasurementPointsForSecondReminder, setActivationReminderSent, setWelcomeMessageSent } from '$lib/server/db/members/member';
 import { relayHtml } from '$lib/server/mail/smtp';
 
+// DB-Werte (Name, Adresse, Zaehlpunkt aus dem EEG-Faktura-Blatt) nie roh in
+// HTML - wie energyReportTemplate.js
+/** @param {unknown} value */
+const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 
 /**
  * Sends a welcome email to each unique member in the notifications array.
@@ -21,16 +27,16 @@ export async function sendActivationReminders() {
             cc: "info@ischlstrom.org",
             subject: `Erinnerung: Datenfreigabe für Zählpunkt ${member.pointIdentifier}`,
             html: `
-                <p>Hallo ${member.name},</p>
+                <p>Hallo ${escapeHtml(member.name)},</p>
 
                 <p>
-                Sie haben sich mit der E-Mail Adresse ${member.email} bei der
+                Sie haben sich mit der E-Mail Adresse ${escapeHtml(member.email)} bei der
                 Erneuerbaren Energiegemeinschaft ISCHL STROM 
                 angemeldet. 
                 </p>
 
                 <p>
-                Betreffender Zählpunkt: ${member.pointIdentifier}
+                Betreffender Zählpunkt: ${escapeHtml(member.pointIdentifier)}
                 </p>
 
                 <p>
@@ -103,11 +109,11 @@ export async function checkActivationReminders() {
                 <p>Hallo Vorstand,</p>
 
                 <p>
-                 ${member.email} hat auf erinnerung nicht reagiert. Nur zur Info
+                 ${escapeHtml(member.email)} hat auf erinnerung nicht reagiert. Nur zur Info
                 </p>
 
                 <p>
-                Betreffender Zählpunkt: ${member.pointIdentifier}
+                Betreffender Zählpunkt: ${escapeHtml(member.pointIdentifier)}
                 </p>                
             `,
         };

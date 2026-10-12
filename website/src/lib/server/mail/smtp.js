@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { json } from "@sveltejs/kit";
-import { SMTP_USER, SMTP_PWD, SMTP_ENDPOINT, SMTP_TLS_PORT } from "$env/static/private";
+import { env } from "$env/dynamic/private";
+const { SMTP_USER, SMTP_PWD, SMTP_ENDPOINT, SMTP_TLS_PORT } = env;
 import nodemailer from 'nodemailer';
 
 //TODO: factor out relay

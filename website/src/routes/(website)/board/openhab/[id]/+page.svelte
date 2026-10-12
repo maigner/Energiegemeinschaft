@@ -567,6 +567,7 @@
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
                 Letzte Phasenmeldung: {formatLastSeen(p.setupPhaseAt)}
                 {#if p.provisionedAt}· Code eingelöst {formatLastSeen(p.provisionedAt)}{/if}
+                {#if p.redemptions > 1}<span class="text-red-600 dark:text-red-400 font-semibold">· {p.redemptions}× eingelöst (Pi-Neustart oder fremde Karte? Im Zweifel "Neuer Code")</span>{/if}
             </p>
 
             <div class="flex flex-wrap gap-1.5 mb-3">

@@ -10,7 +10,7 @@
 //
 // Ohne --month gilt der zuletzt abgeschlossene Monat. Zugangsdaten kommen wie
 // bei `npm run dev` aus website/.env (also Produktivdaten von s1).
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { loadEnv } from 'vite';
@@ -50,7 +50,10 @@ const pool = new pg.Pool({
     database: env.MIDDLEWARE_DB_DATABASE,
     user: env.MIDDLEWARE_DB_USER,
     password: env.MIDDLEWARE_DB_PASSWORD,
-    ssl: { rejectUnauthorized: false },
+    // wie src/lib/server/db/db.js: mit DB_SSL_SERVERNAME/DB_SSL_CA wird das Serverzertifikat geprueft
+    ssl: (env.DB_SSL_CA || env.DB_SSL_SERVERNAME)
+        ? { rejectUnauthorized: true, ...(env.DB_SSL_CA ? { ca: readFileSync(env.DB_SSL_CA, 'utf8') } : {}), ...(env.DB_SSL_SERVERNAME ? { servername: env.DB_SSL_SERVERNAME } : {}) }
+        : { rejectUnauthorized: false },
     max: 1,
 });
 

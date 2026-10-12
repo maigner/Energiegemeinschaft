@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { reportSetup, SETUP_PHASES } from '$lib/server/db/members/openhabProvision';
 import { deleteImage } from '$lib/server/ibmImage';
+import { isHostname, isWgPublicKey, isInverterType } from '$lib/ibmNames';
 
 /**
  * Meldungen des Pi waehrend der Einrichtung (report_phase in
@@ -39,12 +40,28 @@ export async function POST({ request }) {
         return json({ error: `Unbekannte Phase '${phase}'` }, { status: 400 });
     }
 
+    // Hostname, Public-Key und Profil landen in Dateipfaden, in der
+    // openhabian.conf der naechsten SD-Karte und in der wg0.conf auf s1 -
+    // deshalb nur im erwarteten Format (src/lib/ibmNames.js), sonst 400.
+    const hostname = str(body?.hostname, 200);
+    if (hostname && !isHostname(hostname)) {
+        return json({ error: "Feld 'hostname' ist kein gültiger Hostname" }, { status: 400 });
+    }
+    const wgPublicKey = str(body?.wg_public_key, 100);
+    if (wgPublicKey && !isWgPublicKey(wgPublicKey)) {
+        return json({ error: "Feld 'wg_public_key' ist kein WireGuard-Public-Key" }, { status: 400 });
+    }
+    const inverterType = str(body?.inverter_type, 50);
+    if (inverterType && !isInverterType(inverterType)) {
+        return json({ error: "Feld 'inverter_type' ist kein gültiger Profilname" }, { status: 400 });
+    }
+
     const row = await reportSetup(token, {
         phase,
         message: str(body?.message, 2000),
-        wg_public_key: str(body?.wg_public_key, 100),
-        inverter_type: str(body?.inverter_type, 50),
-        hostname: str(body?.hostname, 200)
+        wg_public_key: wgPublicKey,
+        inverter_type: inverterType,
+        hostname
     });
 
     if (!row) {

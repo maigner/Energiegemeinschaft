@@ -1,4 +1,5 @@
 import { middlewareDbConnection } from "$lib/server/db/db";
+import { isHostname } from "$lib/ibmNames";
 
 // Maximale Groesse des data-JSON in Bytes; schuetzt die Tabelle vor
 // versehentlich (oder boeswillig) aufgeblasenen Payloads.
@@ -76,6 +77,8 @@ export const deleteOpenhabToken = async (id) => {
  * @returns {Promise<{ stored: boolean, update: boolean, id: number | null, recovered: boolean }>}
  */
 export const pushOpenhabStatus = async (token, name, data) => {
+    // Zweiter Guertel zum Endpoint: der Name wird Dateiname und hostname=.
+    if (name && !isHostname(name)) throw new Error(`Anlagenname nicht im Hostname-Format`);
     const isFull = Object.prototype.hasOwnProperty.call(data, 'versions');
     const db = await middlewareDbConnection();
     try {
@@ -111,11 +114,16 @@ export const pushOpenhabStatus = async (token, name, data) => {
         // wuerden jede Zeile um mehrere KB aufblasen und die Diagramme
         // lesen sie nicht - angezeigt wird immer der Stand der letzten
         // Meldung.
+        // Hoechstens eine Verlaufszeile je Minute und Anlage: das 5-Minuten-
+        // Raster braucht nicht mehr, und ein Token-Inhaber kann die Tabelle
+        // so nicht mit vielen Pushes pro Sekunde aufblasen.
         if (isFull) {
             const { log_entries, ...historyData } = data;
             await db.query(
                 `INSERT INTO members_openhabstatushistory (status_id, time, data)
-                 VALUES ($1, now(), $2)`,
+                 SELECT $1, now(), $2
+                  WHERE NOT EXISTS (SELECT 1 FROM members_openhabstatushistory
+                                     WHERE status_id = $1 AND time > now() - interval '60 seconds')`,
                 [result.rows[0].id, JSON.stringify(historyData)]
             );
         }
