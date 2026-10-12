@@ -12,7 +12,7 @@ TLS terminiert **Caddy** am Host (`/etc/caddy/Caddyfile`):
 
 | Hostname | Ziel | Dienst |
 | --- | --- | --- |
-| ischlstrom.org, www | localhost:3001 | **Website** (Docker `ischlstrom-website`) |
+| ischlstrom.org | localhost:3001 | **Website** (Docker `ischlstrom-website`); `www` ist ein Redirect auf den Apex, siehe unten |
 | s1.ischlstrom.org | localhost:8090 | mailcow (auch MX fuer ischlstrom.org) |
 | hac.ischlstrom.org | localhost:3000 | openHAB Cloud (siehe [openhab-cloud.md](openhab-cloud.md)) |
 | remote.hac.ischlstrom.org | localhost:3000 | openHAB Cloud Remote-Proxy (Main UI der Anlagen) |
@@ -54,6 +54,37 @@ Seit dem Security-Audit vom 11. Oktober 2026 (Deploy danach):
   `start`-Skript (ueberschreibbar per Umgebung) und `AUTH_URL` in der
   `.env.s1`; `ADDRESS_HEADER=x-forwarded-for` liefert die Client-Adresse
   fuer die Ratenbegrenzungen (Caddy setzt den Header).
+  **Folge:** SvelteKit vergleicht bei jedem POST den `Origin`-Header mit
+  genau dieser Basis-URL. Solange Caddy `www.ischlstrom.org` direkt auf
+  die Website proxyt, scheitern dort alle Formulare (Kontakt, Login,
+  Vorstand) mit `Cross-site POST form submissions are forbidden`
+  (gemeldet 2026-10-12 ueber das Kontaktformular). Die Website hat deshalb
+  nur einen kanonischen Host; `www` leitet in der Caddyfile um statt zu
+  proxyen:
+
+  ```
+  www.ischlstrom.org {
+      redir https://ischlstrom.org{uri} permanent
+  }
+  ischlstrom.org {
+      reverse_proxy localhost:3001 {
+          header_up Host {host}
+          header_up X-Real-IP {remote_host}
+          header_up X-Forwarded-For {remote_host}
+          header_up X-Forwarded-Proto {scheme}
+          header_up X-Forwarded-Host {host}
+          header_up X-Forwarded-Port {server_port}
+      }
+  }
+  ```
+
+  Pruefen nach `caddy validate --config /etc/caddy/Caddyfile` und
+  `systemctl reload caddy`:
+  `curl -sI https://www.ischlstrom.org/kontakt` muss `301` mit
+  `location: https://ischlstrom.org/kontakt` liefern, und
+  `curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Origin: https://ischlstrom.org' -d 'email=a@b.cd&message=x&website=1' 'https://ischlstrom.org/kontakt?/contact'`
+  muss `200` geben (`website=1` ist das Honeypot-Feld, es wird keine Mail
+  verschickt).
 - Der Node-Prozess laeuft als Benutzer `node` (uid 1000). Das Volume
   `ischlstrom-images` muss ihm gehoeren - einmalig:
   `docker run --rm -v ischlstrom-images:/v alpine chown -R 1000:1000 /v`;
