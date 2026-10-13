@@ -66,3 +66,21 @@ Zeilen mit demselben Upsert.
 
 `Check Data.ipynb` prüft Lieferlücken; `Faktura Export/` und `NetzOÖ/`
 sind gitignorierte Datenablagen.
+
+## Quartalscharts für die Generalversammlung: `quartalscharts.py`
+
+Verbrauch, Erzeugung, Eigendeckung, Verteilung der Erzeugung (von Mitgliedern
+verbraucht gegen Überschuss), Deckungsgrad und Zählpunkt-Wachstum je Quartal,
+Berichtsjahr gegen Vorjahr, aus `daily_metering_quality`. Schreibt PNGs
+(2200 px breit, für Folien) und eine Sammel-PDF nach `generalversammlung/`.
+
+```bash
+cd notebooks/energyData
+../../.venv/bin/python quartalscharts.py              # 2025 gegen 2024
+../../.venv/bin/python quartalscharts.py --year 2026  # 2026 gegen 2025
+```
+
+Unter jeder Säule steht die Zahl der Zählpunkte am Quartalsende, weil der
+Jahresvergleich der absoluten Mengen vor allem das Wachstum der Gemeinschaft
+zeigt. Farben: Markengrün der Website als Akzent, Grau für das Vorjahr, Blau
+für den Überschuss (Grün/Orange fällt bei Rot-Grün-Schwäche zusammen).
