@@ -351,6 +351,37 @@ bleibt so an trüben Tagen kein Budget übrig; die Batterie behält ihren
 Inhalt für das eigene Haus. Wie das Gateway daraus den Ziel-Ladestand
 bildet, zeigt Gleichung~\eqref{eq:ziel}.
 
+\paragraph{Nachlade-Untergrenze.} Die Reserve deckt den Eigenbedarf bis
+zum nächsten Gemeinschafts-Überschuss und setzt voraus, dass der Folgetag
+die Batterie wieder füllt. Bei großen Batterien (39\,kWh an 5 bis 6\,kW
+PV im Oktober) und vor trüben Tagen gilt das nicht: Die Anlage entlud jede
+Nacht bis zur Reserve, der Tag brachte 12 bis 20\,kWh zurück, die Batterie
+wurde nie voll, und vor einem Tag mit 12\,\% Ertrag kaufte das Mitglied am
+Abend zu, was die Nacht davor eingespeist hatte. Seit Oktober 2026 ersetzt
+deshalb eine Untergrenze $\text{SoC}_{\text{Boden}}$ die Reserve
+$\text{SoC}_{\min}$ als Sockel des Ziel-Ladestands: der Ladestand, von dem
+aus der erwartete Netto-Zuwachs $E_{\text{Nachladen}}$ des Folgetags die
+Batterie bis 95\,\% füllt,
+\begin{equation}
+  \text{SoC}_{\text{Boden}} \;=\; \max\Bigl(\text{SoC}_{\min},\;
+    95 - \frac{E_{\text{Nachladen}}}{C}\cdot 100\Bigr), \qquad
+  E_{\text{Nachladen}} \;=\; \max\Bigl(0,\; \sum_{h}
+    \bigl(P_{\text{Profil},h}\cdot a - P_{\text{Haus}}\bigr)\cdot \Delta t_h\Bigr).
+  \label{eq:boden}
+\end{equation}
+Summiert wird über die Stunden des Sonnenprofils vom Vormittags-Crossover
+bis zum Entladestart (davor hält die Morgen-Einspeisung den Ladestand auf
+der Ziellinie, die Hauslast steckt in der Nachtreserve); Stunden mit
+Defizit zählen negativ. Gegen die beobachteten Zuwächse der Anlagen vom
+3. bis 12.\,Oktober 2026 geprüft trifft die Formel die großen Batterien auf
+$\pm 40\,\%$ (pi-368: 8 bis 18\,kWh je Tag beobachtet, 8 bis 20 gerechnet);
+eine Summe über alle Sonnenstunden samt Dämmerung läge um das Drei- bis
+Fünffache zu tief. Ohne Sonnenprofil oder Ertragsanteil gibt es keine
+Untergrenze. Vor einem 12\,\%-Tag ist der Zuwachs 0, die Untergrenze
+95\,\%, und es wird gar nicht eingespeist; eine 39-kWh-Batterie mit 1\,kW
+Hauslast speist im Oktober praktisch nie ein, weil die Nacht mehr braucht,
+als der Tag zurückbringt.
+
 Bis September 2026 galt statt des Wolkenfaktors eine harte Stufe: über
 der Wolkenschwelle wurde der ganze Folgetag ohne PV gerechnet, darunter
 gar keine Tagesreserve. Damit blieben an einem \glqq bedeckten\grqq{} Tag mit
@@ -745,10 +776,12 @@ Zwei Grenzen schützen den Haushalt vor einer leeren Batterie:
     geschätzten Kapazität $C$ bildet das Gateway in jedem Zyklus den
     Ziel-Ladestand der Nacht:
     \begin{equation}
-      \text{SoC}_{\text{Ziel}} \;=\; \max\Bigl(\text{SoC}_{\min},\;
-        \text{SoC}_{\min} + \frac{E_{\text{Reserve}}}{C}\cdot 100\Bigr).
+      \text{SoC}_{\text{Ziel}} \;=\; \min\Bigl(100,\;
+        \text{SoC}_{\text{Boden}} + \frac{E_{\text{Reserve}}}{C}\cdot 100\Bigr),
       \label{eq:ziel}
     \end{equation}
+    mit der Nachlade-Untergrenze $\text{SoC}_{\text{Boden}} \ge
+    \text{SoC}_{\min}$ aus Gleichung~\eqref{eq:boden}.
     Tiefer wird nicht entladen; das verbleibende Budget
     $B = (\text{SoC} - \text{SoC}_{\text{Ziel}}) \cdot C / 100$ zeigt die
     Oberfläche an. Weil die Reservedauer mit jeder Stunde Nacht schrumpft,

@@ -7,7 +7,11 @@ gemacht, und waere die Batterie zur Abend-Deadline voll geworden? Damit
 wurden am 2026-09-06 die Spitzen-Ladeleistung, das Sonnenprofil, die
 Sperre bis zum Vormittags-Crossover und die Kalibrierung (Sicherheitsfaktor
 1,5, Deadline zwei Stunden vor dem Abend-Crossover) geprueft, am 2026-10-01
-die Abend-Deadline aus der Tagesprognose statt aus dem Wochen-Crossover.
+die Abend-Deadline aus der Tagesprognose statt aus dem Wochen-Crossover, am
+2026-10-13 die Nachlade-Untergrenze des Nachtziels (`--ertrag 90/50/12`:
+Tagseite unveraendert, kommandierte Nachteinspeisung der 39-kWh-Anlage bei
+90% Ertrag von 832 auf 263 kWh in 16 Naechten, bei 12% alle Anlagen auf
+null bis auf Befehle unterhalb der echten Reserve).
 
 ## Daten holen
 
@@ -33,8 +37,13 @@ node replay.js core_old.js --old-rate                          # alter Stand als
 Je Anlage und Tag: Uhrzeit, zu der der simulierte Ladestand 95% erreicht
 (mit `!`, wenn nach der Deadline), Energie morgens vor dem
 Vormittags-Crossover in die Batterie und ins Netz, dasselbe fuer den ganzen
-Tag, gesperrte Slots und mittlerer Sperranteil. `--csv datei` schreibt jeden
-Tageszyklus. `--no-crossover` schaltet die neuen Server-Signale
+Tag, gesperrte Slots und mittlerer Sperranteil. Darunter je Nacht (Datum
+des Abends, Zyklen vor 12:00 zaehlen zur Nacht des Vortags) das erste
+Nachtziel, die Nachlade-Untergrenze, die kommandierte Einspeisung
+(Leistung mal Slotdauer - der Ladestand wird nachts NICHT simuliert, die
+Befehle laufen gegen den echten Verlauf, die Summe ist also nur ein
+Vergleichsmass alt gegen neu) und der tiefste echte Ladestand. `--csv datei`
+schreibt jeden Tageszyklus. `--no-crossover` schaltet die neuen Server-Signale
 (Entladeende, Vormittags-Crossover) ab, `--no-faktoren` die Ladefaktoren
 (der Kern faellt dann auf den Wochen-Crossover als Abend-Deadline und auf
 die Wolkenstunden zurueck, wie bei einem API-Ausfall), `--old-rate` setzt die gelernte

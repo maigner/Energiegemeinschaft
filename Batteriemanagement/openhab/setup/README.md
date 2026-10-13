@@ -675,6 +675,24 @@ jeder Stunde Nacht. Ohne belastbare Kapazitaetsschaetzung
 greift der harte Trueb-Stopp als Rueckfall. Der Server liefert kein Budget
 mehr.
 
+**Nachlade-Untergrenze** (seit 2026-10-13): Die Reserve nimmt an, dass der
+Folgetag die Batterie wieder fuellt. Bei grossen Batterien (39 kWh an 5 bis
+6 kW PV im Oktober) und vor trueben Tagen stimmt das nicht - die Anlage
+entlud jede Nacht bis zur Reserve, der Tag brachte 12 bis 20 kWh zurueck,
+die Batterie wurde nie voll, und vor einem Tag mit 12% Ertrag kaufte das
+Mitglied abends zu, was die Nacht davor eingespeist hatte. Deshalb ersetzt
+eine Untergrenze die Reserve `IBM_MIN_BATTERY_CHARGE` als Sockel des
+Ziel-Ladestands: der Ladestand, von dem aus der erwartete Netto-Zuwachs des
+Folgetags die Batterie bis 95% fuellt (`LOCAL_CHARGE_FRACTION`). Der
+Zuwachs ist je Stunde des Sonnenprofils zwischen Vormittags-Crossover und
+Entladestart der Ertrag (Stundenwert mal Ertragsanteil) minus Hauslast,
+summiert und nie negativ; ohne Sonnenprofil oder Ertragsanteil gibt es
+keine Untergrenze. Vor einem 12%-Tag ist der Zuwachs 0, die Untergrenze
+95% und es wird gar nicht eingespeist; eine 39-kWh-Batterie mit 1 kW
+Hauslast speist im Oktober praktisch nie ein, weil die Nacht mehr braucht,
+als der Tag zurueckbringt. Die Protokollzeile `Eigenbedarf ...` nennt den
+Zuwachs (`Folgetag laedt netto ~X kWh nach -> Untergrenze Y%`).
+
 **Batteriewartung des Wechselrichters.** Kalibrier-, Service- und
 Schutzladungen fuehrt der Wechselrichter selbst und ignoriert dabei alle
 Kommandos (Fronius Symo Hybrid: voll laden, dann mit ~1 kW bis leer

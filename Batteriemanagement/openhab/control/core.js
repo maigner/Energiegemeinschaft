@@ -421,6 +421,23 @@ var CLOUD_SMOOTH_FETCHES = 3;
 // verbleibende Eigenbedarf. Ohne belastbare Kapazitaetsschaetzung gilt nur
 // die Reserve - dann greift bei bedeckter Vorschau der Trueb-Stopp als
 // Rueckfall.
+//
+// Nachlade-Untergrenze (seit 2026-10-13): Die Reserve deckt nur den
+// Eigenbedarf bis zum naechsten Gemeinschafts-Ueberschuss und nimmt an, dass
+// die Batterie am Folgetag wieder voll wird. Bei grossen Batterien
+// (pi-368: 39 kWh an 5 bis 6 kW PV im Oktober) und vor trueben Tagen stimmt
+// das nicht: die Anlage entlud jede Nacht bis zur Reserve, der Tag brachte
+// 12 bis 20 kWh zurueck, die Batterie war nie voll, und vor einem 12%-Tag
+// kaufte das Mitglied am Abend zu, was die Nacht davor eingespeist hatte.
+// Deshalb gilt zusaetzlich: Das Nachtziel liegt nie unter dem Ladestand,
+// von dem aus der Folgetag die Batterie bis LOCAL_CHARGE_FRACTION wieder
+// fuellt. Der erwartete Netto-Zuwachs ist je Sonnenstunde des Profils
+// (Stundenwert mal Ertragsanteil) minus Hauslast, ueber den Tag summiert
+// und nie negativ; ohne Sonnenprofil oder Ertragsanteil gibt es keine
+// Untergrenze (wie bisher). An einem 12%-Tag ist der Zuwachs 0, die
+// Untergrenze 95% - es wird gar nicht eingespeist (Vorgabe: vor
+// Schlechtwetter nichts einspeisen). Die Untergrenze ersetzt die Reserve
+// IBM_MIN_BATTERY_CHARGE als Sockel, der Eigenbedarf kommt obendrauf.
 var FALLBACK_HOUSE_LOAD_W = 300;     // solange keine Hauslast gelernt ist
 var NIGHT_RESERVE_FACTOR = 1.3;      // Sicherheitszuschlag auf den Eigenbedarf
 var FALLBACK_SUN_HOURS = 10;         // Tageslaenge ohne Abend-Crossover
@@ -1242,6 +1259,29 @@ function sunProfileKwh(profile, fromMin, toMin) {
   return sum;
 }
 
+// Erwarteter Netto-Zuwachs der Batterie zwischen fromMin und toMin an einem
+// Tag mit dem Ertragsanteil `factor`, in kWh: je Stunde des Sonnenprofils
+// der Ertrag minus Hauslast, anteilig summiert; Stunden mit Defizit zaehlen
+// negativ, weil das Haus sie aus der Batterie deckt. Nie negativ. Das
+// Fenster beginnt beim Vormittags-Crossover (davor haelt die Morgen-
+// Einspeisung den Ladestand auf der Ziellinie, die Hauslast steckt in der
+// Nachtreserve) und endet beim Entladestart. Gegen die beobachteten
+// Zuwaechse 11:00 bis 17:00 der Anlagen vom 3. bis 12.10.2026 geprueft:
+// pi-368 (39 kWh) 8 bis 18 kWh je Tag, Formel 8 bis 20; die Variante ueber
+// alle Sonnenstunden (Daemmerung negativ) lag um das Drei- bis Fuenffache
+// zu tief.
+function sunProfileNetKwh(profile, factor, loadW, fromMin, toMin) {
+  var sum = 0;
+  for (var h = 0; h < 24; h++) {
+    var v = profile.stunden[String(h)];
+    if (typeof v !== 'number') continue;
+    var overlap = Math.min((h + 1) * 60, toMin) - Math.max(h * 60, fromMin);
+    if (overlap <= 0) continue;
+    sum += (v * factor - loadW) / 1000 * overlap / 60;
+  }
+  return Math.max(0, sum);
+}
+
 // Erwarteter PV-Ertrag relativ zu einem guten Tag bei gegebener Bewoelkung:
 // 1 bei 0%, quadratisch fallend auf PV_CLOUD_MIN_FACTOR bei 100%.
 function pvCloudFactor(clouds) {
@@ -1271,6 +1311,8 @@ function round1(x) {
 //   tagH        Tagesstunden bis zum Abend-Crossover, tagLastKwh = Hauslast darueber
 //   pvKwh       erwarteter PV-Ertrag des Folgetags (null ohne Sonnenprofil)
 //   tagKwh      Tagesreserve = max(0, tagLastKwh - pvKwh) bzw. Anteil ohne Profil
+//   refillKwh   erwarteter Netto-Zuwachs des Folgetags (null ohne Sonnenprofil
+//               oder Ertragsanteil), Basis der Nachlade-Untergrenze
 //   quelle      Text fuers Protokoll
 // Der Ertragsanteil kommt aus der Strahlungsprognose (radiationShare), sonst
 // aus dem Wolkenfaktor (pvCloudFactor); siehe Abschnitt "Nacht-Entladebudget".
@@ -1286,7 +1328,11 @@ function nightReserve(clouds) {
     ? EVENING_CROSSOVER_MIN : morning + FALLBACK_SUN_HOURS * 60;
   var tagH = (dayEnd - morning) / 60;
   var tagLastKwh = loadW / 1000 * tagH;
+  // Nachladefenster des Folgetags: Vormittags-Crossover bis Entladestart
+  // (heutiger Wert als Naeherung fuer morgen), mindestens bis zum Abend-Crossover.
+  var refillEnd = (dischargeStart !== null && dischargeStart > dayEnd) ? dischargeStart : dayEnd;
   var pvKwh = null;
+  var refillKwh = null;
   var tagKwh;
   var quelle;
   var share = radiationShare();
@@ -1295,12 +1341,14 @@ function nightReserve(clouds) {
     var shareFactor = Math.min(1, share);
     pvKwh = sunProfileKwh(profile, morning, dayEnd) * shareFactor;
     tagKwh = Math.max(0, tagLastKwh - pvKwh);
+    refillKwh = sunProfileNetKwh(profile, shareFactor, loadW, morning, refillEnd);
     quelle = 'Sonnenprofil x ' + Math.round(shareFactor * 100) + '% laut Strahlungsprognose'
       + (clouds !== null ? ' (' + clouds + '% Wolken)' : '');
   } else if (profile !== null) {
     var factor = pvCloudFactor(clouds);
     pvKwh = sunProfileKwh(profile, morning, dayEnd) * factor;
     tagKwh = Math.max(0, tagLastKwh - pvKwh);
+    refillKwh = sunProfileNetKwh(profile, factor, loadW, morning, refillEnd);
     quelle = 'Sonnenprofil x ' + Math.round(factor * 100) + '% bei ' + clouds + '% Wolken (Wolkenfaktor, keine Strahlungsprognose)';
   } else if (clouds === null) {
     tagKwh = tagLastKwh;
@@ -1313,8 +1361,17 @@ function nightReserve(clouds) {
   return {
     kwh: round1((nachtKwh + tagKwh) * NIGHT_RESERVE_FACTOR),
     loadW: loadW, morning: morning, nachtH: nachtH, nachtKwh: nachtKwh,
-    tagH: tagH, tagLastKwh: tagLastKwh, pvKwh: pvKwh, tagKwh: tagKwh, quelle: quelle
+    tagH: tagH, tagLastKwh: tagLastKwh, pvKwh: pvKwh, tagKwh: tagKwh,
+    refillKwh: refillKwh === null ? null : round1(refillKwh), quelle: quelle
   };
+}
+
+// Nachlade-Untergrenze in Prozent: der Ladestand, von dem aus der erwartete
+// Netto-Zuwachs des Folgetags die Batterie bis LOCAL_CHARGE_FRACTION fuellt,
+// nie unter minSoc. Ohne Zuwachs-Schaetzung (null) bleibt es bei minSoc.
+function nightFloorSoc(minSoc, refillKwh, capacityKwh) {
+  if (refillKwh === null || capacityKwh === null || capacityKwh <= 0) return minSoc;
+  return Math.max(minSoc, Math.ceil(LOCAL_CHARGE_FRACTION * 100 - refillKwh / capacityKwh * 100));
 }
 
 // Eigenbedarfsreserve in kWh (siehe nightReserve).
@@ -2398,12 +2455,17 @@ function handleForcedDischarge() {
   var zielSoc = minSoc;
   if (budgetWirksam) {
     var reserve = nightReserve(clouds);
-    zielSoc = nightTargetSoc(minSoc, reserve.kwh, budgetCapacity);
+    var floorSoc = nightFloorSoc(minSoc, reserve.refillKwh, budgetCapacity);
+    zielSoc = nightTargetSoc(floorSoc, reserve.kwh, budgetCapacity);
     console.log('[IBM][Entladung] Eigenbedarf ' + reserve.kwh + ' kWh (Nacht ' + round1(reserve.nachtKwh) + ' kWh = '
       + reserve.loadW + ' W x ' + round1(reserve.nachtH) + ' h bis ' + fmtMinutes(reserve.morning)
       + ', Folgetag ' + round1(reserve.tagKwh) + ' kWh = Hauslast ' + round1(reserve.tagLastKwh) + ' kWh ueber ' + round1(reserve.tagH) + ' h'
       + (reserve.pvKwh !== null ? ' minus ~' + round1(reserve.pvKwh) + ' kWh PV' : '') + ', ' + reserve.quelle
-      + '; x ' + NIGHT_RESERVE_FACTOR + ') bei ' + budgetCapacity + ' kWh -> Ziel-Ladestand ' + zielSoc + '% (aktuell ' + soc + '%)');
+      + '; x ' + NIGHT_RESERVE_FACTOR + ') bei ' + budgetCapacity + ' kWh'
+      + (reserve.refillKwh !== null
+        ? ', Folgetag laedt netto ~' + reserve.refillKwh + ' kWh nach -> Untergrenze ' + floorSoc + '%' + (floorSoc > minSoc ? ' statt Reserve ' + minSoc + '%' : '')
+        : ', keine Nachlade-Schaetzung -> Untergrenze = Reserve ' + minSoc + '%')
+      + ' -> Ziel-Ladestand ' + zielSoc + '% (aktuell ' + soc + '%)');
   }
   publishNightBudget(soc, zielSoc, budgetCapacity);
   if (soc <= zielSoc) {

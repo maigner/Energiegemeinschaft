@@ -162,6 +162,10 @@ for (const pid of Object.keys(hist).sort((a, b) => a - b)) {
 
   let simSoc = null, simDay = null;
   const dayStats = {};
+  // Nachtstatistik je Abend-Datum (Zyklen vor 12:00 zaehlen zur Nacht des Vortags):
+  // kommandierte Einspeisung, erstes Nachtziel/Untergrenze, tiefster echter Ladestand
+  const nightStats = {};
+  const prevDay = (d) => new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10) - 1)).toISOString().slice(0, 10);
   for (const r of rows) {
     const day = r.t.slice(0, 10);
     NOW_MS = localMs(r.t);
@@ -196,6 +200,15 @@ for (const pid of Object.keys(hist).sort((a, b) => a - b)) {
     cycle(items, time, con, calls, { Exec: { executeCommandLine: () => '' } });
     if (verboseDay === day && pid === (onlyPlant || pid)) { console.log('--- ' + r.t + ' simSoc=' + (simSoc === null ? '-' : simSoc.toFixed(1)) + ' pot=' + potential + ' PV=' + r.pv); for (const l of logs) console.log('   ' + l); }
 
+    const nightDay = nowMin < 720 ? prevDay(day) : day;
+    const ns = (nightStats[nightDay] = nightStats[nightDay] || { cmdKwh: 0, ziel: null, floor: null, minSoc: null, cmds: 0 });
+    for (const c of calls) if (c.t === 'discharge') { ns.cmdKwh += c.w * c.min / 60 / 1000; ns.cmds++; }
+    for (const l of logs) {
+      const z = l.match(/Ziel-Ladestand (\d+)%/); if (z && ns.ziel === null) ns.ziel = +z[1];
+      const f = l.match(/Untergrenze (\d+)%/); if (f && ns.floor === null) ns.floor = +f[1];
+    }
+    if (nowMin >= 900 || nowMin < 660) ns.minSoc = ns.minSoc === null ? r.soc : Math.min(ns.minSoc, r.soc);
+
     const locked = calls.some(c => c.t === 'lock');
     let charge = 0;
     if (daytime) {
@@ -226,5 +239,8 @@ for (const pid of Object.keys(hist).sort((a, b) => a - b)) {
     const late = ds.full && ds.deadline !== '-' && ds.full > ds.deadline ? '!' : ' ';
     console.log(`${day} | ${ds.full || '  -  '}${late}(${ds.deadline})   | ${ds.morningBat.toFixed(1).padStart(5)} / ${ds.morningExp.toFixed(1).padStart(5)}           | ${ds.dayBat.toFixed(1).padStart(5)} / ${ds.dayExp.toFixed(1).padStart(5)}       | ${String(ds.locked).padStart(3)} / ${String(ds.slots).padStart(3)}      | ${md} (${ds.duties.length})`);
   }
+  const nights = Object.entries(nightStats).filter(([d, n]) => d >= fromDay && d <= toDay);
+  console.log(`Nacht ab    | Ziel% | Untergr% | kommandiert kWh (Befehle) | echter Min-SoC%   (gesamt ${nights.reduce((a, [, n]) => a + n.cmdKwh, 0).toFixed(1)} kWh)`);
+  for (const [d, n] of nights) console.log(`${d}  | ${String(n.ziel === null ? '-' : n.ziel).padStart(4)}  | ${String(n.floor === null ? '-' : n.floor).padStart(5)}    | ${n.cmdKwh.toFixed(1).padStart(6)} (${String(n.cmds).padStart(3)})              | ${n.minSoc === null ? '-' : Math.round(n.minSoc)}`);
 }
 if (csvOut) fs.writeFileSync(csvOut, csvRows.join('\n'));
