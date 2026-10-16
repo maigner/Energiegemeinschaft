@@ -274,8 +274,9 @@ var payload = {
     netzladeschutz: stateOf('IBM_NETZLADESCHUTZ'),
     netzladung_w: numberOf('IBM_NETZLADUNG'),
     // Einspeisung aus der Batterie: aktueller Wert (Regel
-    // ibm_netzeinspeisung) und aufsummierte Energie seit Inbetriebnahme
-    // des Zaehlers (Nutzen-Indikator fuer Besitzer und Gemeinschaft).
+    // ibm_netzeinspeisung) und der lokale Zaehlerstand (core.js). Der
+    // Server summiert daraus die Zuwaechse je Tag - der Stand selbst darf
+    // springen (SD-Karte neu, mapdb-Rueckfall), die Summen bleiben richtig.
     netzeinspeisung_w: numberOf('IBM_BATTERIE_NETZEINSPEISUNG'),
     batterie_netz_kwh: numberOf('IBM_BATTERIE_NETZEINSPEISUNG_KWH'),
     min_battery_charge: numberOf('IBM_MIN_BATTERY_CHARGE'),
@@ -329,12 +330,15 @@ if (response === null) {
     var jsonData = JSON.parse(response);
     if (jsonData.ok) {
       console.log("[IBM][Status] Status gemeldet (Ladestand: " + payload.data.soc + (voll ? ", voll" : "") + ").");
-      // Wochen-/Monatssumme der Batterie-Netzeinspeisung aus der Antwort
-      // (rechnet der Server wie fuer das Dashboard, inklusive der Historie
-      // vor dem lokalen Zaehlerstand) in die Main-UI-Items uebernehmen.
+      // Wochen-, Monats- und Gesamtsumme der Batterie-Netzeinspeisung aus
+      // der Antwort (rechnet der Server wie fuer das Dashboard, inklusive
+      // der Historie vor dem lokalen Zaehlerstand und unbeeindruckt von
+      // einem Rueckfall des lokalen Zaehlers nach einem Stromausfall) in
+      // die Main-UI-Items uebernehmen.
       if (jsonData.einspeisung !== null && typeof jsonData.einspeisung === 'object') {
         [['woche_kwh', 'IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH'],
-         ['monat_kwh', 'IBM_BATTERIE_NETZEINSPEISUNG_MONAT_KWH']].forEach(function (pair) {
+         ['monat_kwh', 'IBM_BATTERIE_NETZEINSPEISUNG_MONAT_KWH'],
+         ['gesamt_kwh', 'IBM_BATTERIE_NETZEINSPEISUNG_GESAMT_KWH']].forEach(function (pair) {
           var value = jsonData.einspeisung[pair[0]];
           if (typeof value !== 'number' || !isFinite(value) || value < 0) return;
           try {

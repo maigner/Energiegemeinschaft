@@ -1,4 +1,5 @@
 import { middlewareDbConnection } from "$lib/server/db/db";
+import { SNAPSHOT_DELTAS } from "$lib/server/db/energy/batteryGridFeedInSql.js";
 
 // Datenbasis der Flotten-Gesundheitsseite (/board/openhab/health): der
 // letzte Stand jeder Anlage samt Tunnel-Handshake und Alarmspalten sowie
@@ -97,17 +98,10 @@ export const getFleetHealthStats = async () => {
                 SELECT h.* FROM h, today
                  WHERE h.lt >= today.d - interval '8 hours'
                    AND h.lt <  today.d + interval '10 hours'
-            ), snaps AS (
-                SELECT status_id, day, battery_grid_kwh AS kwh,
-                       lag(battery_grid_kwh) OVER (PARTITION BY status_id ORDER BY day) AS prev
-                  FROM members_openhabcountersnapshot
-                 WHERE day >= current_date - 8
-            ), feed AS (
-                SELECT status_id,
-                       sum(CASE WHEN prev IS NULL THEN 0
-                                WHEN kwh >= prev THEN kwh - prev
-                                ELSE kwh END) FILTER (WHERE day >= current_date - 7) AS kwh_7d
-                  FROM snaps
+            ), ${SNAPSHOT_DELTAS}, feed AS (
+                SELECT status_id, sum(delta) AS kwh_7d
+                  FROM snapshot_deltas
+                 WHERE day >= current_date - 7
                  GROUP BY status_id
             )
             SELECT s.id,

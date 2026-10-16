@@ -211,6 +211,37 @@ bekommen die Einstellung mit dem naechsten Paket-Update; beim ersten Lauf
 faellt einmalig die aufgestaute Update-Welle samt Kernel an, danach ein
 Neustart um 10:00.
 
+### Persistence auf der SD-Karte (nicht im zram)
+
+openHABian legt `/var/lib/openhab/persistence` (mapdb, rrd4j) und
+`/var/log` per `zram-config` (`/etc/ztab`) auf ein Overlay im RAM und
+schreibt es erst beim sauberen Herunterfahren auf die SD-Karte zurueck.
+In mapdb liegen aber der Einspeise-Zaehler, das Sonnenprofil, die
+Kapazitaets- und die Hauslastschaetzung und die Einstellungen des
+Mitglieds (`restoreOnStartup`). Nach einem Stromausfall kam davon der
+Stand des letzten sauberen Neustarts zurueck - auf pi-020 am 2026-10-09
+drei Wochen alt (Zaehler 36 statt 12 kWh, Lernzustand von Mitte
+September). Der naechtliche `zsync.timer` von openHABian ist keine
+Loesung: `zram-config sync` haengt das Overlay aus und neu ein, waehrend
+openHAB die Dateien offen hat; openHABian laesst ihn deshalb selbst
+deaktiviert.
+
+`12-install-persistence-disk.sh` kommentiert den Persistence-Eintrag in
+`/etc/ztab` aus (Marker `#ibm-disk# `, `/var/log` bleibt im zram).
+Wirksam wird das beim naechsten **sauberen** Neustart: `zram-config`
+liest `ztab` nur beim Start und schreibt beim Stop den aktuellen
+mapdb-Stand auf die SD-Karte zurueck. Bis dahin liegt mapdb weiter im RAM,
+`06-verify.sh` warnt in dem Fall. Die Schreiblast auf der SD-Karte ist
+klein (mapdb alle 5 Minuten ein paar Items, rrd4j minuetlich eine
+Handvoll Zahlen). `INSTALL_PERSISTENCE_DISK=0` in `ibm.conf` stellt die
+openHABian-Vorgabe wieder her, `purge-ibm.sh` ebenso.
+
+Die Summen in der Main UI (Woche, Monat, Gesamt) rechnet ohnehin der
+Server aus den Zuwaechsen des lokalen Zaehlers (nur plausible Zuwaechse,
+ein Rueckfall zaehlt 0) und liefert sie mit der Antwort auf den
+Status-Push; der lokale Zaehlerstand `IBM_BATTERIE_NETZEINSPEISUNG_KWH`
+wird nicht mehr angezeigt.
+
 ### Standardablauf: Test im Netz des Vorstands
 
 Standard seit 2026-08: der Vorstand baut das Image, flasht die Karte und
@@ -487,6 +518,7 @@ nur ohne Provisionierung).
 | `08-install-wireguard.sh` | Richtet den WireGuard-Tunnel zum Wartungsserver ein und baut die SSH-Haertung aelterer Versionen zurueck - die Anmeldung durch den Tunnel laeuft per Passwort (siehe [Fernwartung](#fernwartung-wireguard)). |
 | `10-change-passwords.sh` | Aendert die Standardpasswoerter des Linux-Benutzers `openhabian` und der Karaf-Konsole (siehe [Standardpasswoerter aendern](#standardpasswoerter-aendern)). |
 | `11-install-apt-auto.sh` | Automatische Betriebssystem-Updates ueber `unattended-upgrades`: Debian- und Raspberry-Pi-Archiv, taeglich ab 03:40, Neustart bei Bedarf um 10:00 (siehe [Automatische Betriebssystem-Updates](#automatische-betriebssystem-updates)). |
+| `12-install-persistence-disk.sh` | Nimmt `/var/lib/openhab/persistence` aus dem zram (`/etc/ztab`), damit mapdb einen Stromausfall ueberlebt; wirksam beim naechsten sauberen Neustart (siehe [Persistence auf der SD-Karte](#persistence-auf-der-sd-karte-nicht-im-zram)). |
 | `purge-ibm.sh` | Entfernt das Batteriemanagement komplett wieder (Things, Regeln, Items, Seiten, Token, WireGuard, `/opt/ischlstrom`) und setzt die Anlage auf "frisches openHABian + Admin-Konto" zurueck - fuer Test-Wiederholungen oder Ausserbetriebnahme. Entfernt auch `/var/lib/ischlstrom` (Firstboot-Marker) und `/run/ibm-provision.env`, sodass die Zero-Touch-Einrichtung wiederholt werden kann. Admin-Konto, Linux-Passwort, Zeitzone und Cloud-Identitaet (UUID/Secret) bleiben. |
 | `prepare-sd.sh` | Nur auf dem Entwicklungsrechner (root): schreibt die SD-Karte fuer eine provisionierte Anlage aus dem Zip des Dashboards. Schreibt das Image und kopiert `openhabian.conf`, `ibm-provision.conf` und `user-data` auf die Boot-Partition; die systemd-Unit `ibm-firstboot` installiert cloud-init aus der `user-data` beim ersten Boot am Pi. |
 | `firstboot/` | `ibm-firstboot.sh` + systemd-Unit: startet nach der openHABian-Erstinstallation das Setup und wiederholt es alle 10 Minuten, bis es vollstaendig ist. |
@@ -612,7 +644,8 @@ Adapter und Kern in dieselbe Regel `ibm_battery_control.js`.
 | `IBM_NETZLADESCHUTZ` | Switch | Netzladeschutz: erkannte Netto-Netzladung sperrt das Laden (siehe unten) |
 | `IBM_NETZLADUNG` | Number | Aktuelle Netto-Ladung der Batterie aus dem Netz in W (0 = in Ordnung) |
 | `IBM_NETZLADE_WAECHTER` | String | Interner Zustand des Netzladeschutzes (JSON) |
-| `IBM_BATTERIE_NETZEINSPEISUNG_KWH` | Number | Einspeise-Zaehler: aufsummierte Energie aus der Batterie ins Netz in kWh (Nutzen-Indikator, Anzeige/Status-Push) |
+| `IBM_BATTERIE_NETZEINSPEISUNG_KWH` | Number | Einspeise-Zaehler des Kerns: aufsummierte Energie aus der Batterie ins Netz in kWh (Status-Push; der Server summiert daraus die Zuwaechse je Tag, ein Rueckfall des Zaehlers zaehlt 0) |
+| `IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH`, `_MONAT_KWH`, `_GESAMT_KWH` | Number | Woche, Monat und Gesamt vom Server (Antwort auf den Status-Push, wie am Vorstands-Dashboard) fuer die Main UI |
 | `IBM_NETZEINSPEISUNG_ZAEHLER` | String | Interner Zustand des Einspeise-Zaehlers (JSON, praeziser Stand samt Zeitstempel) |
 
 Das Entladefenster kommt tagesaktuell aus der Prognose (Token-API):

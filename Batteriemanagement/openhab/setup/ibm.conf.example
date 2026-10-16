@@ -276,6 +276,15 @@ INSTALL_APT_AUTO=1
 APT_AUTO_REBOOT=1
 APT_AUTO_REBOOT_TIME="10:00"
 
+# --- Persistence auf der SD-Karte -------------------------------------------
+# openHABian legt /var/lib/openhab/persistence (mapdb: Einspeise-Zaehler,
+# Sonnenprofil, Kapazitaets- und Hauslastschaetzung, Einstellungen) ins
+# zram und schreibt es nur beim sauberen Herunterfahren zurueck - nach einem
+# Stromausfall kommt ein wochenalter Stand zurueck. 12-install-persistence-
+# disk.sh nimmt den Eintrag aus /etc/ztab (wirksam beim naechsten Neustart);
+# /var/log bleibt im zram. 0 = openHABian-Vorgabe wiederherstellen.
+INSTALL_PERSISTENCE_DISK=1
+
 # --- WireGuard-Fernwartung ---------------------------------------------------
 # Ausgehender WireGuard-Tunnel zum Wartungsserver, damit die Anlage fuer
 # Updates und Fehlersuche per SSH erreichbar bleibt. Der Pi baut die

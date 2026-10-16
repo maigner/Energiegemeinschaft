@@ -199,7 +199,8 @@ voraussetzen:
 | `IBM_HAUSLAST_MESSUNG` | String | Interner Zustand der Hauslastschaetzung (JSON) |
 | `IBM_NACHTBUDGET` | Number | Vom Kern aus Kapazitaet, Hauslast, Sonnenprofil und Ertragsprognose (sonst Wolkenvorschau) gerechnetes Nacht-Entladebudget in kWh, das heute Nacht noch ins Netz darf (Anzeige/Status-Push); NULL ohne Kapazitaetsschaetzung |
 | `IBM_BATTERIE_NETZEINSPEISUNG` | Number | Berechnet (ibm_netzeinspeisung.js): Anteil der Batterie-Entladung, der ins Netz fliesst, in W; NULL ohne Batterie-/Netzleistungs-Item |
-| `IBM_BATTERIE_NETZEINSPEISUNG_KWH` | Number | Einspeise-Zaehler des Kerns: aufsummierte Energie aus der Batterie ins Netz in kWh (Anzeige/Status-Push) |
+| `IBM_BATTERIE_NETZEINSPEISUNG_KWH` | Number | Einspeise-Zaehler des Kerns: aufsummierte Energie aus der Batterie ins Netz in kWh (Status-Push; der Server summiert die Zuwaechse) |
+| `IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH`, `_MONAT_KWH`, `_GESAMT_KWH` | Number | Woche, Monat und Gesamt vom Server (Antwort auf den Status-Push) fuer die Overview-Seite |
 | `IBM_NETZEINSPEISUNG_ZAEHLER` | String | Interner Zustand des Einspeise-Zaehlers (JSON) |
 | `IBM_MIN_BATTERY_CHARGE` | Number | Minimaler Ladestand in % |
 | `Minimale_Entladeleistung_Batterieeinspeisung` | Number | Watt |

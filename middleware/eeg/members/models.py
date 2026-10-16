@@ -165,13 +165,17 @@ class OpenhabCounterSnapshot(models.Model):
     control/core.js). Die Website rollt die Werte taeglich per Cron aus
     members_openhabstatushistory hierher, BEVOR das Pruning den Verlauf
     nach 30 Tagen loescht - so bleiben Wochen-, Monats- und Gesamtsummen
-    fuer /board/openhab dauerhaft berechenbar (Summe positiver Tagesdeltas;
-    ein Zaehlerreset zeigt sich als Sprung nach unten und zaehlt ab 0
-    weiter). Geschrieben von der Website per SQL; Django verwaltet nur das
-    Schema."""
+    fuer /board/openhab dauerhaft berechenbar. battery_grid_delta_kwh ist
+    die Tagesenergie: Summe der plausiblen Zuwaechse zwischen den
+    Status-Pushes des Tages (Rueckgang = 0, Sprung ueber 10 kW mal Zeit = 0;
+    so zaehlt ein aus dem zram wiederhergestellter Altstand nicht als
+    Energie). Zeilen vor Migration 0040 haben kein Delta, dort rechnet die
+    Website Tagesendstand minus Vortag. Geschrieben von der Website per SQL;
+    Django verwaltet nur das Schema."""
     status = models.ForeignKey(OpenhabStatus, on_delete=models.CASCADE)
     day = models.DateField()
     battery_grid_kwh = models.FloatField()
+    battery_grid_delta_kwh = models.FloatField(null=True, blank=True)
 
     class Meta:
         constraints = [

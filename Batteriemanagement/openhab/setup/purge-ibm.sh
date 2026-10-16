@@ -136,6 +136,12 @@ if [ -f /etc/systemd/system/apt-daily-upgrade.timer.d/ibm.conf ]; then
 fi
 rm -rf /var/lib/openhab/persistence/mapdb /var/lib/openhab/persistence/rrd4j \
   && log "mapdb- und rrd4j-Daten entfernt."
+# Persistence zurueck ins zram (12-install-persistence-disk.sh), wirksam
+# beim naechsten Neustart.
+if [ -f /etc/ztab ] && grep -q '^#ibm-disk# ' /etc/ztab; then
+  sed -i 's|^#ibm-disk# ||' /etc/ztab
+  log "/etc/ztab: Persistence-Eintrag wiederhergestellt (openHABian-Vorgabe, wirksam beim naechsten Neustart)."
+fi
 # Der Standard-Dienst zeigt sonst auf das dann deinstallierte rrd4j.
 if [ -f "$OPENHAB_CONF/services/runtime.cfg" ]; then
   sed -i '/^org\.openhab\.persistence:default=/d' "$OPENHAB_CONF/services/runtime.cfg" \

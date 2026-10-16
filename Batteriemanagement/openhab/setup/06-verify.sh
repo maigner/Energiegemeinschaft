@@ -135,6 +135,17 @@ if [ "$INSTALL_APT_AUTO" = "1" ] && command -v apt-get >/dev/null 2>&1; then
   fi
 fi
 
+# --- Persistence auf der SD-Karte -------------------------------------------
+if [ "$INSTALL_PERSISTENCE_DISK" = "1" ] && [ -f /etc/ztab ]; then
+  if grep -qE "^[[:space:]]*dir[[:space:]].*[[:space:]]/var/lib/openhab/persistence[[:space:]]" /etc/ztab; then
+    fail "Persistence liegt laut /etc/ztab noch im zram - beheben mit: sudo $IBM_SETUP_DIR/12-install-persistence-disk.sh"
+  elif findmnt -t overlay -n /var/lib/openhab/persistence >/dev/null 2>&1; then
+    warn "Persistence liegt bis zum naechsten sauberen Neustart noch im zram (Overlay aktiv) - mapdb geht bei einem Stromausfall verloren."
+  else
+    log "Persistence liegt auf der SD-Karte (kein zram-Overlay)."
+  fi
+fi
+
 if type inverter_verify >/dev/null 2>&1; then
   if inverter_verify; then
     log "Wechselrichter-Pruefung (inverter_verify) OK."

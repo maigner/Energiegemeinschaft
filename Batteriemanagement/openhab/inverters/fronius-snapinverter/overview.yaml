@@ -289,7 +289,8 @@ pages:
                               footer: >-
                                 Energie, die die Batterie ins Netz eingespeist
                                 hat - gezählt vom Speichermanagement seit der
-                                Inbetriebnahme. Woche und Monat beginnen am
+                                Inbetriebnahme, Summen von ischlstrom.org wie am
+                                Vorstands-Dashboard. Woche und Monat beginnen am
                                 Montag bzw. am Monatsersten.
                             slots:
                               default:
@@ -312,8 +313,8 @@ pages:
                                     title: Gesamt
                                     icon: f7:bolt_fill
                                     iconColor: green
-                                    item: IBM_BATTERIE_NETZEINSPEISUNG_KWH
-                                    after: "=Number.isNaN(Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG_KWH.state)) ? '-' : Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG_KWH.state).toFixed(1).replace('.', ',') + ' kWh'"
+                                    item: IBM_BATTERIE_NETZEINSPEISUNG_GESAMT_KWH
+                                    after: "=Number.isNaN(Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG_GESAMT_KWH.state)) ? '-' : Number.parseFloat(items.IBM_BATTERIE_NETZEINSPEISUNG_GESAMT_KWH.state).toFixed(1).replace('.', ',') + ' kWh'"
 
         # Hauptschalter und Navigation zu den Unterseiten; Badges zeigen den
         # Zustand der Funktionen, ohne dass man die Seite oeffnen muss.

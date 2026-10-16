@@ -56,7 +56,7 @@ step() {
   fi
 }
 
-log "=== Schritt 1/16: Konfiguration ==="
+log "=== Schritt 1/17: Konfiguration ==="
 if [ -f "$IBM_CONF" ]; then
   log "Konfiguration vorhanden: $IBM_CONF"
   log "Neu erfassen mit: sudo $here/00-wizard.sh"
@@ -76,16 +76,16 @@ if [ -f "${IBM_RUN_DIR:-/run}/ibm-provision.env" ]; then
   export IBM_NEW_PASSWORD
 fi
 
-log "=== Schritt 2/16: Zeitzone und Regionaleinstellungen ==="
+log "=== Schritt 2/17: Zeitzone und Regionaleinstellungen ==="
 ensure_regional_settings
 
-log "=== Schritt 3/16: WireGuard-Fernwartung ==="
+log "=== Schritt 3/17: WireGuard-Fernwartung ==="
 step tunnel 08-install-wireguard.sh 1
 
-log "=== Schritt 4/16: Standardpasswoerter ==="
+log "=== Schritt 4/17: Standardpasswoerter ==="
 step passwoerter 10-change-passwords.sh 1
 
-log "=== Schritt 5/16: openHAB Cloud (Identitaet) ==="
+log "=== Schritt 5/17: openHAB Cloud (Identitaet) ==="
 if [ -n "$CLOUD_UUID" ]; then
   # Provisioniert: UUID und Secret vom Server schreiben (vor dem Cloud-Addon).
   step cloud 07-myopenhab.sh 1
@@ -93,40 +93,43 @@ else
   log "Keine Cloud-Identitaet vom Server - Registrierung am Ende (Schritt 16)."
 fi
 
-log "=== Schritt 6/16: Addons ==="
+log "=== Schritt 6/17: Addons ==="
 step addons 02-install-addons.sh
 
-log "=== Schritt 7/16: Preflight ==="
+log "=== Schritt 7/17: Preflight ==="
 if ! "$here/01-preflight.sh"; then
   warn "Preflight meldet Probleme."
   confirm "Trotzdem fortfahren?" || die "Abgebrochen."
 fi
 
-log "=== Schritt 8/16: Wechselrichter-Thing ==="
+log "=== Schritt 8/17: Wechselrichter-Thing ==="
 step wechselrichter 02b-install-things.sh 1
 
-log "=== Schritt 9/16: Items und Persistence ==="
+log "=== Schritt 9/17: Items und Persistence ==="
 step items 03-install-items.sh
 
-log "=== Schritt 10/16: Regeln ==="
+log "=== Schritt 10/17: Regeln ==="
 step regeln 04-install-rules.sh
 
-log "=== Schritt 11/16: Overview-Seite ==="
+log "=== Schritt 11/17: Overview-Seite ==="
 step overview 05-install-overview.sh 1
 
-log "=== Schritt 12/16: Selbst-Update ==="
+log "=== Schritt 12/17: Selbst-Update ==="
 step updater 09-install-updater.sh 1
 
-log "=== Schritt 13/16: Fail-Safe ==="
+log "=== Schritt 13/17: Fail-Safe ==="
 step failsafe 10-install-failsafe.sh 1
 
-log "=== Schritt 14/16: Automatische Updates ==="
+log "=== Schritt 14/17: Automatische Updates ==="
 step systemupdates 11-install-apt-auto.sh 1
 
-log "=== Schritt 15/16: Verify ==="
+log "=== Schritt 15/17: Persistence auf der SD-Karte ==="
+step datensicherung 12-install-persistence-disk.sh 1
+
+log "=== Schritt 16/17: Verify ==="
 "$here/06-verify.sh" || warn "Verify meldet Probleme - siehe oben."
 
-log "=== Schritt 16/16: openHAB Cloud (Registrierung) ==="
+log "=== Schritt 17/17: openHAB Cloud (Registrierung) ==="
 if [ "$IBM_PROVISIONED" != "1" ]; then
   "$here/07-myopenhab.sh" \
     || warn "openHAB Cloud noch nicht abgeschlossen - spaeter erneut: sudo $here/07-myopenhab.sh"

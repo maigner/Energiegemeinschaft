@@ -17,8 +17,8 @@ import { isHostname } from '$lib/ibmNames';
  * Antwort: { ok: true } - mit `update: true`, wenn der Pi das IBM-Paket neu
  * einspielen soll (Dashboard "Paket aktualisieren"; ibm_status_push.js legt
  * dann den Marker fuer den root-Timer ibm-update an). Bei vollen Meldungen
- * (Feld `versions`) geht zusaetzlich `einspeisung` mit: Wochen- und
- * Monatssumme der Batterie-Netzeinspeisung, wie das Dashboard sie rechnet
+ * (Feld `versions`) geht zusaetzlich `einspeisung` mit: Wochen-,
+ * Monats- und Gesamtsumme der Batterie-Netzeinspeisung, wie das Dashboard sie rechnet
  * (Tages-Schnappschuesse plus Live-Delta) - der Pi zeigt sie in der
  * Main UI an, denn lokal fehlt ihm die Historie vor dem Paket-Update.
  */
@@ -94,7 +94,8 @@ export async function POST({ request }) {
             if (feedIn) {
                 response.einspeisung = {
                     woche_kwh: Math.round(feedIn.week_kwh * 100) / 100,
-                    monat_kwh: Math.round(feedIn.month_kwh * 100) / 100
+                    monat_kwh: Math.round(feedIn.month_kwh * 100) / 100,
+                    gesamt_kwh: Math.round(feedIn.total_kwh * 100) / 100
                 };
             }
         } catch (e) {

@@ -190,12 +190,16 @@ Number IBM_BATTERIE_NETZEINSPEISUNG "Netzeinspeisung aus der Batterie [%.0f W]" 
 // der Batterie ins Netz (an die Gemeinschaft) geflossen ist - der
 // Nutzen-Indikator fuer Besitzer und EEG. IBM_NETZEINSPEISUNG_ZAEHLER ist
 // interner Zustand (JSON, praeziser Stand samt Zeitstempel).
-Number IBM_BATTERIE_NETZEINSPEISUNG_KWH "Batterie ins Netz gesamt [%.2f kWh]"  <energy>   (IBM)
-// Woche und Monat rechnet der Server (wie fuer das Dashboard) und liefert
-// sie mit der Antwort auf die Statusmeldung; status_push.js schreibt sie
-// in diese Items fuer die Main UI.
+Number IBM_BATTERIE_NETZEINSPEISUNG_KWH "Batterie ins Netz, lokaler Zaehler [%.2f kWh]"  <energy>   (IBM)
+// Woche, Monat und Gesamt rechnet der Server aus den Zuwaechsen des
+// lokalen Zaehlers (wie fuer das Dashboard) und liefert sie mit der
+// Antwort auf die Statusmeldung; status_push.js schreibt sie in diese
+// Items fuer die Main UI. Der lokale Zaehlerstand selbst taugt nicht zur
+// Anzeige: nach einem Stromausfall kam er aus dem zram schon Wochen alt
+// zurueck (pi-020, 2026-10-09).
 Number IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH "Batterie ins Netz diese Woche [%.2f kWh]" <energy> (IBM)
 Number IBM_BATTERIE_NETZEINSPEISUNG_MONAT_KWH "Batterie ins Netz dieses Monat [%.2f kWh]" <energy> (IBM)
+Number IBM_BATTERIE_NETZEINSPEISUNG_GESAMT_KWH "Batterie ins Netz gesamt [%.2f kWh]" <energy> (IBM)
 String IBM_NETZEINSPEISUNG_ZAEHLER  "Einspeise-Zaehler (intern) [%s]"          <settings> (IBM)
 EOF
 
@@ -267,6 +271,7 @@ ${profile_persist}    Schalte_ISCHLSTROM_Empfehlung_einaus,
     IBM_BATTERIE_NETZEINSPEISUNG_KWH,
     IBM_BATTERIE_NETZEINSPEISUNG_WOCHE_KWH,
     IBM_BATTERIE_NETZEINSPEISUNG_MONAT_KWH,
+    IBM_BATTERIE_NETZEINSPEISUNG_GESAMT_KWH,
     IBM_NETZEINSPEISUNG_ZAEHLER,
     IBM_HAUSLAST,
     IBM_HAUSLAST_MESSUNG,

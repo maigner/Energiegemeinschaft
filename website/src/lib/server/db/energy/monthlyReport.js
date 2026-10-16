@@ -9,6 +9,8 @@
 // Europe/Vienna (nicht UTC), sonst rutschen die ersten zwei Stunden des
 // Monats in den Vormonat.
 
+import { SNAPSHOT_DELTAS } from './batteryGridFeedInSql.js';
+
 export const METER = {
     consumption: 193, // Gesamtverbrauch lt. Messung
     communityReceived: 195, // Eigendeckung: aus der Gemeinschaft bezogen
@@ -206,21 +208,9 @@ export async function getReportMember(db, memberIdentifier) {
 // der Statusverlauf mit Ladestand und Leistungen wird nach 30 Tagen
 // geloescht und deckt den Berichtsmonat beim Versand nicht mehr ab.
 
-// Tagesdeltas wie in batteryGridFeedIn.js: erster Schnappschuss zaehlt ab 0,
-// ein Zaehlerreset (Sprung nach unten) ebenfalls.
-const BATTERY_DELTAS = `
-    WITH snaps AS (
-        SELECT s.status_id, s.day, s.battery_grid_kwh AS kwh,
-               lag(s.battery_grid_kwh) OVER (PARTITION BY s.status_id ORDER BY s.day) AS prev
-        FROM members_openhabcountersnapshot s
-    ), deltas AS (
-        SELECT status_id, day,
-               CASE WHEN prev IS NULL THEN kwh
-                    WHEN kwh >= prev THEN kwh - prev
-                    ELSE kwh END AS delta
-        FROM snaps
-    )
-`;
+// Tagesdeltas der Schnappschuesse (batteryGridFeedInSql.js: plausible
+// Zuwaechse des Tages; aeltere Zeilen ohne Delta: Tagesendstand minus Vortag).
+const BATTERY_DELTAS = `WITH ${SNAPSHOT_DELTAS}`;
 
 /**
  * Batterie-Einspeisung eines Mitglieds im Monat (alle seine Anlagen):
@@ -236,7 +226,7 @@ export async function getMemberBatteryMonth(db, memberIdentifier, month) {
                 JOIN members_openhabstatus os2 ON os2.id = s.status_id
                 JOIN members_member m2 ON m2.id = os2.member_id
                 WHERE m2.identifier = $1) AS first_day
-        FROM deltas d
+        FROM snapshot_deltas d
         JOIN members_openhabstatus os ON os.id = d.status_id
         JOIN members_member m ON m.id = os.member_id
         WHERE m.identifier = $1 AND d.day >= $2::date AND d.day < $3::date
@@ -263,7 +253,7 @@ export async function getFleetBatteryMonth(db, month) {
         ${BATTERY_DELTAS}
         SELECT coalesce(sum(per_plant.kwh), 0) AS total,
                count(*) FILTER (WHERE per_plant.kwh >= 1) AS plants
-        FROM (SELECT status_id, sum(delta) AS kwh FROM deltas
+        FROM (SELECT status_id, sum(delta) AS kwh FROM snapshot_deltas
               WHERE day >= $1::date AND day < $2::date GROUP BY status_id) per_plant
     `, [first(month), first(shiftMonth(month, 1))]);
     return { total: Number(result.rows[0].total), plants: Number(result.rows[0].plants) };

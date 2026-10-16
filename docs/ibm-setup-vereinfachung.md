@@ -352,7 +352,9 @@ Aufwand: 1 bis 2 Tage (ohne Kommandos).
 - Keine automatischen openHAB-Updates: bleibt manuell ueber den Tunnel,
   wie heute dokumentiert. (Debian-Pakete, Kernel und Pi-Firmware spielt
   seit 2026-09-17 `11-install-apt-auto.sh` ueber unattended-upgrades ein,
-  Neustart bei Bedarf um 10:00.)
+  Neustart bei Bedarf um 10:00. Seit 2026-10-15 nimmt
+  `12-install-persistence-disk.sh` die openHAB-Persistence aus dem zram,
+  damit Zaehler und Lernzustand einen Stromausfall ueberleben.)
 - Keine Rueckkehr zu SSH-Schluesseln: Passwort-Anmeldung durch den Tunnel
   bleibt, nur wird das Passwort pro Anlage zufaellig und am Dashboard
   abrufbar.
