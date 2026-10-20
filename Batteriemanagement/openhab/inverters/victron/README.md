@@ -66,9 +66,17 @@ Dreiphasen-Systemen also der gesamte Verbund.
 
 Die Adressen in `profile.sh` stammen aus der offiziellen Registerliste,
 das VERHALTEN (Setpoint-Regelung, DVCC-Wirkung auf MPPTs) ist aber noch
-**nicht am Geraet verifiziert**. Werkzeug: `mbpoll` oder ein kurzes
-pymodbus-Skript im LAN der Anlage; zum Testen ohne Anlage siehe
-`tools/sim_venus.py`.
+**nicht am Geraet verifiziert**. Werkzeug: `tools/spike_venus.py` (nur
+Standardbibliothek, laeuft am Laptop im LAN der Anlage oder auf dem Pi;
+Schritte `reads`, `watch`, `setpoint`, `prevent`, `limit`, `discharge`,
+`failsafe`, `reset`, Zuordnung zur Checkliste im Docstring). `reads` merkt
+Setpoint und DVCC-Limit als Werkswerte in `spike_venus.state.json`, jeder
+steuernde Schritt setzt darauf zurueck (auch bei Ctrl+C/Fehler), nur
+`failsafe` laesst das Kommando absichtlich stehen. Zum Testen ohne Anlage
+siehe `tools/sim_venus.py`:
+
+    python3 tools/sim_venus.py --port 5020 &
+    python3 tools/spike_venus.py 127.0.0.1 --port 5020 --yes reads setpoint prevent discharge
 
 Checkliste (Ergebnis in die Tabelle unten eintragen, danach `profile.sh`/
 `adapter.js` anpassen):

@@ -10,3 +10,7 @@ docs/setup/*.out
 # Python bytecode caches
 __pycache__/
 *.pyc
+
+# Spike-Werkzeuge der Wechselrichter-Profile: Logs und gemerkte Werkswerte
+Batteriemanagement/openhab/inverters/*/tools/spike_*.log
+Batteriemanagement/openhab/inverters/*/tools/spike_*.state.json
