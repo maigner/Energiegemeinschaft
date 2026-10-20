@@ -25,9 +25,9 @@ export const createOpenhabToken = async (memberId) => {
                  inverter_type, inverter_username, inverter_password, wg_address, wg_public_key,
                  cloud_uuid, cloud_secret, cloud_username, cloud_password, cloud_account_state,
                  cloud_account_error, mail_alias_state, linux_password, wifi_ssid, wifi_password,
-                 setup_phase, setup_message)
+                 setup_phase, setup_message, provision_redemptions)
              VALUES ($1, $2, '', now(), NULL, '{}',
-                     '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '')`,
+                     '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 0)`,
             [memberId, token]
         );
         return token;
