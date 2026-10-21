@@ -61,6 +61,17 @@ INVERTER_SOC_PLACEHOLDER="IBM_VIC_SoC"
 # Ueber das gainOffset-Profil wird das Vorzeichen auf die IBM-Konvention
 # gedreht (Victron: + laden; IBM-Karte: + entladen).
 INVERTER_BATTERY_POWER_PLACEHOLDER="IBM_VIC_BatteryPower"
+# Netz- und PV-Leistung sind Summen-Gruppen (Group:Number:SUM) ueber mehrere
+# Register: PV = AC-PV am Ausgang (808..810) + AC-PV am Eingang (811..813) +
+# DC-PV/MPPT (826); Netz = die drei Phasen des Netzzaehler-Services
+# (2600..2602 an dessen eigener Unit-ID, siehe VIC_GRID_UNIT_ID). Die
+# System-Register 817..819 ("Grid L1..L3") sind NICHT brauchbar - auf
+# Venus 2.84 steigen sie bei Einspeisung sogar an (pi-031, 2026-10-21).
+INVERTER_GRID_POWER_PLACEHOLDER="IBM_VIC_GridPower"
+INVERTER_PV_POWER_PLACEHOLDER="IBM_VIC_PvPower"
+# Die Bridge des Netzzaehlers traegt dieselbe Adresse wie die Haupt-Bridge -
+# der Netzwerk-Watchdog zieht sie bei einem IP-Wechsel mit nach.
+INVERTER_EXTRA_HOST_THINGS="modbus:tcp:ibmgrid=host"
 
 # Thing mit der Netzwerkadresse (die Modbus-TCP-Bridge) und deren
 # Adress-Parameter
@@ -119,6 +130,7 @@ MODBUS_MINSOC_GAIN="${MODBUS_MINSOC_GAIN:-0.1}"
 inverter_things_json() {
   IBM_J_HOST="${INVERTER_HOST:-}" \
   IBM_J_UNIT_ID="$MODBUS_UNIT_ID" \
+  IBM_J_GRID_UNIT="$(__ibm_vic_grid_unit)" \
   IBM_J_LABEL="$INVERTER_LABEL" \
   python3 - <<'PY'
 import json, os
@@ -142,6 +154,7 @@ things = [
 # ueber FC03 -> type "holding".
 pollers = [
     ("vicbatt", 840, 4,  10000),   # 840..843: Spannung, Strom, Leistung, SoC
+    ("vicpv",   808, 19, 10000),   # 808..826: AC-PV Ausgang/Eingang L1..L3, ..., DC-PV
     ("vicset",  2700, 9, 10000),   # 2700..2708: Setpoint, DVCC, Einspeisung
     ("vicess",  2900, 3, 10000),   # 2900..2902: BatteryLife, MinSoc, Modus
 ]
@@ -159,10 +172,40 @@ for poller_id, start, length, refresh in pollers:
         },
     })
 
+# Netzzaehler: eigener Modbus-Service mit eigener Unit-ID (am Geraet
+# ermittelt, VIC_GRID_UNIT_ID in ibm.conf). Das Binding kennt die Unit-ID
+# nur an der tcp-Bridge, deshalb eine zweite Bridge auf dieselbe Adresse.
+grid_unit = e.get("IBM_J_GRID_UNIT", "")
+if grid_unit.isdigit():
+    things.append({
+        "UID": "modbus:tcp:ibmgrid",
+        "thingTypeUID": "modbus:tcp",
+        "label": label + " (Netzzaehler)",
+        "configuration": {
+            "host": e["IBM_J_HOST"],
+            "port": 502,
+            "id": int(grid_unit),
+        },
+    })
+    things.append({
+        "UID": "modbus:poller:ibm:vicgrid",
+        "thingTypeUID": "modbus:poller",
+        "bridgeUID": "modbus:tcp:ibmgrid",
+        "label": label + " (vicgrid)",
+        "configuration": {"start": 2600, "length": 3, "type": "holding", "refresh": 10000},
+    })
+
 # id, Poller, Adresse, Wertetyp, beschreibbar?
 registers = [
     ("power",    "vicbatt", 842,  "int16",  False),  # Batterieleistung W
     ("soc",      "vicbatt", 843,  "uint16", False),  # Ladestand %
+    ("pvout1",   "vicpv",   808,  "uint16", False),  # AC-PV am Ausgang L1 W
+    ("pvout2",   "vicpv",   809,  "uint16", False),
+    ("pvout3",   "vicpv",   810,  "uint16", False),
+    ("pvin1",    "vicpv",   811,  "uint16", False),  # AC-PV am Eingang L1 W
+    ("pvin2",    "vicpv",   812,  "uint16", False),
+    ("pvin3",    "vicpv",   813,  "uint16", False),
+    ("pvdc",     "vicpv",   826,  "uint16", False),  # DC-PV (MPPT) W
     ("setpoint", "vicset",  2700, "int16",  True),   # ESS grid setpoint W
     ("maxchg",   "vicset",  2705, "int16",  True),   # DVCC MaxChargeCurrent A
     ("maxfeed",  "vicset",  2706, "int16",  False),  # MaxFeedInPower (roh)
@@ -195,8 +238,64 @@ for reg_id, poller_id, address, valuetype, writable in registers:
         "configuration": cfg,
     })
 
+if grid_unit.isdigit():
+    for i in (1, 2, 3):
+        things.append({
+            "UID": "modbus:data:ibm:vic:grid" + str(i),
+            "thingTypeUID": "modbus:data",
+            "bridgeUID": "modbus:poller:ibm:vicgrid",
+            "label": label + " (grid" + str(i) + ")",
+            "configuration": {"readStart": str(2599 + i), "readValueType": "int16"},
+        })
+
 print(json.dumps(things))
 PY
+}
+
+# Unit-ID des Netzzaehler-Services (com.victronenergy.grid) am GX: aus
+# ibm.conf (VIC_GRID_UNIT_ID), sonst einmalig am Geraet gesucht - die
+# Unit-IDs vergibt Venus je nach Anschluss (pi-031: 30), die Modbus/TCP-
+# Seite der Remote Console listet sie. Gesucht wird per FC03 auf 2600 an
+# den Units 1..99 (100 = System, dort gibt es 2600 nicht). Ergebnis wird in
+# ibm.conf gemerkt; ohne Treffer (kein Netzzaehler am GX) bleibt die
+# Netz-Gruppe leer und der Status-Push meldet null.
+__ibm_vic_grid_unit() {
+  if [ -n "${VIC_GRID_UNIT_ID:-}" ]; then
+    printf '%s' "$VIC_GRID_UNIT_ID"; return 0
+  fi
+  # Schon gemerkt, aber ibm.conf in dieser Shell noch nicht neu geladen
+  # (inverter_things_json laeuft in 02b mehrfach): aus der Datei lesen.
+  local known
+  known="$(sed -n 's/^VIC_GRID_UNIT_ID="\([0-9]*\)"$/\1/p' "${IBM_CONF:-/nonexistent}" 2>/dev/null | head -n1)"
+  if [ -n "$known" ]; then
+    printf '%s' "$known"; return 0
+  fi
+  [ -n "${INVERTER_HOST:-}" ] || return 0
+  local unit
+  unit="$(IBM_G_HOST="$INVERTER_HOST" IBM_G_PORT="${MODBUS_PORT:-502}" python3 - <<'PY'
+import os, socket, struct
+host, port = os.environ["IBM_G_HOST"], int(os.environ["IBM_G_PORT"])
+def has_grid(unit):
+    try:
+        s = socket.create_connection((host, port), timeout=1.5)
+        s.settimeout(2)
+        s.sendall(struct.pack(">HHHB", 1, 0, 6, unit) + struct.pack(">BHH", 3, 2600, 3))
+        r = s.recv(64)
+        s.close()
+        return len(r) >= 15 and r[6] == unit and r[7] == 3
+    except OSError:
+        return False
+for unit in range(1, 100):
+    if has_grid(unit):
+        print(unit)
+        break
+PY
+)"
+  [ -n "$unit" ] || return 0
+  if type conf_set >/dev/null 2>&1 && [ -f "${IBM_CONF:-}" ]; then
+    conf_set VIC_GRID_UNIT_ID "$unit" >/dev/null 2>&1 || true
+  fi
+  printf '%s' "$unit"
 }
 
 # Items der automatischen Einrichtung. SoC (Gain 1) braucht kein Profil;
@@ -211,6 +310,22 @@ inverter_battery_items() {
   cat <<EOF
 Number ${SOC_ITEM} "Ladestand Batterie [%.0f %%]" <batterylevel> (IBM) { channel="modbus:data:ibm:vic:soc:number" }
 Number ${BATTERY_POWER_ITEM:-IBM_VIC_BatteryPower} "Einspeiseleistung Batterie [%.0f W]" <energy> (IBM) { channel="modbus:data:ibm:vic:power:number" [profile="modbus:gainOffset", gain="${MODBUS_BATTERY_POWER_GAIN}", pre-gain-offset="0"] }
+
+// Netz- und PV-Leistung als Summen ueber mehrere Register (siehe Profil-Kopf).
+// Netz: + Bezug / - Einspeisung (IBM-Konvention), PV >= 0. Mitglieder ohne
+// Wert (kein Netzzaehler, keine MPPTs) laesst die Summe aus.
+Group:Number:SUM ${GRID_POWER_ITEM:-IBM_VIC_GridPower} "Netzleistung [%.0f W]" <energy> (IBM)
+Number IBM_VIC_GridL1 "Netz L1 [%.0f W]" <energy> (${GRID_POWER_ITEM:-IBM_VIC_GridPower}) { channel="modbus:data:ibm:vic:grid1:number" }
+Number IBM_VIC_GridL2 "Netz L2 [%.0f W]" <energy> (${GRID_POWER_ITEM:-IBM_VIC_GridPower}) { channel="modbus:data:ibm:vic:grid2:number" }
+Number IBM_VIC_GridL3 "Netz L3 [%.0f W]" <energy> (${GRID_POWER_ITEM:-IBM_VIC_GridPower}) { channel="modbus:data:ibm:vic:grid3:number" }
+Group:Number:SUM ${PV_POWER_ITEM:-IBM_VIC_PvPower} "PV-Leistung [%.0f W]" <solarplant> (IBM)
+Number IBM_VIC_PvAcOutL1 "AC-PV Ausgang L1 [%.0f W]" <solarplant> (${PV_POWER_ITEM:-IBM_VIC_PvPower}) { channel="modbus:data:ibm:vic:pvout1:number" }
+Number IBM_VIC_PvAcOutL2 "AC-PV Ausgang L2 [%.0f W]" <solarplant> (${PV_POWER_ITEM:-IBM_VIC_PvPower}) { channel="modbus:data:ibm:vic:pvout2:number" }
+Number IBM_VIC_PvAcOutL3 "AC-PV Ausgang L3 [%.0f W]" <solarplant> (${PV_POWER_ITEM:-IBM_VIC_PvPower}) { channel="modbus:data:ibm:vic:pvout3:number" }
+Number IBM_VIC_PvAcInL1  "AC-PV Eingang L1 [%.0f W]" <solarplant> (${PV_POWER_ITEM:-IBM_VIC_PvPower}) { channel="modbus:data:ibm:vic:pvin1:number" }
+Number IBM_VIC_PvAcInL2  "AC-PV Eingang L2 [%.0f W]" <solarplant> (${PV_POWER_ITEM:-IBM_VIC_PvPower}) { channel="modbus:data:ibm:vic:pvin2:number" }
+Number IBM_VIC_PvAcInL3  "AC-PV Eingang L3 [%.0f W]" <solarplant> (${PV_POWER_ITEM:-IBM_VIC_PvPower}) { channel="modbus:data:ibm:vic:pvin3:number" }
+Number IBM_VIC_PvDc      "DC-PV (MPPT) [%.0f W]"     <solarplant> (${PV_POWER_ITEM:-IBM_VIC_PvPower}) { channel="modbus:data:ibm:vic:pvdc:number" }
 
 // Modbus-Register (roh) - vom Adapter gelesen bzw. beschrieben
 Number IBM_VIC_GridSetpointW  "ESS-Netz-Sollwert [%.0f W]"    <settings> (IBM) { channel="modbus:data:ibm:vic:setpoint:number" }

@@ -139,6 +139,11 @@ Checkliste (Ergebnis in die Tabelle unten eintragen, danach `profile.sh`/
 | Register | Adresse | Typ | Gain | Gelesen/verifiziert |
 | --- | --- | --- | --- | --- |
 | Seriennummer GX | 800 | String[6] | - | OK (12 ASCII-Zeichen, pi-031) |
+| AC-PV am Ausgang L1..L3 | 808..810 | uint16 | 1 | gelesen: 0 (pi-031 hat keine AC-PV am Ausgang) |
+| AC-PV am Eingang L1..L3 | 811..813 | uint16 | 1 | OK (pi-031: 384/120/116 W = Summe der pvinverter-Services 20+21) |
+| Grid L1..L3 (System) | 817..819 | int16 | 1 | **UNBRAUCHBAR auf 2.84** (steigen bei Einspeisung, L3 klemmt bei 0) - nicht verwenden |
+| DC-PV (MPPT) | 826 | uint16 | 1 | gelesen: 1 (keine MPPTs) |
+| Netzzaehler L1..L3 | 2600..2602 an der Unit des grid-Services (pi-031: 30) | int16 | 1 (+ Bezug, - Einspeisung) | OK - folgt dem Setpoint exakt (-600 -> Summe -590..-620) |
 | Batterieleistung | 842 | int16 | 1 (+ laden) | OK (+ laden, - entladen, gegen 844 bestaetigt) |
 | Ladestand | 843 | uint16 | 1 | OK (21 = 21 %) |
 | ESS grid setpoint | 2700 | int16 | 1 | OK - Regelung folgt am Netzzaehler (Summe aller Phasen), +800/-600/-1000 getestet |
@@ -179,9 +184,27 @@ auf Venus 2.84 **unbrauchbar** - sie steigen bei Einspeisung sogar an (L3
 klemmt bei 0, L1 zeigt den Betrag). Der echte Netzzaehler liefert
 korrekte, vorzeichenrichtige Werte am grid-Service (hier Unit 30,
 Register 2600..2602, int16 W je Phase); AC-PV 811..813 stimmt mit den
-pvinverter-Services ueberein. Fuer Netz-/PV-Leistung im Dashboard also
-eine zweite Bridge auf die Unit des Netzzaehlers (Unit-ID aus der
-Modbus/TCP-Seite der Remote Console) - noch nicht umgesetzt.
+pvinverter-Services ueberein.
+
+### Netz- und PV-Leistung (seit 2026-10-21)
+
+- **PV** = `Group:Number:SUM IBM_VIC_PvPower` ueber sieben Register des
+  System-Services: AC-PV am Ausgang 808..810, AC-PV am Eingang 811..813,
+  DC-PV (MPPT) 826 (Poller `vicpv`, 808..826 am Stueck lesbar). Fehlende
+  Quellen liefern 0.
+- **Netz** = `Group:Number:SUM IBM_VIC_GridPower` ueber die drei Phasen des
+  Netzzaehler-Services (2600..2602, + Bezug / - Einspeisung = IBM-
+  Konvention). Der Service hat eine **eigene Unit-ID** (Modbus/TCP-Seite
+  der Remote Console listet sie; pi-031: 30), das Binding kennt die Unit-ID
+  nur an der tcp-Bridge - deshalb eine zweite Bridge `modbus:tcp:ibmgrid`
+  auf dieselbe Adresse. Die Unit-ID sucht `__ibm_vic_grid_unit()` einmalig
+  am Geraet (FC03 auf 2600 an Unit 1..99) und merkt sie als
+  `VIC_GRID_UNIT_ID` in ibm.conf; ohne Netzzaehler bleibt die Gruppe leer
+  und der Status-Push meldet null. Der Netzwerk-Watchdog zieht die zweite
+  Bridge bei einem IP-Wechsel mit (`INVERTER_EXTRA_HOST_THINGS`).
+- Damit rechnet der Kern Netzladung, Hausvorrang und "Einspeisung aus der
+  Batterie" (Regel `ibm_netzeinspeisung`), und das Dashboard zeigt PV und
+  Netz.
 
 ## Fail-Safe-Analyse
 

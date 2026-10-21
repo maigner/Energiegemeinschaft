@@ -36,6 +36,13 @@ POINTS = {
     842:  ("Batterieleistung (W, + laden)", 0),
     843:  ("Ladestand (%)", 55),
     844:  ("Batteriezustand (0=idle)", 0),
+    811:  ("AC-PV am Eingang L1 (W)", 300),
+    812:  ("AC-PV am Eingang L2 (W)", 100),
+    813:  ("AC-PV am Eingang L3 (W)", 100),
+    826:  ("DC-PV (MPPT) Leistung (W)", 0),
+    2600: ("Netzzaehler L1 (W, + Bezug)", -150),
+    2601: ("Netzzaehler L2 (W)", 20),
+    2602: ("Netzzaehler L3 (W)", 250),
     2700: ("ESS grid setpoint (W)", 50),
     2701: ("ESS MaxChargePercentage", 100),
     2702: ("ESS MaxDischargePercentage", 100),
@@ -55,11 +62,14 @@ POINTS = {
 REGS = {addr: 0 for addr in range(800, 850)}
 REGS.update({addr: 0 for addr in range(2700, 2720)})
 REGS.update({addr: 0 for addr in range(2900, 2910)})
+# Netzzaehler-Service (com.victronenergy.grid, eigene Unit-ID am Geraet;
+# der Simulator antwortet auf jede Unit): 2600..2602 Leistung L1..L3 (int16 W)
+REGS.update({addr: 0 for addr in range(2600, 2622)})
 for _i in range(6):
     _chunk = SERIAL[2 * _i:2 * _i + 2].ljust(2, "\x00").encode("ascii")
     REGS[800 + _i] = struct.unpack(">H", _chunk)[0]
 for _addr, (_, _value) in POINTS.items():
-    REGS[_addr] = _value
+    REGS[_addr] = _value & 0xFFFF
 
 
 def point_name(address):
