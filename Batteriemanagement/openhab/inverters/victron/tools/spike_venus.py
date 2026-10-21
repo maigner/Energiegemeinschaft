@@ -421,7 +421,10 @@ def step_prevent(dev, args):
         return
     dev.write_s16(REG_MAX_CHARGE_A, 0)
     samples = observe(dev, args)
-    max_charge = max(s["power"] for s in samples)
+    # Die ersten ~20 s laeuft der Charger noch aus (am Geraet: 320 -> 45 W in
+    # 30 s) - bewertet wird erst die zweite Haelfte des Fensters.
+    settled = samples[len(samples) // 2:] or samples
+    max_charge = max(s["power"] for s in settled)
     pv = max(s["pv_dc"] for s in samples)
     if max_charge > 50:
         log(f"  !! Batterie lud waehrend der Sperre mit bis zu {max_charge:+d} W"

@@ -104,6 +104,7 @@ INVERTER_NOTES="Auf dem GX-Geraet muss 'Modbus TCP' aktiviert sein (Remote Conso
 #   2901   ESS Minimum SoC      U16   Gain 10 (Rohwert = % * 10)
 #   2902   ESS Mode (Hub4Mode)  U16   1/2 = ESS, 3 = Externe Steuerung
 MODBUS_UNIT_ID="${MODBUS_UNIT_ID:-100}"
+MODBUS_PORT="${MODBUS_PORT:-502}"
 
 # Vorzeichendreher fuer die Batterieleistung (Victron: + laden;
 # IBM-Karte: + entladen)
@@ -332,10 +333,51 @@ for t in json.load(sys.stdin): print(t["UID"])')
           *) curl -s -m 10 -o /dev/null -X PUT -H "Authorization: Bearer $OH_API_TOKEN" \
                -H 'Content-Type: text/plain' -d "$val" \
                "http://127.0.0.1:8080/rest/items/$dst/state"
-             log "Werkswert gemerkt: $name = $val ($dst)" ;;
+             log "Werkswert gemerkt: $name = $val ($dst)"
+             cur="$val" ;;
         esac ;;
       *) log "Werkswert bereits gemerkt: $name = $cur ($dst)" ;;
     esac
+    # Dieselben Werte in ibm.conf (nur root lesbar): der Fail-Safe-Timer
+    # laeuft ohne openHAB und braucht sie fuer inverter_failsafe_reset.
+    case "$dst" in
+      IBM_VIC_ResetSetpointW) __ibm_vic_conf_reset VIC_RESET_SETPOINT_W "$cur" ;;
+      IBM_VIC_ResetMaxChargeA) __ibm_vic_conf_reset VIC_RESET_MAX_CHARGE_A "$cur" ;;
+    esac
   done
   return $ok
+}
+
+# Werkswert als ganze Zahl in ibm.conf schreiben ("50 W" / "-1" / "50.0" -> 50).
+__ibm_vic_conf_reset() {
+  local key="$1" raw="${2%% *}" val
+  raw="${raw%.*}"
+  case "$raw" in
+    ''|NULL|UNDEF|*[!0-9-]*) return 0 ;;
+    *) val="$raw" ;;
+  esac
+  type conf_set >/dev/null 2>&1 || return 0
+  conf_set "$key" "$val"
+}
+
+# Fail-Safe-Reset OHNE openHAB (Pflicht fuer Modbus-Profile ohne
+# geraeteseitiges Auto-Revert; siehe setup/10-install-failsafe.sh und die
+# Fail-Safe-Analyse im README): Victron kennt fuer die Settings-Register
+# kein Revert-Timeout - ein kommandierter Setpoint bleibt stehen, wenn
+# openHAB ausfaellt (pi-031, 2026-10-21: -600 W standen 150 s ohne Master).
+# Schreibt die gemerkten Werkswerte (VIC_RESET_* aus ibm.conf, befuellt von
+# inverter_verify; ohne sie die Adapter-Vorgaben 50 W / -1 A) auf grid
+# setpoint (2700) und DVCC MaxChargeCurrent (2705) - derselbe Write wie
+# ibmReset() im Adapter - und prueft per Read-back. $1 = Adresse des GX
+# (aus dem Bridge-Thing, ersatzweise INVERTER_HOST).
+# Exit 0 nur bei bestaetigtem Reset - der Timer wiederholt sonst.
+# --scan: antwortet die Adresse nicht (DHCP hat das GX verschoben), sucht
+# das Skript das GX selbst in allen lokalen Netzen; die vom Watchdog
+# gemerkte Seriennummer (rediscover.sh, STATE_DIR/serial) entscheidet bei
+# mehreren Kandidaten.
+inverter_failsafe_reset() {
+  python3 "$IBM_INVERTER_DIR/victron/tools/failsafe_reset.py" \
+    --host "$1" --port "$MODBUS_PORT" --unit "$MODBUS_UNIT_ID" \
+    --setpoint "${VIC_RESET_SETPOINT_W:-50}" --max-charge "${VIC_RESET_MAX_CHARGE_A:--1}" \
+    --scan --serial-file "${OPENHAB_USERDATA:-/var/lib/openhab}/ibm/serial"
 }
