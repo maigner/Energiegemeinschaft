@@ -356,6 +356,31 @@ Website erreicht ihn wie die Datenbanken ueber `172.17.0.1`.
   selben Verzeichnis (noetig, wenn Signal das Protokoll aendert und der
   Versand mit Fehlern aus dem Container quittiert wird).
 
+## Zaehlpunktliste aus dem Postfach (Podlist-Import, seit November 2026)
+
+Die Zaehlpunktliste von Netz OOe (Podlist) wird in EEG-Faktura angefordert und
+kommt als Mail an info@ischlstrom.org (Betreff `RC101533 Zaehlpunktliste
+JJJJMMTT-HHMM`, Anhang `RC101533_JJJJMMTT-HHMM_ZP_PODLIST.xlsx`). Die Website
+holt sie alle 10 Minuten per IMAP aus mailcow (`src/lib/server/podlist/`),
+speichert jede Lieferung in `members_podlistimport`/`members_podlistentry`
+(Migration members 0041), legt die Datei neben dem Masterdata-Sheet unter
+`/website/board/members/import` in Nextcloud ab und meldet Import oder
+Fehler per Signal. Stand und Abweichungen (aktive Zaehlpunkte ohne
+Podlist-Zeile, laut Netz beendete, unbekannte): `/board/members/import`.
+
+- **Website-`.env`:** `IMAP_HOST=s1.ischlstrom.org`, `IMAP_PORT=993`,
+  `IMAP_USER=info@ischlstrom.org`, `IMAP_PASSWORD=<App-Passwort>` (mailcow:
+  Mailbox -> App-Passwoerter, nur Protokoll IMAP, Name `website-podlist`);
+  optional `IMAP_FOLDER` (Vorgabe INBOX). Ohne diese Werte laeuft nichts.
+- Das Postfach lesen auch Menschen: der Job markiert nichts als gelesen und
+  verschiebt nichts; verarbeitet ist eine Mail, sobald ihre Message-ID in
+  `members_podlistimport` steht (auch nach einem Fehler, der nur einmal
+  gemeldet wird).
+- Test vom Entwicklungsrechner: `node scripts/podlist-fetch.js --dry-run
+  --imap-env .env.s1` (liest nur die `IMAP_*`-Zeilen aus `.env.s1`, DB bleibt
+  die der lokalen `.env`); `--file <xlsx>` importiert eine Datei von Hand.
+  Log auf s1: `docker logs` der Website, Zeilen mit `[podlist]`.
+
 ## Newsletter (keila)
 
 Der Newsletter laeuft auf Keila (Container `keila`, `pentacent/keila`,

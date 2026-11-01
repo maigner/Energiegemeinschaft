@@ -214,6 +214,51 @@ class MeasurementPoint(models.Model):
     activation_reminder_sent_at = models.DateTimeField(null=True, default=None)
     def __str__(self):
         return f"{self.identifier}"
+
+
+class PodlistImport(models.Model):
+    """Eine von Netz OOe gelieferte Zaehlpunktliste (Podlist), wie EEG-Faktura
+    sie nach einer Anforderung per Mail an info@ischlstrom.org schickt. Die
+    Website holt sie alle 10 Minuten aus dem Postfach (IMAP) und liest das
+    Blatt ZP-List ein (website: src/lib/server/podlist/). Jeder Import
+    behaelt seine Zeilen (PodlistEntry); die Pruefungen vor der Abrechnung
+    lesen den juengsten fehlerfreien Import. message_id verhindert, dass
+    eine Mail zweimal verarbeitet wird (auch nach einem Fehler)."""
+    received_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    # Zeitpunkt der Anforderung laut Betreff (RC101533 Zaehlpunktliste JJJJMMTT-HHMM)
+    requested_at = models.DateTimeField(null=True, blank=True)
+    source = models.CharField(max_length=20)  # "mail" | "file"
+    file_name = models.CharField(max_length=200, blank=True, default="")
+    message_id = models.CharField(max_length=500, null=True, blank=True, unique=True)
+    row_count = models.IntegerField(default=0)
+    # Zaehlpunkte der Liste, die members_measurementpoint nicht kennt
+    unknown_count = models.IntegerField(default=0)
+    status = models.CharField(max_length=20)  # "ok" | "error"
+    error = models.TextField(blank=True, default="")
+    nextcloud_path = models.CharField(max_length=500, blank=True, default="")
+
+    class Meta:
+        ordering = ["-received_at"]
+
+    def __str__(self):
+        return f"Podlist {self.received_at:%d.%m.%Y %H:%M} ({self.status}, {self.row_count} Zeilen)"
+
+
+class PodlistEntry(models.Model):
+    """Eine Zeile der Podlist: ein Aktivierungsfenster eines Zaehlpunkts.
+    Ein Zaehlpunkt hat mehrere Zeilen, wenn sich der Teilnahmefaktor
+    geaendert hat. active_until NULL = offen (9999-12-31 in der Datei)."""
+    podlist_import = models.ForeignKey(PodlistImport, on_delete=models.CASCADE, related_name="entries")
+    row_no = models.IntegerField()
+    identifier = models.CharField(max_length=200, db_index=True)
+    direction = models.CharField(max_length=20)  # CONSUMPTION | GENERATION
+    participation_factor = models.SmallIntegerField()
+    activated = models.DateField()
+    active_since = models.DateField()
+    active_until = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.identifier} {self.active_since} bis {self.active_until or 'offen'} ({self.participation_factor}%)"
     
     
 class EventRegistration(models.Model):
