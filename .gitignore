@@ -10,3 +10,13 @@ docs/setup/*.out
 # Python bytecode caches
 __pycache__/
 *.pyc
+
+# eeg-tools (Rust workspace + Tauri client): build output and local member exports
+eeg-tools/target/
+eeg-tools/**/target/
+eeg-tools/eegfaktura-client/node_modules/
+eeg-tools/eegfaktura-client/.svelte-kit/
+eeg-tools/eegfaktura-client/build/
+eeg-tools/debug.txt
+eeg-tools/eegfaktura-checker/test-files/*.xlsx
+eeg-tools/eegfaktura-datalib/test-files/*.xlsx
