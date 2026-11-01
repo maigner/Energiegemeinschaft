@@ -126,7 +126,8 @@ log "Regeln, Items und Persistence-Konfiguration entfernt."
 # apt-daily-Timer und das Paket unattended-upgrades sind Debian-Standard und
 # bleiben installiert - ohne die Periodic-Eintraege tun sie nichts mehr.
 rm -f /etc/apt/apt.conf.d/02ibm-periodic /etc/apt/apt.conf.d/52ibm-unattended \
-  && log "entfernt: 02ibm-periodic, 52ibm-unattended (apt-Update und automatische Updates deaktiviert)"
+      /etc/apt/apt.conf.d/53ibm-jvm-restart /usr/local/sbin/ibm-jvm-restart-check \
+  && log "entfernt: 02ibm-periodic, 52ibm-unattended, 53ibm-jvm-restart (apt-Update und automatische Updates deaktiviert)"
 if [ -f /etc/systemd/system/apt-daily-upgrade.timer.d/ibm.conf ]; then
   rm -f /etc/systemd/system/apt-daily-upgrade.timer.d/ibm.conf
   rmdir /etc/systemd/system/apt-daily-upgrade.timer.d 2>/dev/null || true

@@ -137,6 +137,10 @@ fi
 
 rm -f "${IBM_RUN_DIR:-/run}/ibm-provision.env"
 
+# Holt Anlagen ab, deren JVM ein Java-Update ohne den Hook aus Schritt 14 erlebt
+# hat. Erst hier, damit Verify und Cloud-Registrierung ein laufendes openHAB sehen.
+[ ! -x /usr/local/sbin/ibm-jvm-restart-check ] || /usr/local/sbin/ibm-jvm-restart-check
+
 if [ "$incomplete" = "1" ]; then
   # Sammelphase fuer Dashboard und Mitgliederbereich: die spaeteren Schritte
   # haben ihre Phasen schon gemeldet, deshalb hier den Wartezustand samt der
