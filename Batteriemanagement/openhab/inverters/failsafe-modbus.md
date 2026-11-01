@@ -37,7 +37,7 @@ moeglich waere und was am Testtag gemessen werden muss.
 | `fronius-snapinverter` | SunSpec Model 124, Modbus | **nein** - `InOutWRte_RvrtTms` "Not supported", am Geraet belegt (Spike 2026-09-10: Write angenommen, Read-back bleibt 65535) | `MinRsvPct` liest **0**; Web-UI-"Min SoC" ungeprueft (Abschnitt 5) |
 | `sigenergy` | Remote EMS, Modbus | **nein** - am Geraet bestaetigt (Spike-Punkt 9, Anlage 223, 2026-10-02: Entladung stand ~85 s, kein Revert; "Interaction timeout" ist nur Request-Timing) | Entladeuntergrenze der Anlage, Wert unbekannt |
 | `deye` | TOU-Register | **nein** | `DEYE_SOC_FLOOR` 10 % je Slot plus BMS-Untergrenze |
-| `victron` | ESS-Settings-Register | **nein** - ESS Mode 3 haette einen 60-s-Watchdog, wurde aber bewusst verworfen (schaltet den Multi bei Kommunikationsverlust dauerhaft in Passthru) | **ESS Minimum SoC = harter Boden** (Spike offen) |
+| `victron` | ESS-Settings-Register | **nein** - am Geraet bestaetigt (Spike-Punkt 9, pi-031 Cerbo GX 2.84, 2026-10-21: -600 W standen 150 s ohne Master); ESS Mode 3 haette einen 60-s-Watchdog, wurde aber bewusst verworfen (schaltet den Multi bei Kommunikationsverlust dauerhaft in Passthru) | **ESS Minimum SoC = harter Boden** (Anlage 031: 5 %; Spike-Punkt 8 offen) |
 
 Vier von fuenf Profilen haengen also allein am zyklischen Reset des Kerns.
 Ein Fail-Safe am Pi ist damit **keine Fronius-Reparatur, sondern eine
@@ -108,10 +108,13 @@ Funktion `inverter_failsafe_reset <host>` (Kontrakt in `README.md`):
 eigenstaendig, ohne openHAB, Exit 0 nur bei per Read-back bestaetigtem
 Reset. `fronius-snapinverter` hat sie
 (`tools/failsafe_reset.py`, Modbus-Client wie im Spike-Werkzeug, Guard auf
-Model-ID 124 wie im Adapter). Fuer `sigenergy` (`Remote EMS enable = 0`),
-`deye` und `victron` ist sie **noch zu schreiben** - bis dahin richtet der
-Installer dort keinen Timer ein und sagt das. Das GEN24-Profil braucht
-keine.
+Model-ID 124 wie im Adapter), `sigenergy` (`Remote EMS enable = 0`, seit
+2026-10-02) und `victron` (`tools/failsafe_reset.py`, seit 2026-10-21:
+schreibt die in ibm.conf gemerkten Werkswerte `VIC_RESET_*` auf 2700/2705,
+Guard auf Seriennummer + ESS-Modus 1/2, `--scan` mit der vom Watchdog
+gemerkten Seriennummer). Fuer `deye` ist sie **noch zu schreiben** - bis
+dahin richtet der Installer dort keinen Timer ein und sagt das. Das
+GEN24-Profil braucht keine.
 
 Umgesetzte Feinheiten: der Heartbeat entsteht nur nach `ok=true` des
 Resets (schlaegt das Binding fehl, uebernimmt der Timer mit eigener
@@ -341,7 +344,9 @@ Entladung einmal ~85 s laenger stehen als geplant.
 * [ ] Paket bauen (`build-dist.sh`), an Anlage 020 einspielen, Testplan Abschnitt 8 abarbeiten, Ergebnisse hier eintragen
 * [ ] Danach entscheiden: reicht der geraeteseitige SoC-Boden als Absicherung des toten Pi? Und L3 (`INSTALL_HW_WATCHDOG=1`) einschalten?
 * [x] Reset-Skript ohne openHAB fuer `sigenergy` (`tools/failsafe_reset.py`, 2026-10-02, am Geraet bewiesen)
-* [ ] Reset-Skripte ohne openHAB fuer `deye`, `victron` (Kontrakt `inverter_failsafe_reset`; Vorlagen `fronius-snapinverter/` und `sigenergy/tools/failsafe_reset.py`)
+* [x] Reset-Skript ohne openHAB fuer `victron` (`tools/failsafe_reset.py`, 2026-10-21, am Geraet pi-031 direkt und per `--scan` bestaetigt; Simulator: Standard, stehendes Kommando, unerreichbar, Guard Modus 3, Scan mit/ohne Seriennummer)
+* [ ] Reset-Skript ohne openHAB fuer `deye` (Kontrakt `inverter_failsafe_reset`; Vorlagen `fronius-snapinverter/`, `sigenergy/`, `victron/tools/failsafe_reset.py`)
+* [ ] pi-031: Timer-Geraetetest Zeile 11/12 (openHAB-Stop, Boot) nach dem Paket-Update - braucht Hauptschalter ON
 * [x] ok-Semantik der Modbus-Adapter: Zustellbarkeit (Wechselrichter-Thing `@IBM_THING_UID@` ONLINE) vor jedem Write, sonst `ok: false` -> kein Heartbeat (2026-10-02, Befund Zeile 13 an 223, Abschnitt 8b)
 * [x] Zeile 13 mit dem Zustellbarkeits-Fix am Geraet wiederholen - 223 bestanden 2026-10-02 22:23 (Abschnitt 8b)
 * [ ] Zeile 13 an 020 (`fronius-snapinverter`), spaeter `deye`/`victron`
@@ -358,4 +363,5 @@ Entladung einmal ~85 s laenger stehen als geplant.
 * [ ] Mitglieder-Kurzanleitung "Speichermanagement-Pi tot: was tun" nach `docs/setup/`, erst nach Test 6 und 7
 * [ ] Austausch-Checkliste Ersatz-Pi: Modbus wieder auf tcp, "Steuerung einschraenken" auf neue IP
 * [x] Spike-Punkt 9 bei `sigenergy`: kein Auto-Revert (Anlage 223, 2026-10-02)
-* [ ] Minimum-SoC-Spike bei `victron` nachziehen - dieselbe Frage, anderes Geraet
+* [ ] Minimum-SoC-Spike bei `victron` nachziehen (Punkt 8, pi-031: Minimum SoC 5 %, Entladung 21 -> 5 % haette Stunden gedauert)
+* [x] Spike-Punkt 9 bei `victron`: kein Auto-Revert (pi-031, 2026-10-21)

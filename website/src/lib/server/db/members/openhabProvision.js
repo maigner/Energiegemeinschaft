@@ -212,13 +212,13 @@ export const provisionPlant = async ({ memberId, inverterType = '', wifiSsid = '
                      wg_address, wg_public_key, linux_password,
                      cloud_uuid, cloud_secret, cloud_username, cloud_password,
                      cloud_account_state, cloud_account_error, mail_alias_state,
-                     wifi_ssid, wifi_password, setup_phase, setup_message)
+                     wifi_ssid, wifi_password, setup_phase, setup_message, provision_redemptions)
                  VALUES ($1, $2, $3, now(), NULL, '{}',
                          $4, $5, $6, '', '',
                          $7, '', $8,
                          $9, $10, $11, $12,
                          'pending', '', $13,
-                         $14, $15, '', '')
+                         $14, $15, '', '', 0)
                  RETURNING id`,
                 [memberId, token, name, code, expires, inverterType, wgAddress, linuxPassword,
                  cloudUuid, cloudSecret, cloudUsername, cloudPassword, aliasState, wifiSsid, wifiPw]

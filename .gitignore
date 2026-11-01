@@ -20,3 +20,7 @@ eeg-tools/eegfaktura-client/build/
 eeg-tools/debug.txt
 eeg-tools/eegfaktura-checker/test-files/*.xlsx
 eeg-tools/eegfaktura-datalib/test-files/*.xlsx
+
+# Spike-Werkzeuge der Wechselrichter-Profile: Logs und gemerkte Werkswerte
+Batteriemanagement/openhab/inverters/*/tools/spike_*.log
+Batteriemanagement/openhab/inverters/*/tools/spike_*.state.json

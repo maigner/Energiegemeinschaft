@@ -66,9 +66,17 @@ Dreiphasen-Systemen also der gesamte Verbund.
 
 Die Adressen in `profile.sh` stammen aus der offiziellen Registerliste,
 das VERHALTEN (Setpoint-Regelung, DVCC-Wirkung auf MPPTs) ist aber noch
-**nicht am Geraet verifiziert**. Werkzeug: `mbpoll` oder ein kurzes
-pymodbus-Skript im LAN der Anlage; zum Testen ohne Anlage siehe
-`tools/sim_venus.py`.
+**nicht am Geraet verifiziert**. Werkzeug: `tools/spike_venus.py` (nur
+Standardbibliothek, laeuft am Laptop im LAN der Anlage oder auf dem Pi;
+Schritte `reads`, `watch`, `setpoint`, `prevent`, `limit`, `discharge`,
+`failsafe`, `reset`, Zuordnung zur Checkliste im Docstring). `reads` merkt
+Setpoint und DVCC-Limit als Werkswerte in `spike_venus.state.json`, jeder
+steuernde Schritt setzt darauf zurueck (auch bei Ctrl+C/Fehler), nur
+`failsafe` laesst das Kommando absichtlich stehen. Zum Testen ohne Anlage
+siehe `tools/sim_venus.py`:
+
+    python3 tools/sim_venus.py --port 5020 &
+    python3 tools/spike_venus.py 127.0.0.1 --port 5020 --yes reads setpoint prevent discharge
 
 Checkliste (Ergebnis in die Tabelle unten eintragen, danach `profile.sh`/
 `adapter.js` anpassen):
@@ -130,21 +138,73 @@ Checkliste (Ergebnis in die Tabelle unten eintragen, danach `profile.sh`/
 
 | Register | Adresse | Typ | Gain | Gelesen/verifiziert |
 | --- | --- | --- | --- | --- |
-| Seriennummer GX | 800 | String[6] | - | AUSSTEHEND |
-| Batterieleistung | 842 | int16 | 1 (+ laden) | AUSSTEHEND |
-| Ladestand | 843 | uint16 | 1 | AUSSTEHEND |
-| ESS grid setpoint | 2700 | int16 | 1 | AUSSTEHEND |
-| DVCC MaxChargeCurrent | 2705 | int16 | 1 (-1 = unbegrenzt) | AUSSTEHEND |
-| ESS MaxFeedInPower | 2706 | int16 | 0.01 (-1 = unbegrenzt) | AUSSTEHEND |
-| DC-PV-Ueberschuss einspeisen | 2707 | uint16 | - | AUSSTEHEND |
-| AC-PV-Ueberschuss NICHT einspeisen | 2708 | uint16 | - | AUSSTEHEND |
-| BatteryLife state | 2900 | uint16 | - (9 = geladen halten) | AUSSTEHEND |
-| ESS Minimum SoC | 2901 | uint16 | 10 | AUSSTEHEND |
-| ESS Mode (Hub4Mode) | 2902 | uint16 | - (1/2 = ESS, 3 = extern) | AUSSTEHEND |
+| Seriennummer GX | 800 | String[6] | - | OK (12 ASCII-Zeichen, pi-031) |
+| AC-PV am Ausgang L1..L3 | 808..810 | uint16 | 1 | gelesen: 0 (pi-031 hat keine AC-PV am Ausgang) |
+| AC-PV am Eingang L1..L3 | 811..813 | uint16 | 1 | OK (pi-031: 384/120/116 W = Summe der pvinverter-Services 20+21) |
+| Grid L1..L3 (System) | 817..819 | int16 | 1 | **UNBRAUCHBAR auf 2.84** (steigen bei Einspeisung, L3 klemmt bei 0) - nicht verwenden |
+| DC-PV (MPPT) | 826 | uint16 | 1 | gelesen: 1 (keine MPPTs) |
+| Netzzaehler L1..L3 | 2600..2602 an der Unit des grid-Services (pi-031: 30) | int16 | 1 (+ Bezug, - Einspeisung) | OK - folgt dem Setpoint exakt (-600 -> Summe -590..-620) |
+| Batterieleistung | 842 | int16 | 1 (+ laden) | OK (+ laden, - entladen, gegen 844 bestaetigt) |
+| Ladestand | 843 | uint16 | 1 | OK (21 = 21 %) |
+| ESS grid setpoint | 2700 | int16 | 1 | OK - Regelung folgt am Netzzaehler (Summe aller Phasen), +800/-600/-1000 getestet |
+| DVCC MaxChargeCurrent | 2705 | int16 | 1 (-1 = unbegrenzt) | OK - 0 A: Ladung 320 -> ~45 W Rest; 3 A: ~3,3 A |
+| ESS MaxFeedInPower | 2706 | int16 | 0.01 (-1 = unbegrenzt) | gelesen: 0 bei ausgeschaltetem "Systemeinspeisung begrenzen" (Wert dann ohne Wirkung, nicht -1!) |
+| DC-PV-Ueberschuss einspeisen | 2707 | uint16 | - | gelesen: 0 |
+| AC-PV-Ueberschuss NICHT einspeisen | 2708 | uint16 | - | gelesen: 0 |
+| BatteryLife state | 2900 | uint16 | - (9 = geladen halten) | gelesen: 10 = Optimiert ohne BatteryLife |
+| ESS Minimum SoC | 2901 | uint16 | 10 | OK (50 = 5,0 %) |
+| ESS Mode (Hub4Mode) | 2902 | uint16 | - (1/2 = ESS, 3 = extern) | gelesen: 1 |
 
-Venus-OS-Version: AUSSTEHEND | GX-Modell: AUSSTEHEND |
-DVCC-Ladesperre wirkt auch auf MPPT: AUSSTEHEND |
-Setpoint 2700 wirksam (trotz 3.50+-Override): AUSSTEHEND
+Venus-OS-Version: 2.84 | GX-Modell: Cerbo GX |
+DVCC-Ladesperre wirkt auch auf MPPT: NICHT PRUEFBAR (Anlage hat keine MPPTs,
+nur AC-PV) | Setpoint 2700 wirksam: JA (2716/2717 auf 2.84 nicht vorhanden)
+
+### Spike-Protokoll 2026-10-21 (pi-031, Cerbo GX, Venus OS 2.84)
+
+Anlage: MultiPlus einphasig (Unit 227) an einer Phase, 48-V-Batterie ohne
+CAN-BMS (kein battery-Service), keine MPPTs, zwei AC-PV-Wechselrichter am
+AC-Eingang (Units 20 dreiphasig ~350 W, 21 einphasig ~270 W),
+dreiphasiger Netzzaehler (grid-Service Unit 30). ESS "Optimiert" ohne
+BatteryLife, Minimum SoC 5 %, "Systemeinspeisung begrenzen" aus.
+Werkzeug: `tools/spike_venus.py`, Hauptschalter am Pi OFF.
+
+| Punkt | Ergebnis |
+| --- | --- |
+| 2 Reads | alle Register plausibel (Tabelle oben) |
+| 3/4 Setpoint | 2700 = 100 / 800 / -600 / -1000 geschrieben, Read-back sofort; die ESS-Regelung zieht die **Summe des Netzzaehlers** auf den Sollwert (-600 -> Zaehler -590...-620 W binnen 20 s). Kein Override-Register auf 2.84 |
+| 5 Laderegelung | 2705 = 3 A -> Ladestrom 3,2-3,5 A (170-215 W bei 52,7 V); 2705 = 0 -> Ladung von 320 W in 30 s auf ~45 W Rest (0,8 A) - fuer die Ladesperre ausreichend, aber nicht exakt null |
+| 6 DVCC vs. MPPT | entfaellt (keine MPPTs); bei AC-PV genuegt 2705 |
+| 7 Entladung | 2700 = -1000: Batterie -790 W, Netzzaehler-Export entsprechend (Haushalt lief ueber AC-PV); -600 -> Export 600 W am Zaehler |
+| 8 Minimum SoC | OFFEN (21 % -> 5 % haette Stunden gedauert) |
+| 9 Fail-Safe | **KEIN Auto-Revert bestaetigt**: -600 W stehen gelassen, 150 s ohne Modbus-Verbindung -> Setpoint weiter -600, Zaehler -510...-670 W, Batterie -370...-400 W. `reset` stellte 50 W / -1 A wieder her |
+| 10 Flash | nicht geprueft |
+
+Befund fuer das Profil: die System-Register 817..819 ("Grid L1..L3") sind
+auf Venus 2.84 **unbrauchbar** - sie steigen bei Einspeisung sogar an (L3
+klemmt bei 0, L1 zeigt den Betrag). Der echte Netzzaehler liefert
+korrekte, vorzeichenrichtige Werte am grid-Service (hier Unit 30,
+Register 2600..2602, int16 W je Phase); AC-PV 811..813 stimmt mit den
+pvinverter-Services ueberein.
+
+### Netz- und PV-Leistung (seit 2026-10-21)
+
+- **PV** = `Group:Number:SUM IBM_VIC_PvPower` ueber sieben Register des
+  System-Services: AC-PV am Ausgang 808..810, AC-PV am Eingang 811..813,
+  DC-PV (MPPT) 826 (Poller `vicpv`, 808..826 am Stueck lesbar). Fehlende
+  Quellen liefern 0.
+- **Netz** = `Group:Number:SUM IBM_VIC_GridPower` ueber die drei Phasen des
+  Netzzaehler-Services (2600..2602, + Bezug / - Einspeisung = IBM-
+  Konvention). Der Service hat eine **eigene Unit-ID** (Modbus/TCP-Seite
+  der Remote Console listet sie; pi-031: 30), das Binding kennt die Unit-ID
+  nur an der tcp-Bridge - deshalb eine zweite Bridge `modbus:tcp:ibmgrid`
+  auf dieselbe Adresse. Die Unit-ID sucht `__ibm_vic_grid_unit()` einmalig
+  am Geraet (FC03 auf 2600 an Unit 1..99) und merkt sie als
+  `VIC_GRID_UNIT_ID` in ibm.conf; ohne Netzzaehler bleibt die Gruppe leer
+  und der Status-Push meldet null. Der Netzwerk-Watchdog zieht die zweite
+  Bridge bei einem IP-Wechsel mit (`INVERTER_EXTRA_HOST_THINGS`).
+- Damit rechnet der Kern Netzladung, Hausvorrang und "Einspeisung aus der
+  Batterie" (Regel `ibm_netzeinspeisung`), und das Dashboard zeigt PV und
+  Netz.
 
 ## Fail-Safe-Analyse
 
@@ -169,11 +229,18 @@ siehe oben.)
   anlagenseitiger Boden, den z. B. das Deye-Profil nicht hat. Das
   Restrisiko MUSS dem Mitglied trotzdem kommuniziert werden.
 - Der root-Timer `ibm-failsafe` (`setup/10-install-failsafe.sh`) uebernimmt
-  das, sobald dieses Profil `inverter_failsafe_reset` definiert: ein
-  Skript ohne openHAB, das grid setpoint und MaxChargeCurrent auf die
-  gemerkten Werkswerte schreibt und per Read-back prueft (Vorlage
-  `fronius-snapinverter/tools/failsafe_reset.py`). **Noch offen fuer
-  dieses Profil.**
+  das: `inverter_failsafe_reset()` in `profile.sh` ruft
+  `tools/failsafe_reset.py` (seit 2026-10-21) - ein Skript ohne openHAB,
+  das grid setpoint (2700) und MaxChargeCurrent (2705) auf die gemerkten
+  Werkswerte schreibt und per Read-back prueft. Die Werkswerte liegen dafuer
+  zusaetzlich zu den Items in `ibm.conf` (`VIC_RESET_SETPOINT_W`,
+  `VIC_RESET_MAX_CHARGE_A`, geschrieben von `inverter_verify()`; fehlen sie,
+  gelten 50 W / -1 A). Guard: Seriennummer lesbar, ESS-Modus 1/2 (Modus 3 =
+  Externe Steuerung -> nichts schreiben, Exit 2), Ladestand plausibel.
+  `--scan` sucht das GX bei unerreichbarer Adresse in allen lokalen Netzen
+  und nimmt bei mehreren Kandidaten nur das mit der vom Watchdog gemerkten
+  Seriennummer (`STATE_DIR/serial`). Am Geraet pi-031 bestaetigt (direkt
+  und per Scan); der Timer-Geraetetest (openHAB-Stop, Boot) steht noch aus.
 
 ## Bekannte Grenzen
 

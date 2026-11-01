@@ -27,6 +27,7 @@ set -u
 THING_UID="@IBM_HOST_THING_UID@"        # traegt die Adresse (die Modbus-tcp-Bridge)
 WATCH_THING_UID="@IBM_WATCH_THING_UID@" # zeigt die Verbindung an (ein Daten-Thing)
 HOST_PARAM="@IBM_HOST_PARAM@"
+EXTRA_HOST_THINGS="@IBM_EXTRA_HOST_THINGS@" # weitere Things mit Adresse (uid=param), z. B. die Netzzaehler-Bridge
 TOKEN_FILE="@IBM_TOKEN_FILE@"
 STATE_DIR="@IBM_STATE_DIR@"
 COOLDOWN_MIN="@IBM_COOLDOWN_MIN@"
@@ -48,6 +49,7 @@ FORCE=0
 # dem Bridge-Thing nehmen. Aeltere Installationen ohne den Platzhalter
 # fallen auf das Bridge-Thing zurueck.
 case "$WATCH_THING_UID" in ""|@*) WATCH_THING_UID="$THING_UID" ;; esac
+case "$EXTRA_HOST_THINGS" in @*) EXTRA_HOST_THINGS="" ;; esac
 
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
@@ -113,6 +115,32 @@ fetch_thing() {
   esac
 }
 
+# Traegt die Adresse $1 in die weiteren Things (EXTRA_HOST_THINGS) ein, wo
+# sie abweicht - bei Victron die zweite Modbus-Bridge des Netzzaehlers
+# (modbus:tcp:ibmgrid). Still, solange alles stimmt; ein fehlendes Thing
+# (aelteres Paket, kein Netzzaehler) wird uebersprungen.
+sync_extra_hosts() {
+  local target="$1" entry uid param response http_code have
+  [ -n "$target" ] || return 0
+  for entry in $EXTRA_HOST_THINGS; do
+    uid="${entry%=*}"; param="${entry##*=}"
+    response="$(auth_curl -w '\n%{http_code}' -m 10 "$REST/things/$uid")"
+    http_code="${response##*$'\n'}"
+    [ "$http_code" = "200" ] || continue
+    have="$(json_str "${response%$'\n'*}" "$param")"
+    [ "$have" = "$target" ] && continue
+    http_code="$(auth_curl -o /dev/null -w '%{http_code}' -m 10 -X PUT \
+      -H 'Content-Type: application/json' \
+      -d "{\"$param\": \"$target\"}" \
+      "$REST/things/$uid/config")"
+    if [ "$http_code" = "200" ]; then
+      log "Adresse in $uid nachgezogen: ${have:-leer} -> $target"
+    else
+      log "FEHLER: Adresse in $uid konnte nicht nachgezogen werden (HTTP $http_code)."
+    fi
+  done
+}
+
 fetch_thing "$THING_UID"; host_json="$THING_JSON"
 if [ "$WATCH_THING_UID" = "$THING_UID" ]; then
   watch_json="$host_json"
@@ -126,6 +154,7 @@ current_host="$(json_str "$host_json" "$HOST_PARAM")"
 
 # --- Normalbetrieb: nichts tun (nebenbei die Seriennummer merken) -----------
 if [ "$status" = "ONLINE" ] && [ "$FORCE" -ne 1 ]; then
+  sync_extra_hosts "$current_host"
   if [ -z "$remembered_serial" ] && [ -n "$current_host" ]; then
     serial="$(probe_serial "$current_host" || true)"
     [ -n "$serial" ] && { printf '%s' "$serial" > "$STATE_DIR/serial"; log "Seriennummer gemerkt: $serial"; }
@@ -242,6 +271,7 @@ fi
 
 if [ "$found" = "$current_host" ]; then
   log "Gefundene Adresse entspricht der konfigurierten ($found) - das Binding verbindet sich von selbst neu."
+  sync_extra_hosts "$found"
   exit 0
 fi
 
@@ -258,6 +288,7 @@ if [ "$code" != "200" ]; then
 fi
 
 log "Thing-Konfiguration aktualisiert - das Binding initialisiert sich neu."
+sync_extra_hosts "$found"
 
 # Der Poller braucht nach dem Neustart der Bridge einen erfolgreichen Zyklus,
 # bis das Daten-Thing wieder ONLINE meldet.
