@@ -327,16 +327,44 @@ impl super::Masterdata {
 
         let range = match workbook.worksheet_range("Mitglieder") {
             Ok(r) => r,
-            Err(error) => panic!("Problem fetching Sheet Energiedaten: {error:?}"),
+            Err(error) => panic!("Problem fetching Sheet Mitglieder: {error:?}"),
         };
 
-        //let h = range.headers();
-        //println!("{:?}", h);
+        // Resolve column positions from the header row instead of hardcoding
+        // indices. The eegfaktura export occasionally gains new columns (e.g.
+        // "Beitrittsgebühr (€)" / "Beitrittsgebühr Status" were inserted before
+        // "Zählpunkt" in the 2026-11 export), which shifts every column after.
+        let header: Vec<String> = range
+            .rows()
+            .next()
+            .map(|r| {
+                r.iter()
+                    .map(|c| c.as_string().unwrap_or_default().trim().to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let col = |name: &str| -> usize {
+            header.iter().position(|h| h == name).unwrap_or_else(|| {
+                panic!("Masterdata sheet 'Mitglieder' has no column '{name}' (header: {header:?})")
+            })
+        };
+        let col_member_number = col("Mit. Nr.");
+        let col_name1 = col("Name 1");
+        let col_name2 = col("Name 2");
+        let col_email = col("E-Mail");
+        let col_member_type = col("teilnahme als");
+        let col_meter_point = col("Zählpunkt");
+        let col_zp_status = col("ZP-Status");
+        let col_registered = col("registriert");
+        let col_direction = col("Bezugsrichtung");
+        let col_activated = col("aktiviert");
+        let col_deactivated = col("deaktiviert");
+        let col_subscription = col("Zp. Tarifname");
 
         let mut members: HashMap<String, Member> = HashMap::new();
 
         for row in range.rows().skip(1) {
-            let member_number = match row.get(0) {
+            let member_number = match row.get(col_member_number) {
                 Some(v) if !v.is_empty() => v.as_string(),
                 _ => None,
             }
@@ -345,27 +373,27 @@ impl super::Masterdata {
             if members.contains_key(&member_number) {
                 //println!("membernumber found");
             } else {
-                let first_name = match row.get(1) {
+                let first_name = match row.get(col_name1) {
                     Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
                     _ => None,
                 };
-                let last_name = match row.get(2) {
+                let last_name = match row.get(col_name2) {
                     Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
                     _ => None,
                 };
-                let company_name = match row.get(1) {
+                let company_name = match row.get(col_name1) {
                     Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
                     _ => None,
                 };
-                let email = match row.get(6) {
+                let email = match row.get(col_email) {
                     Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
                     _ => None,
                 }
                 .unwrap();
 
-                //22: teilnahme als
+                // "teilnahme als"
                 let member_type = row
-                    .get(22)
+                    .get(col_member_type)
                     .and_then(|v| v.as_string())
                     .and_then(|s| MemberType::from_str(&s).ok())
                     .unwrap_or(MemberType::Private);
@@ -391,8 +419,8 @@ impl super::Masterdata {
                 //member.email = "new@email.com".to_string();
                 // Changes ARE preserved in the HashMap
 
-                // index 25 is meter point number
-                let meter_point_id = match row.get(25) {
+                // "Zählpunkt": meter point number
+                let meter_point_id = match row.get(col_meter_point) {
                     Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
                     _ => None,
                 }
@@ -400,18 +428,18 @@ impl super::Masterdata {
 
                 //println!("meter point id {}", meter_point_id);
 
-                //26: meter point status
+                // "ZP-Status": meter point status
                 let meter_point_status = row
-                    .get(26)
+                    .get(col_zp_status)
                     .and_then(|v| v.as_string())
                     .and_then(|s| MeterPointStatus::from_str(&s).ok())
                     .unwrap_or(MeterPointStatus::Invalid);
 
                 //println!("meter_point_status {:?}", meter_point_status);
 
-                //29 "registriert"
+                // "registriert"
                 let meter_point_registered = row
-                    .get(29)
+                    .get(col_registered)
                     .filter(|v| !v.is_empty())
                     .and_then(|v| {
                         let s = v.as_string()?;
@@ -424,9 +452,9 @@ impl super::Masterdata {
 
                 //println!("meter_point_registered {:?}", meter_point_registered);
 
-                //30: direction
+                // "Bezugsrichtung": direction
                 let energy_direction: EnergyDirection = row
-                    .get(30)
+                    .get(col_direction)
                     .and_then(|v| v.as_string())
                     .and_then(|s| Some(EnergyDirection::from_str(&s)))
                     .unwrap()
@@ -434,8 +462,8 @@ impl super::Masterdata {
 
                 //println!("energy_direction {:?}", energy_direction);
 
-                //37 "aktiviert"
-                let meter_point_activated = row.get(37).filter(|v| !v.is_empty()).and_then(|v| {
+                // "aktiviert"
+                let meter_point_activated = row.get(col_activated).filter(|v| !v.is_empty()).and_then(|v| {
                     let s = v.as_string()?;
                     //println!("Raw date string: '{}'", s);
                     NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d")
@@ -445,8 +473,8 @@ impl super::Masterdata {
 
                 //println!("meter_point_activated {:?}", meter_point_activated);
 
-                //38 "deaktiviert"
-                let meter_point_deactivated = row.get(38).filter(|v| !v.is_empty()).and_then(|v| {
+                // "deaktiviert"
+                let meter_point_deactivated = row.get(col_deactivated).filter(|v| !v.is_empty()).and_then(|v| {
                     let s = v.as_string()?;
                     //println!("Raw date string: '{}'", s);
                     NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d")
@@ -456,8 +484,8 @@ impl super::Masterdata {
 
                 //println!("meter_point_deactivated {:?}", meter_point_deactivated);
 
-                // index 39 is "Tarif Name"
-                let subscription = match row.get(39) {
+                // "Zp. Tarifname"
+                let subscription = match row.get(col_subscription) {
                     Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
                     _ => None,
                 };
