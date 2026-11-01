@@ -1,0 +1,15 @@
+[package]
+name = "eegfaktura-datalib"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+base64 = "0.22.1"
+calamine = {version = "0.32.0", features = ["chrono"]}
+chrono =  {version = "0.4.43", features = ["serde"]}
+quick-xml = "0.42.0"
+reqwest = {version = "0.13.2", features = ["json"]}
+serde = {version = "1.0.228", features = ["derive"]}
+serde_json = "1.0.149"
+tokio = {version = "1.49.0", features = ["full"]}
+zip = "8.6.0"
