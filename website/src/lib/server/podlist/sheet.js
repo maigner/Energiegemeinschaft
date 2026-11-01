@@ -63,7 +63,7 @@ export const cellToIsoDate = (value) => {
     }
     const text = String(value).trim();
     let m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(text);
-    if (m) return `${m[3]}-${pad(Number(m[1]))}-${pad(Number(m[2]))}`;
+    if (m) return `${m[3]}-${pad(Number(m[2]))}-${pad(Number(m[1]))}`;
     m = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
     if (m) return `${m[1]}-${m[2]}-${m[3]}`;
     return null;

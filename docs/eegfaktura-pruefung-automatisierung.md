@@ -6,7 +6,33 @@ den Energiedaten-Import auf s1 (`notebooks/energyData/eegfaktura_import.py`,
 (`website/src/lib/server/nextcloud/members/memberdata.js`) und ein neues
 Vorstands-Dashboard `/board/energy/pruefung`.
 
-**Umsetzungsstand (2026-11-01):** Stufe 5, Weg 3 (Podlist aus dem Postfach) ist gebaut: `website/src/lib/server/podlist/`, Migration `members 0041` (`members_podlistimport`, `members_podlistentry`; abweichend vom Plan unten eine Zeile je Aktivierungsfenster statt Spalten am Zählpunkt, weil ein Zählpunkt bei Änderung des Teilnahmefaktors mehrmals in der Liste steht), Cron alle 10 Minuten, Anzeige auf `/board/members/import`, CLI `scripts/podlist-fetch.js`. Postfach ist info@ischlstrom.org (nicht ein eigenes), der Job markiert und verschiebt nichts. Probelauf gegen das echte Postfach am 2026-11-01 fand beide Listen (28.09. und 01.11.). Migration 0041 auf Prod und Deploy am 2026-11-01 13:13; der erste Lauf um 13:14 hat beide Listen übernommen und in Nextcloud abgelegt. Alle anderen Stufen sind nicht umgesetzt; `members 0041` ist damit vergeben, Stufe 1 bekommt 0042.
+**Umsetzungsstand (2026-11-01, Abend):** Stufen 1 bis 5 und der lokale Teil
+von Stufe 7 sind gebaut, Stufe 6 ist geprüft und derzeit nicht möglich.
+Abweichungen vom Plan: die Podlist liegt als eine Zeile je Aktivierungsfenster
+in `members_podlistentry` (Migration `members 0041`), nicht als Spalten am
+Zählpunkt, weil ein Zählpunkt bei Änderung des Teilnahmefaktors mehrmals in
+der Liste steht; Masterdata-Spalten und Energystore-Fenster sind
+`members 0042`, die Qualität `metering 0006`, das Prüfprotokoll
+`metering 0007`. Stufe 4 holt JSON statt Excel: der Keycloak-Client von
+EEG-Faktura erlaubt keinen Passwort-Grant, `GET /api/master/masterdata`
+(Basic-Auth) liefert Status und Fenster, aber keine E-Mail, Adresse und
+keinen Tarif; neue Mitglieder kommen weiter über das Sheet in Nextcloud.
+Stufe 6: die Nachforderung ist `POST /meteringpoint/syncenergy` (Zählpunkt,
+Richtung, von, bis), aber nur mit Bearer-Token erreichbar, den ein Skript
+ohne Direct Access Grant nicht bekommt; braucht eine Änderung in EEG-Faktura
+(eigener Keycloak-Client mit Direct Access Grants oder eine Basic-Auth-Variante
+des Endpoints). Workaround seit 2026-11-01: auf der Prüfungsseite ein Formular
+"Nachforderung direkt senden", in das der Vorstand das Bearer-Token der eigenen
+EEG-Faktura-Browsersitzung einfügt (Entwicklerwerkzeuge, Header Authorization);
+der Server baut die Bereiche je Zählpunkt aus dem aktuellen Datenstand und ruft
+`syncenergy` auf (`lib/server/eegfaktura/syncEnergy.js`), das Token wird nicht
+gespeichert. Stufe 7: Checker mit `--format json`/`--nachforderung`,
+Loader über Spaltennamen, anonymisierte Fixtures, kein `MISSING value`-Rauschen;
+offen bleiben der Beitrag zu platform#148 und der Rückbau des Tauri-Clients.
+Podlist-Import live auf s1 seit 2026-11-01 13:14. Offen für den Rest:
+Migrationen `metering 0006`, `metering 0007`, `members 0042` auf Prod, Deploy,
+`install-on-s1.sh` für das Stammdaten-Skript, Rückfüllen der Qualität für das
+offene Quartal (`eegfaktura_import.py --from 2026-07-01 --to 2026-09-30`).
 
 ## Ziel
 

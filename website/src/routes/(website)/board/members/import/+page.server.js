@@ -8,7 +8,7 @@ import { podlistStatus } from "$lib/server/podlist";
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ fetch, params, parent, locals }) {
 
-    const { file, messages, conflicts } = await importMemberDataFromNextcloud();
+    const { file, messages, conflicts, checks } = await importMemberDataFromNextcloud();
 
     await updateMissingMemberCoordinates();
 
@@ -40,6 +40,8 @@ export async function load({ fetch, params, parent, locals }) {
         messages: inserted,
         // doppelt vergebene Mitgliedsnummern, nicht importiert (memberdata.js)
         conflicts,
+        // Tarif, Aktivierungsdatum, Besitzwechsel (masterdataChecks.js)
+        checks,
         podlist
     }
 

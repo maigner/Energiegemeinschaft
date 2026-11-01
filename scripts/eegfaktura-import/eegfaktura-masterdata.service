@@ -1,0 +1,14 @@
+[Unit]
+Description=EEG-Faktura-Stammdaten (Zaehlpunkt-Fenster) taeglich 04:40
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=eegimport
+Group=eegimport
+EnvironmentFile=/etc/eegfaktura-import.env
+Environment=PGUSER=ischlstrom_middleware
+WorkingDirectory=/var/lib/eegfaktura-import
+ExecStart=/usr/local/sbin/eegfaktura-masterdata.sh
+TimeoutStartSec=10min

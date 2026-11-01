@@ -5,15 +5,15 @@ use crate::eegfaktura::loader::{EnergyDirection, EnergyReport, Masterdata, Membe
 #[test]
 fn test_parse_energy_file_summary() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let member_list = "test-files/Energy-Report-small.xlsx";
+    let member_list = "fixtures/Energy-Report-20251001_20251001.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let energy_file = EnergyReport::new(path);
 
     let mp1 = energy_file
         .meter_points_stats
-        .get("AT0030000000000000000000000118026")
+        .get("AT9990000000000000000000011935985")
         .unwrap();
-    assert_eq!(mp1.meter_point_id, "AT0030000000000000000000000118026");
+    assert_eq!(mp1.meter_point_id, "AT9990000000000000000000011935985");
     // "Beginn der Daten" carries a trailing fractional-seconds padding
     // ("...0000") that isn't real sub-second precision (see
     // parse_ddmmyyyy_hms) - it must not affect the parsed timestamp.
@@ -31,7 +31,7 @@ fn test_parse_energy_file_summary() {
     assert_eq!(
         energy_file
             .meter_points_stats
-            .get("AT0030000000000000000000030086569")
+            .get("AT9990000000000000000000010043020")
             .unwrap()
             .date_active_start,
         NaiveDate::parse_from_str("2025-10-01", "%Y-%m-%d").unwrap()
@@ -39,7 +39,7 @@ fn test_parse_energy_file_summary() {
 
     let mp3 = energy_file
         .meter_points_stats
-        .get("AT0030000000000000000000030071976")
+        .get("AT9990000000000000000000074360078")
         .unwrap();
     assert_eq!(
         mp3.timestamp_start,
@@ -55,7 +55,7 @@ fn test_parse_energy_file_summary() {
     // blank rows preceding it) is correctly picked up as GENERATION.
     let mp4 = energy_file
         .meter_points_stats
-        .get("AT0030000000000000000000000415117")
+        .get("AT9990000000000000000000002486631")
         .unwrap();
     assert_eq!(mp4.energy_direction, EnergyDirection::Generation);
 }
@@ -66,13 +66,13 @@ fn test_parse_energy_file_summary() {
 #[test]
 fn test_parse_energy_file_quality_counts() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let member_list = "test-files/Energy-Report-small.xlsx";
+    let member_list = "fixtures/Energy-Report-20251001_20251001.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let energy_file = EnergyReport::new(path);
 
     let mp1 = energy_file
         .meter_points_stats
-        .get("AT0030000000000000000000000118026")
+        .get("AT9990000000000000000000011935985")
         .unwrap();
     assert!(mp1.data_complete);
     assert_eq!(mp1.l0_count, 0);
@@ -84,7 +84,7 @@ fn test_parse_energy_file_quality_counts() {
 
     let clean = energy_file
         .meter_points_stats
-        .get("AT0030000000000000000000030086569")
+        .get("AT9990000000000000000000010043020")
         .unwrap();
     assert!(clean.data_complete);
     assert_eq!(clean.l0_count, 0);
@@ -96,7 +96,7 @@ fn test_parse_energy_file_quality_counts() {
 #[test]
 fn test_parse_member_list_meter_points_eof() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let member_list = "test-files/EEG-Masterdata.xlsx";
+    let member_list = "fixtures/EEG-Masterdata-20260315.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let masterdata = Masterdata::new(path);
     assert_eq!(masterdata.members.len(), 311);
@@ -108,10 +108,10 @@ fn test_parse_member_list_meter_points_eof() {
         .get("318")
         .unwrap()
         .meter_points
-        .get("AT0030000000000000000000030040032")
+        .get("AT9990000000000000000000076030812")
         .unwrap();
 
-    assert_eq!(meter_point.id, "AT0030000000000000000000030040032");
+    assert_eq!(meter_point.id, "AT9990000000000000000000076030812");
     assert_eq!(meter_point.status, MeterPointStatus::Pending);
 
     let naive_date_time_first = NaiveDate::parse_from_str("2026-02-15", "%Y-%m-%d").unwrap();
@@ -128,7 +128,7 @@ fn test_parse_member_list_meter_points_eof() {
 #[test]
 fn test_parse_member_list_meter_points() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let member_list = "test-files/EEG-Masterdata.xlsx";
+    let member_list = "fixtures/EEG-Masterdata-20260315.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let mut masterdata = Masterdata::new(path);
     assert_eq!(masterdata.members.len(), 311);
@@ -140,10 +140,10 @@ fn test_parse_member_list_meter_points() {
         .get("005")
         .unwrap()
         .meter_points
-        .get("AT0030000000000000000000000118026")
+        .get("AT9990000000000000000000011935985")
         .unwrap();
 
-    assert_eq!(meter_point.id, "AT0030000000000000000000000118026");
+    assert_eq!(meter_point.id, "AT9990000000000000000000011935985");
     assert_eq!(meter_point.status, MeterPointStatus::Active);
 
     let naive_date_time_first = NaiveDate::parse_from_str("2024-02-05", "%Y-%m-%d").unwrap();
@@ -172,9 +172,9 @@ fn test_parse_member_list_meter_points() {
         .get("005")
         .unwrap()
         .meter_points
-        .get("AT0030000000000000000000030112071")
+        .get("AT9990000000000000000000076937340")
         .unwrap();
-    assert_eq!(meter_point.id, "AT0030000000000000000000030112071");
+    assert_eq!(meter_point.id, "AT9990000000000000000000076937340");
     assert!(meter_point.activated.is_none());
     assert_eq!(meter_point.status, MeterPointStatus::Active);
     assert_eq!(
@@ -190,7 +190,7 @@ fn test_parse_member_list_meter_points() {
 #[test]
 fn test_parse_member_list() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let member_list = "test-files/EEG-Masterdata.xlsx";
+    let member_list = "fixtures/EEG-Masterdata-20260315.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let masterdata = Masterdata::new(path);
     assert_eq!(masterdata.members.len(), 311);
@@ -198,15 +198,15 @@ fn test_parse_member_list() {
     assert!(masterdata.members.get("005").unwrap().first_name.is_some());
     assert_eq!(
         masterdata.members.get("005").unwrap().first_name.as_deref(),
-        Some("Markus")
+        Some("Hugo")
     );
     assert_eq!(
         masterdata.members.get("006").unwrap().first_name.as_deref(),
-        Some("Thomas")
+        Some("Uwe")
     );
     assert_eq!(
         masterdata.members.get("318").unwrap().first_name.as_deref(),
-        Some("Valentin")
+        Some("Alma")
     );
     assert_eq!(
         masterdata.members.get("005").unwrap().member_type,
@@ -221,7 +221,7 @@ fn test_parse_member_list() {
 #[test]
 fn test_parse_energy_file_timeline() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let member_list = "test-files/Energy-Report-small.xlsx";
+    let member_list = "fixtures/Energy-Report-20251001_20251001.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let energy_file = EnergyReport::new(path);
 
@@ -247,13 +247,13 @@ fn test_parse_energy_file_timeline() {
 #[test]
 fn test_check_missing_data() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let member_list = "test-files/Energy-Report-small-missing-data.xlsx";
+    let member_list = "fixtures/Energy-Report-missing-data.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let mut energy_report = EnergyReport::new(path);
     energy_report.check_measurements_complete();
     assert_eq!(energy_report.measurements_complete, Some(false));
 
-    let member_list = "test-files/Energy-Report-small.xlsx";
+    let member_list = "fixtures/Energy-Report-20251001_20251001.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let mut energy_report = EnergyReport::new(path);
     energy_report.check_measurements_complete();
@@ -263,14 +263,14 @@ fn test_check_missing_data() {
 #[test]
 fn test_check_missing_samples() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let member_list = "test-files/Energy-Report-small-missing-data.xlsx";
+    let member_list = "fixtures/Energy-Report-missing-data.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let mut energy_report = EnergyReport::new(path);
     energy_report.get_missing_samples();
     assert_eq!(energy_report.measurements_complete, Some(false));
     assert!(energy_report.missing_samples.len() > 0);
 
-    let member_list = "test-files/Energy-Report-small.xlsx";
+    let member_list = "fixtures/Energy-Report-20251001_20251001.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let mut energy_report = EnergyReport::new(path);
     energy_report.get_missing_samples();
@@ -281,13 +281,13 @@ fn test_check_missing_samples() {
 #[test]
 fn test_check_missing_data_reports_l0_count() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let member_list = "test-files/Energy-Report-small-missing-data.xlsx";
+    let member_list = "fixtures/Energy-Report-missing-data.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let energy_file = EnergyReport::new(path);
 
     let mp = energy_file
         .meter_points_stats
-        .get("AT0030000000000000000000000118026")
+        .get("AT9990000000000000000000011935985")
         .unwrap();
     assert!(!mp.data_complete);
     assert_eq!(mp.l0_count, 1);

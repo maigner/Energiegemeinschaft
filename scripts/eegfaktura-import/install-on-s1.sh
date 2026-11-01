@@ -17,8 +17,10 @@ S1="${S1:-martin@s1.ischlstrom.org}"
 ssh "$S1" 'rm -rf /tmp/eegfaktura-import && mkdir -p /tmp/eegfaktura-import'
 scp -q "$here"/eegfaktura-import.sh "$here"/eegfaktura-import.service "$here"/eegfaktura-import.timer \
        "$here"/eeg-forecast.sh "$here"/eeg-forecast.service "$here"/eeg-forecast.timer \
+       "$here"/eegfaktura-masterdata.sh "$here"/eegfaktura-masterdata.service "$here"/eegfaktura-masterdata.timer \
        "$here"/eegfaktura-import.env.example "$here"/setup-on-s1.sh \
-       "$repo"/notebooks/energyData/eegfaktura_import.py "$repo"/notebooks/forecast/eeg_forecast.py \
+       "$repo"/notebooks/energyData/eegfaktura_import.py "$repo"/notebooks/energyData/eegfaktura_masterdata.py \
+       "$repo"/notebooks/forecast/eeg_forecast.py \
        "$S1:/tmp/eegfaktura-import/"
 
 # LC_ALL=C: s1 hat die Locale des Entwicklungsrechners nicht (Perl-Warnungen)
@@ -34,7 +36,9 @@ Fertig. Zugangsdaten eintragen (einmalig), dann einen Lauf von Hand testen:
   ssh -t $S1 "sudo nano /etc/eegfaktura-import.env"
   ssh -t $S1 "sudo systemctl start eegfaktura-import.service && sudo journalctl -u eegfaktura-import -n 40 --no-pager"
 Vorher lohnt ein Vergleichslauf ohne Schreiben (Tag, der schon in der DB liegt):
-  ssh -t $S1 "sudo bash -c 'set -a; . /etc/eegfaktura-import.env; runuser -u eegimport -- /usr/local/sbin/eegfaktura-import.sh --verify 2026-09-01'"
+  ssh -t $S1 "sudo bash -c 'set -a; . /etc/eegfaktura-import.env; PGUSER=ischlstrom_middleware runuser -u eegimport -- /usr/local/sbin/eegfaktura-import.sh --verify 2026-09-01'"
+Stammdaten-Fenster einmal von Hand (nur vergleichen):
+  ssh -t $S1 "sudo bash -c 'set -a; . /etc/eegfaktura-import.env; PGUSER=ischlstrom_middleware runuser -u eegimport -- /usr/local/sbin/eegfaktura-masterdata.sh --dry-run'"
 Prognoselauf einmal von Hand (dauert ein paar Minuten, speichert einen Lauf):
   ssh -t $S1 "sudo systemctl start eeg-forecast.service && sudo journalctl -u eeg-forecast -n 40 --no-pager"
 HINWEIS

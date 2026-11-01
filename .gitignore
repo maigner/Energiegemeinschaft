@@ -20,6 +20,8 @@ eeg-tools/eegfaktura-client/build/
 eeg-tools/debug.txt
 eeg-tools/eegfaktura-checker/test-files/*.xlsx
 eeg-tools/eegfaktura-datalib/test-files/*.xlsx
+# anonymisierte Fixtures werden lokal erzeugt (eeg-tools/scripts/anonymize-fixtures.py), nicht eingecheckt
+eeg-tools/eegfaktura-datalib/fixtures/*.xlsx
 
 # Spike-Werkzeuge der Wechselrichter-Profile: Logs und gemerkte Werkswerte
 Batteriemanagement/openhab/inverters/*/tools/spike_*.log

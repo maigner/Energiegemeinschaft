@@ -240,14 +240,14 @@ fn test_podlist_pointing_at_former_owner_is_flagged() {
 #[test]
 fn test_ownership_over_fixture() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let masterdata = Masterdata::new(format!("{}/test-files/EEG-Masterdata.xlsx", base_path));
-    let podlist = PodList::new(format!("{}/test-files/ZP_PODLIST.xlsx", base_path));
+    let masterdata = Masterdata::new(format!("{}/fixtures/EEG-Masterdata-20260315.xlsx", base_path));
+    let podlist = PodList::new(format!("{}/fixtures/ZP_PODLIST.xlsx", base_path));
 
     let checks = OwnershipChecks::run(&masterdata, &podlist, None);
 
     assert_eq!(checks.transfers.len(), 1);
     let t = &checks.transfers[0];
-    assert_eq!(t.meter_point_id, "AT0030000000000000000000030053293");
+    assert_eq!(t.meter_point_id, "AT9990000000000000000000099423577");
     assert_eq!(t.owners.len(), 2);
     // every owner carries a display name
     for o in &t.owners {

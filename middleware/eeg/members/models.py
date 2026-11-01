@@ -212,6 +212,14 @@ class MeasurementPoint(models.Model):
     status=models.CharField(max_length=20)
     welcome_message_sent_at = models.DateTimeField(null=True, default=None)
     activation_reminder_sent_at = models.DateTimeField(null=True, default=None)
+    # Aktivierungsfenster und Tarif laut EEG-Faktura-Masterdata-Sheet
+    # (Spalten aktiviert, deaktiviert, Zp. Tarifname; Import der Website)
+    activated_at = models.DateField(null=True, blank=True)
+    deactivated_at = models.DateField(null=True, blank=True)
+    subscription_name = models.CharField(max_length=200, null=True, blank=True)
+    # Fenster laut Energystore-Metadaten (eegfaktura_import.py, taeglich)
+    store_period_begin = models.DateField(null=True, blank=True)
+    store_period_end = models.DateField(null=True, blank=True)
     def __str__(self):
         return f"{self.identifier}"
 

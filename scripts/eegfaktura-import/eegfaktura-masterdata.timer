@@ -1,0 +1,10 @@
+[Unit]
+Description=EEG-Faktura-Stammdaten taeglich 04:40
+
+[Timer]
+OnCalendar=*-*-* 04:40:00
+RandomizedDelaySec=3min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

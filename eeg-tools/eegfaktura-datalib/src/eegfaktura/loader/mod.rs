@@ -267,8 +267,6 @@ impl EnergyReport {
 
                         measurement.has_missing_samples = true;
 
-                        println!("MISSING value at {}", timestamp.timestamp);
-
                         self.missing_samples.push(MissingSample {
                             timestamp: timestamp.clone(),
                             measurement: measurement.clone(),

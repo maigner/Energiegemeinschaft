@@ -2,6 +2,8 @@ import { nextcloudClient } from "../client";
 import * as XLSX from "xlsx";
 import { middlewareDbConnection } from "$lib/server/db/db";
 import { findMemberNumberConflicts, describeConflict } from "./masterdataConflicts.js";
+import { checkMasterdata, describeMeterPointFinding, describeTransfer } from "./masterdataChecks.js";
+import { cellToIsoDate } from "../../podlist/sheet.js";
 
 /**
  * Datum aus dem Dateinamen (RC101533-EEG-Masterdata-YYYYMMDD.xlsx) als
@@ -24,7 +26,20 @@ const masterdataFileDate = (basename) => {
  * komplett uebersprungen und als `conflicts` zurueckgegeben (siehe
  * masterdataConflicts.js).
  *
- * @returns {Promise<{ file: { name: string, lastmod: string }, messages: string[], conflicts: string[] }>}
+ * `checks` sind die Stammdaten-Pruefungen aus masterdataChecks.js (aktive
+ * Zaehlpunkte ohne Tarif oder Aktivierungsdatum, Besitzwechsel) ueber alle
+ * Zeilen der Datei, als fertige Zeilen fuer die Seite.
+ *
+ * @returns {Promise<{
+ *   file: { name: string, lastmod: string },
+ *   messages: string[],
+ *   conflicts: string[],
+ *   checks: {
+ *     missingSubscriptions: string[],
+ *     missingActivations: string[],
+ *     transfers: Array<{ text: string, valid: boolean }>,
+ *   },
+ * }>}
  */
 export const importMemberDataFromNextcloud = async () => {
 
@@ -71,6 +86,19 @@ export const importMemberDataFromNextcloud = async () => {
     // nur die Anzahl ins Log (die Meldungen enthalten Namen und E-Mail-Adressen; die Seite zeigt sie)
     if (conflictMessages.length) console.warn(`[KONFLIKT] ${conflictMessages.length} doppelt vergebene Mitgliedsnummer(n), Details auf /board/members/import`);
 
+    // Stammdaten-Pruefungen ueber alle Zeilen (auch die blockierten): die
+    // Befunde gehoeren nach EEG-Faktura, nicht in die DB
+    const findings = checkMasterdata(rows);
+    const checks = {
+        missingSubscriptions: findings.missingSubscriptions.map(describeMeterPointFinding),
+        missingActivations: findings.missingActivations.map(describeMeterPointFinding),
+        transfers: findings.transfers.map((t) => ({ text: describeTransfer(t), valid: t.valid })),
+    };
+    // wie bei den Konflikten nur die Anzahl ins Log (die Zeilen enthalten Namen)
+    if (findings.hasIssues) {
+        console.warn(`[PRUEFUNG] ${checks.missingSubscriptions.length} ohne Tarif, ${checks.missingActivations.length} ohne Aktivierungsdatum, ${findings.transfers.filter((t) => !t.valid).length} ungueltige Besitzwechsel, Details auf /board/members/import`);
+    }
+
     // import member data
     const messages = await upsertMembersFromSpreadsheet(importable);
 
@@ -80,7 +108,8 @@ export const importMemberDataFromNextcloud = async () => {
     return {
         file: { name: latest.basename, lastmod: latest.lastmod },
         messages: [...messages, ...measurementPointMessages],
-        conflicts: conflictMessages
+        conflicts: conflictMessages,
+        checks
     };
 };
 
@@ -190,22 +219,31 @@ export const upsertMeasurementPointsFromSpreadsheet = async (rows) => {
             }
             const memberId = memberResult.rows[0].id;
 
+            // Aktivierungsfenster und Tarif fuer die Abrechnungspruefung
+            // (db/energy/billingCheck.js); Datumszellen kommen als Excel-Serial
             const result = await sql.query(`
         INSERT INTO members_measurementpoint (
-          identifier, type, status, member_id, welcome_message_sent_at
+          identifier, type, status, member_id, welcome_message_sent_at,
+          activated_at, deactivated_at, subscription_name
         ) VALUES (
-          $1, $2, $3, $4, null
+          $1, $2, $3, $4, null, $5, $6, $7
         )
         ON CONFLICT (identifier) DO UPDATE SET
-          type      = EXCLUDED.type,
-          status    = EXCLUDED.status,
-          member_id = EXCLUDED.member_id
+          type              = EXCLUDED.type,
+          status            = EXCLUDED.status,
+          member_id         = EXCLUDED.member_id,
+          activated_at      = EXCLUDED.activated_at,
+          deactivated_at    = EXCLUDED.deactivated_at,
+          subscription_name = EXCLUDED.subscription_name
         RETURNING *, xmax::text::int > 0 AS updated
       `, [
                 identifier,
                 row["Bezugsrichtung"] || null,
                 row["ZP-Status"] || null,
                 memberId,
+                cellToIsoDate(row["aktiviert"]),
+                cellToIsoDate(row["deaktiviert"]),
+                String(row["Zp. Tarifname"] ?? "").trim() || null,
             ]);
 
             const record = result.rows[0];

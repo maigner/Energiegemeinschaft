@@ -3,7 +3,7 @@ use crate::eegfaktura::loader::Masterdata;
 #[test]
 fn test_check_masterdata_complete() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let member_list = "test-files/EEG-Masterdata.xlsx";
+    let member_list = "fixtures/EEG-Masterdata-20260315.xlsx";
     let path = format!("{}/{}", base_path, member_list);
     let mut masterdata = Masterdata::new(path);
 

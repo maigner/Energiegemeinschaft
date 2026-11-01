@@ -1000,6 +1000,8 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "eegfaktura-datalib",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

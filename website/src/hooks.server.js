@@ -13,6 +13,7 @@ import { checkSystemAlerts } from "$lib/server/mail/notifications/ibmSystemAlert
 import { rollupOpenhabCounterSnapshots } from "$lib/server/db/energy/batteryGridFeedIn";
 import { syncNewsletterContacts } from "$lib/server/newsletter/keilaSync";
 import { importPodlistMails } from "$lib/server/podlist";
+import { checkBillingReadiness } from "$lib/server/mail/notifications/billingCheckAlerts";
 import { pruneExpiredAuthData, pruneMemberDataAccessLog } from "$lib/server/db/retention";
 import { dev } from "$app/environment";
 
@@ -150,6 +151,16 @@ export async function cronHandle({ event, resolve }) {
 		cron.schedule('4-59/10 * * * *', () => {
 			if (dev) return;
 			importPodlistMails();
+		});
+
+		// checkBillingReadiness
+		// Abrechnungspruefung des offenen Quartals nach dem Energiedaten-Import
+		// (05:00 auf s1): Signal nur, wenn sich der Befund aendert, plus
+		// Erinnerung ab 14 Tagen nach Quartalsende (/board/energy/pruefung)
+		cron.schedule('10 6 * * *', () => {
+			if (dev) return;
+			console.log('Runs daily at 06:10: checkBillingReadiness');
+			checkBillingReadiness();
 		});
 
 		// refreshMaterializedViewCrossoverTimes

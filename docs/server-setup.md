@@ -466,8 +466,22 @@ auch fuer Updates der Python-Skripte):
   Log: `journalctl -u eeg-forecast`. `/board/openhab` zeigt das Alter des
   neuesten Laufs (rot ab 36 h). Jeder Lauf bringt rund 2.900 Zeilen in
   `metering_energyforecast`; Laeufe werden nie ueberschrieben.
+- **Qualitaet und Fenster**: seit November 2026 schreibt der Import das
+  Kennzeichen `qov` nach `metering_measurement.quality` und nach dem Lauf die
+  Energystore-Fenster je Zaehlpunkt (`store_period_begin/_end`); Grundlage
+  der Abrechnungspruefung `/board/energy/pruefung` (Cron `checkBillingReadiness`
+  in der Website taeglich 06:10, Signal bei geaendertem Befund).
+- **Stammdaten-Fenster**: **`eegfaktura-masterdata.timer`** (taeglich 04:40)
+  -> `/usr/local/sbin/eegfaktura-masterdata.sh` als `eegimport`, holt
+  `GET /api/master/masterdata` (Basic-Auth, gleiche Zugangsdaten) und
+  aktualisiert Status, Richtung, `activated_at`/`deactivated_at` bekannter
+  Zaehlpunkte in `members_measurementpoint`. Legt nichts an (die API hat
+  keine E-Mail, Adresse, Tarif). Log: `journalctl -u eegfaktura-masterdata`.
 - **Vergleichslauf** ohne Schreiben (Tag, der schon in der DB liegt):
-  `sudo bash -c 'set -a; . /etc/eegfaktura-import.env; runuser -u postgres -- /usr/local/sbin/eegfaktura-import.sh --verify 2026-09-01'`.
+  `sudo bash -c 'set -a; . /etc/eegfaktura-import.env; PGUSER=ischlstrom_middleware runuser -u eegimport -- /usr/local/sbin/eegfaktura-import.sh --verify 2026-09-01'`.
+  `PGUSER` ist Pflicht (die Unit setzt es selbst): ohne nimmt libpq den
+  OS-Benutzer `eegimport`, und den gibt es als DB-Rolle nicht. Genauso fuer
+  das Rueckfuellen der Qualitaet: `... eegfaktura-import.sh --from 2026-07-01 --to 2026-09-30`.
   Meldet die Ausgabe einen Zeitversatz, `--ts-shift-minutes` im Wrapper
   ergaenzen.
 - Bei 403 bricht der Lauf sofort ab (jede Anfrage ist eine

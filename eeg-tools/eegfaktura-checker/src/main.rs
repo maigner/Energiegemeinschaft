@@ -1,45 +1,156 @@
+use chrono::{Duration, NaiveDate};
 use eegfaktura_datalib::eegfaktura::checks::{
     ActivationConsistencyChecks, EnergyReportChecks, L3MeterPoint, MasterdataChecks,
     MissingSamplesMeterPoint, OwnershipChecks,
 };
 use eegfaktura_datalib::eegfaktura::loader::{EnergyReport, Masterdata, PodList};
+use serde::Serialize;
 use std::{
+    collections::BTreeMap,
     env, fs,
     path::{Path, PathBuf},
     process::exit,
 };
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
+/// How the results are printed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Output {
+    /// Human-readable sections (default).
+    Text,
+    /// The complete check results as one JSON document.
+    Json,
+    /// Only the meter points and days to re-request from the grid operator.
+    Nachforderung,
+}
 
-    let folder = match args.get(1) {
-        Some(f) => f,
-        None => {
+#[derive(Debug, PartialEq, Eq)]
+struct Options {
+    folder: String,
+    output: Output,
+}
+
+fn main() {
+    let args: Vec<String> = env::args().skip(1).collect();
+    let options = match parse_args(&args) {
+        Ok(Some(o)) => o,
+        Ok(None) => {
+            print_usage();
+            exit(0);
+        }
+        Err(message) => {
+            eprintln!("error: {message}");
+            eprintln!();
             print_usage();
             exit(2);
         }
     };
 
-    run_all_checks(folder);
+    let report = run_all_checks(&options.folder);
+
+    match options.output {
+        Output::Text => print_text(&report),
+        Output::Json => println!(
+            "{}",
+            serde_json::to_string_pretty(&report).expect("check results serialize to JSON")
+        ),
+        Output::Nachforderung => {
+            for line in nachforderung_lines(&report.energy) {
+                println!("{line}");
+            }
+        }
+    }
+
+    if report.has_issues {
+        exit(1);
+    }
+}
+
+/// Parse the command line. `Ok(None)` means help was requested.
+fn parse_args(args: &[String]) -> Result<Option<Options>, String> {
+    let mut folder: Option<String> = None;
+    let mut output = Output::Text;
+    let mut i = 0;
+    while i < args.len() {
+        let arg = args[i].as_str();
+        match arg {
+            "-h" | "--help" => return Ok(None),
+            "--nachforderung" => output = Output::Nachforderung,
+            "--format" => {
+                i += 1;
+                let value = args.get(i).ok_or("--format needs a value: text or json")?;
+                output = parse_format(value)?;
+            }
+            _ if arg.starts_with("--format=") => {
+                output = parse_format(&arg["--format=".len()..])?;
+            }
+            _ if arg.starts_with('-') && arg.len() > 1 => {
+                return Err(format!("unknown option '{arg}'"));
+            }
+            _ => {
+                if folder.replace(arg.to_string()).is_some() {
+                    return Err("more than one folder given".to_string());
+                }
+            }
+        }
+        i += 1;
+    }
+    let folder = folder.ok_or("missing <folder>")?;
+    Ok(Some(Options { folder, output }))
+}
+
+fn parse_format(value: &str) -> Result<Output, String> {
+    match value {
+        "text" => Ok(Output::Text),
+        "json" => Ok(Output::Json),
+        _ => Err(format!("unknown format '{value}' (expected text or json)")),
+    }
 }
 
 fn print_usage() {
-    println!("usage: eegfaktura-checker <folder>");
+    println!("usage: eegfaktura-checker [--format text|json] [--nachforderung] <folder>");
     println!();
     println!("Runs all checks on the latest matching files found in <folder>:");
     println!("  masterdata:    *EEG-Masterdata-<date>.xlsx");
     println!("  podlist:       *ZP_PODLIST.xlsx");
     println!("  energy report: *Energy-Report-<start>_<end>.xlsx");
     println!();
-    println!("Exit code is 1 when any check finds an issue, 0 when all are clean.");
+    println!("Options:");
+    println!("  --format text    human-readable sections (default)");
+    println!("  --format json    the complete check results as one JSON document");
+    println!("  --nachforderung  one line per meter point with missing or L3 days,");
+    println!("                   ready for the data request to the grid operator");
+    println!();
+    println!("Exit code is 1 when any check finds an issue, 0 when all are clean,");
+    println!("2 on a usage error or when a file is missing or not a directory.");
+}
+
+/// The input files the checks ran on.
+#[derive(Debug, Clone, Serialize)]
+struct InputFiles {
+    masterdata: String,
+    podlist: String,
+    energy_report: String,
+}
+
+/// Everything one run of the checker produces; this is what `--format json`
+/// prints.
+#[derive(Debug, Clone, Serialize)]
+struct CheckReport {
+    folder: String,
+    files: InputFiles,
+    masterdata: MasterdataChecks,
+    ownership: OwnershipChecks,
+    energy: EnergyReportChecks,
+    activation: ActivationConsistencyChecks,
+    has_issues: bool,
 }
 
 /// Discover the latest masterdata, podlist and energy-report files in `folder`,
-/// then run every check in a single pass. Exits 1 if any check finds an issue.
-fn run_all_checks(folder: &str) {
+/// then run every check in a single pass. Exits 2 when a file is missing.
+fn run_all_checks(folder: &str) -> CheckReport {
     let dir = Path::new(folder);
     if !dir.is_dir() {
-        println!("error: not a directory: {}", folder);
+        eprintln!("error: not a directory: {}", folder);
         exit(2);
     }
 
@@ -64,37 +175,107 @@ fn run_all_checks(folder: &str) {
         folder,
     );
 
-    println!("eegfaktura-checker: {}", folder);
-    println!("  masterdata: {}", masterdata_path.to_string_lossy());
-    println!("  podlist:    {}", podlist_path.to_string_lossy());
-    println!("  energy:     {}", energy_report_path.to_string_lossy());
+    let files = InputFiles {
+        masterdata: masterdata_path.to_string_lossy().to_string(),
+        podlist: podlist_path.to_string_lossy().to_string(),
+        energy_report: energy_report_path.to_string_lossy().to_string(),
+    };
 
     // Load each file once and share it across the checks.
-    let mut masterdata = Masterdata::new(masterdata_path.to_string_lossy().to_string());
-    let podlist = PodList::new(podlist_path.to_string_lossy().to_string());
-    let mut energy_report = EnergyReport::new(energy_report_path.to_string_lossy().to_string());
+    let mut masterdata = Masterdata::new(files.masterdata.clone());
+    let podlist = PodList::new(files.podlist.clone());
+    let mut energy_report = EnergyReport::new(files.energy_report.clone());
 
     let masterdata_checks = MasterdataChecks::run(&mut masterdata);
-    let ownership_checks = OwnershipChecks::run(&masterdata, &podlist, Some(&energy_report));
-    let energy_checks = EnergyReportChecks::run(&mut energy_report);
-    let activation_checks =
+    let ownership = OwnershipChecks::run(&masterdata, &podlist, Some(&energy_report));
+    let energy = EnergyReportChecks::run(&mut energy_report);
+    let activation =
         ActivationConsistencyChecks::run(&masterdata, &podlist, Some(&energy_report));
 
-    print_masterdata_section(&masterdata_checks);
-    print_ownership_section(&ownership_checks);
-    print_energy_section(&energy_checks);
-    print_activation_section(&activation_checks);
-
     let has_issues = masterdata_checks.has_issues()
-        || ownership_checks.has_issues()
-        || energy_checks.has_issues()
-        || activation_checks.has_issues();
+        || ownership.has_issues()
+        || energy.has_issues()
+        || activation.has_issues();
 
-    if has_issues {
-        println!("\n=== RESULT: issues found ===");
-        exit(1);
+    CheckReport {
+        folder: folder.to_string(),
+        files,
+        masterdata: masterdata_checks,
+        ownership,
+        energy,
+        activation,
+        has_issues,
     }
-    println!("\n=== RESULT: ok ===");
+}
+
+fn print_text(report: &CheckReport) {
+    println!("eegfaktura-checker: {}", report.folder);
+    println!("  masterdata: {}", report.files.masterdata);
+    println!("  podlist:    {}", report.files.podlist);
+    println!("  energy:     {}", report.files.energy_report);
+
+    print_masterdata_section(&report.masterdata);
+    print_ownership_section(&report.ownership);
+    print_energy_section(&report.energy);
+    print_activation_section(&report.activation);
+
+    if report.has_issues {
+        println!("\n=== RESULT: issues found ===");
+    } else {
+        println!("\n=== RESULT: ok ===");
+    }
+}
+
+/// One line per meter point that needs data from the grid operator: the
+/// meter point id, the name from the energy report and the affected days
+/// (missing samples and L3 values) compressed into ranges, e.g.
+/// `AT003... Max Mustermann 2026-10-01..2026-10-03, 2026-10-17`.
+fn nachforderung_lines(energy: &EnergyReportChecks) -> Vec<String> {
+    // meter point id -> (name, days), sorted by id
+    let mut points: BTreeMap<&str, (&str, Vec<NaiveDate>)> = BTreeMap::new();
+    for mp in &energy.meter_points_with_missing_samples {
+        let entry = points
+            .entry(mp.meter_point_id.as_str())
+            .or_insert_with(|| (mp.name.as_str(), Vec::new()));
+        entry.1.extend(mp.occurrences.iter().map(|ts| ts.date()));
+    }
+    for mp in &energy.meter_points_with_l3_values {
+        let entry = points
+            .entry(mp.meter_point_id.as_str())
+            .or_insert_with(|| (mp.name.as_str(), Vec::new()));
+        entry.1.extend(mp.affected_days.iter().copied());
+    }
+
+    points
+        .into_iter()
+        .map(|(id, (name, days))| format!("{id} {name} {}", day_ranges(&days)))
+        .collect()
+}
+
+/// Compress days into `start..end` ranges of consecutive days, single days
+/// stay single; chronological and de-duplicated, joined with `, `.
+fn day_ranges(days: &[NaiveDate]) -> String {
+    let mut days: Vec<NaiveDate> = days.to_vec();
+    days.sort();
+    days.dedup();
+
+    let mut ranges: Vec<String> = Vec::new();
+    let mut i = 0;
+    while i < days.len() {
+        let start = days[i];
+        let mut end = start;
+        while i + 1 < days.len() && days[i + 1] == end + Duration::days(1) {
+            i += 1;
+            end = days[i];
+        }
+        if start == end {
+            ranges.push(start.to_string());
+        } else {
+            ranges.push(format!("{start}..{end}"));
+        }
+        i += 1;
+    }
+    ranges.join(", ")
 }
 
 fn print_masterdata_section(checks: &MasterdataChecks) {
@@ -281,7 +462,7 @@ fn require_found(path: Option<PathBuf>, pattern: &str, folder: &str) -> PathBuf 
     match path {
         Some(p) => p,
         None => {
-            println!("error: no file matching '{}' found in {}", pattern, folder);
+            eprintln!("error: no file matching '{}' found in {}", pattern, folder);
             exit(2);
         }
     }
@@ -309,7 +490,16 @@ fn print_ids(label: &str, ids: &[String]) {
 
 #[cfg(test)]
 mod tests {
-    use super::is_energy_report_name;
+    use super::{Options, Output, day_ranges, is_energy_report_name, parse_args};
+    use chrono::NaiveDate;
+
+    fn d(s: &str) -> NaiveDate {
+        NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap()
+    }
+
+    fn args(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
 
     #[test]
     fn matches_energy_report_with_and_without_prefix() {
@@ -323,10 +513,71 @@ mod tests {
     fn rejects_non_energy_report_names() {
         // no underscore between the two dates
         assert!(!is_energy_report_name("RC101533-Energy-Report-small.xlsx"));
+        assert!(!is_energy_report_name("Energy-Report-missing-data.xlsx"));
         // not an xlsx
         assert!(!is_energy_report_name("RC101533-Energy-Report-a_b.csv"));
         // other file kinds
         assert!(!is_energy_report_name("RC101533-EEG-Masterdata-20260726.xlsx"));
         assert!(!is_energy_report_name("ZP_PODLIST.xlsx"));
+    }
+
+    #[test]
+    fn parses_folder_and_output_mode() {
+        assert_eq!(
+            parse_args(&args(&["exports"])).unwrap(),
+            Some(Options {
+                folder: "exports".to_string(),
+                output: Output::Text
+            })
+        );
+        assert_eq!(
+            parse_args(&args(&["--format", "json", "exports"])).unwrap(),
+            Some(Options {
+                folder: "exports".to_string(),
+                output: Output::Json
+            })
+        );
+        assert_eq!(
+            parse_args(&args(&["exports", "--format=json"])).unwrap(),
+            Some(Options {
+                folder: "exports".to_string(),
+                output: Output::Json
+            })
+        );
+        assert_eq!(
+            parse_args(&args(&["--nachforderung", "exports"])).unwrap(),
+            Some(Options {
+                folder: "exports".to_string(),
+                output: Output::Nachforderung
+            })
+        );
+        assert_eq!(parse_args(&args(&["--help"])).unwrap(), None);
+    }
+
+    #[test]
+    fn rejects_bad_arguments() {
+        assert!(parse_args(&args(&[])).is_err());
+        assert!(parse_args(&args(&["--format"])).is_err());
+        assert!(parse_args(&args(&["--format", "xml", "exports"])).is_err());
+        assert!(parse_args(&args(&["--bogus", "exports"])).is_err());
+        assert!(parse_args(&args(&["a", "b"])).is_err());
+    }
+
+    #[test]
+    fn compresses_consecutive_days_into_ranges() {
+        assert_eq!(day_ranges(&[]), "");
+        assert_eq!(day_ranges(&[d("2026-10-17")]), "2026-10-17");
+        assert_eq!(
+            day_ranges(&[
+                d("2026-10-03"),
+                d("2026-10-01"),
+                d("2026-10-02"),
+                d("2026-10-17"),
+                d("2026-10-02"), // duplicate
+                d("2026-10-31"),
+                d("2026-11-01"), // month boundary
+            ]),
+            "2026-10-01..2026-10-03, 2026-10-17, 2026-10-31..2026-11-01"
+        );
     }
 }

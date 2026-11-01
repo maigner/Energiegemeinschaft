@@ -4,7 +4,7 @@ use crate::eegfaktura::loader::PodList;
 
 fn load() -> PodList {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let path = format!("{}/test-files/ZP_PODLIST.xlsx", base_path);
+    let path = format!("{}/fixtures/ZP_PODLIST.xlsx", base_path);
     PodList::new(path)
 }
 
@@ -29,7 +29,7 @@ fn test_podlist_parses_activation_stats() {
 
     let stats = podlist
         .meter_point_activations
-        .get("AT0030000000000000000000030000928")
+        .get("AT9990000000000000000000026720954")
         .expect("meter point from first row should be present");
 
     assert_eq!(stats.activated, date("2024-05-27"));
@@ -46,7 +46,7 @@ fn test_podlist_parses_serial_dates_and_partial_factor() {
 
     let stats = podlist
         .meter_point_activations
-        .get("AT0030000000000000000000030028975")
+        .get("AT9990000000000000000000017089920")
         .expect("meter point with partial factor should be present");
 
     assert_eq!(stats.activated, date("2026-03-12"));

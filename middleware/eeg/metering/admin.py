@@ -4,6 +4,7 @@ from .models import EnergyForecast
 from .models import EnergyForecastRun
 from .models import MeterCode
 from .models import Measurement
+from .models import BillingCheck
 
 admin.site.register(MeterCode)
 admin.site.register(Measurement)
@@ -20,3 +21,8 @@ class EnergyForecastAdmin(admin.ModelAdmin):
     list_display = ("timestamp", "run", "consumption_kwh", "generation_kwh", "self_coverage_kwh")
     list_filter = ("run",)
     date_hierarchy = "timestamp"
+
+
+@admin.register(BillingCheck)
+class BillingCheckAdmin(admin.ModelAdmin):
+    list_display = ("period_start", "period_end", "checked_at", "billed_at", "notified_at")

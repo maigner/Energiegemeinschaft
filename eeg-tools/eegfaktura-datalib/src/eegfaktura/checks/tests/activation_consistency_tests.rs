@@ -383,8 +383,8 @@ fn test_energy_report_agreeing_produces_no_issue() {
 #[test]
 fn test_activation_consistency_over_fixtures() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let masterdata = Masterdata::new(format!("{}/test-files/EEG-Masterdata.xlsx", base_path));
-    let podlist = PodList::new(format!("{}/test-files/ZP_PODLIST.xlsx", base_path));
+    let masterdata = Masterdata::new(format!("{}/fixtures/EEG-Masterdata-20260315.xlsx", base_path));
+    let podlist = PodList::new(format!("{}/fixtures/ZP_PODLIST.xlsx", base_path));
 
     let checks = ActivationConsistencyChecks::run(&masterdata, &podlist, None);
 
@@ -393,11 +393,20 @@ fn test_activation_consistency_over_fixtures() {
     assert_eq!(checks.missing_from_masterdata.len(), 117);
     assert!(checks.has_issues());
 
-    // Sorted by id: a real ACTIVE start-date conflict.
-    let first = &checks.mismatches[0];
-    assert_eq!(first.meter_point_id, "AT0030000000000000000000000010001");
+    // Results come back sorted by id.
+    let ids: Vec<&str> = checks.mismatches.iter().map(|m| m.meter_point_id.as_str()).collect();
+    let mut sorted = ids.clone();
+    sorted.sort();
+    assert_eq!(ids, sorted);
+
+    // A real ACTIVE start-date conflict.
+    let first = checks
+        .mismatches
+        .iter()
+        .find(|m| m.meter_point_id == "AT9990000000000000000000063609969")
+        .expect("known start-date conflict should be present");
     assert_eq!(first.status, Some(MeterPointStatus::Active));
-    assert_eq!(first.member_name.as_deref(), Some("Sams GmbH"));
+    assert_eq!(first.member_name.as_deref(), Some("Vorlagebau Handel KG"));
     assert!(first.member_number.is_some());
     assert_eq!(first.masterdata_activated, Some(d("2024-09-24")));
     assert_eq!(first.podlist_activated, Some(d("2024-06-24")));
@@ -412,16 +421,16 @@ fn test_activation_consistency_over_fixtures() {
 #[test]
 fn test_activation_consistency_with_energy_report() {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    let masterdata = Masterdata::new(format!("{}/test-files/EEG-Masterdata.xlsx", base_path));
-    let podlist = PodList::new(format!("{}/test-files/ZP_PODLIST.xlsx", base_path));
-    let energy = EnergyReport::new(format!("{}/test-files/Energy-Report-small.xlsx", base_path));
+    let masterdata = Masterdata::new(format!("{}/fixtures/EEG-Masterdata-20260315.xlsx", base_path));
+    let podlist = PodList::new(format!("{}/fixtures/ZP_PODLIST.xlsx", base_path));
+    let energy = EnergyReport::new(format!("{}/fixtures/Energy-Report-20251001_20251001.xlsx", base_path));
 
     let checks = ActivationConsistencyChecks::run(&masterdata, &podlist, Some(&energy));
 
     let mismatch = checks
         .mismatches
         .iter()
-        .find(|m| m.meter_point_id == "AT0030000000000000000000030086569")
+        .find(|m| m.meter_point_id == "AT9990000000000000000000010043020")
         .expect("known mismatch should be present");
 
     assert_eq!(mismatch.masterdata_activated, Some(d("2025-10-01")));

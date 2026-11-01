@@ -76,133 +76,158 @@ impl super::EnergyReport {
     }
 }
 
+/// Excel column letters ("A", "B", ..., "AA") for a 0-based column index, to
+/// look up a cell's comment by its reference (e.g. "H13").
+fn column_letters(mut index: usize) -> String {
+    let mut letters = Vec::new();
+    loop {
+        letters.push((b'A' + (index % 26) as u8) as char);
+        if index < 26 {
+            break;
+        }
+        index = index / 26 - 1;
+    }
+    letters.iter().rev().collect()
+}
+
+/// Parse the Summary sheet: a header row that starts with
+/// "Verbrauchszählpunkt", then one row per meter point (consumption points
+/// first, then the marker "Einspeisezählpunkt" and the generation points).
+/// Columns are resolved by header name, so inserted columns do not break
+/// the loader. The L0/L2/L3 cells carry a comment naming the affected days,
+/// looked up by cell reference (column letter + 1-based Excel row).
 fn parse_meter_point_data(
     range: &Range<Data>,
     comments: &HashMap<String, String>,
 ) -> Result<HashMap<String, EnergyReportMeterPointStats>, Error> {
     let mut result: HashMap<String, EnergyReportMeterPointStats> = HashMap::new();
 
-    // get sub-range from range
-    let mut timeline_range_start = range.start().unwrap();
-    let data_start_row = 12; // start row index below "Verbrauchszählpunkt"
-    timeline_range_start.0 = data_start_row;
-    let timeline_range_end = range.end().unwrap();
-    //timeline_range_end.1 = 0; // single column
+    // absolute (0-based) row index of the first row in the range
+    let first_row = range.start().map(|s| s.0 as usize).unwrap_or(0);
 
-    let meter_point_range = range.range(timeline_range_start, timeline_range_end);
+    struct Columns {
+        name: usize,
+        data_start: usize,
+        data_end: usize,
+        active: usize,
+        complete: usize,
+        l0: usize,
+        l2: usize,
+        l3: usize,
+    }
+    let mut columns: Option<Columns> = None;
 
     // first come consumption points until a blank row
     let mut current_energy_direction = EnergyDirection::Consumption;
 
-    // then there are in total two blank rows in excel
-    // then there is "Einspeisezählpunkt"
-    // then the rest
+    for (i, row) in range.rows().enumerate() {
+        // 1-based Excel row number of this row
+        let row_no = first_row + i + 1;
 
-    for (i, row) in meter_point_range.rows().enumerate() {
-        // 1-based Excel row number of this row, needed to look up its L0/L2/L3
-        // comments (e.g. "H13") by cell reference.
-        let row_no = data_start_row as usize + 1 + i;
+        let Some(first) = row.first().and_then(|c| c.as_string()) else {
+            continue;
+        };
+        let first = first.trim().to_string();
 
-        // timestamp is stored as string in excel
-
-        match row[0].as_string() {
-            Some(v) => {
-                match v.as_str() {
-                    "Einspeisezählpunkt" => {
-                        // swith direction from now on
-                        current_energy_direction = EnergyDirection::Generation;
-                        // but no actual value
-                    }
-                    _ => {
-                        // this is a good row. parse it. add result to final data structure
-                        // v is meter_point id now
-                        let meter_point_id = v;
-
-                        let name = row[1].as_string().unwrap();
-
-                        // datetime format varies: "05.02.2024 00:00:0000" or
-                        // "25.09.2026 23:45:00" - trailing digits after the
-                        // seconds field are inconsistent padding, not real
-                        // sub-second precision (see parse_ddmmyyyy_hms).
-                        // col index 2
-                        let datetime_start =
-                            parse_ddmmyyyy_hms(row[2].as_string().unwrap().as_str())
-                                .expect("Failed to parse Beginn der Daten");
-
-                        // col index 3
-                        let datetime_end =
-                            parse_ddmmyyyy_hms(row[3].as_string().unwrap().as_str())
-                                .expect("Failed to parse Ende der Daten");
-
-                        // col 4
-                        // format: 04-08-2025 - 31-12-2999
-                        // split start and end
-                        let date_active_string = row[4].as_string().unwrap();
-                        let date_active_parts: Vec<&str> =
-                            date_active_string.split(" - ").collect();
-
-                        let date_active_start =
-                            NaiveDate::parse_from_str(date_active_parts[0].trim(), "%d-%m-%Y")
-                                .unwrap();
-                        let date_active_end =
-                            NaiveDate::parse_from_str(date_active_parts[1].trim(), "%d-%m-%Y")
-                                .unwrap();
-
-                        //println!("Start: {}", date_active_start); // 2025-10-09
-                        //println!("End: {}", date_active_end); // 2999-12-31
-
-                        // col 5 (F): "Daten vollständig? Ja/Nein" as 1/0.
-                        let data_complete = row
-                            .get(5)
-                            .and_then(|c| c.as_f64())
-                            .map(|v| v != 0.0)
-                            .unwrap_or(true);
-
-                        // cols 6-8 (G/H/I): L0/L2/L3 quarter-hour counts, blank when
-                        // zero. Non-zero cells carry a comment naming the affected
-                        // days (col letters are fixed by the export's layout).
-                        let l0_count = row.get(6).and_then(|c| c.as_f64()).unwrap_or(0.0) as u32;
-                        let l2_count = row.get(7).and_then(|c| c.as_f64()).unwrap_or(0.0) as u32;
-                        let l3_count = row.get(8).and_then(|c| c.as_f64()).unwrap_or(0.0) as u32;
-
-                        let affected_days = |col: &str| -> Vec<NaiveDate> {
-                            comments
-                                .get(&format!("{col}{row_no}"))
-                                .map(|text| parse_affected_days(text))
-                                .unwrap_or_default()
-                        };
-                        let l0_days = affected_days("G");
-                        let l2_days = affected_days("H");
-                        let l3_days = affected_days("I");
-
-                        let meter_point_stats = EnergyReportMeterPointStats {
-                            meter_point_id: meter_point_id.clone(),
-                            energy_direction: current_energy_direction.clone(),
-                            name: name,
-                            timestamp_start: datetime_start,
-                            timestamp_end: datetime_end,
-                            date_active_start: date_active_start,
-                            date_active_end: date_active_end,
-                            data_complete,
-                            l0_count,
-                            l2_count,
-                            l3_count,
-                            l0_days,
-                            l2_days,
-                            l3_days,
-                        };
-
-                        result.insert(meter_point_id.clone(), meter_point_stats);
-                    }
-                }
+        let Some(cols) = columns.as_ref() else {
+            if first == "Verbrauchszählpunkt" {
+                let header: Vec<String> = row
+                    .iter()
+                    .map(|c| c.as_string().unwrap_or_default().trim().to_string())
+                    .collect();
+                let col = |name: &str| -> usize {
+                    header.iter().position(|h| h == name).unwrap_or_else(|| {
+                        panic!(
+                            "Energy report sheet 'Summary' has no column '{name}' (header: {header:?})"
+                        )
+                    })
+                };
+                columns = Some(Columns {
+                    name: col("Name"),
+                    data_start: col("Beginn der Daten"),
+                    data_end: col("Ende der Daten"),
+                    active: col("Aktiviert"),
+                    complete: col("Daten vollständig? Ja/Nein"),
+                    l0: col("L0"),
+                    l2: col("L2"),
+                    l3: col("L3"),
+                });
             }
-            None => {
-                //skipping
-                //println!("skipping");
-            }
+            continue;
+        };
+
+        if first == "Einspeisezählpunkt" {
+            // switch direction from now on, but no actual value
+            current_energy_direction = EnergyDirection::Generation;
+            continue;
         }
 
-        //println!("{:?}", meter_point_id);
+        // this is a good row. parse it. add result to final data structure
+        let meter_point_id = first;
+        let text = |col: usize| -> Option<String> {
+            row.get(col).and_then(|c| c.as_string()).map(|s| s.trim().to_string())
+        };
+
+        let name = text(cols.name).unwrap_or_default();
+
+        // datetime format varies: "05.02.2024 00:00:0000" or
+        // "25.09.2026 23:45:00" - trailing digits after the seconds field are
+        // inconsistent padding, not real sub-second precision (see
+        // parse_ddmmyyyy_hms).
+        let datetime_start = parse_ddmmyyyy_hms(&text(cols.data_start).unwrap())
+            .expect("Failed to parse Beginn der Daten");
+        let datetime_end = parse_ddmmyyyy_hms(&text(cols.data_end).unwrap())
+            .expect("Failed to parse Ende der Daten");
+
+        // "Aktiviert": "04-08-2025 - 31-12-2999", split start and end
+        let date_active_string = text(cols.active).unwrap();
+        let date_active_parts: Vec<&str> = date_active_string.split(" - ").collect();
+        let date_active_start =
+            NaiveDate::parse_from_str(date_active_parts[0].trim(), "%d-%m-%Y").unwrap();
+        let date_active_end =
+            NaiveDate::parse_from_str(date_active_parts[1].trim(), "%d-%m-%Y").unwrap();
+
+        // "Daten vollständig? Ja/Nein" as 1/0.
+        let data_complete = row
+            .get(cols.complete)
+            .and_then(|c| c.as_f64())
+            .map(|v| v != 0.0)
+            .unwrap_or(true);
+
+        // L0/L2/L3 quarter-hour counts, blank when zero. Non-zero cells carry
+        // a comment naming the affected days.
+        let count = |col: usize| -> u32 {
+            row.get(col).and_then(|c| c.as_f64()).unwrap_or(0.0) as u32
+        };
+        let affected_days = |col: usize| -> Vec<NaiveDate> {
+            comments
+                .get(&format!("{}{row_no}", column_letters(col)))
+                .map(|text| parse_affected_days(text))
+                .unwrap_or_default()
+        };
+
+        let meter_point_stats = EnergyReportMeterPointStats {
+            meter_point_id: meter_point_id.clone(),
+            energy_direction: current_energy_direction.clone(),
+            name,
+            timestamp_start: datetime_start,
+            timestamp_end: datetime_end,
+            date_active_start,
+            date_active_end,
+            data_complete,
+            l0_count: count(cols.l0),
+            l2_count: count(cols.l2),
+            l3_count: count(cols.l3),
+            l0_days: affected_days(cols.l0),
+            l2_days: affected_days(cols.l2),
+            l3_days: affected_days(cols.l3),
+        };
+
+        result.insert(meter_point_id, meter_point_stats);
+    }
+
+    if columns.is_none() {
+        panic!("Energy report sheet 'Summary' has no header row starting with 'Verbrauchszählpunkt'");
     }
 
     Ok(result)
@@ -521,16 +546,18 @@ impl super::Masterdata {
 
 // Parse the ZP_PODLIST export (single sheet "ZP-List").
 //
-// Layout (header in row 0, data from row 1):
-//   [0] Nr.               (row counter, ignored)
-//   [1] Zählpunktname     (meter point id -> map key)
-//   [2] ConsentID         (ignored)
-//   [3] Bezugsrichtung    (CONSUMPTION / GENERATION, not kept in ActivationStats)
-//   [4] Teilnahme-faktor  (participation factor, 0..=100)
-//   [5] statische Aufteilung (ignored)
-//   [6] aktiviert         (Excel serial date)
-//   [7] aktiv seit        (Excel serial date)
-//   [8] aktiv bis         (Excel serial date, sentinel 9999-12-31 = "open")
+// Header in row 0, data from row 1. Columns are resolved by header name (the
+// export may gain or reorder columns, like the masterdata export did in
+// November 2026):
+//   Nr.                  (row counter, ignored)
+//   Zählpunktname        (meter point id -> map key)
+//   ConsentID            (ignored)
+//   Bezugsrichtung       (CONSUMPTION / GENERATION, not kept in ActivationStats)
+//   Teilnahme-faktor     (participation factor, 0..=100)
+//   statische Aufteilung (ignored)
+//   aktiviert            (Excel serial date)
+//   aktiv seit           (Excel serial date)
+//   aktiv bis            (Excel serial date, sentinel 9999-12-31 = "open")
 //
 // NOTE: a meter point may appear on more than one row (e.g. as both a
 // consumption and a generation point). Because the key is the meter point id,
@@ -547,11 +574,31 @@ impl super::PodList {
             Err(error) => panic!("Problem fetching Sheet ZP-List: {error:?}"),
         };
 
+        let header: Vec<String> = range
+            .rows()
+            .next()
+            .map(|r| {
+                r.iter()
+                    .map(|c| c.as_string().unwrap_or_default().trim().to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let col = |name: &str| -> usize {
+            header.iter().position(|h| h == name).unwrap_or_else(|| {
+                panic!("Podlist sheet 'ZP-List' has no column '{name}' (header: {header:?})")
+            })
+        };
+        let col_meter_point = col("Zählpunktname");
+        let col_factor = col("Teilnahme-faktor");
+        let col_activated = col("aktiviert");
+        let col_active_since = col("aktiv seit");
+        let col_active_until = col("aktiv bis");
+
         let mut meter_point_activations: HashMap<String, ActivationStats> = HashMap::new();
 
         for row in range.rows().skip(1) {
-            // skip blank rows (no meter point id in column 1)
-            let meter_point_id = match row.get(1) {
+            // skip blank rows (no meter point id)
+            let meter_point_id = match row.get(col_meter_point) {
                 Some(v) if !v.is_empty() => v.as_string().map(|s| s.trim().to_string()),
                 _ => None,
             };
@@ -561,22 +608,22 @@ impl super::PodList {
             };
 
             let participation_factor = row
-                .get(4)
+                .get(col_factor)
                 .and_then(|v| v.as_f64())
                 .map(|f| f as i8)
                 .unwrap_or(0);
 
             // dates are stored as Excel serial numbers (numFmt 14), not text
             let activated = row
-                .get(6)
+                .get(col_activated)
                 .and_then(|v| v.as_date())
                 .expect("Failed to parse 'aktiviert' date");
             let active_since = row
-                .get(7)
+                .get(col_active_since)
                 .and_then(|v| v.as_date())
                 .expect("Failed to parse 'aktiv seit' date");
             let active_until = row
-                .get(8)
+                .get(col_active_until)
                 .and_then(|v| v.as_date())
                 .expect("Failed to parse 'aktiv bis' date");
 

@@ -91,6 +91,10 @@ install -m 0644 "$here/eegfaktura_import.py" "$LIB/eegfaktura_import.py"
 install -m 0755 "$here/eegfaktura-import.sh" /usr/local/sbin/eegfaktura-import.sh
 install -m 0644 "$here/eegfaktura-import.service" /etc/systemd/system/eegfaktura-import.service
 install -m 0644 "$here/eegfaktura-import.timer" /etc/systemd/system/eegfaktura-import.timer
+install -m 0644 "$here/eegfaktura_masterdata.py" "$LIB/eegfaktura_masterdata.py"
+install -m 0755 "$here/eegfaktura-masterdata.sh" /usr/local/sbin/eegfaktura-masterdata.sh
+install -m 0644 "$here/eegfaktura-masterdata.service" /etc/systemd/system/eegfaktura-masterdata.service
+install -m 0644 "$here/eegfaktura-masterdata.timer" /etc/systemd/system/eegfaktura-masterdata.timer
 install -m 0755 "$here/eeg-forecast.sh" /usr/local/sbin/eeg-forecast.sh
 install -m 0644 "$here/eeg-forecast.service" /etc/systemd/system/eeg-forecast.service
 install -m 0644 "$here/eeg-forecast.timer" /etc/systemd/system/eeg-forecast.timer
@@ -123,9 +127,9 @@ fi
 
 # --- 4. Timer ------------------------------------------------------------------
 systemctl daemon-reload
-systemctl enable --now eegfaktura-import.timer eeg-forecast.timer
+systemctl enable --now eegfaktura-import.timer eeg-forecast.timer eegfaktura-masterdata.timer
 log "Timer aktiv:"
-systemctl list-timers eegfaktura-import.timer eeg-forecast.timer --no-pager
+systemctl list-timers eegfaktura-import.timer eeg-forecast.timer eegfaktura-masterdata.timer --no-pager
 
 if ! grep -q '^FAKTURA_PASSWORD=.\+' "$ENV_FILE"; then
   log "ACHTUNG: FAKTURA_PASSWORD in $ENV_FILE ist leer; der Lauf bricht bis dahin mit Exit 2 ab."

@@ -3,7 +3,7 @@ use crate::eegfaktura::loader::Masterdata;
 
 fn masterdata(file: &str) -> Masterdata {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    Masterdata::new(format!("{}/test-files/{}", base_path, file))
+    Masterdata::new(format!("{}/fixtures/{}", base_path, file))
 }
 
 /// The sample masterdata file is known to be incomplete: two meter points miss
@@ -11,7 +11,7 @@ fn masterdata(file: &str) -> Masterdata {
 /// come back sorted.
 #[test]
 fn test_masterdata_reports_missing_subscriptions_and_activations() {
-    let mut md = masterdata("EEG-Masterdata.xlsx");
+    let mut md = masterdata("EEG-Masterdata-20260315.xlsx");
     let checks = MasterdataChecks::run(&mut md);
 
     assert!(!checks.file_complete);
@@ -19,13 +19,13 @@ fn test_masterdata_reports_missing_subscriptions_and_activations() {
     assert_eq!(
         checks.missing_subscriptions,
         vec![
-            "AT0030000000000000000000030040032".to_string(),
-            "AT0030000000000000000000030112071".to_string(),
+            "AT9990000000000000000000076030812".to_string(),
+            "AT9990000000000000000000076937340".to_string(),
         ]
     );
     assert_eq!(
         checks.missing_activations,
-        vec!["AT0030000000000000000000030112071".to_string()]
+        vec!["AT9990000000000000000000076937340".to_string()]
     );
 
     assert!(checks.has_issues());
@@ -35,7 +35,7 @@ fn test_masterdata_reports_missing_subscriptions_and_activations() {
 /// its collected id lists, so the check has to guard against double counting.
 #[test]
 fn test_masterdata_check_is_idempotent() {
-    let mut md = masterdata("EEG-Masterdata.xlsx");
+    let mut md = masterdata("EEG-Masterdata-20260315.xlsx");
 
     let first = MasterdataChecks::run(&mut md);
     let second = MasterdataChecks::run(&mut md);

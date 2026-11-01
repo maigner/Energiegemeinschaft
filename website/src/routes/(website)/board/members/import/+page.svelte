@@ -18,6 +18,11 @@
     const podlistProblems = $derived(
         podlist.unknownIdentifiers.length + podlist.activeWithoutPodlist.length + podlist.endedByGrid.length
     );
+    // Stammdaten-Pruefungen aus dem Sheet (masterdataChecks.js)
+    const checks = $derived(data.checks);
+    const checkProblems = $derived(
+        checks.missingSubscriptions.length + checks.missingActivations.length + checks.transfers.length
+    );
 </script>
 
 <svelte:head>
@@ -49,6 +54,42 @@
                     <li class="py-0.5">{conflict}</li>
                 {/each}
             </ul>
+        </div>
+    {/if}
+
+    {#if checkProblems === 0}
+        <p class="mb-6 text-sm text-green-700 dark:text-green-400">
+            Alle aktiven Zählpunkte haben Tarif und Aktivierungsdatum, keine Besitzwechsel in der Datei.
+        </p>
+    {:else}
+        <div class="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+            {#if checks.missingSubscriptions.length > 0}
+                <p class="mb-1 font-semibold">Aktive Zählpunkte ohne Tarif ({checks.missingSubscriptions.length}), in EEG-Faktura nachtragen:</p>
+                <ul class="mb-3 list-disc pl-5 font-mono">
+                    {#each checks.missingSubscriptions as item}
+                        <li class="py-0.5">{item}</li>
+                    {/each}
+                </ul>
+            {/if}
+            {#if checks.missingActivations.length > 0}
+                <p class="mb-1 font-semibold">Aktive Zählpunkte ohne Aktivierungsdatum ({checks.missingActivations.length}):</p>
+                <ul class="mb-3 list-disc pl-5 font-mono">
+                    {#each checks.missingActivations as item}
+                        <li class="py-0.5">{item}</li>
+                    {/each}
+                </ul>
+            {/if}
+            {#if checks.transfers.length > 0}
+                <p class="mb-1 font-semibold">
+                    Besitzwechsel ({checks.transfers.length}): Zählpunkte unter mehreren Mitgliedsnummern.
+                    Sauber, wenn der alte Besitzer vor der Aktivierung des neuen deaktiviert wurde.
+                </p>
+                <ul class="list-disc pl-5 font-mono">
+                    {#each checks.transfers as item}
+                        <li class="py-0.5" class:text-red-800={!item.valid} class:dark:text-red-300={!item.valid}>{item.text}</li>
+                    {/each}
+                </ul>
+            {/if}
         </div>
     {/if}
 

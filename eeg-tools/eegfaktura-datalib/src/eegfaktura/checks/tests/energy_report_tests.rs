@@ -3,7 +3,7 @@ use crate::eegfaktura::loader::EnergyReport;
 
 fn report(file: &str) -> EnergyReport {
     let base_path = format!("{}", env!("CARGO_MANIFEST_DIR"));
-    EnergyReport::new(format!("{}/test-files/{}", base_path, file))
+    EnergyReport::new(format!("{}/fixtures/{}", base_path, file))
 }
 
 // ---- integration tests over the sample fixtures ----------------------------
@@ -11,7 +11,7 @@ fn report(file: &str) -> EnergyReport {
 /// A complete report has no missing samples and reports as complete.
 #[test]
 fn test_complete_report_has_no_missing_samples() {
-    let mut r = report("Energy-Report-small.xlsx");
+    let mut r = report("Energy-Report-20251001_20251001.xlsx");
     let checks = EnergyReportChecks::run(&mut r);
 
     assert!(checks.measurements_complete);
@@ -22,7 +22,7 @@ fn test_complete_report_has_no_missing_samples() {
 /// must never appear in the result.
 #[test]
 fn test_report_flags_only_l3_meter_points() {
-    let mut r = report("Energy-Report-small.xlsx");
+    let mut r = report("Energy-Report-20251001_20251001.xlsx");
     let checks = EnergyReportChecks::run(&mut r);
 
     // Sorted by meter point id.
@@ -34,8 +34,8 @@ fn test_report_flags_only_l3_meter_points() {
     assert_eq!(
         l3_ids,
         vec![
-            "AT0030000000000000000000000118026".to_string(),
-            "AT0030000000000000000000030071976".to_string(),
+            "AT9990000000000000000000011935985".to_string(),
+            "AT9990000000000000000000074360078".to_string(),
         ]
     );
 
@@ -57,7 +57,7 @@ fn test_report_flags_only_l3_meter_points() {
 /// point(s) exactly once each.
 #[test]
 fn test_incomplete_report_flags_missing_samples() {
-    let mut r = report("Energy-Report-small-missing-data.xlsx");
+    let mut r = report("Energy-Report-missing-data.xlsx");
     let checks = EnergyReportChecks::run(&mut r);
 
     assert!(!checks.measurements_complete);
@@ -65,7 +65,7 @@ fn test_incomplete_report_flags_missing_samples() {
     let dirty = &checks.meter_points_with_missing_samples;
     let affected = dirty
         .iter()
-        .find(|mp| mp.meter_point_id == "AT0030000000000000000000000118026")
+        .find(|mp| mp.meter_point_id == "AT9990000000000000000000011935985")
         .expect("known dirty meter point should be present");
     // it records when values are missing, and never duplicates a timestamp
     assert!(!affected.occurrences.is_empty());
