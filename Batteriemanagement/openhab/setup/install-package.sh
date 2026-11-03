@@ -73,7 +73,12 @@ fi
 # Hier, damit es fuer jeden Weg gilt: ibm-update, die ibm-firstboot-Schleife
 # (alle 10 Minuten, solange die Einrichtung unvollstaendig ist - pi-223
 # hatte so 2200 Sicherungen) und den Aufruf von Hand.
-ls -dt "$dest"/openhab.bak-* 2>/dev/null | tail -n +4 | xargs -r rm -rf
+# "|| true": bei der ERSTEN Installation gibt es noch keine Sicherung, GNU ls
+# endet dann mit Status 2, und mit set -e + pipefail brach das Skript hier
+# wortlos ab (pi-005, 2026-11-03: Paket lag schon in $dest, PACKAGE-SHA256
+# fehlte, Exit 2 ohne Meldung; erst der Wiederholungslauf 10 min spaeter kam
+# durch, weil er die liegengebliebene Installation als Sicherung vorfand).
+ls -dt "$dest"/openhab.bak-* 2>/dev/null | tail -n +4 | xargs -r rm -rf || true
 
 # Pruefsumme des installierten Pakets: der Selbst-Update-Timer (ibm-update)
 # vergleicht sie naechtlich mit der auf dem Server.
