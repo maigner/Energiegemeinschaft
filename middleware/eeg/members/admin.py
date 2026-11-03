@@ -14,6 +14,8 @@ from .models import MemberDataAccessLog
 from .models import Consent
 from .models import TransformerStation
 from .models import EnergyReportLog
+from .models import PodlistImport
+from .models import PodlistEntry
 
 admin.site.register(Member)
 admin.site.register(MeasurementPoint)
@@ -36,3 +38,15 @@ admin.site.register(MemberDataAccessLog)
 admin.site.register(Consent)
 admin.site.register(TransformerStation)
 admin.site.register(EnergyReportLog)
+
+
+@admin.register(PodlistImport)
+class PodlistImportAdmin(admin.ModelAdmin):
+    list_display = ('id', 'received_at', 'requested_at', 'source', 'status', 'row_count', 'unknown_count', 'file_name')
+    list_filter = ('status', 'source')
+
+
+@admin.register(PodlistEntry)
+class PodlistEntryAdmin(admin.ModelAdmin):
+    list_display = ('podlist_import', 'identifier', 'direction', 'participation_factor', 'active_since', 'active_until')
+    search_fields = ('identifier',)

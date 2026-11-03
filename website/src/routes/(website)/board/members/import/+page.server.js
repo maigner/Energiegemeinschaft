@@ -2,14 +2,18 @@ import { updateMissingMemberCoordinates } from "$lib/server/db/members/coordinat
 import { getMembersWithPendingWelcome } from "$lib/server/db/members/member";
 import { sendWelcomeEmails } from "$lib/server/mail/notifications/memberNotifications";
 import { importMemberDataFromNextcloud } from "$lib/server/nextcloud/members/memberdata";
+import { podlistStatus } from "$lib/server/podlist";
 
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ fetch, params, parent, locals }) {
 
-    const { file, messages, conflicts } = await importMemberDataFromNextcloud();
+    const { file, messages, conflicts, checks } = await importMemberDataFromNextcloud();
 
     await updateMissingMemberCoordinates();
+
+    // Zaehlpunktliste von Netz OOe (Podlist), aus dem Postfach importiert
+    const podlist = await podlistStatus();
 
     const pendingActiveNotifications = await getMembersWithPendingWelcome();
 
@@ -35,7 +39,10 @@ export async function load({ fetch, params, parent, locals }) {
         },
         messages: inserted,
         // doppelt vergebene Mitgliedsnummern, nicht importiert (memberdata.js)
-        conflicts
+        conflicts,
+        // Tarif, Aktivierungsdatum, Besitzwechsel (masterdataChecks.js)
+        checks,
+        podlist
     }
 
 }

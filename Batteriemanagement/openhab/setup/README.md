@@ -181,9 +181,17 @@ ueber die Debian-eigene Mechanik (`apt-daily.timer`,
   unattended-upgrades zwar jede Nacht, liess aber genau diese Pakete liegen
   (Stand 2026-09-17: 43 bis 75 ausstehende Updates je Anlage, fast alle aus
   diesem Archiv).
-* **Nicht automatisch:** openHAB, Java (Adoptium), NodeSource, Tailscale,
-  comitup. openHAB-Versionen brauchen den Migrationstest im Vorstandsnetz;
-  diese Pakete bleiben am Dashboard als "ausstehend" sichtbar.
+* **Nicht automatisch:** openHAB, Java von Adoptium (falls installiert),
+  NodeSource, Tailscale, comitup. openHAB-Versionen brauchen den
+  Migrationstest im Vorstandsnetz; diese Pakete bleiben am Dashboard als
+  "ausstehend" sichtbar.
+* **Java-Updates:** Das Java der Pis kommt aus Debian (`openjdk-21`) und wird
+  automatisch aktualisiert. Eine laufende JVM kann danach keine Prozesse mehr
+  starten (`ExecUtil - Failed to execute commandLine`, kein Heartbeat, keine
+  Netzsuche, bei Modbus-Anlagen dauerhaft Fail-Safe; ganze Flotte seit
+  2026-10-28). Der apt-Hook `53ibm-jvm-restart` startet openHAB deshalb nach
+  einem solchen Update neu (`journalctl -t ibm-jvm-restart`); `install-ibm.sh`
+  ruft dieselbe Pruefung am Ende auf.
 * **Zeitplan:** Drop-in fuer `apt-daily-upgrade.timer`, taeglich 03:40
   (+ bis zu 20 Minuten) - nach der naechtlichen Paketpruefung von
   `ibm-update` (ab 03:00).

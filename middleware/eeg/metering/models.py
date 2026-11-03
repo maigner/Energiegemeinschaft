@@ -33,6 +33,11 @@ class Measurement(models.Model):
     meter_code = models.ForeignKey(MeterCode, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(db_index=True)
     value = models.DecimalField(max_digits=19, decimal_places=10)
+    # Qualitaetskennzeichen der Lieferung (qov des Energystores): 1 = L1
+    # gemessen, 2 = L2 Ersatzwert, 3 = L3 unsicher/hochgerechnet, 0 =
+    # unbekannt; NULL fuer Werte vor November 2026 und aus dem Excel-Import.
+    # Grundlage der Abrechnungspruefung (website: db/energy/billingCheck.js).
+    quality = models.SmallIntegerField(null=True, blank=True)
     def __str__(self):
         return f"{self.meter_code}: {self.value}"
 
@@ -103,3 +108,26 @@ class EnergyForecast(models.Model):
     
     
     
+
+
+class BillingCheck(models.Model):
+    """Pruefprotokoll der Abrechnungspruefung je Zeitraum (website:
+    /board/energy/pruefung, Cron checkBillingReadiness). findings_hash ist
+    der Fingerabdruck des letzten Befunds (Signal nur bei Aenderung),
+    billed_at die Markierung "abgerechnet" durch den Vorstand."""
+    period_start = models.DateField()
+    period_end = models.DateField()
+    checked_at = models.DateTimeField()
+    findings_hash = models.CharField(max_length=64, blank=True, default="")
+    summary = models.JSONField(null=True, blank=True)
+    billed_at = models.DateTimeField(null=True, blank=True)
+    notified_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['period_start', 'period_end'], name='unique_billingcheck_period'),
+        ]
+        ordering = ["-period_start"]
+
+    def __str__(self):
+        return f"Abrechnungspruefung {self.period_start} bis {self.period_end}"

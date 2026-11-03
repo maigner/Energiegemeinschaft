@@ -33,11 +33,20 @@
 #     der Debian-Vorgabe 06:00 (+ bis zu 60 min) - nach der naechtlichen
 #     Paketpruefung von ibm-update (ab 03:00); der Neustart folgt am
 #     Vormittag desselben Tages.
+#   * 53ibm-jvm-restart: Das Java der Pis kommt aus Debian (openjdk-21) und
+#     wird mit aktualisiert. Eine laufende JVM kann danach keine Prozesse
+#     mehr starten, weil jspawnhelper nicht mehr zu ihrem Build passt: jedes
+#     executeCommandLine schlaegt fehl (Heartbeat, Netzsuche, System-Status),
+#     ohne dass openHAB sonst auffaellt (ganze Flotte seit 2026-10-28, bei
+#     den Modbus-Anlagen griff deshalb dauerhaft der Fail-Safe). Einen
+#     Reboot verlangt das Update nicht. Der Hook startet openHAB neu, sobald
+#     die JVM geloeschte Dateien des JDK geladen hat; install-ibm.sh ruft
+#     dieselbe Pruefung am Ende auf.
 #
-# Bewusst NICHT automatisch: openHAB, Java (Adoptium), NodeSource,
-# Tailscale, comitup. openHAB-Versionen brauchen den Migrationstest im
-# Vorstandsnetz. Was das Dashboard danach noch als "ausstehend" zeigt, sind
-# genau diese Pakete.
+# Bewusst NICHT automatisch: openHAB, Java von Adoptium (falls installiert),
+# NodeSource, Tailscale, comitup. openHAB-Versionen brauchen den
+# Migrationstest im Vorstandsnetz. Was das Dashboard danach noch als
+# "ausstehend" zeigt, sind genau diese Pakete.
 #
 # INSTALL_APT_AUTO=0 in ibm.conf entfernt 52ibm-unattended und das
 # Timer-Drop-in wieder (Debian-Vorgabe: nur origin=Debian, kein Reboot);
@@ -57,6 +66,8 @@ APT_PERIODIC="$APT_CONF_DIR/02ibm-periodic"
 APT_UNATTENDED="$APT_CONF_DIR/52ibm-unattended"
 TIMER_DROPIN_DIR=/etc/systemd/system/apt-daily-upgrade.timer.d
 TIMER_DROPIN="$TIMER_DROPIN_DIR/ibm.conf"
+APT_JVM_HOOK="$APT_CONF_DIR/53ibm-jvm-restart"
+JVM_CHECK=/usr/local/sbin/ibm-jvm-restart-check
 
 if ! command -v apt-get >/dev/null 2>&1 || [ ! -d "$APT_CONF_DIR" ]; then
   warn "apt-get nicht gefunden - automatische Updates uebersprungen."
@@ -75,6 +86,7 @@ remove_apt_auto() {
 
 if [ "$INSTALL_APT_AUTO" != "1" ] && [ "$INSTALL_STATUS_PUSH" != "1" ]; then
   remove_apt_auto
+  rm -f "$APT_JVM_HOOK" "$JVM_CHECK"
   log "INSTALL_APT_AUTO=0 - automatische Updates uebersprungen."
   exit 0
 fi
@@ -109,6 +121,29 @@ APT::Periodic::Unattended-Upgrade "1";
 EOF
 chmod 0644 "$APT_PERIODIC"
 
+# Unabhaengig von INSTALL_APT_AUTO: auch die Debian-Vorgabe aktualisiert Java.
+# --no-block, damit apt nicht auf den Neustart wartet; ein Fehler hier darf
+# einen Update-Lauf nie abbrechen.
+cat > "$JVM_CHECK" <<'EOF'
+#!/bin/sh
+# GENERIERT von IBM (11-install-apt-auto.sh) - nicht direkt bearbeiten.
+# Startet openHAB neu, wenn die laufende JVM durch ein Java-Update ersetzte
+# Dateien geladen hat (sie kann dann keine Prozesse mehr starten).
+pid="$(systemctl show -p MainPID --value openhab.service 2>/dev/null)"
+[ -n "$pid" ] && [ "$pid" != "0" ] || exit 0
+grep -q '/usr/lib/jvm/.*(deleted)' "/proc/$pid/maps" 2>/dev/null || exit 0
+logger -t ibm-jvm-restart "Java wurde aktualisiert - openHAB wird neu gestartet."
+systemctl --no-block try-restart openhab.service || true
+exit 0
+EOF
+chmod 0755 "$JVM_CHECK"
+cat > "$APT_JVM_HOOK" <<EOF
+// GENERIERT von IBM (11-install-apt-auto.sh) - nicht direkt bearbeiten.
+// Entfernt von purge-ibm.sh.
+DPkg::Post-Invoke { "$JVM_CHECK || true"; };
+EOF
+chmod 0644 "$APT_JVM_HOOK"
+
 if [ "$INSTALL_APT_AUTO" = "1" ]; then
   if [ "$APT_AUTO_REBOOT" = "1" ]; then reboot=true; else reboot=false; fi
   # Origins-Pattern ist eine Liste: die Eintraege kommen zu denen aus
@@ -119,8 +154,8 @@ if [ "$INSTALL_APT_AUTO" = "1" ]; then
 // GENERIERT von IBM (11-install-apt-auto.sh) - nicht direkt bearbeiten.
 // Ergaenzt die Debian-Vorgabe (50unattended-upgrades) um das Archiv der
 // Raspberry Pi Foundation (Kernel, Firmware, rpt-Pakete) und um
-// <codename>-updates. openHAB, Java, NodeSource, Tailscale und comitup
-// bleiben bewusst Handarbeit. Entfernt von purge-ibm.sh.
+// <codename>-updates. openHAB, Adoptium-Java, NodeSource, Tailscale und
+// comitup bleiben bewusst Handarbeit. Entfernt von purge-ibm.sh.
 Unattended-Upgrade::Origins-Pattern {
         "origin=Debian,codename=${distro_codename},label=Debian";
         "origin=Debian,codename=${distro_codename}-updates";

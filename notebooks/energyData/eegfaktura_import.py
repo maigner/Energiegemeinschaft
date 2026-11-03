@@ -27,7 +27,9 @@ Viertelstundenwerte kommen direkt aus dem Energystore von EEG-Faktura
 - Zählpunkte ohne Lieferung an einem Tag kommen als Nullen mit qov 0 zurück
   und werden übersprungen (keine Messwerte).
 - `qov` ist das Qualitätskennzeichen je Wert (1 = L1, 2 = L2, 3 = L3,
-  0 = unbekannt); es wird nur gezählt, nicht gespeichert.
+  0 = unbekannt); es landet in `metering_measurement.quality` (NULL für
+  Altdaten), damit die Abrechnungsprüfung der Website L3-Werte und Lücken
+  aus der DB lesen kann.
 - Der Server dekodiert den Basic-Auth-Header mit *URL-sicherem* Base64, das
   Skript kodiert deshalb genauso (Standard-Base64 mit `+`/`/` scheitert).
 - Jeder Aufruf löst eine Passwort-Anmeldung bei Keycloak aus. Deshalb: wenig
@@ -295,14 +297,15 @@ class ParseStats:
 
 
 Row = tuple[datetime, float, int, int]  # timestamp, value, measurement_point_id, meter_code_id
+Value = tuple[float, int | None]  # Messwert, Qualität (qov; None, wenn die API keines liefert)
 
 
 def rows_from_payload(payload: dict, point_ids: dict[str, int], code_ids: dict[str, int],
-                      ts_shift: timedelta) -> tuple[dict[tuple[int, int, datetime], float], ParseStats]:
-    """Antwort in ein dict (point_id, code_id, ts) -> value verwandeln. Das
-    dict entdoppelt, damit der Upsert keine Zeile zweimal anfasst."""
+                      ts_shift: timedelta) -> tuple[dict[tuple[int, int, datetime], Value], ParseStats]:
+    """Antwort in ein dict (point_id, code_id, ts) -> (value, qov) verwandeln.
+    Das dict entdoppelt, damit der Upsert keine Zeile zweimal anfasst."""
     stats = ParseStats()
-    rows: dict[tuple[int, int, datetime], float] = {}
+    rows: dict[tuple[int, int, datetime], Value] = {}
     for metering_point, entry in payload.items():
         stats.points_seen += 1
         if not isinstance(entry, dict):
@@ -334,8 +337,9 @@ def rows_from_payload(payload: dict, point_ids: dict[str, int], code_ids: dict[s
             for slot, code in enumerate(codes):
                 if slot >= len(values):
                     break
-                rows[(point_id, code_ids[code], ts)] = float(values[slot])
-                stats.qov[int(qovs[slot]) if slot < len(qovs) else -1] += 1
+                qov = int(qovs[slot]) if slot < len(qovs) else None
+                rows[(point_id, code_ids[code], ts)] = (float(values[slot]), qov)
+                stats.qov[qov if qov is not None else -1] += 1
     return rows, stats
 
 
@@ -405,10 +409,11 @@ class WriteStats:
     zeroed: int = 0
 
 
-def upsert_rows(conn, rows: dict[tuple[int, int, datetime], float]) -> WriteStats:
+def upsert_rows(conn, rows: dict[tuple[int, int, datetime], Value]) -> WriteStats:
     """Alle Zeilen in einer Transaktion: COPY in eine Temp-Tabelle, dann ein
     einziges INSERT ... ON CONFLICT (wie im Excel-Notebook). Unveränderte
-    Werte werden nicht angefasst."""
+    Werte werden nicht angefasst; eine geänderte Qualität (z. B. L3 -> L1
+    nach einer Nachlieferung) zählt als Änderung."""
     stats = WriteStats()
     if not rows:
         return stats
@@ -417,13 +422,14 @@ def upsert_rows(conn, rows: dict[tuple[int, int, datetime], float]) -> WriteStat
             CREATE TEMP TABLE tmp_measurement (
                 timestamp timestamptz,
                 value double precision,
+                quality smallint,
                 measurement_point_id bigint,
                 meter_code_id bigint
             ) ON COMMIT DROP
         """)
-        with cur.copy("COPY tmp_measurement (timestamp, value, measurement_point_id, meter_code_id) FROM STDIN") as copy:
-            for (point_id, code_id, ts), value in rows.items():
-                copy.write_row((ts, value, point_id, code_id))
+        with cur.copy("COPY tmp_measurement (timestamp, value, quality, measurement_point_id, meter_code_id) FROM STDIN") as copy:
+            for (point_id, code_id, ts), (value, qov) in rows.items():
+                copy.write_row((ts, value, qov, point_id, code_id))
 
         # Warnsignal: vorhandene Messwerte, die die Lieferung auf 0 setzen würde
         cur.execute("""
@@ -438,12 +444,13 @@ def upsert_rows(conn, rows: dict[tuple[int, int, datetime], float]) -> WriteStat
         (stats.zeroed,) = cur.fetchone()
 
         cur.execute("""
-            INSERT INTO metering_measurement (id, timestamp, value, measurement_point_id, meter_code_id)
-            SELECT nextval('metering_measurement_id_seq'), timestamp, value, measurement_point_id, meter_code_id
+            INSERT INTO metering_measurement (id, timestamp, value, quality, measurement_point_id, meter_code_id)
+            SELECT nextval('metering_measurement_id_seq'), timestamp, value, quality, measurement_point_id, meter_code_id
             FROM tmp_measurement
             ON CONFLICT (measurement_point_id, meter_code_id, timestamp)
-            DO UPDATE SET value = EXCLUDED.value
+            DO UPDATE SET value = EXCLUDED.value, quality = EXCLUDED.quality
             WHERE metering_measurement.value IS DISTINCT FROM EXCLUDED.value
+               OR metering_measurement.quality IS DISTINCT FROM EXCLUDED.quality
             RETURNING (xmax = 0) AS inserted
         """)
         for (inserted,) in cur.fetchall():
@@ -453,6 +460,31 @@ def upsert_rows(conn, rows: dict[tuple[int, int, datetime], float]) -> WriteStat
                 stats.updated += 1
     conn.commit()
     return stats
+
+
+def update_store_windows(conn, meta: dict) -> int:
+    """Aktivierungsfenster laut Energystore (periodBegin/periodEnd je
+    Zählpunkt) in members_measurementpoint.store_period_begin/_end schreiben;
+    eine Quelle für den Vergleich der Fenster in der Abrechnungsprüfung."""
+    updates = []
+    for metering_point, entry in meta.items():
+        if not isinstance(entry, dict) or not entry.get("periodBegin"):
+            continue
+        begin = datetime.fromtimestamp(entry["periodBegin"] / 1000, tz=TZ).date()
+        end = datetime.fromtimestamp(entry["periodEnd"] / 1000, tz=TZ).date() if entry.get("periodEnd") else None
+        updates.append((begin, end, metering_point))
+    if not updates:
+        return 0
+    with conn.cursor() as cur:
+        cur.executemany("""
+            UPDATE members_measurementpoint
+               SET store_period_begin = %s, store_period_end = %s
+             WHERE identifier = %s
+               AND (store_period_begin IS DISTINCT FROM %s OR store_period_end IS DISTINCT FROM %s)
+        """, [(b, e, mp, b, e) for b, e, mp in updates])
+        changed = cur.rowcount
+    conn.commit()
+    return changed
 
 
 def refresh_views(conn) -> None:
@@ -469,7 +501,7 @@ def refresh_views(conn) -> None:
 # --------------------------------------------------------------------------
 
 
-def verify_rows(conn, first_day: date, last_day: date, rows: dict[tuple[int, int, datetime], float],
+def verify_rows(conn, first_day: date, last_day: date, rows: dict[tuple[int, int, datetime], Value],
                 code_ids: dict[str, int]) -> None:
     if not rows:
         log("  nichts zu vergleichen (keine Werte in der Antwort)")
@@ -494,7 +526,7 @@ def verify_rows(conn, first_day: date, last_day: date, rows: dict[tuple[int, int
     for shift_min in VERIFY_SHIFTS_MIN:
         shift = timedelta(minutes=shift_min)
         comparable = equal = equal_nonzero = 0
-        for (point_id, code_id, ts), value in rows.items():
+        for (point_id, code_id, ts), (value, _) in rows.items():
             db_value = db.get((point_id, code_id, ts + shift))
             if db_value is None:
                 continue
@@ -514,7 +546,7 @@ def verify_rows(conn, first_day: date, last_day: date, rows: dict[tuple[int, int
     names = {code_id: description for description, code_id in code_ids.items()}
     print(f"  {'Meter-Code':<62} {'API kWh':>12} {'DB kWh':>12}")
     for code_id in sorted(names):
-        api_sum = sum(v for (_, c, ts), v in rows.items() if c == code_id)
+        api_sum = sum(v for (_, c, ts), (v, _) in rows.items() if c == code_id)
         db_sum = sum(v for (_, c, ts), v in db.items()
                      if c == code_id and first_day <= ts.date() <= last_day)
         if api_sum or db_sum:
@@ -591,6 +623,8 @@ def main() -> int:
     parser.add_argument("--raw-dir", type=Path, help="Antworten als JSON in dieses Verzeichnis legen")
     parser.add_argument("--metadata", action="store_true", help="nur die Zählpunkt-Metadaten ausgeben")
     parser.add_argument("--no-refresh", action="store_true", help="Materialized Views nicht auffrischen")
+    parser.add_argument("--no-metadata", action="store_true",
+                        help="Energystore-Fenster (store_period_begin/_end) nicht nachführen")
     parser.add_argument("--forecast", action="store_true",
                         help="nach neuen Daten eeg_forecast.py --refresh --days 30 --store starten")
     parser.add_argument("--forecast-script", type=Path,
@@ -676,6 +710,15 @@ def main() -> int:
 
         log(f"gesamt: neu {total.inserted}, geändert {total.updated}"
             + (f", auf 0 gesetzt {total.zeroed}" if total.zeroed else ""))
+        if not args.no_metadata:
+            # ein weiterer Aufruf (Keycloak-Anmeldung) je Lauf
+            time.sleep(max(args.pause, 1.0))
+            try:
+                meta = fetch_metadata(cfg, **http)
+                changed = update_store_windows(conn, meta)
+                log(f"Energystore-Fenster: {len(meta)} Zählpunkte laut Server, {changed} in der DB geändert")
+            except ApiError as err:
+                log(f"Energystore-Fenster nicht nachgeführt: {err}")
         if written_any and not args.no_refresh:
             refresh_views(conn)
         elif not written_any:

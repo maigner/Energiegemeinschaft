@@ -61,6 +61,16 @@
             </NavLi>
 
             <NavLi
+                href="/board/energy/pruefung"
+                onclick={() => toggle()}
+                activeClass="text-green-600 bg-secundary-100"
+                nonActiveClass="text-green-800"
+                class="hover:text-green-600"
+            >
+                Abrechnungsprüfung
+            </NavLi>
+
+            <NavLi
                 href="/board/members"
                 onclick={() => toggle()}
                 activeClass="text-green-600 bg-secundary-100"

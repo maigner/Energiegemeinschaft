@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = [
+    "eegfaktura-datalib",
+    "eegfaktura-checker",
+    "eegfaktura-client/src-tauri"
+]
+
+[profile.dev]
+opt-level = 3          # Maximum optimization (like release)
+debug = true           # Keep debug symbols
+codegen-units = 1      # Better optimization (slower compile)
+incremental = true     # Keep fast recompiles
+
+[profile.dev.package."*"]  # All dependencies
+opt-level = 3

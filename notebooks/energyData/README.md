@@ -47,6 +47,26 @@ Verhalten:
   liegt; meldet die Ausgabe einen Versatz, `--ts-shift-minutes` setzen.
 - Zählpunkte, die EEG-Faktura kennt, aber `members_measurementpoint` nicht,
   werden übersprungen und am Ende aufgelistet.
+- Das Qualitätskennzeichen `qov` je Wert landet in `metering_measurement.quality`
+  (1 = L1, 2 = L2, 3 = L3, 0 = unbekannt; NULL für Werte vor November 2026
+  und aus dem Excel-Notebook). Eine geänderte Qualität zählt als Änderung.
+  Rückwirkend füllen: `--from`/`--to` über den Zeitraum laufen lassen.
+- Nach dem Schreiben holt der Lauf einmal die Metadaten des Energystores
+  und schreibt `periodBegin`/`periodEnd` je Zählpunkt nach
+  `members_measurementpoint.store_period_begin/_end` (`--no-metadata`
+  unterdrückt das); die Abrechnungsprüfung der Website vergleicht sie mit
+  Masterdata und Podlist.
+
+## Täglich: `eegfaktura_masterdata.py`
+
+Holt `GET /api/master/masterdata` (Basic-Auth, Standard-Base64, Header
+`X-Tenant`) und schreibt Status, Richtung und Aktivierungsfenster je
+Zählpunkt nach `members_measurementpoint` (`status`, `type`, `activated_at`,
+`deactivated_at`). Legt nichts an: E-Mail, Adresse und Tarif liefert die
+API nicht, neue Mitglieder kommen weiter über das Masterdata-Sheet (Import
+auf `/board/members`). Unbekannte Zählpunkte, bei EEG-Faktura umgezogene
+und bei uns aktive, die die API nicht kennt, stehen im Log. Auf s1 täglich
+04:40 (`eegfaktura-masterdata.timer`), `--dry-run` vergleicht nur.
 
 Täglich läuft das auf s1 um 05:00 (`scripts/eegfaktura-import/`, Log
 `journalctl -u eegfaktura-import`), um 05:30 folgt unabhängig davon der
