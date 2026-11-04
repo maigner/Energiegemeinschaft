@@ -101,6 +101,11 @@ Forecast-API für die nächsten 16 Tage. Die Tabelle enthält seit Migration `we
 dieselben Größen inklusive Strahlung (siehe `notebooks/weather/README.md`), das Modell bleibt aber
 absichtlich unabhängig davon — es funktioniert auch, wenn der stündliche Cron der Website ausfällt.
 Die Tabelle wird von hier weder gelesen noch geschrieben.
+Open-Meteo antwortet gelegentlich gar nicht (Read-Timeout, so fiel der nächtliche Lauf auf s1 am
+3.11.2026 aus): jede Anfrage wird bis zu dreimal mit 120 s Timeout und 30 s Pause versucht. Scheitert
+der Archiv-Abruf trotzdem, rechnet `--refresh` mit dem gecachten Archiv weiter (die Forecast-API deckt
+die letzten 92 Tage ohnehin ab); beim Forecast-Abruf gilt das nur für einen Cache, der jünger als
+36 h ist, sonst bricht der Lauf ab, statt mit altem Wetter zu prognostizieren.
 
 ## Zwei Dinge, die den Ausschlag geben
 

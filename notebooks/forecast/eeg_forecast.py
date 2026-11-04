@@ -53,6 +53,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -293,10 +296,36 @@ WEATHER_VARS = [
 ]
 
 
+OPEN_METEO_ATTEMPTS = 3
+OPEN_METEO_TIMEOUT = 120  # the archive request covers ~2 years hourly and can take a while
+OPEN_METEO_BACKOFF = 30  # seconds between attempts
+
+
 def _fetch_open_meteo(url: str, params: dict) -> pd.DataFrame:
+    """One Open-Meteo request with retries.
+
+    Open-Meteo occasionally stalls (read timeout) or answers 5xx/429; the
+    nightly run on s1 failed that way on 2026-11-03. Transient errors are
+    retried a few times before they propagate.
+    """
     query = urllib.parse.urlencode(params, doseq=True)
-    with urllib.request.urlopen(f"{url}?{query}", timeout=60) as response:
-        payload = json.load(response)
+    last_error: Exception | None = None
+    for attempt in range(1, OPEN_METEO_ATTEMPTS + 1):
+        try:
+            with urllib.request.urlopen(f"{url}?{query}", timeout=OPEN_METEO_TIMEOUT) as response:
+                payload = json.load(response)
+            break
+        except urllib.error.HTTPError as exc:
+            if exc.code < 500 and exc.code != 429:
+                raise
+            last_error = exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last_error = exc
+        print(f"open-meteo attempt {attempt}/{OPEN_METEO_ATTEMPTS} failed: {last_error}", file=sys.stderr)
+        if attempt < OPEN_METEO_ATTEMPTS:
+            time.sleep(OPEN_METEO_BACKOFF)
+    else:
+        raise RuntimeError(f"open-meteo request failed after {OPEN_METEO_ATTEMPTS} attempts: {url}") from last_error
     hourly = pd.DataFrame(payload["hourly"])
     hourly["time"] = pd.to_datetime(hourly["time"], utc=True)
     return hourly.set_index("time").sort_index()
@@ -318,18 +347,27 @@ def load_weather(start: pd.Timestamp, end: pd.Timestamp, refresh: bool = False) 
         cached_end = pd.to_datetime(pd.read_csv(archive_cache, usecols=["time"])["time"], utc=True).max()
         need_archive = cached_end < pd.Timestamp(archive_end - timedelta(days=2), tz="UTC")
     if need_archive:
-        archive = _fetch_open_meteo(
-            "https://archive-api.open-meteo.com/v1/archive",
-            {
-                "latitude": LATITUDE,
-                "longitude": LONGITUDE,
-                "start_date": str(pd.Timestamp(start).tz_convert("UTC").date()),
-                "end_date": str(archive_end),
-                "hourly": ",".join(WEATHER_VARS),
-                "timezone": "UTC",
-            },
-        )
-        archive.to_csv(archive_cache)
+        try:
+            archive = _fetch_open_meteo(
+                "https://archive-api.open-meteo.com/v1/archive",
+                {
+                    "latitude": LATITUDE,
+                    "longitude": LONGITUDE,
+                    "start_date": str(pd.Timestamp(start).tz_convert("UTC").date()),
+                    "end_date": str(archive_end),
+                    "hourly": ",".join(WEATHER_VARS),
+                    "timezone": "UTC",
+                },
+            )
+            archive.to_csv(archive_cache)
+        except RuntimeError:
+            # A refresh that cannot reach the archive keeps yesterday's copy:
+            # the forecast endpoint covers the last 92 days anyway, so a
+            # slightly older reanalysis costs nothing. Without a cache there
+            # is nothing to fall back to.
+            if not archive_cache.exists():
+                raise
+            print("open-meteo archive unavailable, using cached archive", file=sys.stderr)
     archive = pd.read_csv(archive_cache, parse_dates=["time"], index_col="time")
     archive.index = pd.to_datetime(archive.index, utc=True)
 
@@ -338,18 +376,28 @@ def load_weather(start: pd.Timestamp, end: pd.Timestamp, refresh: bool = False) 
         pd.Timestamp.now().timestamp() - recent_cache.stat().st_mtime > 3 * 3600
     )
     if refresh or stale or not recent_cache.exists():
-        recent = _fetch_open_meteo(
-            "https://api.open-meteo.com/v1/forecast",
-            {
-                "latitude": LATITUDE,
-                "longitude": LONGITUDE,
-                "hourly": ",".join(WEATHER_VARS),
-                "timezone": "UTC",
-                "past_days": 92,
-                "forecast_days": 16,
-            },
-        )
-        recent.to_csv(recent_cache)
+        try:
+            recent = _fetch_open_meteo(
+                "https://api.open-meteo.com/v1/forecast",
+                {
+                    "latitude": LATITUDE,
+                    "longitude": LONGITUDE,
+                    "hourly": ",".join(WEATHER_VARS),
+                    "timezone": "UTC",
+                    "past_days": 92,
+                    "forecast_days": 16,
+                },
+            )
+            recent.to_csv(recent_cache)
+        except RuntimeError:
+            # The weather forecast is what changes daily, so a cached copy is
+            # only acceptable when it is from today's or yesterday's run; an
+            # older one would silently forecast with stale weather.
+            if not recent_cache.exists() or (
+                pd.Timestamp.now().timestamp() - recent_cache.stat().st_mtime > 36 * 3600
+            ):
+                raise
+            print("open-meteo forecast unavailable, using cached forecast", file=sys.stderr)
     recent = pd.read_csv(recent_cache, parse_dates=["time"], index_col="time")
     recent.index = pd.to_datetime(recent.index, utc=True)
 
