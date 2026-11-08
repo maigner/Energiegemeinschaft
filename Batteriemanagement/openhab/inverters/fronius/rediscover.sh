@@ -83,6 +83,17 @@ serials_of() {
     | sort -u
 }
 
+# Enthaelt die Liste $2 (eine UniqueID pro Zeile) eine der bekannten
+# Seriennummern $1 (ebenfalls eine pro Zeile)?
+serials_match() {
+  local line
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    printf '%s\n' "$1" | grep -qFx "$line" && return 0
+  done <<< "$2"
+  return 1
+}
+
 remember_serials() {
   [ -n "$1" ] || return 0
   if ! printf '%s\n' "$1" | cmp -s - "$serial_file" 2>/dev/null; then
@@ -151,11 +162,23 @@ log "Thing $WATCH_THING_UID ist $status ($detail), konfigurierte Adresse in $THI
 
 # Antwortet die konfigurierte Adresse noch, liegt es nicht an der IP -
 # dann bringt eine Netzwerksuche nichts (z. B. Credentials, Nachtmodus).
+# Ausnahme: unter der Adresse antwortet ein anderes Fronius-Geraet (pi-020,
+# 2026-11-08: zwei Datamanager im Netz, der Router verteilte die Leases nach
+# dem naechtlichen Neustart zweimal; danach sass der Symo 5.0-3-M auf der
+# alten Adresse des Hybrid, beantwortete die Solar API, aber kein Modbus -
+# 6,5 Stunden ohne Steuerung). Dann wird gesucht.
+expected="$(cat "$serial_file" 2>/dev/null || true)"
 if [ -n "$current_host" ] && probe "$current_host"; then
-  log "Wechselrichter antwortet weiterhin unter $current_host - keine Suche."
-  log "Ursache liegt nicht an der Adresse (Credentials? Binding? openhab.log pruefen)."
-  sync_extra_hosts "$current_host"
-  exit 0
+  current_serials="$(serials_of "$current_host" || true)"
+  if [ -n "$expected" ] && [ -n "$current_serials" ] \
+     && ! serials_match "$expected" "$current_serials"; then
+    log "Unter $current_host antwortet ein anderes Fronius-Geraet (UniqueID: $(printf '%s' "$current_serials" | tr '\n' ' ')) - bekannt ist $(printf '%s' "$expected" | tr '\n' ' '), suche im Netz."
+  else
+    log "Wechselrichter antwortet weiterhin unter $current_host - keine Suche."
+    log "Ursache liegt nicht an der Adresse (Credentials? Binding? openhab.log pruefen)."
+    sync_extra_hosts "$current_host"
+    exit 0
+  fi
 fi
 
 # --- Abkuehlzeit: fruehestens alle COOLDOWN_MIN Minuten suchen --------------
@@ -201,8 +224,6 @@ if [ -z "$candidates" ]; then
 fi
 
 # --- Identitaet pruefen und Kandidaten auswaehlen ---------------------------
-expected="$(cat "$serial_file" 2>/dev/null || true)"
-
 found=""
 found_serials=""
 count=0
@@ -213,15 +234,9 @@ for ip in $candidates; do
   s="$(serials_of "$ip" || true)"
   [ "$count" -eq 1 ] && { first_ip="$ip"; first_serials="$s"; }
   log "Kandidat: $ip (UniqueID: $(printf '%s' "$s" | tr '\n' ' '))"
-  if [ -n "$expected" ] && [ -z "$found" ]; then
-    while IFS= read -r line; do
-      [ -n "$line" ] || continue
-      if printf '%s\n' "$expected" | grep -qFx "$line"; then
-        found="$ip"
-        found_serials="$s"
-        break
-      fi
-    done <<< "$s"
+  if [ -n "$expected" ] && [ -z "$found" ] && serials_match "$expected" "$s"; then
+    found="$ip"
+    found_serials="$s"
   fi
 done
 

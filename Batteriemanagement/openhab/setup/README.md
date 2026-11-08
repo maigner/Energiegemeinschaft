@@ -989,7 +989,9 @@ Repositories und werden nie automatisch aktualisiert; was das Dashboard
 dauerhaft als "ausstehend" zeigt, sind genau diese manuellen Updates.
 Schliesslich meldet die Anlage ihren **Systemzustand**: CPU-Temperatur und
 das throttled-Register des Pi (erkennt Unterspannung durch schwache
-Netzteile und Drosselung), Fuellstand der SD-Karte, Boot-Zeitpunkt,
+Netzteile und Drosselung; `vcgencmd` braucht dafuer die Gruppe `video`, in
+die das Setup den openHAB-Benutzer aufnimmt - wirksam nach dem naechsten
+openHAB-Neustart, bis dahin bleibt der Wert leer), Fuellstand der SD-Karte, Boot-Zeitpunkt,
 RAM-/Swap-Auslastung, ob nach einem Kernel-Update ein Reboot aussteht und
 wann unattended-upgrades zuletzt gelaufen ist.
 Uebertragen werden ausschliesslich diese IBM-Betriebsdaten, Logmeldungen,
@@ -1049,7 +1051,13 @@ automatisch, ohne dass am Router des Mitglieds etwas umgestellt werden muss:
    `ONLINE`, auch wenn niemand antwortet.
 2. Antwortet die konfigurierte Adresse noch (z. B. Datamanager im
    Nachtmodus, falsche Credentials), passiert nichts - das Problem liegt
-   dann nicht an der IP.
+   dann nicht an der IP. Ausnahme: unter der Adresse antwortet ein
+   **anderes** Fronius-Geraet (Seriennummer passt nicht zur gemerkten),
+   dann wird trotzdem gesucht - bei pi-020 stehen zwei Datamanager im
+   Netz (Hybrid und Symo 5.0-3-M), und nach dem naechtlichen
+   Router-Neustart am 2026-11-08 hatten die beiden ihre Adressen getauscht;
+   der Slave beantwortete die Solar API, aber kein Modbus, 6,5 Stunden ohne
+   Steuerung.
 3. Sonst werden alle direkt angeschlossenen IPv4-Netze des Pi (je ein /24,
    z. B. eth0 im Mesh und wlan0 im WLAN des Wechselrichters; Tunnel
    ausgenommen) nach der Fronius Solar API abgesucht

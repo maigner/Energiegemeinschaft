@@ -283,6 +283,24 @@ Thing-Installer zieht beim naechsten Paket `INVERTER_HOST` in `ibm.conf`
 aus dem Bridge-Thing nach. Dauerhaft hilft eine DHCP-Reservierung fuer den
 Hybrid (MAC cc:f9:57:1c:f0:2d) im Router.
 
+#### Nachtrag 2026-11-08: Adresstausch der beiden Datamanager
+
+Der Router von Pfandl (192.168.68.1, /22-Mesh, Leases 2 h) startet jede
+Nacht um 03:00 neu und verteilt die Adressen danach neu; am 2026-11-08
+fiel der Link um 03:00 und noch einmal um 03:28. Nach dem ersten Mal fand
+der Watchdog den Hybrid korrekt (.73 -> .69, Seriennummer 557330). Nach
+dem zweiten Mal sass der Symo 5.0-3-M (UniqueID 534661, eigener
+Datamanager) auf .69 und der Hybrid auf .70 - der Watchdog suchte nicht
+mehr, weil unter .69 weiterhin eine Solar API antwortete ("antwortet
+weiterhin ... keine Suche"), obwohl Port 502 dort "Connection refused"
+lieferte. Folge: Modbus-Poller OFFLINE, SoC bei 4,1 % eingefroren,
+Fail-Safe-Timer jede Minute "Reset fehlgeschlagen", 6,5 Stunden ohne
+Steuerung (die Nacht war ohnehin ohne Entladung, SoC zu niedrig).
+`rediscover.sh` vergleicht seitdem auch bei antwortender Adresse die
+Seriennummer mit der gemerkten und sucht bei Abweichung weiter. Die
+DHCP-Reservierung fuer den Hybrid (MAC cc:f9:57:1c:f0:2d) bleibt die
+dauerhafte Abhilfe.
+
 Beim Nachsehen fiel der zweite Fehler auf: das Daten-Thing
 `modbus:data:ibm:p124:storctl` war seit der Einrichtung UNINITIALIZED,
 weil `writeValueType = uint16` im Modbus-Binding (openHAB 5.2.1) nicht

@@ -162,8 +162,10 @@ function collectSystemHealth() {
       time.Duration.ofSeconds(10),
       '/bin/sh', '-c',
       'echo "temp:$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null)"; ' +
-      // vcgencmd braucht die video-Gruppe; wo sie fehlt, liefert der Kernel
-      // dasselbe Register unter /sys (dort ohne 0x-Praefix).
+      // vcgencmd braucht die video-Gruppe (04-install-rules.sh nimmt den
+      // openHAB-Benutzer auf, wirksam nach einem openHAB-Neustart). Der
+      // sysfs-Pfad ist der Rueckfall fuer aeltere Kernel; seit 6.18 (Trixie)
+      // gibt es ihn nicht mehr, dann bleibt throttled ohne Gruppe null.
       'thr="$(vcgencmd get_throttled 2>/dev/null | cut -d= -f2)"; ' +
       '[ -n "$thr" ] || thr="0x$(cat /sys/devices/platform/soc/soc:firmware/get_throttled 2>/dev/null)"; ' +
       'echo "throttled:$thr"; ' +

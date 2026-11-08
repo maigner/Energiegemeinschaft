@@ -96,6 +96,23 @@ mkdir -p "$IBM_REQUEST_DIR"
 chown "$OPENHAB_USER:$OPENHAB_GROUP" "$IBM_REQUEST_DIR" 2>/dev/null || true
 chmod 0755 "$IBM_REQUEST_DIR"
 
+# throttled-Register (Unterspannung/Drosselung) fuer den Status-Push:
+# vcgencmd liest es ueber /dev/vchiq (Gruppe video). Der openHAB-Dienst
+# laeuft als $OPENHAB_USER ohne diese Gruppe, und den sysfs-Ersatz
+# (soc:firmware/get_throttled) gibt es seit Kernel 6.18 (Trixie) nicht mehr -
+# die ganze Flotte meldete throttled = null (2026-11-08). Die Gruppe greift
+# erst beim naechsten Start des openHAB-Prozesses (Reboot, JVM-Hook,
+# manueller Neustart); ein Neustart wird hier bewusst nicht erzwungen.
+if getent group video >/dev/null 2>&1; then
+  if id -nG "$OPENHAB_USER" 2>/dev/null | tr ' ' '\n' | grep -qx video; then
+    log "$OPENHAB_USER ist bereits in der Gruppe video (throttled-Register)."
+  elif usermod -aG video "$OPENHAB_USER" 2>/dev/null; then
+    log "$OPENHAB_USER in die Gruppe video aufgenommen (throttled-Register) - wirksam nach dem naechsten openHAB-Neustart."
+  else
+    warn "$OPENHAB_USER konnte nicht in die Gruppe video aufgenommen werden - throttled-Register bleibt leer."
+  fi
+fi
+
 # Sonderzeichen fuer die rechte Seite eines sed-Ausdrucks entschaerfen.
 sed_escape() { printf '%s' "$1" | sed -e 's/[\\&|]/\\&/g'; }
 
