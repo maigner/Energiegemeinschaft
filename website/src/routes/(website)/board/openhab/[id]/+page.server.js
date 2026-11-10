@@ -27,10 +27,12 @@ export async function load({ params }) {
     const history = await getOpenhabStatusHistory(statusId, HISTORY_DAYS);
 
     // Einrichtungsdaten der Anlage (Geheimnisse entschluesselt) - nur
-    // lesbar, wenn IBM_SECRET_KEY gesetzt ist. Anlagen ohne Provisionierung
-    // (klassischer Token-Weg) haben keinen Code; der Abschnitt bleibt weg.
+    // lesbar, wenn IBM_SECRET_KEY gesetzt ist. Bestandsanlagen (klassischer
+    // Token-Weg, von Hand eingerichtet: pi-003, pi-007) haben weder Code
+    // noch hinterlegte Zugangsdaten; die Karte zeigt fuer sie nur, was es
+    // gibt (mapProvisioning: legacy).
     const prov = secretsConfigured() ? await getProvisioning(statusId) : null;
-    const hasProvisioning = Boolean(prov && (prov.provision_code || prov.setup_phase === 'geloescht'));
+    const hasProvisioning = Boolean(prov);
     // Stand des fertigen SD-Karten-Images (Dateisystem, kein DB-Feld)
     const image = hasProvisioning && prov.provision_code ? await getImageStatus(prov) : null;
 

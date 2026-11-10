@@ -561,6 +561,13 @@
                     Cloud-Konto und löscht die Anlage danach (höchstens ein paar Minuten).
                 </p>
             {/if}
+            {#if p.legacy}
+                <p class="text-xs text-gray-600 dark:text-gray-300 mb-2">
+                    Bestandsanlage: von Hand eingerichtet, bevor es "SD-Karte vorbereiten" gab.
+                    Code, Linux-Passwort und Cloud-Konto sind deshalb hier nicht hinterlegt.
+                    Für einen Neuaufbau (neue Karte, Ersatz-Pi) in der Übersicht "SD-Karte vorbereiten" wählen.
+                </p>
+            {/if}
             {#if p.setupMessage}
                 <p class="text-xs text-gray-600 dark:text-gray-300 mb-2 whitespace-pre-line">{p.setupMessage}</p>
             {/if}
@@ -577,14 +584,17 @@
                 <Badge color={p.wgSynced ? "green" : p.wgPublicKey ? "yellow" : "gray"}>
                     Tunnel {p.wgAddress}{p.wgSynced ? " aktiv" : p.wgPublicKey ? " wird eingetragen" : " wartet auf Pi"}
                 </Badge>
-                <Badge color={stateColor(p.cloudAccountState)}>
-                    Cloud-Konto {p.cloudAccountState || "-"}
-                </Badge>
-                <Badge color={stateColor(p.mailAliasState)}>
-                    Mail-Alias {p.mailAliasState || "-"}
-                </Badge>
-                <Badge color={p.inverterType ? "green" : "gray"}>
-                    {inverterLabel(p.inverterType) ?? "Wechselrichter: automatisch"}
+                {#if !p.legacy}
+                    <Badge color={stateColor(p.cloudAccountState)}>
+                        Cloud-Konto {p.cloudAccountState || "-"}
+                    </Badge>
+                    <Badge color={stateColor(p.mailAliasState)}>
+                        Mail-Alias {p.mailAliasState || "-"}
+                    </Badge>
+                {/if}
+                <!-- ohne Vorgabe das Profil, das der Pi selbst meldet -->
+                <Badge color={p.inverterType || anlage.data?.inverter_type ? "green" : "gray"}>
+                    {inverterLabel(p.inverterType || anlage.data?.inverter_type) ?? "Wechselrichter: automatisch"}
                 </Badge>
                 <Badge color={p.inverterPasswordState === "fehlt" ? "gray" : "green"}>
                     Wechselrichter-Passwort {p.inverterPasswordState === "hinterlegt"
@@ -606,6 +616,7 @@
                 </p>
             {/if}
 
+            {#if !p.legacy}
             <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm mb-3">
                 <span class="text-gray-500">Code</span>
                 <span class="font-mono dark:text-white">{p.code ?? "-"} {#if p.expires}<span class="text-xs text-gray-500">(bis {formatDate(p.expires)}{#if p.code && !p.codeUsable}, verbraucht{/if})</span>{/if}</span>
@@ -620,11 +631,14 @@
                     <span class="dark:text-white">{p.wifiSsid}</span>
                 {/if}
             </div>
+            {/if}
 
             <div class="flex flex-wrap gap-2 mb-3">
-                <Button size="xs" color="light" onclick={() => (showSecrets = !showSecrets)}>
-                    {showSecrets ? "Verbergen" : "Passwörter anzeigen"}
-                </Button>
+                {#if !p.legacy}
+                    <Button size="xs" color="light" onclick={() => (showSecrets = !showSecrets)}>
+                        {showSecrets ? "Verbergen" : "Passwörter anzeigen"}
+                    </Button>
+                {/if}
                 {#if p.setupPhase !== "geloescht"}
                     <form method="POST" action="?/requestUpdate" use:enhance>
                         <input type="hidden" name="id" value={anlage.id} />
@@ -632,6 +646,10 @@
                             {anlage.updateRequestedAt ? "Update angefordert" : "Paket aktualisieren"}
                         </Button>
                     </form>
+                {/if}
+                <!-- Karte, Image, Code und Cloud-Passwort setzen eine
+                     vorbereitete Anlage voraus -->
+                {#if p.setupPhase !== "geloescht" && !p.legacy}
                     <Button size="xs" href={`/board/openhab/${anlage.id}/sd-karte.zip`}>Zip herunterladen</Button>
                     <form method="POST" action="?/buildImage" use:enhance>
                         <input type="hidden" name="id" value={anlage.id} />

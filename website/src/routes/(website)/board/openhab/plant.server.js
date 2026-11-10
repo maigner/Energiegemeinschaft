@@ -50,6 +50,11 @@ export function consentState(consents, identifier) {
  */
 export function mapProvisioning(p, data, image) {
     return {
+        // Bestandsanlage: von Hand eingerichtet, nie ueber "SD-Karte
+        // vorbereiten" gelaufen. Es gibt weder Code noch Zugangsdaten, und
+        // das Cloud-Konto verwaltet nicht der s1-Abgleich; die Seiten
+        // blenden dafuer alles aus, was darauf aufbaut.
+        legacy: !p.provision_code && !p.cloud_username && !p.linux_password && p.setup_phase !== 'geloescht',
         code: p.provision_code,
         expires: p.provision_expires,
         provisionedAt: p.provisioned_at,
