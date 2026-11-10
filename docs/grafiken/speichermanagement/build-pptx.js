@@ -22,16 +22,16 @@ const THEME = {
   pres.lang = "de-AT";
   const C = pres.SchemeColor;
 
-  // Titelfolie: Gruppenfoto links, weisses Feld mit Logo rechts
+  // Titelfolie: Gruppenfoto links im Originalformat, Logo und Titel rechts
   pres.defineSlideMaster({
     title: "titel",
     background: { color: C.background1 },
     objects: [
-      { image: { x: 0, y: 0, w: 5.6, h: 5.625, path: "gruppenfoto.jpg", sizing: { type: "cover", w: 5.6, h: 5.625 } } },
-      { image: { x: 6.0, y: 0.5, w: 3.3, h: 1.88, path: "logo.png" } },
-      { placeholder: { options: { name: "title", type: "title", x: 5.95, y: 2.75, w: 3.9, h: 0.6, fontSize: 28, bold: true, color: C.text2, margin: 0, valign: "top" }, text: "Titel" } },
-      { placeholder: { options: { name: "body", type: "body", x: 5.95, y: 3.35, w: 3.75, h: 0.9, fontSize: 14, color: C.text1, margin: 0, valign: "top" }, text: "Untertitel" } },
-      { placeholder: { options: { name: "presenter", type: "body", x: 5.95, y: 4.5, w: 3.75, h: 0.8, fontSize: 12, color: C.text1, margin: 0, valign: "top" }, text: "Vortragende Person" } },
+      { image: { x: 0.4, y: 1.05, w: 5.7, h: 3.514, path: "gruppenfoto.jpg" } },
+      { image: { x: 6.45, y: 1.0, w: 2.8, h: 1.597, path: "logo.png" } },
+      { placeholder: { options: { name: "title", type: "title", x: 6.45, y: 2.85, w: 3.3, h: 0.5, fontSize: 24, bold: true, color: C.text2, margin: 0, valign: "top", align: "left" }, text: "Titel" } },
+      { placeholder: { options: { name: "body", type: "body", x: 6.45, y: 3.38, w: 3.3, h: 0.9, fontSize: 13, color: C.text1, margin: 0, valign: "top" }, text: "Untertitel" } },
+      { placeholder: { options: { name: "presenter", type: "body", x: 6.45, y: 4.3, w: 3.3, h: 0.8, fontSize: 12, color: C.text1, margin: 0, valign: "top" }, text: "Vortragende Person" } },
     ],
   });
 
@@ -53,7 +53,7 @@ const THEME = {
   s1.addText("Heimspeicher der Mitglieder versorgen die Energiegemeinschaft durch die Nacht", { placeholder: "body" });
   s1.addText([
     { text: "Martin Aigner", options: { bold: true, fontSize: 14, breakLine: true } },
-    { text: "Erneuerbare-Energie-Gemeinschaft ISCHLSTROM, Bad Ischl", options: { color: C.accent6, fontSize: 11 } },
+    { text: "Energiegemeinschaft ISCHLSTROM, Bad Ischl", options: { color: C.accent6, fontSize: 11 } },
   ], { placeholder: "presenter" });
   s1.addNotes("Titelfolie. Vorstand der Energiegemeinschaft ISCHLSTROM auf dem Gruppenfoto.");
 
