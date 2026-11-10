@@ -146,6 +146,17 @@ if [ "$INSTALL_PERSISTENCE_DISK" = "1" ] && [ -f /etc/ztab ]; then
   fi
 fi
 
+# --- Wartungszugang per SSH-Schluessel --------------------------------------
+if [ "$INSTALL_MAINT_KEY" = "1" ] && [ -f "$IBM_SETUP_DIR/ibm-maint.pub" ]; then
+  maint_ak="$(getent passwd "${WG_SSH_USER:-openhabian}" | cut -d: -f6)/.ssh/authorized_keys"
+  maint_data="$(grep -vE '^[[:space:]]*(#|$)' "$IBM_SETUP_DIR/ibm-maint.pub" | head -n1 | awk '{print $2}')"
+  if [ -n "$maint_data" ] && [ -f "$maint_ak" ] && grep -qF " $maint_data ibm-maint" "$maint_ak"; then
+    log "Wartungsschluessel eingetragen: $maint_ak"
+  else
+    fail "Wartungsschluessel fehlt in $maint_ak - beheben mit: sudo $IBM_SETUP_DIR/13-install-maint-key.sh"
+  fi
+fi
+
 if type inverter_verify >/dev/null 2>&1; then
   if inverter_verify; then
     log "Wechselrichter-Pruefung (inverter_verify) OK."

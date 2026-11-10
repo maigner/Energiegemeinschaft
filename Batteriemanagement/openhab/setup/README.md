@@ -508,7 +508,8 @@ Provisionierungs-Code, sonst `00-wizard.sh`), Regionaleinstellungen, `08`
 (WireGuard), `10` (Passwoerter), `07` (Cloud-Identitaet, nur wenn eine
 `CLOUD_UUID` vom Server vorliegt), `02` (Addons), `01` (Preflight), `02b`,
 `03`, `04`, `05`, `09` (Selbst-Update), `10` (Fail-Safe), `11`
-(automatische Updates), `06` und zuletzt `07` (klassische Registrierung,
+(automatische Updates), `12` (Persistence), `13` (Wartungsschluessel),
+`06` und zuletzt `07` (klassische Registrierung,
 nur ohne Provisionierung).
 
 | Skript | Wirkung |
@@ -527,11 +528,13 @@ nur ohne Provisionierung).
 | `10-change-passwords.sh` | Aendert die Standardpasswoerter des Linux-Benutzers `openhabian` und der Karaf-Konsole (siehe [Standardpasswoerter aendern](#standardpasswoerter-aendern)). |
 | `11-install-apt-auto.sh` | Automatische Betriebssystem-Updates ueber `unattended-upgrades`: Debian- und Raspberry-Pi-Archiv, taeglich ab 03:40, Neustart bei Bedarf um 10:00 (siehe [Automatische Betriebssystem-Updates](#automatische-betriebssystem-updates)). |
 | `12-install-persistence-disk.sh` | Nimmt `/var/lib/openhab/persistence` aus dem zram (`/etc/ztab`), damit mapdb einen Stromausfall ueberlebt; wirksam beim naechsten sauberen Neustart (siehe [Persistence auf der SD-Karte](#persistence-auf-der-sd-karte-nicht-im-zram)). |
+| `13-install-maint-key.sh` | Traegt den Wartungsschluessel aus dem Paket (`setup/ibm-maint.pub`) bei `WG_SSH_USER` ein, beschraenkt auf den Wartungsserver im Tunnel, und erlaubt `sudo` ohne Passwort; zusaetzlich zur Passwort-Anmeldung (siehe [SSH-Zugang](#ssh-zugang-passwort-und-wartungsschluessel)). Ohne `ibm-maint.pub` im Paket tut es nichts. |
 | `purge-ibm.sh` | Entfernt das Batteriemanagement komplett wieder (Things, Regeln, Items, Seiten, Token, WireGuard, `/opt/ischlstrom`) und setzt die Anlage auf "frisches openHABian + Admin-Konto" zurueck - fuer Test-Wiederholungen oder Ausserbetriebnahme. Entfernt auch `/var/lib/ischlstrom` (Firstboot-Marker) und `/run/ibm-provision.env`, sodass die Zero-Touch-Einrichtung wiederholt werden kann. Admin-Konto, Linux-Passwort, Zeitzone und Cloud-Identitaet (UUID/Secret) bleiben. |
 | `prepare-sd.sh` | Nur auf dem Entwicklungsrechner (root): schreibt die SD-Karte fuer eine provisionierte Anlage aus dem Zip des Dashboards. Schreibt das Image und kopiert `openhabian.conf`, `ibm-provision.conf` und `user-data` auf die Boot-Partition; die systemd-Unit `ibm-firstboot` installiert cloud-init aus der `user-data` beim ersten Boot am Pi. |
 | `firstboot/` | `ibm-firstboot.sh` + systemd-Unit: startet nach der openHABian-Erstinstallation das Setup und wiederholt es alle 10 Minuten, bis es vollstaendig ist. |
 | `install-package.sh` | Spielt ein heruntergeladenes, entpacktes und geprueftes Paket ein (Sicherung, `ibm.conf` uebernehmen, `PACKAGE-SHA256`) und startet `install-ibm.sh`; gemeinsamer Schlussteil von `ibm/install.sh` und `ibm-update`. |
 | `build-dist.sh` | Nur auf dem Entwicklungsrechner: baut und signiert das Auslieferungspaket (minisign, privater Schluessel `~/.minisign/ibm-release.key`). |
+| `ibm-maint.pub` | Oeffentlicher SSH-Wartungsschluessel (eine Zeile, `ssh-ed25519 ...`); `13-install-maint-key.sh` traegt ihn auf jeder Anlage ein. Der private Teil liegt nur auf dem Entwicklungsrechner (`~/.ssh/ibm-maint`). |
 | `ibm-release.pub` | Oeffentlicher Release-Schluessel (minisign); der Updater prueft damit jedes Paket. Erzeugt mit `minisign -G`, siehe "Deploy". |
 
 `install-ibm.sh` setzt ausserdem die Regionaleinstellungen - das, was sonst
@@ -1278,11 +1281,43 @@ Server-Firewall pruefen (UDP 51820 muss offen sein); der klassische Fehler
 sind vertauschte Public Keys (jede Seite traegt den Key der **Gegenseite**
 ein). Status auf dem Pi: `sudo wg show wg0`.
 
-## SSH-Zugang (Passwort-Anmeldung)
+## SSH-Zugang (Passwort und Wartungsschluessel)
 
-Die SSH-Anmeldung auf den Anlagen laeuft per **Passwort** des Benutzers
-`WG_SSH_USER` (Vorgabe `openhabian`), auch fuer die Fernwartung durch den
-WireGuard-Tunnel. Der Tunnel selbst ist von aussen nicht erreichbar; das
+Fuer die Fernwartung traegt `13-install-maint-key.sh` den oeffentlichen
+**Wartungsschluessel** aus dem Paket (`setup/ibm-maint.pub`) in die
+`authorized_keys` von `WG_SSH_USER` ein und erlaubt diesem Benutzer `sudo`
+ohne Passwort (`/etc/sudoers.d/90-ibm-maint`). Der Schluessel kommt mit dem
+signierten Paket auf die Anlagen (naechtliches Update oder "Paket
+aktualisieren" am Dashboard), neue Anlagen bekommen ihn bei der
+Einrichtung. Der Eintrag gilt nur fuer Verbindungen vom Wartungsserver im
+Tunnel (`from="10.88.0.1"`, `MAINT_SSH_FROM`); im Heimnetz des Mitglieds
+ist er wirkungslos.
+
+Einmalig auf dem Entwicklungsrechner:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/ibm-maint -C ibm-maint     # mit Passphrase
+cp ~/.ssh/ibm-maint.pub Batteriemanagement/openhab/setup/ibm-maint.pub
+ssh-add ~/.ssh/ibm-maint                                   # je Anmeldung
+```
+
+und in `~/.ssh/config` unter `Host pi-*`:
+
+```
+    IdentityFile ~/.ssh/ibm-maint
+    IdentitiesOnly yes
+```
+
+Der private Schluessel liegt damit im `ssh-agent`: Programme (auch
+Agenten) koennen ihn benutzen, aber nicht lesen, und Passwortdateien fuer
+die Wartung sind nicht mehr noetig. Schluessel tauschen: neue
+`ibm-maint.pub` ins Paket, das Skript ersetzt den alten Eintrag (erkannt
+am Kommentar `ibm-maint`). `INSTALL_MAINT_KEY=0` in `ibm.conf` entfernt
+Schluessel und sudo-Regel, `MAINT_SUDO_NOPASSWD=0` nur die sudo-Regel.
+
+Die Anmeldung per **Passwort** des Benutzers `WG_SSH_USER` (Vorgabe
+`openhabian`) bleibt daneben bestehen, auch durch den WireGuard-Tunnel;
+`sshd` wird nicht veraendert. Der Tunnel selbst ist von aussen nicht erreichbar; das
 Passwort ist die zweite Huerde. Deshalb unbedingt das allgemein bekannte
 Standardpasswort `openhabian:openhabian` aendern lassen (siehe
 [Standardpasswoerter aendern](#standardpasswoerter-aendern)).

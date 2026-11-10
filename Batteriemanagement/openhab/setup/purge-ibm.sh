@@ -12,7 +12,8 @@
 #   4. Regeln, Items, Persistence-Konfiguration und mapdb-Daten
 #   5. addons.cfg (Backup von vor der Installation wird wiederhergestellt)
 #   6. WireGuard-Tunnel und Schluessel
-#   7. Reste der sshd-Haertung aelterer Versionen (Drop-in, Wartungsschluessel)
+#   7. Wartungsschluessel und sudo-Regel (13-install-maint-key.sh) sowie Reste
+#      der sshd-Haertung aelterer Versionen (Drop-in, alter Wartungsschluessel)
 #   8. Konsolen-Passwort zurueck auf den openHAB-Standard (habopen)
 #   9. /opt/ischlstrom selbst
 #
@@ -210,6 +211,17 @@ akfile="$(getent passwd "${WG_SSH_USER:-openhabian}" | cut -d: -f6)/.ssh/authori
 if [ -n "$maintainer_key" ] && [ -f "$akfile" ] && grep -qxF "$maintainer_key" "$akfile"; then
   grep -vxF "$maintainer_key" "$akfile" > "$akfile.tmp" && mv "$akfile.tmp" "$akfile"
   log "SSH-Wartungsschluessel aus authorized_keys entfernt."
+fi
+# Aktueller Wartungsschluessel (13-install-maint-key.sh, Kommentar ibm-maint)
+# und die sudo-Regel dazu. Die Passwort-Anmeldung bleibt.
+if [ -f "$akfile" ] && awk '$NF == "ibm-maint" { found = 1 } END { exit !found }' "$akfile"; then
+  awk '$NF != "ibm-maint"' "$akfile" > "$akfile.tmp"
+  chown --reference="$akfile" "$akfile.tmp" && chmod 600 "$akfile.tmp" && mv "$akfile.tmp" "$akfile"
+  log "Wartungsschluessel (ibm-maint) aus authorized_keys entfernt."
+fi
+if [ -f /etc/sudoers.d/90-ibm-maint ]; then
+  rm -f /etc/sudoers.d/90-ibm-maint
+  log "entfernt: /etc/sudoers.d/90-ibm-maint (sudo verlangt wieder das Passwort)."
 fi
 
 # --- 8. Konsolen-Passwort zurueck auf Standard -----------------------------------

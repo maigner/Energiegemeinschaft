@@ -285,6 +285,18 @@ APT_AUTO_REBOOT_TIME="10:00"
 # /var/log bleibt im zram. 0 = openHABian-Vorgabe wiederherstellen.
 INSTALL_PERSISTENCE_DISK=1
 
+# --- Wartungszugang per SSH-Schluessel ---------------------------------------
+# 13-install-maint-key.sh traegt den oeffentlichen Wartungsschluessel aus dem
+# Paket (setup/ibm-maint.pub) bei WG_SSH_USER ein - ZUSAETZLICH zur
+# Passwort-Anmeldung, sshd bleibt unveraendert. MAINT_SSH_FROM beschraenkt
+# den Schluessel auf diese Absenderadresse (Wartungsserver im Tunnel; leer =
+# ohne Beschraenkung). MAINT_SUDO_NOPASSWD=1: sudo ohne Passwort fuer
+# WG_SSH_USER (/etc/sudoers.d/90-ibm-maint). INSTALL_MAINT_KEY=0 entfernt
+# Schluessel und sudo-Regel wieder.
+INSTALL_MAINT_KEY=1
+MAINT_SSH_FROM="10.88.0.1"
+MAINT_SUDO_NOPASSWD=1
+
 # --- WireGuard-Fernwartung ---------------------------------------------------
 # Ausgehender WireGuard-Tunnel zum Wartungsserver, damit die Anlage fuer
 # Updates und Fehlersuche per SSH erreichbar bleibt. Der Pi baut die
