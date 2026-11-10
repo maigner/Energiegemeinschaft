@@ -564,7 +564,7 @@
             {#if p.legacy}
                 <p class="text-xs text-gray-600 dark:text-gray-300 mb-2">
                     Bestandsanlage: von Hand eingerichtet, bevor es "SD-Karte vorbereiten" gab.
-                    Code, Linux-Passwort und Cloud-Konto sind deshalb hier nicht hinterlegt.
+                    Code und Cloud-Konto sind deshalb hier nicht hinterlegt{p.linuxPassword ? "" : ", das Linux-Passwort auch nicht"}.
                     Für einen Neuaufbau (neue Karte, Ersatz-Pi) in der Übersicht "SD-Karte vorbereiten" wählen.
                 </p>
             {/if}
@@ -616,16 +616,22 @@
                 </p>
             {/if}
 
-            {#if !p.legacy}
+            {#if !p.legacy || p.linuxPassword}
             <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm mb-3">
-                <span class="text-gray-500">Code</span>
-                <span class="font-mono dark:text-white">{p.code ?? "-"} {#if p.expires}<span class="text-xs text-gray-500">(bis {formatDate(p.expires)}{#if p.code && !p.codeUsable}, verbraucht{/if})</span>{/if}</span>
-                <span class="text-gray-500">Linux / openHAB-Admin</span>
+                {#if !p.legacy}
+                    <span class="text-gray-500">Code</span>
+                    <span class="font-mono dark:text-white">{p.code ?? "-"} {#if p.expires}<span class="text-xs text-gray-500">(bis {formatDate(p.expires)}{#if p.code && !p.codeUsable}, verbraucht{/if})</span>{/if}</span>
+                {/if}
+                <!-- Bestandsanlage: nur das Linux-Passwort ist nachgetragen,
+                     der openHAB-Admin wurde dort von Hand angelegt -->
+                <span class="text-gray-500">{p.legacy ? "Linux" : "Linux / openHAB-Admin"}</span>
                 <span class="font-mono dark:text-white">openhabian / {showSecrets ? p.linuxPassword : "••••••••"}</span>
-                <span class="text-gray-500">Cloud-Konto</span>
-                <span class="font-mono dark:text-white">{p.cloudUsername} / {showSecrets ? p.cloudPassword : "••••••••"}</span>
-                <span class="text-gray-500">Cloud-UUID / Secret</span>
-                <span class="font-mono text-xs dark:text-white break-all">{p.cloudUuid} / {showSecrets ? p.cloudSecret : "••••••••"}</span>
+                {#if !p.legacy}
+                    <span class="text-gray-500">Cloud-Konto</span>
+                    <span class="font-mono dark:text-white">{p.cloudUsername} / {showSecrets ? p.cloudPassword : "••••••••"}</span>
+                    <span class="text-gray-500">Cloud-UUID / Secret</span>
+                    <span class="font-mono text-xs dark:text-white break-all">{p.cloudUuid} / {showSecrets ? p.cloudSecret : "••••••••"}</span>
+                {/if}
                 {#if p.wifiSsid}
                     <span class="text-gray-500">WLAN</span>
                     <span class="dark:text-white">{p.wifiSsid}</span>
@@ -634,9 +640,9 @@
             {/if}
 
             <div class="flex flex-wrap gap-2 mb-3">
-                {#if !p.legacy}
+                {#if !p.legacy || p.linuxPassword}
                     <Button size="xs" color="light" onclick={() => (showSecrets = !showSecrets)}>
-                        {showSecrets ? "Verbergen" : "Passwörter anzeigen"}
+                        {showSecrets ? "Verbergen" : p.legacy ? "Passwort anzeigen" : "Passwörter anzeigen"}
                     </Button>
                 {/if}
                 {#if p.setupPhase !== "geloescht"}
