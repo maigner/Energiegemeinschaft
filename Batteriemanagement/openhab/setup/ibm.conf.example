@@ -288,14 +288,19 @@ INSTALL_PERSISTENCE_DISK=1
 # --- Wartungszugang per SSH-Schluessel ---------------------------------------
 # 13-install-maint-key.sh traegt den oeffentlichen Wartungsschluessel aus dem
 # Paket (setup/ibm-maint.pub) bei WG_SSH_USER ein - ZUSAETZLICH zur
-# Passwort-Anmeldung, sshd bleibt unveraendert. MAINT_SSH_FROM beschraenkt
-# den Schluessel auf diese Absenderadresse (Wartungsserver im Tunnel; leer =
-# ohne Beschraenkung). MAINT_SUDO_NOPASSWD=1: sudo ohne Passwort fuer
+# Passwort-Anmeldung. MAINT_SSH_FROM beschraenkt den Schluessel auf diese
+# Absenderadresse (Wartungsserver im Tunnel; leer = ohne Beschraenkung). MAINT_SUDO_NOPASSWD=1: sudo ohne Passwort fuer
 # WG_SSH_USER (/etc/sudoers.d/90-ibm-maint). INSTALL_MAINT_KEY=0 entfernt
 # Schluessel und sudo-Regel wieder.
 INSTALL_MAINT_KEY=1
 MAINT_SSH_FROM="10.88.0.1"
 MAINT_SUDO_NOPASSWD=1
+# SSH-Anmeldung per Passwort nur noch von MAINT_SSH_FROM, also durch den
+# Tunnel; aus dem Heimnetz des Mitglieds nimmt sshd kein Passwort mehr an
+# (/etc/ssh/sshd_config.d/10-ibm-tunnel-only.conf). Greift nur mit
+# INSTALL_WIREGUARD=1 und erst, wenn der Tunnel steht; vor Ort bleibt die
+# Konsole (Bildschirm und Tastatur). 0 = Passwort aus jedem Netz.
+SSH_PASSWORD_TUNNEL_ONLY=1
 
 # --- WireGuard-Fernwartung ---------------------------------------------------
 # Ausgehender WireGuard-Tunnel zum Wartungsserver, damit die Anlage fuer

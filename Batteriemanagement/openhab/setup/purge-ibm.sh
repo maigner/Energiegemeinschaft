@@ -12,7 +12,8 @@
 #   4. Regeln, Items, Persistence-Konfiguration und mapdb-Daten
 #   5. addons.cfg (Backup von vor der Installation wird wiederhergestellt)
 #   6. WireGuard-Tunnel und Schluessel
-#   7. Wartungsschluessel und sudo-Regel (13-install-maint-key.sh) sowie Reste
+#   7. Wartungsschluessel, sudo-Regel und Passwort-Sperre fuer das Heimnetz
+#      (13-install-maint-key.sh) sowie Reste
 #      der sshd-Haertung aelterer Versionen (Drop-in, alter Wartungsschluessel)
 #   8. Konsolen-Passwort zurueck auf den openHAB-Standard (habopen)
 #   9. /opt/ischlstrom selbst
@@ -218,6 +219,11 @@ if [ -f "$akfile" ] && awk '$NF == "ibm-maint" { found = 1 } END { exit !found }
   awk '$NF != "ibm-maint"' "$akfile" > "$akfile.tmp"
   chown --reference="$akfile" "$akfile.tmp" && chmod 600 "$akfile.tmp" && mv "$akfile.tmp" "$akfile"
   log "Wartungsschluessel (ibm-maint) aus authorized_keys entfernt."
+fi
+if [ -f /etc/ssh/sshd_config.d/10-ibm-tunnel-only.conf ]; then
+  rm -f /etc/ssh/sshd_config.d/10-ibm-tunnel-only.conf
+  systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
+  log "entfernt: 10-ibm-tunnel-only.conf (Passwort-Anmeldung wieder aus jedem Netz)."
 fi
 if [ -f /etc/sudoers.d/90-ibm-maint ]; then
   rm -f /etc/sudoers.d/90-ibm-maint

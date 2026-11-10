@@ -146,6 +146,16 @@ if [ "$INSTALL_PERSISTENCE_DISK" = "1" ] && [ -f /etc/ztab ]; then
   fi
 fi
 
+# --- SSH-Passwort nur durch den Tunnel ---------------------------------------
+if [ "$SSH_PASSWORD_TUNNEL_ONLY" = "1" ] && [ "$INSTALL_WIREGUARD" = "1" ] && [ -n "$MAINT_SSH_FROM" ]; then
+  if [ "$("$(command -v sshd || echo /usr/sbin/sshd)" -T -C "user=${WG_SSH_USER:-openhabian},host=x,addr=192.0.2.1" 2>/dev/null \
+          | awk '$1 == "passwordauthentication" { print $2 }')" = "no" ]; then
+    log "SSH-Passwort nur durch den Tunnel (von $MAINT_SSH_FROM)."
+  else
+    warn "SSH nimmt Passwoerter noch aus dem Heimnetz an - setzen mit: sudo $IBM_SETUP_DIR/13-install-maint-key.sh (braucht den stehenden Tunnel)"
+  fi
+fi
+
 # --- Wartungszugang per SSH-Schluessel --------------------------------------
 if [ "$INSTALL_MAINT_KEY" = "1" ] && [ -f "$IBM_SETUP_DIR/ibm-maint.pub" ]; then
   maint_ak="$(getent passwd "${WG_SSH_USER:-openhabian}" | cut -d: -f6)/.ssh/authorized_keys"

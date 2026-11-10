@@ -528,7 +528,7 @@ nur ohne Provisionierung).
 | `10-change-passwords.sh` | Aendert die Standardpasswoerter des Linux-Benutzers `openhabian` und der Karaf-Konsole (siehe [Standardpasswoerter aendern](#standardpasswoerter-aendern)). |
 | `11-install-apt-auto.sh` | Automatische Betriebssystem-Updates ueber `unattended-upgrades`: Debian- und Raspberry-Pi-Archiv, taeglich ab 03:40, Neustart bei Bedarf um 10:00 (siehe [Automatische Betriebssystem-Updates](#automatische-betriebssystem-updates)). |
 | `12-install-persistence-disk.sh` | Nimmt `/var/lib/openhab/persistence` aus dem zram (`/etc/ztab`), damit mapdb einen Stromausfall ueberlebt; wirksam beim naechsten sauberen Neustart (siehe [Persistence auf der SD-Karte](#persistence-auf-der-sd-karte-nicht-im-zram)). |
-| `13-install-maint-key.sh` | Traegt den Wartungsschluessel aus dem Paket (`setup/ibm-maint.pub`) bei `WG_SSH_USER` ein, beschraenkt auf den Wartungsserver im Tunnel, und erlaubt `sudo` ohne Passwort; zusaetzlich zur Passwort-Anmeldung (siehe [SSH-Zugang](#ssh-zugang-passwort-und-wartungsschluessel)). Ohne `ibm-maint.pub` im Paket tut es nichts. |
+| `13-install-maint-key.sh` | Traegt den Wartungsschluessel aus dem Paket (`setup/ibm-maint.pub`) bei `WG_SSH_USER` ein, beschraenkt auf den Wartungsserver im Tunnel, und erlaubt `sudo` ohne Passwort; beschraenkt ausserdem die Passwort-Anmeldung per SSH auf den Tunnel (siehe [SSH-Zugang](#ssh-zugang-passwort-und-wartungsschluessel)). Ohne `ibm-maint.pub` im Paket tut es nichts. |
 | `purge-ibm.sh` | Entfernt das Batteriemanagement komplett wieder (Things, Regeln, Items, Seiten, Token, WireGuard, `/opt/ischlstrom`) und setzt die Anlage auf "frisches openHABian + Admin-Konto" zurueck - fuer Test-Wiederholungen oder Ausserbetriebnahme. Entfernt auch `/var/lib/ischlstrom` (Firstboot-Marker) und `/run/ibm-provision.env`, sodass die Zero-Touch-Einrichtung wiederholt werden kann. Admin-Konto, Linux-Passwort, Zeitzone und Cloud-Identitaet (UUID/Secret) bleiben. |
 | `prepare-sd.sh` | Nur auf dem Entwicklungsrechner (root): schreibt die SD-Karte fuer eine provisionierte Anlage aus dem Zip des Dashboards. Schreibt das Image und kopiert `openhabian.conf`, `ibm-provision.conf` und `user-data` auf die Boot-Partition; die systemd-Unit `ibm-firstboot` installiert cloud-init aus der `user-data` beim ersten Boot am Pi. |
 | `firstboot/` | `ibm-firstboot.sh` + systemd-Unit: startet nach der openHABian-Erstinstallation das Setup und wiederholt es alle 10 Minuten, bis es vollstaendig ist. |
@@ -1316,8 +1316,19 @@ am Kommentar `ibm-maint`). `INSTALL_MAINT_KEY=0` in `ibm.conf` entfernt
 Schluessel und sudo-Regel, `MAINT_SUDO_NOPASSWD=0` nur die sudo-Regel.
 
 Die Anmeldung per **Passwort** des Benutzers `WG_SSH_USER` (Vorgabe
-`openhabian`) bleibt daneben bestehen, auch durch den WireGuard-Tunnel;
-`sshd` wird nicht veraendert. Der Tunnel selbst ist von aussen nicht erreichbar; das
+`openhabian`) bleibt daneben bestehen, aber **nur durch den
+WireGuard-Tunnel** vom Wartungsserver: dasselbe Skript legt
+`/etc/ssh/sshd_config.d/10-ibm-tunnel-only.conf` an (`PasswordAuthentication
+no`, Ausnahme `Match Address 10.88.0.1`), aus dem Heimnetz des Mitglieds
+nimmt `sshd` kein Passwort mehr an. Vor Ort bleibt die Konsole (Bildschirm
+und Tastatur). Gegen das Aussperren: die Sperre wird nur mit
+`INSTALL_WIREGUARD=1` und bei stehendem Tunnel (Handshake juenger als
+10 Minuten) gesetzt und nur uebernommen, wenn `sshd -T` fuer die
+Tunneladresse weiterhin `passwordauthentication yes` meldet; steht der
+Tunnel beim Lauf nicht, holt der naechste Lauf es nach (`06-verify.sh`
+warnt bis dahin). Faellt der Tunnel spaeter aus, bleibt die Sperre
+bestehen - der Watchdog `ibm-wg-watchdog` baut ihn wieder auf.
+`SSH_PASSWORD_TUNNEL_ONLY=0` in `ibm.conf` nimmt sie zurueck. Der Tunnel selbst ist von aussen nicht erreichbar; das
 Passwort ist die zweite Huerde. Deshalb unbedingt das allgemein bekannte
 Standardpasswort `openhabian:openhabian` aendern lassen (siehe
 [Standardpasswoerter aendern](#standardpasswoerter-aendern)).
