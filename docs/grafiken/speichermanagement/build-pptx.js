@@ -74,7 +74,7 @@ const THEME = {
   const s2 = pres.addSlide({ masterName: "inhalt", sectionTitle: "Speichermanagement" });
   s2.addText("ISCHLSTROM auf einen Blick", { placeholder: "title" });
   const kacheln = [
-    ["435", "Mitglieder"],
+    ["391", "aktive Mitglieder"],
     ["633", "Zählpunkte, davon 170 Erzeuger"],
     ["584 MWh", "Sonnenstrom seit 2024 in der Gemeinschaft genutzt"],
     ["170 kWh", "Speicher in 11 Haushalten, gemeinschaftlich gesteuert"],
@@ -93,7 +93,7 @@ const THEME = {
     { text: "Die Gemeinschaft kauft keinen Strom zu; Vorstand und Technik arbeiten ehrenamtlich", options: { bullet: true, breakLine: true } },
     { text: "Eigene Plattform ischlstrom.org: Abrechnungsdaten, Prognose, Mitgliederbereich und Speichermanagement, alles Open Source", options: { bullet: true } },
   ], { x: 5.6, y: 1.7, w: 3.8, h: 3.2, fontSize: 12, color: C.text1, margin: 0, valign: "top", paraSpaceAfter: 6, isTextBox: true, objectName: "Steckbrief" });
-  s2.addNotes("Kennzahlen Stand 11. November 2026 aus ischlstrom.org: 435 Mitglieder, 633 aktive Zählpunkte (170 Erzeugung, 463 Verbrauch), 584 MWh Eigendeckung seit Jänner 2024 bei 1.514 MWh Gesamterzeugung der Mitglieder, 11 Heimspeicher mit 170 kWh im Speichermanagement. Tarife gültig seit 1.1.2026 (Generalversammlung).");
+  s2.addNotes("Kennzahlen Stand 11. November 2026 aus ischlstrom.org: 391 aktive Mitglieder (mit mindestens einem aktiven Zählpunkt; 435 Mitglieder insgesamt), 633 aktive Zählpunkte (170 Erzeugung, 463 Verbrauch), 584 MWh Eigendeckung seit Jänner 2024 bei 1.514 MWh Gesamterzeugung der Mitglieder, 11 Heimspeicher mit 170 kWh im Speichermanagement. Tarife gültig seit 1.1.2026 (Generalversammlung).");
 
   const bilder = [
     ["01-aufbau.png", "Aufbau: Rechner im Haushalt, Server der Gemeinschaft, Datenfluesse",
