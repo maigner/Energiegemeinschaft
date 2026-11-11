@@ -538,8 +538,11 @@ export const getMemberCount = async () => {
     const sql = await middlewareDbConnection();
     const result = await sql.query(`
         SELECT count(*)::int AS count
-        FROM members_member
-        WHERE member_since IS NOT NULL
+        FROM members_member m
+        WHERE EXISTS (
+            SELECT 1 FROM members_measurementpoint p
+            WHERE p.member_id = m.id AND p.status = 'ACTIVE'
+        )
     `);
     sql.release();
     return result?.rows[0]?.count ?? null;
