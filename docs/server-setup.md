@@ -423,7 +423,15 @@ wer sich abgemeldet hat, bleibt abgemeldet; Kontakte ohne `mitglied`
   seit 22. September 2026 wie bei signal-cli nur an `127.0.0.1` und an
   die Docker-Bridge `172.17.0.1` gebunden (vorher `0.0.0.0`, Keila war
   damit ohne TLS aus dem Internet erreichbar); Caddy und die Website
-  brauchen nicht mehr.
+  brauchen nicht mehr. Stand: 0.40.2 seit 12. November 2026 (von 0.30.3;
+  Sicherheitsupdates). Das Image haengt an `latest`, die Migrationen
+  laufen beim Start; Rueckweg ist der naechtliche Dump
+  `/var/backups/s1/postgres/keila_<datum>.dump` plus das alte Image-Tag.
+  Nach einem Update pruefen: Login-Seite, ein Tracking-Link aus der
+  letzten Aussendung, `node scripts/keila-contacts.js --sync --dry-run`
+  (muss "unveraendert" melden). Seit 0.40 verlangt der System-Mailer
+  STARTTLS mit gueltigem Zertifikat, und ein SMTP-Absender braucht beim
+  naechsten Bearbeiten einen ausdruecklichen TLS-Modus.
 
 ## Energiedaten-Import (eegfaktura-import, seit September 2026)
 
