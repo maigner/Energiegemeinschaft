@@ -440,7 +440,11 @@ wer sich abgemeldet hat, bleibt abgemeldet; Kontakte ohne `mitglied`
   `s1.ischlstrom.org` darf deshalb **keinen MX-Eintrag** haben (der alte
   SES-Eintrag `feedback-smtp.eu-central-1.amazonses.com` liess den
   ersten Test ins Leere laufen, im Keila-Log als `network_failure`).
-  Testversand: Segment "Test S1 SMTP" in Keila.
+  Testversand: Segment "Test S1 SMTP" in Keila. Die Compose-Datei setzt
+  `hostname: newsletter.ischlstrom.org`, weil Keila die Message-ID aus
+  dem Hostnamen des Containers bildet (sonst steht dort die Container-ID).
+  SPF: `ischlstrom.org` ohne `include:amazonses.com`, `s1.ischlstrom.org`
+  (HELO-Name von mailcow) mit `v=spf1 a ~all`.
 
 ## Energiedaten-Import (eegfaktura-import, seit September 2026)
 
