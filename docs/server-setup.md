@@ -444,7 +444,11 @@ wer sich abgemeldet hat, bleibt abgemeldet; Kontakte ohne `mitglied`
   `hostname: newsletter.ischlstrom.org`, weil Keila die Message-ID aus
   dem Hostnamen des Containers bildet (sonst steht dort die Container-ID).
   SPF: `ischlstrom.org` ohne `include:amazonses.com`, `s1.ischlstrom.org`
-  (HELO-Name von mailcow) mit `v=spf1 a ~all`.
+  (HELO-Name von mailcow) mit `v=spf1 a ~all`. Sendelimit am Absender
+  (nur in der Keila-Oberflaeche sichtbar): 1 je Sekunde, 40 je Minute,
+  1000 je Stunde; ein Versand an alle (~380) dauert damit rund zehn
+  Minuten. Testversand am 12. November 2026 kam bei Microsoft 365 und im
+  eigenen Postfach im Posteingang an.
 
 ## Energiedaten-Import (eegfaktura-import, seit September 2026)
 
