@@ -141,6 +141,18 @@ function __ibmMbDeliverable() {
   return true;
 }
 
+// Optionaler Kontrakt-Teil ibmReachable() (control/core.js, Abschnitt
+// "Warten auf den Wechselrichter"): false nur, solange das Wechselrichter-
+// Thing voruebergehend nicht ONLINE ist - typisch ein einzelner
+// gescheiterter Poll im WLAN des Mitglieds, nach dem naechsten Poll ist
+// es wieder da. Der Kern wartet dann kurz, statt den Zyklus zu verlieren.
+// Fehlt das Thing oder ist es deaktiviert, hilft Warten nicht: true.
+// Nur lesend und ohne Logausgabe (wird mehrmals je Zyklus gefragt).
+function ibmReachable() {
+  var status = __ibmMbThingStatus('@IBM_THING_UID@');
+  return !(status === 'OFFLINE' || status === 'UNKNOWN' || status === 'INITIALIZING');
+}
+
 // Maximale Lade-/Entladeleistung in Watt - oder null, wenn der Modbus-Pfad
 // nicht ONLINE ist, an der Basisadresse kein Storage-Model liegt oder
 // WChaMax unplausibel ist. Solange null, wird NIE geschrieben.

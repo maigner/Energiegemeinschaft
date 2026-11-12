@@ -27,7 +27,7 @@ Pause, Kapazitaetsschaetzung, Leistungsberechnung) liegt herstellerneutral in
 `../control/core.js` und wird **nie kopiert**. Ein Profil liefert nur einen
 duennen **Adapter** (`INVERTER_ADAPTER_SCRIPT`), den das Setup dem Kern im
 selben Regel-Body voranstellt. Der Adapter definiert drei Pflichtfunktionen
-und optional zwei weitere:
+und optional drei weitere:
 
 | Funktion | Semantik | Rueckgabe |
 | --- | --- | --- |
@@ -36,6 +36,7 @@ und optional zwei weitere:
 | `ibmForceDischarge(watts, minutes)` | Entladung mit MINDESTENS ~`watts` fuer `minutes` Minuten erzwingen. `watts` ist eine Untergrenze, kein Deckel: braucht der Haushalt mehr, deckt die Batterie weiter den ganzen Bedarf (kein Netzbezug bei geladener Batterie). Kann der Hersteller nur einen festen Wert oder ein Limit, faengt das der Hausvorrang des Kerns ab - dafuer braucht das Profil ein Netzleistungs-Item. `watts` ist vom Kern bereits validiert und begrenzt. | `{ ok, appliedW? }` |
 | `ibmLimitCharge(watts, minutes)` | OPTIONAL. Ladeleistung fuer `minutes` Minuten auf ~`watts` begrenzen (nicht erzwingen - geladen wird weiter nur aus PV). Fehlt die Funktion, bildet die Laderegelung des Kerns die Begrenzung per PWM ueber `ibmPreventCharge` nach (gesperrte/freie 15-Minuten-Bloecke). NICHT ueber Kommandos implementieren, die aus dem Netz laden koennten. | `{ ok, appliedW? }` |
 | `ibmBatteryMaintenance()` | OPTIONAL, nur lesend. Faehrt der Wechselrichter gerade selbst eine Batteriewartung (Kalibrier-, Service-, Schutzladung), in der er IBM-Kommandos ignoriert? Der Kern setzt dann mit der Steuerung aus, verwirft die Hauslast-Messung der Nacht, nimmt keine Ladeleistungs-Stichprobe, der Netzladeschutz warnt nur; Anzeige und Status-Push ueber `IBM_BATTERIE_WARTUNG`. Laeuft in jedem Zyklus, auch bei Hauptschalter AUS - nie schreiben. Fronius: `ChaSt` 7 (SunSpec TESTING) bzw. `Battery_Mode` der Solar API. | `null` oder `{ modus, quelle }`, z. B. `{ modus: 'Kalibrierung', quelle: 'ChaSt 7' }` |
+| `ibmReachable()` | OPTIONAL, nur lesend, ohne Logausgabe. `false` heisst: der Weg zum Wechselrichter ist voruebergehend weg (Thing OFFLINE nach einem gescheiterten Poll, typisch im WLAN des Mitglieds), Warten kann helfen. Der Kern wartet dann vor dem ersten Kommando des Zyklus bis zu 45 s (`REACH_WAIT_MAX_S`), statt den Zyklus zu verlieren; bleibt die Anlage weg, laeuft er wie bisher mit `ok: false` weiter und der Fail-Safe-Timer uebernimmt. `true` auch bei fehlendem oder deaktiviertem Thing (Warten hilft dann nicht). Alle vier Modbus-Adapter definieren die Funktion. | `boolean` |
 
 `appliedW` ist die nach herstellerseitiger Quantisierung tatsaechlich
 kommandierte Leistung (z. B. Prozent-Rundung) - der Kapazitaetsschaetzer des

@@ -150,6 +150,18 @@ function __ibmSgDeliverable() {
   return true;
 }
 
+// Optionaler Kontrakt-Teil ibmReachable() (control/core.js, Abschnitt
+// "Warten auf den Wechselrichter"): false nur, solange das Wechselrichter-
+// Thing voruebergehend nicht ONLINE ist - typisch ein einzelner
+// gescheiterter Poll im WLAN des Mitglieds, nach dem naechsten Poll ist
+// es wieder da. Der Kern wartet dann kurz, statt den Zyklus zu verlieren.
+// Fehlt das Thing oder ist es deaktiviert, hilft Warten nicht: true.
+// Nur lesend und ohne Logausgabe (wird mehrmals je Zyklus gefragt).
+function ibmReachable() {
+  var status = __ibmSgThingStatus('@IBM_THING_UID@');
+  return !(status === 'OFFLINE' || status === 'UNKNOWN' || status === 'INITIALIZING');
+}
+
 // Nennentladeleistung in Watt - oder null, wenn der Modbus-Pfad nicht
 // ONLINE ist oder die Anlage nicht wie eine SigenStor antwortet (EMS-Modus
 // unlesbar, Nennleistung unplausibel). Solange null, wird NIE geschrieben.

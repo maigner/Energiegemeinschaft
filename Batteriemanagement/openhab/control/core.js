@@ -98,6 +98,15 @@
 //     ("ChaSt 7", "Battery_Mode calibrate"). null = Normalbetrieb oder
 //     unbekannt. Siehe Abschnitt "Batteriewartung des Wechselrichters".
 //
+//   ibmReachable()                  -> boolean
+//     OPTIONAL, nur lesend, ohne Logausgabe. false heisst: der Weg zum
+//     Wechselrichter ist VORUEBERGEHEND weg (Thing OFFLINE, weil gerade
+//     ein Poll gescheitert ist), Warten kann helfen. Der Kern wartet dann
+//     vor dem ersten Kommando des Zyklus kurz, statt den ganzen Zyklus zu
+//     verlieren (Abschnitt "Warten auf den Wechselrichter"). true in allen
+//     anderen Faellen - auch wenn das Thing fehlt oder deaktiviert ist,
+//     denn dann aendert Warten nichts.
+//
 // Regeln fuer Adapter: kein rules.JSRule(...), kein Top-Level-return, alle
 // Logausgaben mit '[IBM]' praefixieren, nur @IBM_...@-Platzhalter (keine
 // Thing-UID-Literale), niemals werfen - Fehler fangen und { ok: false }
@@ -2039,6 +2048,45 @@ function ibmShell(command) {
 }
 
 // ----------------------------------------------------------------------------
+// Warten auf den Wechselrichter
+// ----------------------------------------------------------------------------
+// Die Netze bei den Mitgliedern sind, wie sie sind: an Anlage 223 (SigenStor
+// im gestoerten WLAN) kippte das Wechselrichter-Thing im November 2026 rund
+// 28-mal je Stunde fuer etwa 10 s auf OFFLINE (90% unter 16 s), weil ein
+// einzelner Verbindungsaufbau scheiterte. Traf der 5-Minuten-Zyklus so eine
+// Luecke, war er verloren (ok=false, kein Heartbeat) - 24 bis 45 Zyklen am
+// Tag, und nach zwei verlorenen Zyklen in Folge griff der Fail-Safe-Timer.
+// Meldet der Adapter ueber das optionale ibmReachable() eine solche Luecke,
+// wartet der Kern deshalb vor dem ersten Kommando bis zu REACH_WAIT_MAX_S,
+// bis der Weg wieder steht. Bleibt er weg, laeuft der Zyklus wie bisher
+// weiter: die Adapter liefern ok=false, es gibt keinen Heartbeat, der
+// Fail-Safe-Timer uebernimmt. An der Sicherheitskette aendert das Warten
+// also nichts, es spart nur die Fehlalarme. Die Grenze liegt weit unter der
+// Zykluslaenge, damit sich zwei Laeufe nie ueberholen.
+var REACH_WAIT_MAX_S = 45;
+var REACH_WAIT_STEP_S = 5;
+
+function awaitInverter() {
+  if (typeof ibmReachable !== 'function') return;
+  try {
+    if (ibmReachable() !== false) return;
+    var Thread = Java.type('java.lang.Thread');
+    var waited = 0;
+    while (waited < REACH_WAIT_MAX_S) {
+      Thread.sleep(REACH_WAIT_STEP_S * 1000);
+      waited += REACH_WAIT_STEP_S;
+      if (ibmReachable() !== false) {
+        console.log('[IBM] Wechselrichter war kurz nicht erreichbar - nach ' + waited + ' s wieder da, Zyklus laeuft weiter');
+        return;
+      }
+    }
+    console.log('[IBM] Wechselrichter auch nach ' + waited + ' s nicht erreichbar - Zyklus laeuft ohne ihn weiter');
+  } catch (e) {
+    console.log('[IBM] Warten auf den Wechselrichter abgebrochen: ' + e);
+  }
+}
+
+// ----------------------------------------------------------------------------
 // Batteriewartung des Wechselrichters
 // ----------------------------------------------------------------------------
 // Manche Wechselrichter fahren von sich aus Wartungszyklen: der Fronius
@@ -2073,6 +2121,7 @@ if (!toggleOn) {
   if (standby === 'ja') {
     console.log('[IBM] Toggle=OFF - Standby, Wechselrichter bleibt unangetastet');
   } else {
+    awaitInverter();
     var lastReset = ibmReset();
     if (lastReset && lastReset.ok === true) {
       ibmShell("touch '@IBM_FAILSAFE_STANDBY@'");
@@ -2084,6 +2133,7 @@ if (!toggleOn) {
   return;
 }
 
+awaitInverter();
 var resetResult = ibmReset();
 var resetOk = resetResult && resetResult.ok === true;
 console.log('[IBM] Toggle=ON - Reset (ok=' + resetOk + ')');
