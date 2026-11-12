@@ -432,6 +432,15 @@ wer sich abgemeldet hat, bleibt abgemeldet; Kontakte ohne `mitglied`
   (muss "unveraendert" melden). Seit 0.40 verlangt der System-Mailer
   STARTTLS mit gueltigem Zertifikat, und ein SMTP-Absender braucht beim
   naechsten Bearbeiten einen ausdruecklichen TLS-Modus.
+- **Versand:** Kampagnen gehen seit 12. November 2026 ueber mailcow auf
+  s1 (Keila-Absender "S1 SMTP", `s1.ischlstrom.org:587`, Login
+  info@ischlstrom.org; DKIM-Signatur durch rspamd, Selektor `dkim`),
+  nicht mehr ueber AWS SES. Achtung: Keilas SMTP-Client fragt zuerst den
+  MX des eingetragenen Hosts ab und verbindet sich dorthin.
+  `s1.ischlstrom.org` darf deshalb **keinen MX-Eintrag** haben (der alte
+  SES-Eintrag `feedback-smtp.eu-central-1.amazonses.com` liess den
+  ersten Test ins Leere laufen, im Keila-Log als `network_failure`).
+  Testversand: Segment "Test S1 SMTP" in Keila.
 
 ## Energiedaten-Import (eegfaktura-import, seit September 2026)
 
