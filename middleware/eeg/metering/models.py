@@ -131,3 +131,19 @@ class BillingCheck(models.Model):
 
     def __str__(self):
         return f"Abrechnungspruefung {self.period_start} bis {self.period_end}"
+
+
+class MonthImport(models.Model):
+    """Letzter Komplettimport eines Kalendermonats aus dem Energystore
+    (notebooks/energyData/eegfaktura_import.py, --month bzw. --report-month).
+    Die Website beginnt den monatlichen Energiebericht nur, wenn der
+    Berichtsmonat am selben Tag komplett neu geholt wurde
+    (website: lib/server/mail/reports/monthlyEnergyReport.js)."""
+    month = models.DateField(unique=True)  # Monatserster
+    imported_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["-month"]
+
+    def __str__(self):
+        return f"Komplettimport {self.month:%Y-%m}"

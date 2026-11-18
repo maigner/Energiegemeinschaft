@@ -22,6 +22,8 @@ cd notebooks/energyData
 ../../.venv/bin/python eegfaktura_import.py                       # Import + Materialized Views
 ../../.venv/bin/python eegfaktura_import.py --forecast            # zusätzlich Prognoselauf speichern
 ../../.venv/bin/python eegfaktura_import.py --from 2026-07-01 --to 2026-07-31
+../../.venv/bin/python eegfaktura_import.py --month 2026-10       # ganzer Monat, gibt den Energiebericht frei
+../../.venv/bin/python eegfaktura_import.py --report-month        # wie der Timer auf s1
 ```
 
 Verhalten:
@@ -29,6 +31,18 @@ Verhalten:
 - Fenster ohne `--from`: letzter Tag in der DB minus 14 Tage (`--overlap-days`)
   bis gestern, höchstens 92 Tage je Lauf (`--max-days`). Netz OÖ liefert spät
   und teilweise nach, deshalb die Überlappung.
+- Komplettimport vor dem Energiebericht: Nachlieferungen kommen auch später
+  als 14 Tage (am 3.10.2026 fehlte die halbe Gemeinschaft, die Werte kamen
+  erst Wochen danach, und der Oktober-Bericht ging ohne diesen Tag hinaus).
+  Mit `--report-month` (so läuft der Timer auf s1) beginnt das Fenster am
+  Ersten des Vormonats, solange für den Vormonat noch kein Bericht in
+  `members_energyreportlog` steht, längstens bis zum 20. des Monats.
+  `--month YYYY-MM` holt einen Monat von Hand. Jeder Lauf, der einen
+  Kalendermonat lückenlos, mit allen Zählpunkten und mit aufgefrischten Views
+  geholt hat, vermerkt das in `metering_monthimport` (Migration metering
+  0008). Die Website beginnt den Versand eines Monats nur mit einem Vermerk
+  vom selben Tag; fällt der Import aus, wartet der Bericht auf den nächsten
+  erfolgreichen Lauf.
 - Schonend für die API: ein Tag je Anfrage (`--chunk-days`), alle Zählpunkte
   auf einmal (Liste aus `members_measurementpoint`, `--cps api` überlässt die
   Auswahl dem Server), 5 s Pause (`--pause`), Wiederholung nur bei Server- oder

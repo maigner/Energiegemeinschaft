@@ -6,6 +6,13 @@
 // Mitglied je Monat genau einen Bericht bekommt, auch ueber Neustarts und
 // Fehlversuche hinweg.
 //
+// Vor dem Versand muss der Berichtsmonat einmal komplett neu aus EEG-Faktura
+// geholt sein (Vermerk in metering_monthimport, importAllowsSending in
+// monthlyReport.js): der Import auf s1 holt dafuer um 05:00 den ganzen
+// Vormonat, solange noch kein Bericht hinausgegangen ist. Ohne Vermerk von
+// heute beginnt der Versand nicht; von Hand gibt
+// `eegfaktura_import.py --month YYYY-MM` einen Monat frei.
+//
 // Ratenbegrenzung fuer den Mailserver: je Lauf hoechstens MAX_PER_RUN Mails
 // mit SEND_PAUSE_MS Abstand; was uebrig bleibt, nimmt der naechste Lauf.
 // Bei ~370 Mitgliedern und elf Laeufen am Tag ist der Vormonat an einem Tag
@@ -21,6 +28,7 @@ import { middlewareDbPool } from '$lib/server/db/db';
 import { relayMemberMail } from '$lib/server/mail/smtp';
 import {
     previousMonth, isMonthComplete, getPendingReportRecipients, logReportSent,
+    getMonthImportedAt, hasReportLog, importAllowsSending,
 } from '$lib/server/db/energy/monthlyReport.js';
 import { loadCommunityReport, buildMemberReport } from './energyReportData.js';
 import { renderEnergyReport } from './energyReportTemplate.js';
@@ -61,6 +69,15 @@ export async function sendMonthlyEnergyReports(month = previousMonth()) {
 
         const recipients = await getPendingReportRecipients(db, month, emails);
         if (recipients.length === 0) return;
+
+        const importState = {
+            importedAt: await getMonthImportedAt(db, month),
+            started: await hasReportLog(db, month),
+        };
+        if (!importAllowsSending(importState)) {
+            console.log(`sendMonthlyEnergyReports ${month}: ${recipients.length} offen, wartet auf den Komplettimport des Monats`);
+            return;
+        }
 
         console.log(`sendMonthlyEnergyReports ${month}: ${recipients.length} offen, max. ${MAX_PER_RUN} in diesem Lauf`);
         const community = await loadCommunityReport(db, month);

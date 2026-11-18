@@ -162,6 +162,44 @@ export async function isMonthComplete(db, month) {
     return Number(result.rows[0]?.complete_days ?? 0) >= daysInMonth(month);
 }
 
+// Komplettimport vor dem Versand: Netz OOe liefert auch Wochen spaeter noch
+// nach und korrigiert, der taegliche Import greift aber nur 14 Tage zurueck.
+// Der Bericht fuer Oktober 2026 ging deshalb ohne den 3.10. hinaus, obwohl
+// EEG-Faktura den Tag laengst hatte. Der Import vermerkt jeden lueckenlos
+// neu geholten Kalendermonat in metering_monthimport
+// (notebooks/energyData/eegfaktura_import.py, --report-month / --month).
+
+const viennaDay = (date) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Vienna', year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(date); // 'YYYY-MM-DD'
+
+/** Zeitpunkt des letzten Komplettimports des Monats oder null. */
+export async function getMonthImportedAt(db, month) {
+    const result = await db.query(
+        'select imported_at from metering_monthimport where month = $1::date', [first(month)]);
+    return result.rows[0]?.imported_at ?? null;
+}
+
+/** true, sobald fuer den Monat ein Bericht protokolliert ist (Versand hat begonnen). */
+export async function hasReportLog(db, month) {
+    const result = await db.query(
+        'select exists (select 1 from members_energyreportlog where month = $1::date) as started', [first(month)]);
+    return result.rows[0].started;
+}
+
+/**
+ * Darf der Bericht hinaus? Der Versand eines Monats beginnt nur, wenn der
+ * Monat heute (Europe/Vienna) komplett neu geholt wurde. Hat er begonnen,
+ * genuegt der vorhandene Vermerk: Nachzuegler am naechsten Tag und spaeter
+ * aktivierte Mitglieder bekommen denselben Datenstand wie alle anderen.
+ * @param {{ importedAt: Date | null, started: boolean, now?: Date }} state
+ */
+export function importAllowsSending({ importedAt, started, now = new Date() }) {
+    if (!importedAt) return false;
+    if (started) return true;
+    return viennaDay(importedAt) === viennaDay(now);
+}
+
 /**
  * Mitglieder, die den Bericht fuer den Monat noch bekommen sollen: aktiver
  * Zaehlpunkt, nicht abgemeldet (members_member.energy_report), noch kein

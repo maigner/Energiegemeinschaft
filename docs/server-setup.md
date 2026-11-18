@@ -461,7 +461,11 @@ EEG-Faktura statt aus dem manuell geladenen Excel-Report
 auch fuer Updates der Python-Skripte):
 
 - **`eegfaktura-import.timer`** (taeglich 05:00, bis 5 min Zufallsversatz)
-  -> `/usr/local/sbin/eegfaktura-import.sh` als Systembenutzer `eegimport`
+  -> `/usr/local/sbin/eegfaktura-import.sh --report-month` (holt vor dem
+  monatlichen Energiebericht den ganzen Vormonat neu und vermerkt das in
+  `metering_monthimport`, ohne Vermerk von heute verschickt die Website
+  nichts; von Hand: `eegfaktura-import.sh --month 2026-10`) als
+  Systembenutzer `eegimport`
   (seit Oktober 2026; davor `postgres` = Superuser). `setup-on-s1.sh`
   legt den Benutzer an und bildet ihn per `pg_ident` (`map=eegimport`,
   eigene `local`-Zeile ganz oben in `pg_hba.conf`) auf die DB-Rolle

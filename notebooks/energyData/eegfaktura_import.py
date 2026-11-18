@@ -41,6 +41,16 @@ spät und teilweise nach) bis gestern, höchstens `--max-days` je Lauf. Ein Tag
 je Anfrage und je Transaktion; ein Abbruch mitten im Lauf lässt die fertigen
 Tage in der DB.
 
+Vor dem monatlichen Energiebericht der Website (monthlyEnergyReport.js) muss
+der Berichtsmonat einmal komplett neu geholt sein, weil Netz OÖ auch nach den
+14 Tagen noch nachliefert und korrigiert (3.10.2026: halber Tag fehlte, kam
+erst Wochen später). Der Timer auf s1 ruft deshalb `--report-month`: solange
+für den Vormonat noch kein Bericht protokolliert ist (members_energyreportlog,
+längstens bis zum 20.), beginnt das Fenster am Ersten des Vormonats. Jeder
+Lauf, der einen Kalendermonat lückenlos mit allen Zählpunkten geholt hat,
+vermerkt das in `metering_monthimport`; die Website beginnt den Versand nur
+mit einem Vermerk vom selben Tag. `--month YYYY-MM` holt einen Monat von Hand.
+
 Zugangsdaten aus `notebooks/.env` (gitignoriert) oder der Umgebung:
 FAKTURA_USER, FAKTURA_PASSWORD, RC_NUMBER, EC_ID; optional FAKTURA_BASE_URL und
 EEG_DB_DSN (Vorgabe `service=eeg-middleware`).
@@ -51,6 +61,8 @@ Aufrufe (aus notebooks/energyData, mit dem Repo-.venv):
     python eegfaktura_import.py --dry-run                 # Fenster holen, nichts schreiben
     python eegfaktura_import.py                           # Fenster holen, schreiben, Views auffrischen
     python eegfaktura_import.py --from 2026-08-01 --to 2026-08-15
+    python eegfaktura_import.py --month 2026-10           # ganzer Monat, gibt den Energiebericht frei
+    python eegfaktura_import.py --report-month            # wie der Timer auf s1
     python eegfaktura_import.py --forecast                # danach eeg_forecast.py --refresh --days 30 --store
 """
 
@@ -97,6 +109,12 @@ QOV_LABELS = {0: "qov=0 (unbekannt)", 1: "L1", 2: "L2", 3: "L3", -1: "ohne qov"}
 
 MATERIALIZED_VIEWS = ("weekly_metering_summary", "daily_metering_summary", "daily_metering_quality",
                       "station_metering_15min")
+
+# --report-month: bis zu diesem Tag des Folgemonats holt jeder Lauf den ganzen
+# Vormonat, solange dessen Energiebericht noch nicht begonnen hat. Danach
+# stimmt etwas mit dem Versand nicht (z. B. ENERGY_REPORT_RECIPIENTS leer),
+# und der Import soll nicht endlos zwei Monate am Tag holen.
+REPORT_IMPORT_UNTIL_DAY = 20
 
 # Vergleichsversatz beim --verify, um einen Zeitzonenfehler der API zu erkennen
 VERIFY_SHIFTS_MIN = (-120, -60, 0, 60, 120)
@@ -497,6 +515,56 @@ def refresh_views(conn) -> None:
 
 
 # --------------------------------------------------------------------------
+# Komplettimport eines Monats (Freigabe fuer den Energiebericht)
+# --------------------------------------------------------------------------
+
+
+def month_first(day: date) -> date:
+    return day.replace(day=1)
+
+
+def month_last(day: date) -> date:
+    return (day.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+
+
+def parse_month(text: str) -> date:
+    if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", text):
+        raise argparse.ArgumentTypeError(f"Monat als YYYY-MM erwartet, nicht {text!r}")
+    return date.fromisoformat(text + "-01")
+
+
+def report_started(conn, month: date) -> bool:
+    """True, sobald die Website fuer den Monat einen Energiebericht protokolliert hat."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM members_energyreportlog WHERE month = %s)", (month,))
+        (started,) = cur.fetchone()
+    return bool(started)
+
+
+def complete_months(days: list[date], days_with_data: set[date]) -> list[date]:
+    """Kalendermonate (als Monatserster), die das Fenster lueckenlos abdeckt und
+    fuer die jeder Tag Daten gebracht hat."""
+    covered = set(days)
+    months = []
+    for first in sorted({month_first(day) for day in days}):
+        last = month_last(first)
+        month_days = [first + timedelta(days=i) for i in range((last - first).days + 1)]
+        if all(day in covered and day in days_with_data for day in month_days):
+            months.append(first)
+    return months
+
+
+def mark_months_imported(conn, months: list[date]) -> None:
+    with conn.cursor() as cur:
+        for month in months:
+            cur.execute("""
+                INSERT INTO metering_monthimport (month, imported_at) VALUES (%s, now())
+                ON CONFLICT (month) DO UPDATE SET imported_at = EXCLUDED.imported_at
+            """, (month,))
+    conn.commit()
+
+
+# --------------------------------------------------------------------------
 # Verifikation gegen die DB (Schritt null vor dem ersten echten Lauf)
 # --------------------------------------------------------------------------
 
@@ -566,6 +634,9 @@ def build_days(args, conn) -> list[date]:
     yesterday = datetime.now(TZ).date() - timedelta(days=1)
     if args.verify:
         first = last = args.verify
+    elif args.month:
+        first = args.month
+        last = min(month_last(args.month), yesterday)
     else:
         last = args.to_day or yesterday
         if args.from_day:
@@ -576,6 +647,15 @@ def build_days(args, conn) -> list[date]:
                 raise ConfigError("metering_measurement ist leer, bitte --from angeben")
             first = latest - timedelta(days=args.overlap_days)
             log(f"letzter Tag in der DB: {latest}, Fenster ab {first} (Überlappung {args.overlap_days} Tage)")
+            if args.report_month:
+                today = yesterday + timedelta(days=1)
+                report_month = month_first(month_first(today) - timedelta(days=1))
+                if today.day <= REPORT_IMPORT_UNTIL_DAY and report_month < first:
+                    if report_started(conn, report_month):
+                        log(f"Energiebericht {report_month:%Y-%m} läuft oder ist verschickt, kein Komplettimport")
+                    else:
+                        first = report_month
+                        log(f"Energiebericht {report_month:%Y-%m} steht noch aus: Fenster ab {first} (ganzer Vormonat)")
     if first > last:
         return []
     days = [first + timedelta(days=i) for i in range((last - first).days + 1)]
@@ -603,6 +683,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Energiedaten von EEG-Faktura importieren")
     parser.add_argument("--from", dest="from_day", type=parse_day, help="erster Tag (YYYY-MM-DD)")
     parser.add_argument("--to", dest="to_day", type=parse_day, help="letzter Tag (Vorgabe: gestern)")
+    parser.add_argument("--month", type=parse_month, metavar="YYYY-MM",
+                        help="genau diesen Kalendermonat holen (statt --from/--to); ein lückenloser Lauf "
+                             "gibt den Energiebericht des Monats frei")
+    parser.add_argument("--report-month", action="store_true",
+                        help="ohne --from: den ganzen Vormonat mitholen, solange dessen Energiebericht "
+                             f"noch nicht begonnen hat (bis zum {REPORT_IMPORT_UNTIL_DAY}. des Monats)")
     parser.add_argument("--overlap-days", type=int, default=14,
                         help="ohne --from: so viele Tage vor dem letzten DB-Tag beginnen (Nachlieferungen)")
     parser.add_argument("--max-days", type=int, default=92, help="höchstens so viele Tage je Lauf")
@@ -633,6 +719,8 @@ def main() -> int:
 
     if args.chunk_days < 1 or args.max_days < 1 or args.pause < 0:
         parser.error("--chunk-days/--max-days >= 1 und --pause >= 0")
+    if args.month and (args.from_day or args.to_day or args.verify):
+        parser.error("--month nicht zusammen mit --from/--to/--verify")
 
     cfg = Config.from_env()
     http = dict(timeout=args.timeout, retries=args.retries, pause=max(args.pause, 1.0))
@@ -674,6 +762,7 @@ def main() -> int:
         total = WriteStats()
         unknown_points: set[str] = set()
         written_any = False
+        days_with_data: set[date] = set()
         for index, (first, last) in enumerate(chunks(days, args.chunk_days)):
             if index:
                 time.sleep(args.pause)
@@ -685,6 +774,8 @@ def main() -> int:
                 (args.raw_dir / f"rawdata-{first}_{last}.json").write_text(json.dumps(payload), encoding="utf-8")
             rows, stats = rows_from_payload(payload, point_ids, code_ids, ts_shift)
             unknown_points |= stats.unknown_points
+            if stats.points_with_data:
+                days_with_data |= {first + timedelta(days=i) for i in range((last - first).days + 1)}
             log(f"{label}: {describe_stats(stats, rows)} ({elapsed:.1f} s)")
             if stats.unknown_directions:
                 log(f"  unbekannte Richtung: {dict(stats.unknown_directions)}")
@@ -723,6 +814,16 @@ def main() -> int:
             refresh_views(conn)
         elif not written_any:
             log("keine neuen Werte, Views bleiben")
+
+        # Vermerk erst nach dem Auffrischen: der Energiebericht liest die Views
+        months = complete_months(days, days_with_data)
+        if months and args.meteringpoint:
+            log("kein Vermerk in metering_monthimport (nur einzelne Zählpunkte geholt)")
+        elif months and written_any and args.no_refresh:
+            log("kein Vermerk in metering_monthimport (--no-refresh, Views sind nicht aktuell)")
+        elif months:
+            mark_months_imported(conn, months)
+            log("Komplettimport vermerkt: " + ", ".join(f"{month:%Y-%m}" for month in months))
 
     if args.forecast:
         if written_any:

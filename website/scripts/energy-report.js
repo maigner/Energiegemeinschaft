@@ -16,7 +16,7 @@ import { parseArgs } from 'node:util';
 import { loadEnv } from 'vite';
 import pg from 'pg';
 import nodemailer from 'nodemailer';
-import { previousMonth, getReportMember } from '../src/lib/server/db/energy/monthlyReport.js';
+import { previousMonth, getReportMember, getMonthImportedAt } from '../src/lib/server/db/energy/monthlyReport.js';
 import { loadCommunityReport, buildMemberReport } from '../src/lib/server/mail/reports/energyReportData.js';
 import { renderEnergyReport } from '../src/lib/server/mail/reports/energyReportTemplate.js';
 import { renderEnergyReportPdf } from '../src/lib/server/mail/reports/energyReportPdf.js';
@@ -60,6 +60,13 @@ const pool = new pg.Pool({
 try {
     const member = await getReportMember(pool, Number(args.member));
     if (!member) throw new Error(`Mitglied ${args.member} nicht gefunden`);
+
+    // Der Cron-Job verschickt nur nach einem Komplettimport des Monats; das CLI
+    // sperrt nicht (Vorschau, Testversand), sagt aber, auf welchem Stand es rechnet.
+    const importedAt = await getMonthImportedAt(pool, month).catch(() => null);
+    console.error(importedAt
+        ? `Komplettimport ${month}: ${importedAt.toLocaleString('de-AT', { timeZone: 'Europe/Vienna' })}`
+        : `ACHTUNG: ${month} wurde noch nie komplett neu importiert (eegfaktura_import.py --month ${month}), Zahlen können veraltet sein`);
 
     const community = await loadCommunityReport(pool, month);
     const data = await buildMemberReport(pool, member, month, community);
