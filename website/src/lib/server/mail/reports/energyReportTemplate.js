@@ -37,6 +37,12 @@ const paragraph = (html, style = '') =>
 const note = (html) =>
     `<p style="margin:8px 0 0;font-size:12px;line-height:17px;color:${INK_SECONDARY};">${html}</p>`;
 
+// Hinweis des Korrekturversands: abgesetzter Kasten vor der Kernaussage
+const notice = (html) => `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 14px;">
+        <tr><td style="padding:12px 14px;background:#fff7ed;border-left:4px solid ${COLORS.grid};font-size:14px;line-height:21px;color:${INK};">${html}</td></tr>
+    </table>`;
+
 function tilesBlock(block) {
     const cells = block.tiles.map((t) => `
     <td valign="top" style="padding:12px;border:1px solid ${RULE};border-radius:8px;background:${SURFACE};">
@@ -151,7 +157,7 @@ export function renderEnergyReport(data, { pdfAttached = false } = {}) {
 <title>${escapeHtml(content.subject)}</title>
 </head>
 <body style="margin:0;padding:0;background:${PAGE};font-family:${FONT};">
-<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:${PAGE};">${escapeHtml(plain(content.headline))}</div>
+<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:${PAGE};">${escapeHtml(plain(content.notice ?? content.headline))}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${PAGE};">
 <tr><td align="center" style="padding:24px 12px;">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:${SURFACE};border-radius:10px;font-family:${FONT};">
@@ -161,6 +167,7 @@ export function renderEnergyReport(data, { pdfAttached = false } = {}) {
     </td></tr>
     <tr><td style="padding:24px 28px 28px;">
         ${paragraph(escapeHtml(content.greeting))}
+        ${content.notice ? notice(rich(content.notice)) : ''}
         ${paragraph(rich(content.headline))}
         ${sections}
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 6px;">
@@ -198,7 +205,9 @@ const TEXT_BLOCKS = {
 };
 
 function renderText(content, pdfHint) {
-    const lines = [content.title, '', content.greeting, '', plain(content.headline)];
+    const lines = [content.title, '', content.greeting, ''];
+    if (content.notice) lines.push(plain(content.notice), '');
+    lines.push(plain(content.headline));
     for (const section of content.sections) {
         lines.push('', section.heading.toUpperCase());
         for (const block of section.blocks) lines.push(...TEXT_BLOCKS[block.type](block));

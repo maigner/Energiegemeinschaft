@@ -7,6 +7,10 @@
 //   node scripts/energy-report.js --member 1 --to test@example.org
 //   node scripts/energy-report.js --member 1 --month 2026-07 --to ...
 //   node scripts/energy-report.js --member 1 --to ... --bcc info@ischlstrom.org
+//   node scripts/energy-report.js --member 1 --month 2026-10 --correction --to ...
+//
+// --correction rendert den Bericht so, wie ihn der Korrekturversand des Monats
+// verschickt (Hinweis und Betreff aus reportCorrections.js).
 //
 // Ohne --month gilt der zuletzt abgeschlossene Monat. Zugangsdaten kommen wie
 // bei `npm run dev` aus website/.env (also Produktivdaten von s1).
@@ -20,6 +24,7 @@ import { previousMonth, getReportMember, getMonthImportedAt } from '../src/lib/s
 import { loadCommunityReport, buildMemberReport } from '../src/lib/server/mail/reports/energyReportData.js';
 import { renderEnergyReport } from '../src/lib/server/mail/reports/energyReportTemplate.js';
 import { renderEnergyReportPdf } from '../src/lib/server/mail/reports/energyReportPdf.js';
+import { correctionFor } from '../src/lib/server/mail/reports/reportCorrections.js';
 
 const { values: args } = parseArgs({
     options: {
@@ -28,16 +33,23 @@ const { values: args } = parseArgs({
         to: { type: 'string' },
         bcc: { type: 'string' },
         out: { type: 'string' },
+        correction: { type: 'boolean' },
     },
 });
 
 if (!args.member || (!args.to && !args.out)) {
-    console.error('Aufruf: energy-report.js --member <nr> [--month YYYY-MM] (--to <adresse> [--bcc <adresse>] | --out <datei.html>)');
+    console.error('Aufruf: energy-report.js --member <nr> [--month YYYY-MM] [--correction] (--to <adresse> [--bcc <adresse>] | --out <datei.html>)');
     process.exit(1);
 }
 const month = args.month ?? previousMonth();
 if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
     console.error(`Ungueltiger Monat: ${month}`);
+    process.exit(1);
+}
+
+const correction = args.correction ? correctionFor(month) : null;
+if (args.correction && !correction) {
+    console.error(`Für ${month} ist in reportCorrections.js keine Korrektur eingetragen`);
     process.exit(1);
 }
 
@@ -71,6 +83,7 @@ try {
     const community = await loadCommunityReport(pool, month);
     const data = await buildMemberReport(pool, member, month, community);
     if (!data) throw new Error(`Mitglied ${args.member} hat im ${month} keine Messwerte`);
+    if (correction) data.correction = { note: correction.note };
 
     const mail = renderEnergyReport(data, { pdfAttached: true });
     const pdf = await renderEnergyReportPdf(data);

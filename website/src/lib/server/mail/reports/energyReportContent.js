@@ -6,6 +6,8 @@
 // Neue Inhalte also hier ergaenzen, nicht in einem der Renderer.
 //
 // Fett in Texten: **so** (die Renderer setzen es um bzw. entfernen es).
+// data.correction = { note } (Korrekturversand, reportCorrections.js) setzt
+// "Korrektur:" vor den Betreff und den Hinweis als notice vor die Kernaussage.
 //
 // Farben wie im Mitgliederbereich (PerformanceChart.svelte): Gruen ist immer
 // die Gemeinschaft, Orange das oeffentliche Netz, Blau die Batterie. Zahlen
@@ -264,12 +266,16 @@ export function buildReportContent(data) {
         communitySection(data),
     ].filter(Boolean).map((s) => ({ ...s, blocks: s.blocks.filter(Boolean) }));
 
+    // Korrekturversand (reportCorrections.js): Hinweis vor allen Zahlen
+    const notice = data.correction?.note ?? null;
+
     return {
-        subject: `Ihr Energiebericht ${monthLabel(month)}`,
+        subject: `${notice ? 'Korrektur: ' : ''}Ihr Energiebericht ${monthLabel(month)}`,
         brand: 'EEG ISCHLSTROM',
         title: `Energiebericht ${monthLabel(month)}`,
         pdfFilename: `Energiebericht-${month}.pdf`,
         greeting: `Hallo ${member.name},`,
+        notice,
         headline: headline(data),
         sections,
         portalUrl: `${SITE}/user/${member.identifier}`,

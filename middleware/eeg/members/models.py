@@ -367,11 +367,14 @@ class EnergyReportLog(models.Model):
     """Versandprotokoll des monatlichen Energieberichts. Die Website schreibt
     je Mitglied und Berichtsmonat eine Zeile (lib/server/mail/reports/), damit
     ein Bericht nach Neustarts oder verspaeteten Datenlieferungen genau einmal
-    hinausgeht. month ist der Monatserste."""
+    hinausgeht. month ist der Monatserste. correction_sent_at: Zeitpunkt, zu
+    dem das Mitglied fuer diesen Monat einen korrigierten Bericht bekommen hat
+    (reportCorrections.js), sonst NULL."""
     member = models.ForeignKey(Member, on_delete=models.CASCADE)
     month = models.DateField()
     email = models.EmailField()
     sent_at = models.DateTimeField()
+    correction_sent_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [

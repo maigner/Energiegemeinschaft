@@ -230,6 +230,42 @@ export async function logReportSent(db, memberIdentifier, month, email) {
     `, [memberIdentifier, first(month), email]);
 }
 
+/**
+ * Mitglieder, die fuer den Monat noch den korrigierten Bericht bekommen
+ * sollen (reportCorrections.js): Bericht vor sentBefore per Mail erhalten
+ * (Protokollzeile mit Adresse), noch keine Korrektur vermerkt, nicht
+ * abgemeldet. Der Zaehlpunkt muss nicht mehr aktiv sein, wer den falschen
+ * Bericht bekommen hat, bekommt auch den richtigen.
+ * @param {{ sentBefore: string, skipMembers?: number[] }} correction
+ */
+export async function getPendingCorrectionRecipients(db, month, correction, emails = null) {
+    const result = await db.query(`
+        select m.identifier, m.email, m.name,
+            m.first_name as "firstName", m.last_name as "lastName"
+        from members_energyreportlog l
+        join members_member m on m.id = l.member_id
+        where l.month = $1::date
+        and l.sent_at < $2::timestamptz
+        and l.correction_sent_at is null
+        and l.email <> ''
+        and m.energy_report
+        and trim(coalesce(m.email, '')) <> ''
+        and not (m.identifier = any($3::int[]))
+        and ($4::text[] is null or lower(trim(m.email)) = any($4::text[]))
+        order by m.identifier
+    `, [first(month), correction.sentBefore, correction.skipMembers ?? [],
+        emails ? emails.map((e) => e.toLowerCase()) : null]);
+    return result.rows;
+}
+
+export async function logCorrectionSent(db, memberIdentifier, month) {
+    await db.query(`
+        update members_energyreportlog l set correction_sent_at = now()
+        from members_member m
+        where m.id = l.member_id and m.identifier = $1 and l.month = $2::date
+    `, [memberIdentifier, first(month)]);
+}
+
 /** Mitglied fuer das CLI (ohne Filter auf Abmeldung und Versandprotokoll). */
 export async function getReportMember(db, memberIdentifier) {
     const result = await db.query(`

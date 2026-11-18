@@ -191,6 +191,13 @@ export function renderEnergyReportPdf(data) {
     y = 112;
 
     richText(content.greeting, 10.5, COLORS.ink, 6);
+    if (content.notice) {
+        // Hinweis des Korrekturversands mit farbigem Strich am linken Rand
+        const top = y;
+        richText(content.notice, 10.5, COLORS.ink, 0);
+        doc.rect(MARGIN - 10, top - 2, 3, y - top + 1).fill(COLORS.grid);
+        y += 9;
+    }
     richText(content.headline, 10.5, COLORS.ink, 4);
 
     for (const section of content.sections) {
