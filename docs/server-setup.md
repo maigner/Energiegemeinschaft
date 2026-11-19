@@ -173,6 +173,52 @@ Website-Container).
 - Nicht enthalten: die Sperren von mailcow (eigener netfilter-Container,
   nicht fail2ban).
 
+**Web-Scanner (Jail `caddy-scan`, seit November 2026):** Caddy schrieb bis
+dahin keine Anfragen mit (`/var/log/caddy/access.log` ist trotz des Namens
+das Laufzeit-Log aus dem globalen `log`-Block), und die Dienste dahinter
+loggen keine oder nur interne Adressen. Seither haengt in jedem Site-Block
+`import requestlog` (Snippet `/etc/caddy/requestlog.caddy`, in der
+Caddyfile per `import requestlog.caddy` geladen): JSON nach
+`/var/log/caddy/requests.log`, nur Adresse, Methode, Host, Pfad und
+Status - der Query-String wird abgeschnitten (Magic-Link-Tokens), Header
+fallen weg. Die Datei wechselt taeglich, rotierte bleiben 7 Tage, zusammen
+also hoechstens 8 Tage (so steht es auf `/datenschutz`). Das Jail
+`caddy-scan` (`/etc/fail2ban/jail.d/caddy-scan.conf`, Filter
+`filter.d/caddy-scan.conf`) sperrt eine Adresse fuer 24 Stunden auf den
+Ports 80 und 443, wenn sie binnen 10 Minuten dreimal einen Pfad abruft,
+den es auf keinem unserer Dienste gibt (`/.env*`, `/.git/`, `/.aws/`,
+`wp-login.php`, `phpmyadmin`, `/cgi-bin/` und aehnliche; WebDAV- und
+`index.php`-Pfade von Nextcloud zaehlen nie, dort liegen echte versteckte
+Dateien). Ohne Mail je Sperre (`action_`). Bewusst nicht gezaehlt werden
+404 oder 401 an sich: Mitglied und Anlage teilen sich eine Adresse, ein
+Pi mit einem Fehler duerfte nie den Haushalt aussperren. In der Woche vor
+dem Einrichten haetten am Mail-Host allein 26 Adressen die Schwelle
+erreicht.
+
+- Einrichten und aktualisieren: `scripts/caddy-scan/install-on-s1.sh`
+  (`--log-only` richtet nur das Anfrage-Log ein). Das Skript prueft die
+  ergaenzte Caddyfile in einer Kopie mit `caddy adapt`, sichert sie als
+  `Caddyfile.bak-<Zeit>` und nimmt bei einem Fehler alles zurueck; das
+  Jail wird vor dem Laden mit `fail2ban-client -t` getestet.
+- **Neue Site in der Caddyfile:** `import requestlog` in den Block
+  schreiben oder das Installationsskript noch einmal laufen lassen, sonst
+  loggt die Site nicht.
+- **Die Logdatei muss existieren, wenn fail2ban startet** - sonst startet
+  fail2ban gar nicht, auch nicht mit den Jails `sshd` und `postgresql`
+  ("Have not found any log file for caddy-scan jail"). Dafuer sorgt
+  `/etc/tmpfiles.d/caddy-requests.conf` beim Booten. Im Notfall:
+  `sudo systemd-tmpfiles --create /etc/tmpfiles.d/caddy-requests.conf &&
+  sudo systemctl restart fail2ban`.
+- Pruefen: `sudo fail2ban-client status caddy-scan`,
+  `sudo fail2ban-regex /var/log/caddy/requests.log caddy-scan` (zeigt,
+  welche Zeilen der Filter trifft). Entsperren:
+  `sudo fail2ban-client set caddy-scan unbanip <Adresse>`.
+- Rueckbau: `/etc/fail2ban/jail.d/caddy-scan.conf` loeschen und
+  `sudo fail2ban-client reload`; fuer das Log die `import requestlog`-
+  Zeilen aus der Caddyfile nehmen und `sudo systemctl reload caddy`.
+- Die Sperren erscheinen ohne weiteres Zutun auf `/board/security`
+  (fail2ban-geo liest alle Jails).
+
 Workstation-Clients verbinden ueber den Service `eeg-middleware`
 (`notebooks/.pg_service.conf`, `middleware/eeg/.pg_service.conf`,
 Passwoerter in `notebooks/.pgpass` - alles gitignored,

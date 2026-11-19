@@ -44,20 +44,22 @@
                     Diese Daten dienen der Bereitstellung der Website, der
                     Fehleranalyse und der Abwehr von Angriffen (Art. 6 Abs. 1
                     lit. f DSGVO). Server-Logs werden nur kurzfristig
-                    gespeichert und automatisch gelöscht. In den Logs unserer
+                    (höchstens acht Tage) gespeichert und automatisch gelöscht. In den Logs unserer
                     Anwendung selbst werden keine IP-Adressen gespeichert.
                 </p>
                 <p class="mt-2">
-                    Eine Ausnahme betrifft Angriffe auf die Verwaltungszugänge
-                    des Servers (SSH, Datenbank), nicht den Besuch der
-                    Website: Adressen, die der Server dort nach
-                    fehlgeschlagenen Anmeldeversuchen automatisch sperrt,
-                    speichern wir zusammen mit dem ungefähren Standort (Land,
-                    Ort, Netzbetreiber), um Angriffe auszuwerten (Art. 6
-                    Abs. 1 lit. f DSGVO). Die Adresse wird nach 90 Tagen
-                    gelöscht. Der Standort wird auf dem Server selbst
-                    ermittelt, die Adresse wird dafür an niemanden
-                    weitergegeben.
+                    Eine Ausnahme betrifft Angriffe auf den Server, nicht den
+                    gewöhnlichen Besuch der Website: Adressen, die der Server
+                    automatisch sperrt, speichern wir zusammen mit dem
+                    ungefähren Standort (Land, Ort, Netzbetreiber), um
+                    Angriffe auszuwerten (Art. 6 Abs. 1 lit. f DSGVO).
+                    Gesperrt wird nach fehlgeschlagenen Anmeldeversuchen an
+                    den Verwaltungszugängen (SSH, Datenbank) und nach
+                    wiederholten Abrufen von Adressen, die nur automatisierte
+                    Angriffsprogramme aufrufen (etwa nach herumliegenden
+                    Zugangsdaten). Die Adresse wird nach 90 Tagen gelöscht.
+                    Der Standort wird auf dem Server selbst ermittelt, die
+                    Adresse wird dafür an niemanden weitergegeben.
                 </p>
             </section>
 

@@ -40,6 +40,7 @@ CONFIG_PATHS=(
   etc/postfix etc/fail2ban etc/ufw etc/ssh/sshd_config.d
   etc/cron.d var/spool/cron/crontabs etc/systemd/system
   etc/default/s1-backup etc/ibm-provision.conf etc/eegfaktura-import.env
+  etc/tmpfiles.d/caddy-requests.conf
   usr/local/bin usr/local/sbin usr/local/lib/ibm-provision
   opt/keila opt/mailcow.conf
   home/martin/Container/ischlstrom/website/.env

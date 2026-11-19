@@ -34,8 +34,9 @@
     const JAIL_COLORS = /** @type {Record<string, string>} */ ({
         sshd: "#1A56DB",
         postgresql: "#D97706",
+        "caddy-scan": "#0E9F6E",
     });
-    const SPARE_COLORS = ["#0E9F6E", "#7E3AF2", "#0694A2", "#9B1C1C"];
+    const SPARE_COLORS = ["#0694A2", "#6B7280"];
     const MARK_COLOR = "#C81E1E";
 
     const jails = $derived(/** @type {any[]} */ (data.jails ?? []));
@@ -103,7 +104,7 @@
             name: jail,
             color: jailColor.get(jail) ?? SPARE_COLORS[0],
             // null statt 0: ein Abschnitt ohne Sperre zeichnet sonst einen Strich
-            data: buckets.map((b) => [ts(b), byJail.get(jail)?.get(b) ?? null]),
+            data: /** @type {any} */ (buckets.map((b) => [ts(b), byJail.get(jail)?.get(b) ?? null])),
         }));
     });
 
@@ -293,9 +294,11 @@
         {/if}
     </div>
     <p class="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-3xl">
-        Woher die Anmeldeversuche kommen, die fail2ban auf s1 gesperrt hat
-        (SSH und PostgreSQL). Der Standort stammt aus einer lokalen
-        Geo-Datenbank auf dem Server.
+        Woher die Adressen kommen, die fail2ban auf s1 gesperrt hat:
+        fehlgeschlagene Anmeldungen an SSH und PostgreSQL und Scanner am
+        Webserver (Jail <code>caddy-scan</code>, Abrufe wie
+        <code>/.env</code> oder <code>/wp-login.php</code>). Der Standort
+        stammt aus einer lokalen Geo-Datenbank auf dem Server.
     </p>
 
     {#if !data.available}

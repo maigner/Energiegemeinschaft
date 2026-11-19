@@ -1,0 +1,30 @@
+# Anfrage-Log fuer alle Sites (von scripts/caddy-scan/setup-on-s1.sh nach
+# /etc/caddy/requestlog.caddy installiert, in der Caddyfile per
+# `import requestlog.caddy` geladen und in jedem Site-Block mit
+# `import requestlog` eingeschaltet). Gelesen wird die Datei vom
+# fail2ban-Jail caddy-scan.
+#
+# Bewusst knapp: Adresse, Methode, Host, Pfad, Status. Der Query-String wird
+# abgeschnitten (darin stehen Magic-Link-Tokens und E-Mail-Adressen), Header
+# und TLS-Details fallen ganz weg. Taeglicher Wechsel der Datei, rotierte
+# Dateien bleiben 7 Tage: zusammen hoechstens 8 Tage Anfragen mit Adresse.
+(requestlog) {
+	log {
+		output file /var/log/caddy/requests.log {
+			roll_interval 24h
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 168h
+		}
+		format filter {
+			fields {
+				request>uri regexp `\?.*$` ""
+				request>headers delete
+				request>tls delete
+				resp_headers delete
+				user_id delete
+			}
+			wrap json
+		}
+	}
+}
