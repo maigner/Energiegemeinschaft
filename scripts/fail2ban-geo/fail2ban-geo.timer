@@ -1,0 +1,10 @@
+[Unit]
+Description=fail2ban-Sperren alle 10 Minuten in die Mittelware-DB
+
+[Timer]
+OnCalendar=*-*-* *:03/10:00
+AccuracySec=30s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

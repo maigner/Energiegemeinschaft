@@ -1,0 +1,12 @@
+[Unit]
+Description=DB-IP-Lite-Dateien fuer fail2ban-geo laden
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/fail2ban-geo.conf
+ExecStart=/usr/local/sbin/fail2ban-geo-update.sh
+TimeoutStartSec=30min
+PrivateTmp=yes
+ProtectHome=yes

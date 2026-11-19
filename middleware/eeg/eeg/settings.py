@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "metering.apps.MeteringConfig",
     "accounting.apps.AccountingConfig",
     "weather.apps.WeatherConfig",
+    "security.apps.SecurityConfig",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

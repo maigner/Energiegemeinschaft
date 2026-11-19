@@ -47,6 +47,18 @@
                     gespeichert und automatisch gelöscht. In den Logs unserer
                     Anwendung selbst werden keine IP-Adressen gespeichert.
                 </p>
+                <p class="mt-2">
+                    Eine Ausnahme betrifft Angriffe auf die Verwaltungszugänge
+                    des Servers (SSH, Datenbank), nicht den Besuch der
+                    Website: Adressen, die der Server dort nach
+                    fehlgeschlagenen Anmeldeversuchen automatisch sperrt,
+                    speichern wir zusammen mit dem ungefähren Standort (Land,
+                    Ort, Netzbetreiber), um Angriffe auszuwerten (Art. 6
+                    Abs. 1 lit. f DSGVO). Die Adresse wird nach 90 Tagen
+                    gelöscht. Der Standort wird auf dem Server selbst
+                    ermittelt, die Adresse wird dafür an niemanden
+                    weitergegeben.
+                </p>
             </section>
 
             <section>
@@ -260,7 +272,7 @@
 
             <section>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
-                    Stand: August 2026
+                    Stand: November 2026
                 </p>
             </section>
         </div>

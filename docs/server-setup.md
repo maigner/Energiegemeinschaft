@@ -137,6 +137,42 @@ pg_hba.conf entry" und "role does not exist". Entsperren:
 `jail.local` enthaelt noch den Platzhalter `YOUR.IP.HERE` - dort gehoert
 die Workstation-IP hin.
 
+**Karte der Sperren (fail2ban-geo, seit November 2026):** fail2ban
+vergisst Sperren nach 24 Stunden (`dbpurgeage`), nur die noch aktiven
+bleiben in seiner SQLite-Datenbank. Der root-Timer `fail2ban-geo` (alle
+10 Minuten, `scripts/fail2ban-geo/fail2ban_geo.py`) liest
+`/var/lib/fail2ban/fail2ban.sqlite3` nur lesend (Tabellen `bans` und
+`bips`), schlaegt Land, Ort, Koordinaten und Netz (ASN) in den lokalen
+DB-IP-Lite-Dateien unter `/var/lib/fail2ban-geo/` nach und schreibt neue
+Sperren ueber `runuser -u postgres -- psql` am Socket nach
+`security_fail2banban` (Django-App `security`, Migration 0001). Keine
+Adresse verlaesst dabei den Server, und fail2ban selbst wird nicht
+umkonfiguriert. Derselbe Lauf setzt die Adresse von Sperren, die aelter
+als 90 Tage sind, auf NULL (`RETENTION_DAYS`); Standort und Netz bleiben.
+Aeltere Sperren kommen nur beim allerersten Lauf (leere Tabelle) hinein
+und werden sofort anonymisiert - die dauerhaften des `postgresql`-Jails
+stehen fuer immer in `bips` und liessen sich spaeter nicht mehr von einer
+anonymisierten Zeile unterscheiden. Die Geo-Dateien (City + ASN, mmdb,
+CC BY 4.0, kein Konto) laedt `fail2ban-geo-update.timer` monatlich am 3.
+von download.db-ip.com (gut 60 MB); der Leser ist `python3-maxminddb` aus
+den Ubuntu-Paketen. Die Auswertung steht auf `/board/security` (Karte,
+Sperren je Tag, haeufigste Laender und Netze, letzte Sperren; Adressen aus
+privaten Netzen sind markiert, das waere der Fall vom 8. Oktober mit dem
+Website-Container).
+
+- Einrichten und aktualisieren: `scripts/fail2ban-geo/install-on-s1.sh`
+  (kopiert hoch, `setup-on-s1.sh` als root; der erste Lauf traegt mit
+  `--backfill-logs` auch die `Ban`-Zeilen der rotierten Logs nach, rund
+  vier Wochen, `Restore Ban` zaehlt nicht).
+- Pruefen: `sudo journalctl -u fail2ban-geo -n 20`,
+  `sudo python3 /usr/local/lib/fail2ban-geo/fail2ban_geo.py --dry-run`
+  (zeigt, was der naechste Lauf schreiben wuerde),
+  `... --check-geo` (Stand der Geo-Dateien).
+- Einstellungen (optional) in `/etc/fail2ban-geo.conf`: `RETENTION_DAYS`,
+  `GEO_DIR`, `F2B_DB`, `DB_NAME`.
+- Nicht enthalten: die Sperren von mailcow (eigener netfilter-Container,
+  nicht fail2ban).
+
 Workstation-Clients verbinden ueber den Service `eeg-middleware`
 (`notebooks/.pg_service.conf`, `middleware/eeg/.pg_service.conf`,
 Passwoerter in `notebooks/.pgpass` - alles gitignored,

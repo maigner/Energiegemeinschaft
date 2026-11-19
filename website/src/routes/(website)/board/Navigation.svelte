@@ -119,6 +119,16 @@
             >
                 Karte
             </NavLi>
+
+            <NavLi
+                href="/board/security"
+                onclick={() => toggle()}
+                activeClass="text-green-600 bg-secundary-100"
+                nonActiveClass="text-green-800"
+                class="hover:text-green-600"
+            >
+                Sicherheit
+            </NavLi>
         </NavUl>
         <Avatar id="avatar-menu" />
     {/snippet}

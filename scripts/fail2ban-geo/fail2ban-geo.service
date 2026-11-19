@@ -1,0 +1,11 @@
+[Unit]
+Description=fail2ban-Sperren mit Standort in die Mittelware-DB (/board/security)
+After=postgresql.service fail2ban.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/fail2ban-geo.conf
+ExecStart=/usr/bin/python3 /usr/local/lib/fail2ban-geo/fail2ban_geo.py
+TimeoutStartSec=5min
+PrivateTmp=yes
+ProtectHome=yes

@@ -1,0 +1,10 @@
+[Unit]
+Description=DB-IP-Lite-Dateien monatlich am 3. laden
+
+[Timer]
+OnCalendar=*-*-03 04:20:00
+RandomizedDelaySec=20min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
