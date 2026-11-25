@@ -556,9 +556,9 @@ auch fuer Updates der Python-Skripte):
   im venv `/usr/local/lib/eegfaktura-import/venv`. Log:
   `journalctl -u eegfaktura-import`.
 - **Zugangsdaten** in `/etc/eegfaktura-import.env` (root, 0600): normale
-  EEG-Faktura-Anmeldung (`FAKTURA_USER`, `FAKTURA_PASSWORD` ohne
-  Doppelpunkt, `RC_NUMBER`, `EC_ID` = 33-stellige Gemeinschafts-ID, mit der
-  falschen antwortet die API stumm leer). Kein API-Schluessel, kein Keycloak-Zugang
+  EEG-Faktura-Anmeldung (`FAKTURA_USER`, `FAKTURA_PASSWORD`, `RC_NUMBER`,
+  `EC_ID` = 33-stellige Gemeinschafts-ID, mit der falschen antwortet die API
+  stumm leer). Kein API-Schluessel, kein Keycloak-Zugang
   noetig: der Energystore prueft Basic-Auth selbst gegen Keycloak.
 - **Fenster**: letzter Tag in `metering_measurement` minus 14 Tage bis
   gestern, ein Tag je Anfrage mit 5 s Pause, hoechstens 92 Tage je Lauf.

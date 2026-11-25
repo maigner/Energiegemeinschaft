@@ -87,7 +87,7 @@ Täglich läuft das auf s1 um 05:00 (`scripts/eegfaktura-import/`, Log
 Prognoselauf (`eeg-forecast.timer`, Log `journalctl -u eeg-forecast`), siehe
 `docs/server-setup.md`.
 
-Die API-Semantik (Millisekunden, Wertereihenfolge, URL-sicheres Base64 im
+Die API-Semantik (Millisekunden, Wertereihenfolge, Standard-Base64 im
 Auth-Header) steht im Docstring des Skripts und stammt aus dem Quellcode
 des Energystores (github.com/eegfaktura/eegfaktura-energystore).
 

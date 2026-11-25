@@ -91,6 +91,14 @@ def fetch_masterdata(user: str, password: str, tenant: str, api_url: str, timeou
         raise ApiError(f"Stammdaten nicht erreichbar: {err.reason}") from err
 
 
+def member_key(number) -> str:
+    """Mitgliedsnummer zum Vergleichen: EEG-Faktura führt sie als Text mit
+    führenden Nullen ("006"), die DB ohne ("6"). Reine Ziffernfolgen werden
+    deshalb als Zahl verglichen, alles andere als getrimmter Text."""
+    text = str(number if number is not None else "").strip()
+    return str(int(text)) if text.isdigit() else text
+
+
 def windows_from_payload(payload: list) -> list[MeterWindow]:
     windows: list[MeterWindow] = []
     for participant in payload:
@@ -129,7 +137,7 @@ def apply_windows(conn, windows: list[MeterWindow], dry_run: bool) -> dict:
         if row is None:
             unknown.append(w.identifier)
             continue
-        if str(row[5]) != w.participant_number:
+        if member_key(row[5]) != member_key(w.participant_number):
             moved.append(f"{w.identifier} (DB Mitglied {row[5]}, EEG-Faktura {w.participant_number})")
         if (row[1], row[2], row[3], row[4]) != (w.status, w.direction, w.activated, w.deactivated):
             changed.append(w.identifier)

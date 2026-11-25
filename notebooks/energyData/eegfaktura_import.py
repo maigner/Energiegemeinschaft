@@ -30,8 +30,9 @@ Viertelstundenwerte kommen direkt aus dem Energystore von EEG-Faktura
   0 = unbekannt); es landet in `metering_measurement.quality` (NULL für
   Altdaten), damit die Abrechnungsprüfung der Website L3-Werte und Lücken
   aus der DB lesen kann.
-- Der Server dekodiert den Basic-Auth-Header mit *URL-sicherem* Base64, das
-  Skript kodiert deshalb genauso (Standard-Base64 mit `+`/`/` scheitert).
+- Der Basic-Auth-Header ist Standard-Base64 (RFC 7617). Bis Energystore
+  1.8 dekodierte der Server URL-sicher, seit 1.9.0 (31.10.2026) nur noch
+  Standard: URL-sicher kodierte Zugangsdaten mit `-`/`_` bekommen 403.
 - Jeder Aufruf löst eine Passwort-Anmeldung bei Keycloak aus. Deshalb: wenig
   Aufrufe (ein Tag je Aufruf, alle Zählpunkte auf einmal), Pause dazwischen,
   bei 403 sofort abbrechen statt wiederholen.
@@ -176,9 +177,6 @@ class Config:
         if missing:
             raise ConfigError("fehlende Zugangsdaten: " + ", ".join(missing)
                               + f" (notebooks/.env oder Umgebung, Vorlage notebooks/.env.example)")
-        if ":" in password:
-            # der Server trennt Benutzer und Passwort am ersten Doppelpunkt
-            raise ConfigError("FAKTURA_PASSWORD darf keinen Doppelpunkt enthalten (Server-Einschränkung)")
         if not re.fullmatch(r"AT[0-9A-Z]{31}", ec_id):
             raise ConfigError("EC_ID muss die 33-stellige Gemeinschafts-ID sein (AT003..., "
                               "steht in EEG-Faktura unter Stammdaten und im Energy-Report, Blatt Summary)")
@@ -206,8 +204,9 @@ class AuthError(ApiError):
 
 
 def basic_auth_header(user: str, password: str) -> str:
-    # energystore: base64.URLEncoding.DecodeString -> URL-sicheres Alphabet
-    token = base64.urlsafe_b64encode(f"{user}:{password}".encode("utf-8")).decode("ascii")
+    # energystore seit 1.9.0: base64.StdEncoding.DecodeString, Trennung am
+    # ersten Doppelpunkt (ein Passwort darf also Doppelpunkte enthalten)
+    token = base64.b64encode(f"{user}:{password}".encode("utf-8")).decode("ascii")
     return "Basic " + token
 
 
