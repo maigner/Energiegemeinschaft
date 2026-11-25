@@ -10,7 +10,7 @@
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkMasterdata, describeMeterPointFinding, describeTransfer } from './masterdataChecks.js';
+import { checkMasterdata, describeMeterPointFinding, describeTransfer, endDateFromCell } from './masterdataChecks.js';
 
 const ZP_A = 'AT0030000000000000000000030000001';
 const ZP_B = 'AT0030000000000000000000030000002';
@@ -222,5 +222,22 @@ describe('Besitzwechsel', () => {
             ...owners([[3, 'INACTIVE', '2024-01-01', '2024-06-01'], [4, 'ACTIVE', '2024-07-01', null]]),
         ]);
         assert.deepEqual(checks.transfers.map((t) => t.identifier), [ZP_A, ZP_B]);
+    });
+});
+
+describe('endDateFromCell', () => {
+    test('offenes Ende (2999/9999) und leere Zelle ergeben null', () => {
+        assert.equal(endDateFromCell('2999-12-31'), null);
+        assert.equal(endDateFromCell(new Date(2999, 11, 31)), null);
+        assert.equal(endDateFromCell(401768), null); // Excel-Serial 31.12.2999
+        assert.equal(endDateFromCell('9999-12-31'), null);
+        assert.equal(endDateFromCell(''), null);
+        assert.equal(endDateFromCell(undefined), null);
+    });
+
+    test('ein echtes Ende bleibt erhalten', () => {
+        assert.equal(endDateFromCell('2026-08-13'), '2026-08-13');
+        assert.equal(endDateFromCell(new Date(2025, 6, 17)), '2025-07-17');
+        assert.equal(endDateFromCell(45855), '2025-07-17'); // Excel-Serial
     });
 });

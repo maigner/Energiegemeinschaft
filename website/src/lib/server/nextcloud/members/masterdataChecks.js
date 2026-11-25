@@ -67,6 +67,19 @@ const text = (value) => String(value ?? '').trim();
 const isOpenEnd = (isoDate) => Number(isoDate.slice(0, 4)) >= OPEN_END_YEAR;
 
 /**
+ * Zelle `deaktiviert` als JJJJ-MM-TT; leer oder ein offenes Ende (Jahr 2999
+ * oder 9999, so schreibt es der Export) ergibt null. Der Import speichert
+ * damit dasselbe wie eegfaktura_masterdata.py aus der API, sonst meldet die
+ * Abrechnungspruefung nach jedem Sheet-Import widerspruechliche Enden.
+ * @param {unknown} cell
+ * @returns {string | null}
+ */
+export const endDateFromCell = (cell) => {
+    const isoDate = cellToIsoDate(cell);
+    return isoDate && !isOpenEnd(isoDate) ? isoDate : null;
+};
+
+/**
  * Anzeigename wie im Rust-Checker: Vorname Nachname, sonst Firmenname,
  * sonst die Mitgliedsnummer.
  * @param {Record<string, any>} row
@@ -127,7 +140,6 @@ export function checkMasterdata(rows) {
         const identifier = text(row['Zählpunkt']);
         const memberNumber = text(row['Mit. Nr.']);
         if (!identifier || !memberNumber) continue;
-        const deactivated = cellToIsoDate(row['deaktiviert']);
         records.set(`${memberNumber}|${identifier}`, {
             identifier,
             subscription: text(row['Zp. Tarifname']),
@@ -136,7 +148,7 @@ export function checkMasterdata(rows) {
                 memberName: memberDisplayName(row, memberNumber),
                 status: text(row['ZP-Status']).toUpperCase(),
                 activated: cellToIsoDate(row['aktiviert']),
-                deactivated: deactivated && !isOpenEnd(deactivated) ? deactivated : null,
+                deactivated: endDateFromCell(row['deaktiviert']),
             },
         });
     }

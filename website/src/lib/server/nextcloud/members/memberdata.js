@@ -2,7 +2,7 @@ import { nextcloudClient } from "../client";
 import * as XLSX from "xlsx";
 import { middlewareDbConnection } from "$lib/server/db/db";
 import { findMemberNumberConflicts, describeConflict } from "./masterdataConflicts.js";
-import { checkMasterdata, describeMeterPointFinding, describeTransfer } from "./masterdataChecks.js";
+import { checkMasterdata, describeMeterPointFinding, describeTransfer, endDateFromCell } from "./masterdataChecks.js";
 import { cellToIsoDate } from "../../podlist/sheet.js";
 
 /**
@@ -220,7 +220,8 @@ export const upsertMeasurementPointsFromSpreadsheet = async (rows) => {
             const memberId = memberResult.rows[0].id;
 
             // Aktivierungsfenster und Tarif fuer die Abrechnungspruefung
-            // (db/energy/billingCheck.js); Datumszellen kommen als Excel-Serial
+            // (db/energy/billingCheck.js); Datumszellen kommen als Excel-Serial,
+            // ein offenes Ende (31.12.2999) wird als NULL gespeichert
             const result = await sql.query(`
         INSERT INTO members_measurementpoint (
           identifier, type, status, member_id, welcome_message_sent_at,
@@ -242,7 +243,7 @@ export const upsertMeasurementPointsFromSpreadsheet = async (rows) => {
                 row["ZP-Status"] || null,
                 memberId,
                 cellToIsoDate(row["aktiviert"]),
-                cellToIsoDate(row["deaktiviert"]),
+                endDateFromCell(row["deaktiviert"]),
                 String(row["Zp. Tarifname"] ?? "").trim() || null,
             ]);
 
