@@ -80,6 +80,47 @@ export const endDateFromCell = (cell) => {
 };
 
 /**
+ * Je Zaehlpunkt die eine Zeile, die der Import speichert. Nach einem
+ * Besitzwechsel steht ein Zaehlpunkt in mehreren Zeilen (alter Besitzer
+ * INACTIVE mit Ende, neuer ACTIVE); die Tabelle kennt je Zaehlpunkt nur
+ * einen Besitzer, und ohne diese Auswahl gewann die letzte Zeile des
+ * Sheets, also die hoehere Mitgliedsnummer. Es zaehlt: ACTIVE vor allem
+ * anderen, dann das juengste `aktiviert`, dann ein offenes Ende, zuletzt
+ * die spaetere Zeile. Zeilen ohne Zaehlpunkt entfallen; die Reihenfolge
+ * des Sheets bleibt erhalten.
+ * @template {Record<string, any>} T
+ * @param {T[]} rows  Zeilen des Blatts "Mitglieder"
+ * @returns {T[]}
+ */
+export function currentOwnerRows(rows) {
+    /** @param {Record<string, any>} row */
+    const rank = (row) => [
+        text(row['ZP-Status']).toUpperCase() === ACTIVE ? 1 : 0,
+        cellToIsoDate(row['aktiviert']) ?? DATE_MIN,
+        endDateFromCell(row['deaktiviert']) === null ? 1 : 0,
+    ];
+    /** @type {Map<string, { index: number, rank: (string | number)[] }>} */
+    const best = new Map();
+    rows.forEach((row, index) => {
+        const identifier = text(row['Zählpunkt']);
+        if (!identifier) return;
+        const candidate = { index, rank: rank(row) };
+        const current = best.get(identifier);
+        if (!current) {
+            best.set(identifier, candidate);
+            return;
+        }
+        for (let i = 0; i < candidate.rank.length; i++) {
+            if (candidate.rank[i] === current.rank[i]) continue;
+            if (candidate.rank[i] > current.rank[i]) best.set(identifier, candidate);
+            return;
+        }
+        best.set(identifier, candidate); // gleichwertig: die spaetere Zeile
+    });
+    return [...best.values()].map((b) => b.index).sort((a, b) => a - b).map((index) => rows[index]);
+}
+
+/**
  * Anzeigename wie im Rust-Checker: Vorname Nachname, sonst Firmenname,
  * sonst die Mitgliedsnummer.
  * @param {Record<string, any>} row

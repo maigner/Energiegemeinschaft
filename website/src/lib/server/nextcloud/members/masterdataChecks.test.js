@@ -10,7 +10,7 @@
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkMasterdata, describeMeterPointFinding, describeTransfer, endDateFromCell } from './masterdataChecks.js';
+import { checkMasterdata, currentOwnerRows, describeMeterPointFinding, describeTransfer, endDateFromCell } from './masterdataChecks.js';
 
 const ZP_A = 'AT0030000000000000000000030000001';
 const ZP_B = 'AT0030000000000000000000030000002';
@@ -239,5 +239,36 @@ describe('endDateFromCell', () => {
         assert.equal(endDateFromCell('2026-08-13'), '2026-08-13');
         assert.equal(endDateFromCell(new Date(2025, 6, 17)), '2025-07-17');
         assert.equal(endDateFromCell(45855), '2025-07-17'); // Excel-Serial
+    });
+});
+
+
+describe('currentOwnerRows', () => {
+    const oldOwner = { 'Mit. Nr.': 302, 'Zählpunkt': ZP_A, 'ZP-Status': 'INACTIVE', aktiviert: '2025-12-24', deaktiviert: '2026-08-13' };
+    const newOwner = { 'Mit. Nr.': 34, 'Zählpunkt': ZP_A, 'ZP-Status': 'ACTIVE', aktiviert: '2026-11-05', deaktiviert: '2999-12-31' };
+    const other = { 'Mit. Nr.': 7, 'Zählpunkt': ZP_B, 'ZP-Status': 'ACTIVE', aktiviert: '2024-01-01', deaktiviert: '2999-12-31' };
+
+    test('Besitzwechsel zu einer niedrigeren Mitgliedsnummer: der neue Besitzer zaehlt, egal in welcher Reihenfolge', () => {
+        assert.deepEqual(currentOwnerRows([newOwner, other, oldOwner]), [newOwner, other]);
+        assert.deepEqual(currentOwnerRows([oldOwner, other, newOwner]), [other, newOwner]);
+    });
+
+    test('ohne ACTIVE-Zeile zaehlt die juengste Aktivierung, dann das offene Ende', () => {
+        const earlier = { ...oldOwner, aktiviert: '2024-06-06', deaktiviert: '2025-07-17' };
+        assert.deepEqual(currentOwnerRows([oldOwner, earlier]), [oldOwner]);
+        const open = { ...oldOwner, 'Mit. Nr.': 5, deaktiviert: '' };
+        assert.deepEqual(currentOwnerRows([open, oldOwner]), [open]);
+    });
+
+    test('gleichwertige Zeilen: die spaetere; Zeilen ohne Zaehlpunkt entfallen', () => {
+        const twin = { ...oldOwner, 'Mit. Nr.': 9 };
+        const noPoint = { 'Mit. Nr.': 11, 'ZP-Status': '' };
+        assert.deepEqual(currentOwnerRows([oldOwner, noPoint, twin]), [twin]);
+    });
+
+    test('Datumszellen als Excel-Serial und Date', () => {
+        const serialOld = { ...oldOwner, 'ZP-Status': 'INACTIVE', aktiviert: 45451, deaktiviert: 45855 };
+        const dateNew = { ...newOwner, 'ZP-Status': 'INACTIVE', aktiviert: new Date(2025, 6, 23), deaktiviert: 401768 };
+        assert.deepEqual(currentOwnerRows([dateNew, serialOld]), [dateNew]);
     });
 });

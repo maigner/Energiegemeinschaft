@@ -2,7 +2,7 @@ import { nextcloudClient } from "../client";
 import * as XLSX from "xlsx";
 import { middlewareDbConnection } from "$lib/server/db/db";
 import { findMemberNumberConflicts, describeConflict } from "./masterdataConflicts.js";
-import { checkMasterdata, describeMeterPointFinding, describeTransfer, endDateFromCell } from "./masterdataChecks.js";
+import { checkMasterdata, currentOwnerRows, describeMeterPointFinding, describeTransfer, endDateFromCell } from "./masterdataChecks.js";
 import { cellToIsoDate } from "../../podlist/sheet.js";
 
 /**
@@ -102,8 +102,12 @@ export const importMemberDataFromNextcloud = async () => {
     // import member data
     const messages = await upsertMembersFromSpreadsheet(importable);
 
-    // import meter point data
-    const measurementPointMessages = await upsertMeasurementPointsFromSpreadsheet(importable);
+    // import meter point data: je Zaehlpunkt nur die Zeile des aktuellen
+    // Besitzers (Besitzwechsel = mehrere Zeilen). Die Auswahl laeuft ueber
+    // alle Zeilen: ist der aktuelle Besitzer blockiert, bleibt der Zaehlpunkt
+    // unberuehrt, statt an den frueheren Besitzer zurueckzufallen.
+    const meterRows = currentOwnerRows(rows).filter((row) => !blocked.has(Number(row["Mit. Nr."])));
+    const measurementPointMessages = await upsertMeasurementPointsFromSpreadsheet(meterRows);
 
     return {
         file: { name: latest.basename, lastmod: latest.lastmod },
