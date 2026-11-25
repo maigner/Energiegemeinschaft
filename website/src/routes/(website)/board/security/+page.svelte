@@ -195,7 +195,10 @@
         map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
         const m = map;
 
-        m.on("load", () => {
+        // style.load statt load: load wartet auf jede Kachel im Ausschnitt,
+        // eine einzige haengende Kachelanfrage liesse die Karte sonst ohne
+        // Kreise stehen. Die Sperren brauchen nur den geladenen Stil.
+        m.once("style.load", () => {
             m.addSource("bans", {
                 type: "geojson",
                 data: geojson,
