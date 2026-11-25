@@ -79,7 +79,10 @@ Zählpunkt nach `members_measurementpoint` (`status`, `type`, `activated_at`,
 `deactivated_at`). Legt nichts an: E-Mail, Adresse und Tarif liefert die
 API nicht, neue Mitglieder kommen weiter über das Masterdata-Sheet (Import
 auf `/board/members`). Unbekannte Zählpunkte, bei EEG-Faktura umgezogene
-und bei uns aktive, die die API nicht kennt, stehen im Log. Auf s1 täglich
+und bei uns aktive, die die API nicht kennt, stehen im Log. Mitgliedsnummern
+werden als Zahl verglichen (`006` = `6`); ein Zählpunkt, der nach einem
+Besitzerwechsel bei zwei Teilnehmern steht, gilt nicht als umgezogen, es
+zählt der Eintrag des Mitglieds aus der DB. Auf s1 täglich
 04:40 (`eegfaktura-masterdata.timer`), `--dry-run` vergleicht nur.
 
 Täglich läuft das auf s1 um 05:00 (`scripts/eegfaktura-import/`, Log

@@ -2,7 +2,7 @@
 """Stammdaten der Zählpunkte täglich von EEG-Faktura holen.
 
 Das Backend liefert unter `GET /api/master/masterdata` (Basic-Auth wie der
-Energystore, aber Standard-Base64; Header `X-Tenant`) je Teilnehmer die
+Energystore; Header `X-Tenant`) je Teilnehmer die
 Zählpunkte mit Status, Richtung und Aktivierungsfenster (`activeSince`,
 `inactiveSince`). Diese Werte landen in `members_measurementpoint`
 (`status`, `type`, `activated_at`, `deactivated_at`), damit die
@@ -12,7 +12,9 @@ mit aktuellen Fenstern rechnet.
 Was die API nicht liefert: E-Mail, Adresse, Tarifname. Neue Mitglieder und
 Tarife kommen deshalb weiter über das Masterdata-Sheet (Nextcloud, Import
 auf /board/members); dieses Skript legt nichts an und löscht nichts, es
-aktualisiert nur bekannte Zählpunkte und meldet unbekannte.
+aktualisiert nur bekannte Zählpunkte und meldet unbekannte. Nach einem
+Besitzerwechsel steht ein Zählpunkt bei zwei Teilnehmern; dann zählt der
+Eintrag des Mitglieds, bei dem er in der DB liegt (`pick_window`).
 
 Ein Keycloak-Passwort-Grant für den Excel-Export ist nicht möglich (der
 Client `at.ourproject.vfeeg.app` erlaubt keine Direct Access Grants, Stand
@@ -120,6 +122,16 @@ def windows_from_payload(payload: list) -> list[MeterWindow]:
     return windows
 
 
+def pick_window(entries: list[MeterWindow], db_member) -> MeterWindow:
+    """Nach einem Besitzerwechsel führt EEG-Faktura einen Zählpunkt bei
+    beiden Mitgliedern (alt INACTIVE mit Ende, neu ACTIVE). Maßgeblich ist
+    der Eintrag des Mitglieds, bei dem der Zählpunkt in der DB steht; gibt es
+    den nicht, der aktive, sonst der mit dem jüngsten Beginn."""
+    own = [w for w in entries if member_key(w.participant_number) == member_key(db_member)]
+    candidates = own or entries
+    return max(candidates, key=lambda w: (w.status == "ACTIVE", w.activated or date.min))
+
+
 def apply_windows(conn, windows: list[MeterWindow], dry_run: bool) -> dict:
     """Bekannte Zählpunkte aktualisieren; unbekannte und bei uns aktive, die
     die API nicht kennt, nur melden."""
@@ -132,11 +144,15 @@ def apply_windows(conn, windows: list[MeterWindow], dry_run: bool) -> dict:
     changed: list[str] = []
     moved: list[str] = []
     unknown: list[str] = []
+    by_identifier: dict[str, list[MeterWindow]] = {}
     for w in windows:
-        row = db.get(w.identifier)
+        by_identifier.setdefault(w.identifier, []).append(w)
+    for identifier, entries in by_identifier.items():
+        row = db.get(identifier)
         if row is None:
-            unknown.append(w.identifier)
+            unknown.append(identifier)
             continue
+        w = pick_window(entries, row[5])
         if member_key(row[5]) != member_key(w.participant_number):
             moved.append(f"{w.identifier} (DB Mitglied {row[5]}, EEG-Faktura {w.participant_number})")
         if (row[1], row[2], row[3], row[4]) != (w.status, w.direction, w.activated, w.deactivated):
